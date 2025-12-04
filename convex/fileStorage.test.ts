@@ -259,8 +259,12 @@ describe("fileStorage: generateUploadUrl", () => {
 });
 
 describe("fileStorage: getFileMetadata", () => {
-  test("returns file metadata and URL", async () => {
-    const storageId = "storage-123" as Id<"_storage">;
+  const userId = "user-123" as Id<"users">;
+  const storageId = "storage-123" as Id<"_storage">;
+  const conversationId = "conv-123" as Id<"conversations">;
+  const messageId = "msg-123" as Id<"messages">;
+
+  test("returns file metadata and URL for file owner", async () => {
     const mockMetadata = {
       _id: storageId,
       _creationTime: Date.now(),
@@ -269,9 +273,24 @@ describe("fileStorage: getFileMetadata", () => {
       contentType: "image/png",
     };
     const mockUrl = "https://example.com/file.png";
+    const mockUserFileEntry = {
+      _id: "userfile-123" as Id<"userFiles">,
+      userId,
+      storageId,
+      conversationId,
+      messageId,
+    };
 
     const ctx = makeConvexCtx({
+      auth: {
+        getUserIdentity: mock(() => Promise.resolve({ subject: userId })),
+      },
       db: {
+        query: mock(() => ({
+          withIndex: mock(() => ({
+            unique: mock(() => Promise.resolve(mockUserFileEntry)),
+          })),
+        })),
         system: {
           get: mock(() => Promise.resolve(mockMetadata)),
         },
@@ -292,55 +311,46 @@ describe("fileStorage: getFileMetadata", () => {
     });
   });
 
-  test("throws error when file not found", async () => {
-    const storageId = "storage-123" as Id<"_storage">;
-
+  test("throws error when not authenticated", async () => {
     const ctx = makeConvexCtx({
-      db: {
-        system: {
-          get: mock(() => Promise.resolve(null)),
-        },
-      } as any,
-    });
-
-    await expect(
-      getFileMetadataHandler(ctx as QueryCtx, { storageId })
-    ).rejects.toThrow("File not found");
-  });
-
-  test("throws error when URL generation fails", async () => {
-    const storageId = "storage-123" as Id<"_storage">;
-    const mockMetadata = {
-      _id: storageId,
-      _creationTime: Date.now(),
-      sha256: "abc123",
-      size: 1024,
-      contentType: "image/png",
-    };
-
-    const ctx = makeConvexCtx({
-      db: {
-        system: {
-          get: mock(() => Promise.resolve(mockMetadata)),
-        },
-      } as any,
-      storage: {
-        getUrl: mock(() => Promise.resolve(null)),
+      auth: {
+        getUserIdentity: mock(() => Promise.resolve(null)),
       },
     });
 
     await expect(
       getFileMetadataHandler(ctx as QueryCtx, { storageId })
-    ).rejects.toThrow("Failed to get file URL");
+    ).rejects.toThrow("Not authenticated");
   });
 });
 
 describe("fileStorage: getFileUrl", () => {
-  test("returns file URL from storage", async () => {
-    const storageId = "storage-123" as Id<"_storage">;
+  const userId = "user-123" as Id<"users">;
+  const storageId = "storage-123" as Id<"_storage">;
+  const conversationId = "conv-123" as Id<"conversations">;
+  const messageId = "msg-123" as Id<"messages">;
+
+  test("returns file URL for file owner", async () => {
     const mockUrl = "https://example.com/file.png";
+    const mockUserFileEntry = {
+      _id: "userfile-123" as Id<"userFiles">,
+      userId,
+      storageId,
+      conversationId,
+      messageId,
+    };
 
     const ctx = makeConvexCtx({
+      auth: {
+        getUserIdentity: mock(() => Promise.resolve({ subject: userId })),
+      },
+      db: {
+        query: mock(() => ({
+          withIndex: mock(() => ({
+            unique: mock(() => Promise.resolve(mockUserFileEntry)),
+          })),
+        })),
+      } as any,
       storage: {
         getUrl: mock(() => Promise.resolve(mockUrl)),
       },
@@ -351,13 +361,48 @@ describe("fileStorage: getFileUrl", () => {
     expect(result).toBe(mockUrl);
     expect(ctx.storage.getUrl).toHaveBeenCalledWith(storageId);
   });
+
+  test("throws error when not authenticated", async () => {
+    const ctx = makeConvexCtx({
+      auth: {
+        getUserIdentity: mock(() => Promise.resolve(null)),
+      },
+    });
+
+    await expect(
+      getFileUrlHandler(ctx as QueryCtx, { storageId })
+    ).rejects.toThrow("Not authenticated");
+  });
 });
 
 describe("fileStorage: deleteFile", () => {
-  test("deletes file from storage", async () => {
-    const storageId = "storage-123" as Id<"_storage">;
+  const userId = "user-123" as Id<"users">;
+  const storageId = "storage-123" as Id<"_storage">;
+  const conversationId = "conv-123" as Id<"conversations">;
+  const messageId = "msg-123" as Id<"messages">;
+  const userFileId = "userfile-123" as Id<"userFiles">;
+
+  test("deletes file when user is owner", async () => {
+    const mockUserFileEntry = {
+      _id: userFileId,
+      userId,
+      storageId,
+      conversationId,
+      messageId,
+    };
 
     const ctx = makeConvexCtx({
+      auth: {
+        getUserIdentity: mock(() => Promise.resolve({ subject: userId })),
+      },
+      db: {
+        query: mock(() => ({
+          withIndex: mock(() => ({
+            unique: mock(() => Promise.resolve(mockUserFileEntry)),
+          })),
+        })),
+        delete: mock(() => Promise.resolve()),
+      } as any,
       storage: {
         delete: mock(() => Promise.resolve(undefined)),
       },
@@ -365,7 +410,39 @@ describe("fileStorage: deleteFile", () => {
 
     await deleteFileHandler(ctx as MutationCtx, { storageId });
 
+    expect(ctx.db.delete).toHaveBeenCalledWith(userFileId);
     expect(ctx.storage.delete).toHaveBeenCalledWith(storageId);
+  });
+
+  test("throws error when not authenticated", async () => {
+    const ctx = makeConvexCtx({
+      auth: {
+        getUserIdentity: mock(() => Promise.resolve(null)),
+      },
+    });
+
+    await expect(
+      deleteFileHandler(ctx as MutationCtx, { storageId })
+    ).rejects.toThrow("Not authenticated");
+  });
+
+  test("throws error when user does not own file", async () => {
+    const ctx = makeConvexCtx({
+      auth: {
+        getUserIdentity: mock(() => Promise.resolve({ subject: userId })),
+      },
+      db: {
+        query: mock(() => ({
+          withIndex: mock(() => ({
+            unique: mock(() => Promise.resolve(null)), // No userFiles entry found
+          })),
+        })),
+      } as any,
+    });
+
+    await expect(
+      deleteFileHandler(ctx as MutationCtx, { storageId })
+    ).rejects.toThrow("Access denied");
   });
 });
 

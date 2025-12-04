@@ -328,6 +328,23 @@ export function validateUserMessageLength(content: string) {
 }
 
 /**
+ * Maximum allowed conversation title length
+ */
+const MAX_TITLE_LENGTH = 500;
+
+/**
+ * Validate conversation title length
+ * @throws ConvexError if title exceeds max length
+ */
+export function validateTitleLength(title: string | undefined | null): void {
+  if (title && title.length > MAX_TITLE_LENGTH) {
+    throw new ConvexError(
+      `Title is too long (${title.length} characters). Maximum allowed is ${MAX_TITLE_LENGTH}.`,
+    );
+  }
+}
+
+/**
  * Shared streaming utilities
  */
 

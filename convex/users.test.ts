@@ -39,23 +39,23 @@ describe("convex: users", () => {
     }
   });
 
-  test("patch updates user fields", async () => {
+  test("internalPatch updates user fields (internal only)", async () => {
     const t = await createConvexTestInstance();
     if (!t) {
       return;
     }
 
     try {
-      const { api } = await import("@convex/_generated/api");
+      const { api, internal } = await import("@convex/_generated/api");
 
       const id = await t.mutation(api.users.createAnonymous, {});
-      await t.mutation(api.users.patch, {
+      // Note: internalPatch is only accessible via internal API, not exposed to clients
+      await t.mutation(internal.users.internalPatch, {
         id,
-        updates: { name: "Test User", hasUnlimitedCalls: true },
+        updates: { name: "Test User" },
       });
       const user = await t.query(api.users.getById, { id });
       expect(user?.name).toBe("Test User");
-      expect(user?.hasUnlimitedCalls).toBe(true);
     } catch (error: unknown) {
       if (
         error instanceof Error &&

@@ -53,13 +53,13 @@ async function handleGetSharedConversation(
     .first();
 }
 
-// Generate a random share ID
-
+// Generate a cryptographically secure random share ID
 function generateShareId(): string {
-  return (
-    Math.random().toString(36).substring(2, 15) +
-    Math.random().toString(36).substring(2, 15)
-  );
+  // Use crypto.getRandomValues() for cryptographically secure randomness
+  // This generates a 32-character hex string (128 bits of entropy)
+  const array = new Uint8Array(16);
+  crypto.getRandomValues(array);
+  return Array.from(array, b => b.toString(16).padStart(2, "0")).join("");
 }
 
 // Share a conversation

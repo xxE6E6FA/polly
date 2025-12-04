@@ -206,7 +206,11 @@ export const getById = query({
   handler: (ctx, args) => handleGetUserById(ctx, args.id),
 });
 
-export const patch = mutation({
+/**
+ * Internal mutation for system operations only.
+ * This is NOT exposed to clients - use updateProfile for user-facing updates.
+ */
+export const internalPatch = internalMutation({
   args: {
     id: v.id("users"),
     updates: v.any(),

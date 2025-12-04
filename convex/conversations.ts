@@ -1,5 +1,5 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import {
   DEFAULT_BUILTIN_MODEL_ID,
   MESSAGE_BATCH_SIZE,
@@ -69,6 +69,7 @@ import {
   validateConversationAccess,
   validateMonthlyMessageLimit,
   validateMonthlyMessageLimitForAction,
+  validateTitleLength,
   validateUserMessageLength,
 } from "./lib/shared_utils";
 import { isConversationStreaming } from "./lib/streaming_utils";
@@ -105,6 +106,9 @@ export async function createConversationHandler(
     presencePenalty?: number;
   }
 ) {
+  // Validate title length if provided
+  validateTitleLength(args.title);
+
   const [user, fullModel] = await Promise.all([
     validateAuthenticatedUser(ctx),
     getUserEffectiveModelWithCapabilities(ctx, args.model, args.provider),
@@ -1257,6 +1261,11 @@ export async function patchHandler(
 ) {
   // Check access to the conversation (no shared access for mutations)
   await validateConversationAccess(ctx, args.id, false);
+
+  // Validate title length if title is being updated
+  if ("title" in args.updates && typeof args.updates.title === "string") {
+    validateTitleLength(args.updates.title);
+  }
 
   const patch: Record<string, unknown> = { ...args.updates };
   if (args.setUpdatedAt) {

@@ -2,6 +2,134 @@ import { type Infer, v } from "convex/values";
 import Exa from "exa-js";
 import type { WebSource } from "../types";
 
+/**
+ * SSRF Protection: Blocked domains and IP ranges
+ * Prevents Server-Side Request Forgery attacks by blocking internal/private addresses
+ */
+const BLOCKED_HOSTNAMES = new Set([
+  "localhost",
+  "127.0.0.1",
+  "0.0.0.0",
+  "::1",
+  "[::1]",
+  "metadata.google.internal", // GCP metadata
+  "169.254.169.254", // AWS/GCP/Azure metadata endpoint
+  "metadata.google",
+  "kubernetes.default.svc",
+]);
+
+/**
+ * Check if an IP address is in a private/internal range
+ * RFC 1918 private ranges: 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16
+ * Plus link-local, loopback, and other reserved ranges
+ */
+function isPrivateOrReservedIP(hostname: string): boolean {
+  // Remove brackets from IPv6
+  const cleanHost = hostname.replace(/^\[|\]$/g, "");
+
+  // Check IPv4 patterns
+  const ipv4Match = cleanHost.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (ipv4Match) {
+    const [, a, b, c, d] = ipv4Match.map(Number);
+    if (a === undefined || b === undefined || c === undefined || d === undefined) {
+      return false;
+    }
+
+    // Loopback: 127.0.0.0/8
+    if (a === 127) return true;
+
+    // Private: 10.0.0.0/8
+    if (a === 10) return true;
+
+    // Private: 172.16.0.0/12 (172.16.0.0 - 172.31.255.255)
+    if (a === 172 && b >= 16 && b <= 31) return true;
+
+    // Private: 192.168.0.0/16
+    if (a === 192 && b === 168) return true;
+
+    // Link-local: 169.254.0.0/16
+    if (a === 169 && b === 254) return true;
+
+    // Broadcast: 255.255.255.255
+    if (a === 255 && b === 255 && c === 255 && d === 255) return true;
+
+    // Zero address
+    if (a === 0 && b === 0 && c === 0 && d === 0) return true;
+  }
+
+  // Check for IPv6 private/reserved patterns
+  const ipv6Lower = cleanHost.toLowerCase();
+  if (
+    ipv6Lower.startsWith("fe80:") || // Link-local
+    ipv6Lower.startsWith("fc") || // Unique local (fc00::/7)
+    ipv6Lower.startsWith("fd") || // Unique local (fc00::/7)
+    ipv6Lower === "::1" || // Loopback
+    ipv6Lower === "::" // Unspecified
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Check if a URL is safe to fetch (not pointing to internal/private resources)
+ * @returns true if URL is safe, false if blocked
+ */
+function isUrlSafeToFetch(urlString: string): boolean {
+  try {
+    const url = new URL(urlString);
+    const hostname = url.hostname.toLowerCase();
+
+    // Check against blocked hostnames
+    if (BLOCKED_HOSTNAMES.has(hostname)) {
+      console.warn(`[SSRF Protection] Blocked hostname: ${hostname}`);
+      return false;
+    }
+
+    // Check for private/reserved IP addresses
+    if (isPrivateOrReservedIP(hostname)) {
+      console.warn(`[SSRF Protection] Blocked private/reserved IP: ${hostname}`);
+      return false;
+    }
+
+    // Block URLs with credentials (potential abuse vector)
+    if (url.username || url.password) {
+      console.warn(`[SSRF Protection] Blocked URL with credentials`);
+      return false;
+    }
+
+    // Block non-HTTP(S) protocols
+    if (url.protocol !== "http:" && url.protocol !== "https:") {
+      console.warn(`[SSRF Protection] Blocked non-HTTP protocol: ${url.protocol}`);
+      return false;
+    }
+
+    // Block common internal/infrastructure domains
+    const blockedPatterns = [
+      /\.internal$/i,
+      /\.local$/i,
+      /\.localhost$/i,
+      /\.localdomain$/i,
+      /^consul\./i,
+      /^vault\./i,
+      /^etcd\./i,
+    ];
+
+    for (const pattern of blockedPatterns) {
+      if (pattern.test(hostname)) {
+        console.warn(`[SSRF Protection] Blocked internal domain pattern: ${hostname}`);
+        return false;
+      }
+    }
+
+    return true;
+  } catch {
+    // If URL parsing fails, it's not safe
+    return false;
+  }
+}
+
 // URL detection patterns - comprehensive coverage
 const URL_PATTERNS = {
   // Standard URLs with protocol
@@ -44,21 +172,25 @@ export interface UrlProcessingResult {
 
 /**
  * Extract URLs from message content using multiple patterns
+ * Filters out unsafe URLs (internal/private addresses) for SSRF protection
  */
 export function extractUrlsFromMessage(content: string): string[] {
   const urls = new Set<string>();
-  
+
   // Extract from all patterns
   Object.values(URL_PATTERNS).forEach(pattern => {
     const matches = content.match(pattern);
     if (matches) {
       matches.forEach(url => {
         const normalized = normalizeUrl(url);
-        if (normalized) urls.add(normalized);
+        // Only add URLs that pass SSRF safety check
+        if (normalized && isUrlSafeToFetch(normalized)) {
+          urls.add(normalized);
+        }
       });
     }
   });
-  
+
   return Array.from(urls);
 }
 
@@ -106,6 +238,13 @@ export async function fetchUrlContents(
     
     // Process each URL individually using available Exa methods
     for (const url of args.urls) {
+      // Defense-in-depth: Double-check URL safety before fetching
+      if (!isUrlSafeToFetch(url)) {
+        console.warn(`[SSRF Protection] Skipping unsafe URL in fetchUrlContents: ${url}`);
+        failedUrls.push(url);
+        continue;
+      }
+
       try {
         // Try to get content using findSimilarAndContents first (works for existing URLs)
         const similarResults = await exa.findSimilarAndContents(url, {

@@ -23,11 +23,32 @@ export const CACHE_KEYS = {
 
 export type CacheKey = (typeof CACHE_KEYS)[keyof typeof CACHE_KEYS];
 
+// Keys that should never be written in private mode (sensitive data)
+const PRIVATE_MODE_BLOCKED_KEYS = new Set<CacheKey>([
+  CACHE_KEYS.conversations,
+  CACHE_KEYS.userData,
+  CACHE_KEYS.apiKeys,
+  CACHE_KEYS.userModels,
+  CACHE_KEYS.selectedModel,
+  CACHE_KEYS.recentModels,
+]);
+
 const PERSISTENT_KEYS = new Set<CacheKey>([
   CACHE_KEYS.sidebar,
   CACHE_KEYS.theme,
   CACHE_KEYS.zenDisplayPreferences,
 ]);
+
+// Import dynamically to avoid circular dependency
+let isPrivateModeEnabled: () => boolean = () => false;
+
+/**
+ * Set the private mode check function
+ * Called during app initialization to wire up the dependency
+ */
+export function setPrivateModeChecker(checker: () => boolean): void {
+  isPrivateModeEnabled = checker;
+}
 
 export function buildKey(key: CacheKey): string {
   return `${KEY_PREFIX}${key}/v${LOCAL_STORAGE_VERSION}`;
@@ -65,6 +86,11 @@ export function get<T>(key: CacheKey, fallback: T): T {
 }
 
 export function set<T>(key: CacheKey, value: T): void {
+  // Skip writing sensitive keys when private mode is enabled
+  if (isPrivateModeEnabled() && PRIVATE_MODE_BLOCKED_KEYS.has(key)) {
+    return;
+  }
+
   const namespaced = buildKey(key);
   try {
     const versionedData = {

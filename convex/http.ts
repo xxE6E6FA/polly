@@ -90,6 +90,62 @@ http.route({
 
 // Removed LLM→TTS WebSocket pipeline in favor of server HTTP streaming
 
+/**
+ * Verify Replicate webhook signature using HMAC-SHA256
+ * @param body - Raw request body
+ * @param signature - Signature from Replicate-Signature header (format: "sha256=<hash>")
+ * @returns true if signature is valid, false otherwise
+ */
+async function verifyReplicateSignature(
+  body: string,
+  signature: string
+): Promise<boolean> {
+  const secret = process.env.REPLICATE_WEBHOOK_SECRET;
+  if (!secret) {
+    // If no secret is configured, log warning and allow (fail open for backward compatibility)
+    console.warn(
+      "[Replicate Webhook] REPLICATE_WEBHOOK_SECRET not configured - skipping signature verification"
+    );
+    return true;
+  }
+
+  // Parse signature header (format: "sha256=<hex_hash>")
+  const parts = signature.split("=");
+  const expectedHash = parts[1];
+  if (parts.length !== 2 || parts[0] !== "sha256" || !expectedHash) {
+    console.error("[Replicate Webhook] Invalid signature format");
+    return false;
+  }
+
+  // Compute HMAC-SHA256
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+  const signatureBytes = await crypto.subtle.sign(
+    "HMAC",
+    key,
+    encoder.encode(body)
+  );
+  const computedHash = Array.from(new Uint8Array(signatureBytes))
+    .map(b => b.toString(16).padStart(2, "0"))
+    .join("");
+
+  // Constant-time comparison to prevent timing attacks
+  if (computedHash.length !== expectedHash.length) {
+    return false;
+  }
+  let result = 0;
+  for (let i = 0; i < computedHash.length; i++) {
+    result |= computedHash.charCodeAt(i) ^ expectedHash.charCodeAt(i);
+  }
+  return result === 0;
+}
+
 // Replicate webhook handler following API specification
 const replicateWebhook = httpAction(async (ctx, request): Promise<Response> => {
   try {
@@ -98,6 +154,22 @@ const replicateWebhook = httpAction(async (ctx, request): Promise<Response> => {
     // Validate request has a body
     if (!rawBody) {
       return new Response("Bad Request", { status: 400 });
+    }
+
+    // Verify webhook signature for security
+    const signature = request.headers.get("replicate-signature");
+    if (signature) {
+      const isValid = await verifyReplicateSignature(rawBody, signature);
+      if (!isValid) {
+        console.error("[Replicate Webhook] Invalid signature");
+        return new Response("Unauthorized", { status: 401 });
+      }
+    } else if (process.env.REPLICATE_WEBHOOK_SECRET) {
+      // If secret is configured but no signature provided, reject
+      console.error(
+        "[Replicate Webhook] Missing signature when secret is configured"
+      );
+      return new Response("Unauthorized", { status: 401 });
     }
 
     let body: Partial<Prediction> & {
@@ -117,13 +189,6 @@ const replicateWebhook = httpAction(async (ctx, request): Promise<Response> => {
 
     if (!body.status) {
       return new Response("Bad Request", { status: 400 });
-    }
-
-    // Verify webhook signature for security (recommended in production)
-    const signature = request.headers.get("replicate-signature");
-    if (signature) {
-      // Note: Full signature verification would require crypto module
-      // This is a security enhancement for production environments
     }
 
     // Validate status is a known value

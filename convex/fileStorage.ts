@@ -18,6 +18,59 @@ type FileTypeFilter = "image" | "pdf" | "text" | "all";
 
 type MessageAttachment = NonNullable<Doc<"messages">["attachments"]>[number];
 
+// File upload security constants
+const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+const ALLOWED_MIME_TYPES = new Set([
+  // Images
+  "image/jpeg",
+  "image/png",
+  "image/gif",
+  "image/webp",
+  "image/svg+xml",
+  // Documents
+  "application/pdf",
+  "text/plain",
+  "text/markdown",
+  "text/csv",
+  // Code files
+  "text/javascript",
+  "text/typescript",
+  "application/json",
+  "text/html",
+  "text/css",
+]);
+
+/**
+ * Validate file upload security constraints
+ * @throws ConvexError if validation fails
+ */
+function validateFileUpload(
+  size: number,
+  mimeType: string | undefined,
+  name: string
+): void {
+  // Validate file size
+  if (size > MAX_FILE_SIZE) {
+    throw new ConvexError(
+      `File "${name}" exceeds maximum size of ${MAX_FILE_SIZE / (1024 * 1024)}MB`
+    );
+  }
+
+  // Validate MIME type if provided
+  if (mimeType && !ALLOWED_MIME_TYPES.has(mimeType)) {
+    // Allow unknown MIME types but log a warning
+    // This prevents blocking legitimate files while still tracking suspicious uploads
+    console.warn(
+      `[File Upload] Unrecognized MIME type "${mimeType}" for file "${name}"`
+    );
+  }
+
+  // Basic filename validation to prevent path traversal
+  if (name.includes("..") || name.includes("/") || name.includes("\\")) {
+    throw new ConvexError("Invalid filename");
+  }
+}
+
 type _AttachmentCandidate = {
   storageId: Id<"_storage"> | null;
   attachment: MessageAttachment;
@@ -88,6 +141,9 @@ export async function createUserFileEntriesHandler(
 
   for (const attachment of args.attachments) {
     try {
+      // Validate file upload security constraints
+      validateFileUpload(attachment.size, attachment.mimeType, attachment.name);
+
       // Only create entries for attachments with storageId
       if (!attachment.storageId) {
         continue;
@@ -171,21 +227,62 @@ export const generateUploadUrl = mutation({
 /**
  * Get file metadata and URL from storage ID
  * Convex automatically stores metadata in the "_storage" system table
+ * Requires authentication and verifies file ownership or conversation access
  */
 export async function getFileMetadataHandler(
   ctx: QueryCtx,
   args: { storageId: Id<"_storage"> }
 ) {
+  const userId = await getAuthUserId(ctx);
+  if (!userId) {
+    throw new ConvexError("Not authenticated");
+  }
+
+  // Verify user owns this file via userFiles table
+  const userFileEntry = await ctx.db
+    .query("userFiles")
+    .withIndex("by_storage_id", q =>
+      q.eq("userId", userId).eq("storageId", args.storageId)
+    )
+    .unique();
+
+  // If user doesn't own the file directly, check conversation access
+  if (!userFileEntry) {
+    // Try to find the file in any conversation the user can access
+    const allUserFileEntries = await ctx.db
+      .query("userFiles")
+      .withIndex("by_message")
+      .filter(q => q.eq(q.field("storageId"), args.storageId))
+      .collect();
+
+    let hasAccess = false;
+    for (const entry of allUserFileEntries) {
+      const { hasAccess: conversationAccess } = await checkConversationAccess(
+        ctx,
+        entry.conversationId,
+        true // allowShared
+      );
+      if (conversationAccess) {
+        hasAccess = true;
+        break;
+      }
+    }
+
+    if (!hasAccess) {
+      throw new ConvexError("Access denied");
+    }
+  }
+
   // Get file metadata from system table
   const metadata = await ctx.db.system.get(args.storageId);
   if (!metadata) {
-    throw new Error("File not found");
+    throw new ConvexError("File not found");
   }
 
   // Get file URL
   const fileUrl = await ctx.storage.getUrl(args.storageId);
   if (!fileUrl) {
-    throw new Error("Failed to get file URL");
+    throw new ConvexError("Failed to get file URL");
   }
 
   return {
@@ -204,11 +301,52 @@ export const getFileMetadata = query({
 
 /**
  * Get a file URL from storage ID
+ * Requires authentication and verifies file ownership or conversation access
  */
 export async function getFileUrlHandler(
   ctx: QueryCtx,
   args: { storageId: Id<"_storage"> }
 ) {
+  const userId = await getAuthUserId(ctx);
+  if (!userId) {
+    throw new ConvexError("Not authenticated");
+  }
+
+  // Verify user owns this file via userFiles table
+  const userFileEntry = await ctx.db
+    .query("userFiles")
+    .withIndex("by_storage_id", q =>
+      q.eq("userId", userId).eq("storageId", args.storageId)
+    )
+    .unique();
+
+  // If user doesn't own the file directly, check conversation access
+  if (!userFileEntry) {
+    // Try to find the file in any conversation the user can access
+    const allUserFileEntries = await ctx.db
+      .query("userFiles")
+      .withIndex("by_message")
+      .filter(q => q.eq(q.field("storageId"), args.storageId))
+      .collect();
+
+    let hasAccess = false;
+    for (const entry of allUserFileEntries) {
+      const { hasAccess: conversationAccess } = await checkConversationAccess(
+        ctx,
+        entry.conversationId,
+        true // allowShared
+      );
+      if (conversationAccess) {
+        hasAccess = true;
+        break;
+      }
+    }
+
+    if (!hasAccess) {
+      throw new ConvexError("Access denied");
+    }
+  }
+
   return await ctx.storage.getUrl(args.storageId);
 }
 
@@ -219,11 +357,34 @@ export const getFileUrl = query({
 
 /**
  * Delete a file from storage
+ * Requires authentication and verifies file ownership (only owner can delete)
  */
 export async function deleteFileHandler(
   ctx: MutationCtx,
   args: { storageId: Id<"_storage"> }
 ) {
+  const userId = await getAuthUserId(ctx);
+  if (!userId) {
+    throw new ConvexError("Not authenticated");
+  }
+
+  // Verify user owns this file via userFiles table
+  const userFileEntry = await ctx.db
+    .query("userFiles")
+    .withIndex("by_storage_id", q =>
+      q.eq("userId", userId).eq("storageId", args.storageId)
+    )
+    .unique();
+
+  // Only the owner can delete files
+  if (!userFileEntry || userFileEntry.userId !== userId) {
+    throw new ConvexError("Access denied - only file owner can delete");
+  }
+
+  // Delete the userFiles entry
+  await ctx.db.delete(userFileEntry._id);
+
+  // Delete from storage
   await ctx.storage.delete(args.storageId);
 }
 
