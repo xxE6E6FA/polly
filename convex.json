@@ -1,7 +1,5 @@
 {
-  "schema": "./convex/schema.ts",
   "node": {
-    "version": "20",
     "externalPackages": [
       "@node-rs/argon2",
       "@node-rs/bcrypt",
@@ -10,6 +8,8 @@
       "@ai-sdk/google",
       "@ai-sdk/openai",
       "@openrouter/ai-sdk-provider"
-    ]
-  }
+    ],
+    "version": "20"
+  },
+  "schema": "./convex/schema.ts"
 }

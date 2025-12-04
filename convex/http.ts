@@ -102,11 +102,11 @@ async function verifyReplicateSignature(
 ): Promise<boolean> {
   const secret = process.env.REPLICATE_WEBHOOK_SECRET;
   if (!secret) {
-    // If no secret is configured, log warning and allow (fail open for backward compatibility)
-    console.warn(
-      "[Replicate Webhook] REPLICATE_WEBHOOK_SECRET not configured - skipping signature verification"
+    // Security: fail-closed when secret is not configured
+    console.error(
+      "[Replicate Webhook] REPLICATE_WEBHOOK_SECRET not configured - rejecting webhook"
     );
-    return true;
+    return false;
   }
 
   // Parse signature header (format: "sha256=<hex_hash>")

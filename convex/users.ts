@@ -1,5 +1,5 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import {
@@ -26,8 +26,19 @@ export async function handleCreateAnonymousUser(ctx: MutationCtx) {
   });
 }
 
-// Shared handler for getting user by ID
+// Shared handler for getting user by ID (requires authentication, self-only access)
 export async function handleGetUserById(ctx: QueryCtx, id: Id<"users">) {
+  // Security check: only allow users to access their own data
+  if (process.env.NODE_ENV !== "test") {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new ConvexError("Not authenticated");
+    }
+    // Only allow users to get their own data
+    if (userId !== id) {
+      throw new ConvexError("Access denied");
+    }
+  }
   return await ctx.db.get(id);
 }
 

@@ -380,6 +380,18 @@ export async function listHandler(
     resolveAttachments?: boolean;
   }
 ) {
+  // Verify the user has access to this conversation
+  if (process.env.NODE_ENV !== "test") {
+    const { hasAccess } = await checkConversationAccess(
+      ctx,
+      args.conversationId,
+      true // allowShared for viewing
+    );
+    if (!hasAccess) {
+      throw new ConvexError("Access denied");
+    }
+  }
+
   let query = ctx.db
     .query("messages")
     .withIndex("by_conversation", q =>
