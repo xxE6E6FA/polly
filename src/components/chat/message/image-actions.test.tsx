@@ -31,6 +31,22 @@ mock.module("@/components/ui/tooltip", () => ({
   TooltipContent: () => null,
 }));
 
+// Mock ImageRetryPopover to render a simple button for testing
+mock.module("./image-retry-popover", () => ({
+  ImageRetryPopover: ({
+    onRetry,
+  }: {
+    onRetry: (params: { model: string; aspectRatio: string }) => void;
+  }) => (
+    <button
+      type="button"
+      onClick={() => onRetry({ model: "test-model", aspectRatio: "1:1" })}
+    >
+      Retry
+    </button>
+  ),
+}));
+
 // Date mocking removed - tests will use current date
 
 const renderWithProviders = (component: React.ReactElement) => {

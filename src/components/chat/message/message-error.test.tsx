@@ -1,9 +1,29 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 
 import { fireEvent, render, screen } from "@testing-library/react";
-import React from "react";
+import type React from "react";
 import type { ChatMessage } from "@/types";
 import { MessageError } from "./message-error";
+
+// Mock ImageRetryPopover to render a simple button for testing
+mock.module("./image-retry-popover", () => ({
+  ImageRetryPopover: ({
+    onRetry,
+    className,
+  }: {
+    onRetry: (params: { model: string; aspectRatio: string }) => void;
+    className?: string;
+  }) => (
+    <button
+      type="button"
+      onClick={() => onRetry({ model: "test-model", aspectRatio: "1:1" })}
+      className={className}
+      aria-label="Retry generation"
+    >
+      Retry generation
+    </button>
+  ),
+}));
 
 const createMockMessage = (
   overrides: Partial<ChatMessage> = {}
@@ -96,7 +116,12 @@ describe("MessageError", () => {
     expect(retryButton.textContent).toBe("Retry message");
   });
 
-  test("renders retry button for image errors when onRetry provided", () => {
+  test("renders retry button for image errors when onRetryImage provided", () => {
+    const mockOnRetryImage = mock(
+      (_messageId: string, _params: { model: string; aspectRatio: string }) => {
+        /* empty */
+      }
+    );
     const message = createMockMessage({
       imageGeneration: {
         status: "failed",
@@ -105,7 +130,11 @@ describe("MessageError", () => {
     });
 
     render(
-      <MessageError message={message} messageId="msg-1" onRetry={mockOnRetry} />
+      <MessageError
+        message={message}
+        messageId="msg-1"
+        onRetryImage={mockOnRetryImage}
+      />
     );
 
     const retryButton = screen.getByRole("button", {
