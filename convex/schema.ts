@@ -4,6 +4,7 @@ import { v } from "convex/values";
 import {
   accountSchema,
   backgroundJobSchema,
+  builtInImageModelSchema,
   builtInModelSchema,
   conversationSchema,
   imageModelDefinitionSchema,
@@ -102,6 +103,10 @@ export default defineSchema({
     .index("by_created_at", ["createdAt"]),
 
   builtInModels: defineTable(builtInModelSchema)
+    .index("by_provider", ["provider"])
+    .index("by_active", ["isActive", "createdAt"]),
+
+  builtInImageModels: defineTable(builtInImageModelSchema)
     .index("by_provider", ["provider"])
     .index("by_active", ["isActive", "createdAt"]),
 

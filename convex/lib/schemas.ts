@@ -60,6 +60,33 @@ export const userImageModelSchema = v.object({
   createdAt: v.number(),
 });
 
+// Built-in image models schema (global, not per-user)
+export const builtInImageModelSchema = v.object({
+  modelId: v.string(),
+  name: v.string(),
+  provider: v.string(),
+  description: v.optional(v.string()),
+
+  // Image generation specific fields
+  supportedAspectRatios: v.optional(v.array(v.string())),
+  supportsUpscaling: v.optional(v.boolean()),
+  supportsInpainting: v.optional(v.boolean()),
+  supportsOutpainting: v.optional(v.boolean()),
+  supportsImageToImage: v.optional(v.boolean()),
+  supportsMultipleImages: v.optional(v.boolean()),
+  supportsNegativePrompt: v.optional(v.boolean()),
+
+  // Model metadata
+  modelVersion: v.optional(v.string()),
+  owner: v.optional(v.string()),
+  tags: v.optional(v.array(v.string())),
+
+  // Built-in specific fields
+  free: v.boolean(),
+  isActive: v.optional(v.boolean()),
+  createdAt: v.number(),
+});
+
 // Full image model definition schema - stores complete model details
 export const imageModelDefinitionSchema = v.object({
   modelId: v.string(),

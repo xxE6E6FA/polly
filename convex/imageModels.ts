@@ -265,6 +265,118 @@ export const getUserImageModels = query({
   },
 });
 
+/**
+ * Get all active built-in image models.
+ */
+export const getBuiltInImageModels = query({
+  args: {},
+  handler: async ctx => {
+    return await ctx.db
+      .query("builtInImageModels")
+      .filter(q => q.eq(q.field("isActive"), true))
+      .collect();
+  },
+});
+
+/**
+ * Get all available image models (user + built-in).
+ * User models take precedence over built-in models with the same ID.
+ */
+export const getAvailableImageModels = query({
+  args: {},
+  handler: async ctx => {
+    const userId = await getAuthUserId(ctx);
+
+    // Get built-in image models
+    const builtInModels = await ctx.db
+      .query("builtInImageModels")
+      .filter(q => q.eq(q.field("isActive"), true))
+      .collect();
+
+    if (!userId) {
+      // For anonymous users, return only built-in models
+      return builtInModels.map(model => ({
+        ...model,
+        isBuiltIn: true as const,
+      }));
+    }
+
+    // Get user's image models
+    const userModels = await ctx.db
+      .query("userImageModels")
+      .withIndex("by_user", q => q.eq("userId", userId))
+      .collect();
+
+    // Create a set of user model keys to filter out conflicts
+    const userModelKeys = new Set(
+      userModels.map(model => `${model.modelId}:${model.provider}`)
+    );
+
+    // Filter out built-in models that have been overridden by user models
+    const availableBuiltInModels = builtInModels
+      .filter(
+        builtInModel =>
+          !userModelKeys.has(`${builtInModel.modelId}:${builtInModel.provider}`)
+      )
+      .map(model => ({
+        ...model,
+        isBuiltIn: true as const,
+      }));
+
+    const userModelsWithFlag = userModels.map(model => ({
+      ...model,
+      isBuiltIn: false as const,
+    }));
+
+    return [...userModelsWithFlag, ...availableBuiltInModels];
+  },
+});
+
+/**
+ * Get user's selected image model with fallback to built-in.
+ */
+export const getSelectedImageModelWithFallback = query({
+  args: {},
+  handler: async ctx => {
+    const userId = await getAuthUserId(ctx);
+
+    // Default built-in image model fallback
+    const getDefaultBuiltIn = () =>
+      ctx.db
+        .query("builtInImageModels")
+        .filter(q => q.eq(q.field("isActive"), true))
+        .first();
+
+    if (!userId) {
+      return await getDefaultBuiltIn();
+    }
+
+    // Check for user's selected image model
+    const selectedModel = await ctx.db
+      .query("userImageModels")
+      .withIndex("by_user", q => q.eq("userId", userId))
+      .filter(q => q.eq(q.field("selected"), true))
+      .first();
+
+    if (selectedModel) {
+      return selectedModel;
+    }
+
+    // Check if user has any image models
+    const userHasModels = await ctx.db
+      .query("userImageModels")
+      .withIndex("by_user", q => q.eq("userId", userId))
+      .first();
+
+    if (!userHasModels) {
+      // Return first built-in model if user has no models
+      return await getDefaultBuiltIn();
+    }
+
+    return null;
+  },
+});
+
 // Functions to manage full model definitions
 export const getModelDefinition = query({
   args: { modelId: v.string() },

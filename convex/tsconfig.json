@@ -1,5 +1,5 @@
 {
-  "include": ["./**/*", "../shared/**/*"],
+  "include": ["./**/*", "../shared/**/*", "../config/**/*"],
   "exclude": [
     "./_generated",
     "./schema.js",
@@ -21,7 +21,8 @@
     "paths": {
       "@/*": ["src/*"],
       "@convex/*": ["convex/*"],
-      "@shared/*": ["shared/*"]
+      "@shared/*": ["shared/*"],
+      "@config/*": ["config/*"]
     }
   }
 }
