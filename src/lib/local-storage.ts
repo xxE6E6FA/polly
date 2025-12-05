@@ -19,6 +19,7 @@ export const CACHE_KEYS = {
   anonymousUserGraduation: "anonymous-user-graduation",
   recentModels: "recent-models",
   zenDisplayPreferences: "zen-display-preferences",
+  apiKeysPromptDismissed: "api-keys-prompt-dismissed",
 } as const;
 
 export type CacheKey = (typeof CACHE_KEYS)[keyof typeof CACHE_KEYS];

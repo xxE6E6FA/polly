@@ -40,6 +40,9 @@ export function ModelDrawerTabs({
   autoFocusSearch,
   showImagesTab = true,
   imageTabEmptyState,
+  showTextSearch = true,
+  showApiKeysPrompt = false,
+  onDismissApiKeysPrompt,
 }: {
   activeTab: "text" | "image";
   onActiveTabChange: (tab: "text" | "image") => void;
@@ -60,6 +63,9 @@ export function ModelDrawerTabs({
   autoFocusSearch?: boolean;
   showImagesTab?: boolean;
   imageTabEmptyState?: "needs-api-key" | "needs-models" | null;
+  showTextSearch?: boolean;
+  showApiKeysPrompt?: boolean;
+  onDismissApiKeysPrompt?: () => void;
 }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [internalIsSearching, setInternalIsSearching] =
@@ -158,14 +164,16 @@ export function ModelDrawerTabs({
             ) : (
               <div className="flex-1" />
             )}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-9 w-9 text-muted-foreground hover:text-foreground shrink-0"
-              onClick={() => setIsSearching(true)}
-            >
-              <MagnifyingGlass className="h-4 w-4" />
-            </Button>
+            {showTextSearch && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-9 w-9 text-muted-foreground hover:text-foreground shrink-0"
+                onClick={() => setIsSearching(true)}
+              >
+                <MagnifyingGlass className="h-4 w-4" />
+              </Button>
+            )}
           </>
         )}
       </div>
@@ -209,6 +217,31 @@ export function ModelDrawerTabs({
 
       {!isSearching && activeTab === "text" && (
         <div className="flex-1 overflow-hidden flex flex-col">
+          {/* API Keys Prompt Banner */}
+          {showApiKeysPrompt && (
+            <div className="flex items-center gap-3 px-4 py-3 bg-muted/50 border-b border-border/40">
+              <KeyIcon className="h-5 w-5 text-muted-foreground shrink-0" />
+              <p className="flex-1 text-sm text-muted-foreground">
+                <Link
+                  to={ROUTES.SETTINGS.API_KEYS}
+                  className="text-foreground hover:underline font-medium"
+                >
+                  Add your API keys
+                </Link>{" "}
+                to unlock more models
+              </p>
+              {onDismissApiKeysPrompt && (
+                <button
+                  type="button"
+                  onClick={onDismissApiKeysPrompt}
+                  className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                  aria-label="Dismiss"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+          )}
           <div className="flex-1 overflow-y-auto">
             <DrawerModelList
               modelGroups={modelGroups}

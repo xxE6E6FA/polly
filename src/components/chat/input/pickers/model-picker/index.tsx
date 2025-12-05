@@ -12,6 +12,8 @@ import { useModelCatalog } from "@/hooks/use-model-catalog";
 import { useReplicateApiKey } from "@/hooks/use-replicate-api-key";
 import { useSelectModel } from "@/hooks/use-select-model";
 import { useSelectedModel } from "@/hooks/use-selected-model";
+import { CACHE_KEYS, get, set } from "@/lib/local-storage";
+import { cn } from "@/lib/utils";
 import { useUserDataContext } from "@/providers/user-data-context";
 import { ModelDrawerTabs } from "./drawer-tabs";
 import { ModelPickerTabs } from "./tabs";
@@ -57,6 +59,29 @@ const ModelPickerComponent = ({
     return null;
   };
   const imageTabEmptyState = getImageTabEmptyState();
+
+  // Text model state logic
+  const hasProviderModels = Object.keys(modelGroups.providerModels).length > 0;
+  const totalTextModels =
+    modelGroups.freeModels.length +
+    Object.values(modelGroups.providerModels).flat().length;
+  const showTextSearch = totalTextModels >= 5;
+
+  // API keys prompt dismissal state (only show if no provider models)
+  const [apiKeysPromptDismissed, setApiKeysPromptDismissed] = useState(() =>
+    get(CACHE_KEYS.apiKeysPromptDismissed, false)
+  );
+
+  const handleDismissApiKeysPrompt = useCallback(() => {
+    setApiKeysPromptDismissed(true);
+    set(CACHE_KEYS.apiKeysPromptDismissed, true);
+  }, []);
+
+  const showApiKeysPrompt = !(hasProviderModels || apiKeysPromptDismissed);
+
+  // Show static display when: single model + no provider keys + prompt dismissed
+  const showStaticDisplay =
+    totalTextModels === 1 && !hasProviderModels && apiKeysPromptDismissed;
 
   // Keep active tab in sync with current mode
   useEffect(() => {
@@ -149,6 +174,26 @@ const ModelPickerComponent = ({
     <ProviderIcon provider={triggerProvider} className="h-4 w-4" />
   );
 
+  // Static display when there's only one model and nothing to pick
+  if (showStaticDisplay) {
+    return (
+      <div
+        className={cn(
+          "flex items-center gap-1.5 h-8 px-2.5 rounded-full",
+          "bg-muted/40 border border-border/30 text-xs",
+          className
+        )}
+      >
+        <ProviderIcon provider={triggerProvider} className="h-3.5 w-3.5" />
+        {isDesktop && (
+          <span className="max-w-[180px] truncate font-semibold tracking-tight text-foreground/80">
+            {triggerLabel}
+          </span>
+        )}
+      </div>
+    );
+  }
+
   // Anonymous user content
   if (user?.isAnonymous) {
     return (
@@ -190,6 +235,9 @@ const ModelPickerComponent = ({
           selectedModelId={selectedModel?.modelId}
           showImagesTab={showImagesTab}
           imageTabEmptyState={imageTabEmptyState}
+          showTextSearch={showTextSearch}
+          showApiKeysPrompt={showApiKeysPrompt}
+          onDismissApiKeysPrompt={handleDismissApiKeysPrompt}
         />
       ) : (
         <ModelDrawerTabs
@@ -205,6 +253,9 @@ const ModelPickerComponent = ({
           size="md"
           showImagesTab={showImagesTab}
           imageTabEmptyState={imageTabEmptyState}
+          showTextSearch={showTextSearch}
+          showApiKeysPrompt={showApiKeysPrompt}
+          onDismissApiKeysPrompt={handleDismissApiKeysPrompt}
         />
       )}
       {activeTab === "image" && !imageTabEmptyState && (

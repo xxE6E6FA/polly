@@ -7,6 +7,7 @@ import {
   ImageIcon,
   KeyIcon,
   MagnifyingGlass,
+  XIcon,
 } from "@phosphor-icons/react";
 import { Link } from "react-router-dom";
 import { buttonVariants } from "@/components/ui/button";
@@ -87,6 +88,9 @@ export function ModelPickerTabs({
   selectedModelId,
   showImagesTab = true,
   imageTabEmptyState,
+  showTextSearch = true,
+  showApiKeysPrompt = false,
+  onDismissApiKeysPrompt,
 }: {
   activeTab: "text" | "image";
   onActiveTabChange: (tab: "text" | "image") => void;
@@ -105,6 +109,9 @@ export function ModelPickerTabs({
   selectedModelId?: string;
   showImagesTab?: boolean;
   imageTabEmptyState?: "needs-api-key" | "needs-models" | null;
+  showTextSearch?: boolean;
+  showApiKeysPrompt?: boolean;
+  onDismissApiKeysPrompt?: () => void;
 }) {
   const h = size === "sm" ? "h-9" : "h-10";
   const padX = size === "sm" ? "px-2.5" : "px-3";
@@ -202,11 +209,43 @@ export function ModelPickerTabs({
       {/* Content */}
       {activeTab === "text" && (
         <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
-          <Command className="flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-none border-0 [&_[cmdk-input-wrapper]]:sticky [&_[cmdk-input-wrapper]]:top-0 [&_[cmdk-input-wrapper]]:z-10 [&_[cmdk-input-wrapper]]:mx-0 [&_[cmdk-input-wrapper]]:w-full [&_[cmdk-input-wrapper]]:rounded-none [&_[cmdk-input-wrapper]]:border-b [&_[cmdk-input-wrapper]]:border-border/40 [&_[cmdk-input-wrapper]]:bg-popover [&_[cmdk-input-wrapper]]:px-3 [&_[cmdk-input-wrapper]]:py-1.5 [&_[cmdk-input-wrapper]]:gap-2 [&_[cmdk-input-wrapper]]:shadow-sm [&_[cmdk-input-wrapper]_svg]:h-3.5 [&_[cmdk-input-wrapper]_svg]:w-3.5 [&_[cmdk-input-wrapper]_svg]:text-muted-foreground [&_[cmdk-input]]:h-8 [&_[cmdk-input]]:w-full [&_[cmdk-input]]:rounded-none [&_[cmdk-input]]:py-0 [&_[cmdk-input]]:text-xs">
+          {/* API Keys Prompt Banner */}
+          {showApiKeysPrompt && (
+            <div className="flex items-center gap-2 px-3 py-2 bg-muted/50 border-b border-border/40">
+              <KeyIcon className="h-4 w-4 text-muted-foreground shrink-0" />
+              <p className="flex-1 text-xs text-muted-foreground">
+                <Link
+                  to={ROUTES.SETTINGS.API_KEYS}
+                  className="text-foreground hover:underline font-medium"
+                >
+                  Add your API keys
+                </Link>{" "}
+                to unlock more models
+              </p>
+              {onDismissApiKeysPrompt && (
+                <button
+                  type="button"
+                  onClick={onDismissApiKeysPrompt}
+                  className="p-0.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                  aria-label="Dismiss"
+                >
+                  <XIcon className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+          )}
+          <Command
+            className={cn(
+              "flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-none border-0",
+              showTextSearch &&
+                "[&_[cmdk-input-wrapper]]:sticky [&_[cmdk-input-wrapper]]:top-0 [&_[cmdk-input-wrapper]]:z-10 [&_[cmdk-input-wrapper]]:mx-0 [&_[cmdk-input-wrapper]]:w-full [&_[cmdk-input-wrapper]]:rounded-none [&_[cmdk-input-wrapper]]:border-b [&_[cmdk-input-wrapper]]:border-border/40 [&_[cmdk-input-wrapper]]:bg-popover [&_[cmdk-input-wrapper]]:px-3 [&_[cmdk-input-wrapper]]:py-1.5 [&_[cmdk-input-wrapper]]:gap-2 [&_[cmdk-input-wrapper]]:shadow-sm [&_[cmdk-input-wrapper]_svg]:h-3.5 [&_[cmdk-input-wrapper]_svg]:w-3.5 [&_[cmdk-input-wrapper]_svg]:text-muted-foreground [&_[cmdk-input]]:h-8 [&_[cmdk-input]]:w-full [&_[cmdk-input]]:rounded-none [&_[cmdk-input]]:py-0 [&_[cmdk-input]]:text-xs",
+              !showTextSearch && "[&_[cmdk-input-wrapper]]:hidden"
+            )}
+          >
             <CommandInput
               placeholder="Search text models..."
               className="h-8 w-full text-xs"
-              autoFocus={autoFocusSearch}
+              autoFocus={autoFocusSearch && showTextSearch}
             />
             <CommandList className="max-h-[min(calc(100dvh-14rem),260px)] overflow-y-auto">
               <CommandEmpty>
