@@ -239,12 +239,14 @@ export async function getFileMetadataHandler(
   }
 
   // Verify user owns this file via userFiles table
+  // Use .first() since the same storageId can have multiple userFiles entries
+  // (e.g., when conversations are cloned, each message gets its own entry)
   const userFileEntry = await ctx.db
     .query("userFiles")
     .withIndex("by_storage_id", q =>
       q.eq("userId", userId).eq("storageId", args.storageId)
     )
-    .unique();
+    .first();
 
   // If user doesn't own the file directly, check conversation access
   if (!userFileEntry) {
@@ -313,12 +315,14 @@ export async function getFileUrlHandler(
   }
 
   // Verify user owns this file via userFiles table
+  // Use .first() since the same storageId can have multiple userFiles entries
+  // (e.g., when conversations are cloned, each message gets its own entry)
   const userFileEntry = await ctx.db
     .query("userFiles")
     .withIndex("by_storage_id", q =>
       q.eq("userId", userId).eq("storageId", args.storageId)
     )
-    .unique();
+    .first();
 
   // If user doesn't own the file directly, check conversation access
   if (!userFileEntry) {
@@ -369,20 +373,31 @@ export async function deleteFileHandler(
   }
 
   // Verify user owns this file via userFiles table
+  // Use .first() since the same storageId can have multiple userFiles entries
+  // (e.g., when conversations are cloned, each message gets its own entry)
   const userFileEntry = await ctx.db
     .query("userFiles")
     .withIndex("by_storage_id", q =>
       q.eq("userId", userId).eq("storageId", args.storageId)
     )
-    .unique();
+    .first();
 
   // Only the owner can delete files
   if (!userFileEntry || userFileEntry.userId !== userId) {
     throw new ConvexError("Access denied - only file owner can delete");
   }
 
-  // Delete the userFiles entry
-  await ctx.db.delete(userFileEntry._id);
+  // Delete ALL userFiles entries for this storageId before deleting storage
+  const allEntries = await ctx.db
+    .query("userFiles")
+    .withIndex("by_storage_id", q =>
+      q.eq("userId", userId).eq("storageId", args.storageId)
+    )
+    .collect();
+
+  for (const entry of allEntries) {
+    await ctx.db.delete(entry._id);
+  }
 
   // Delete from storage
   await ctx.storage.delete(args.storageId);
@@ -619,13 +634,14 @@ export async function deleteMultipleFilesHandler(
   const ownershipVerification: Map<Id<"_storage">, boolean> = new Map();
 
   for (const storageId of args.storageIds) {
+    // Use .first() since the same storageId can have multiple userFiles entries
     const userFileEntry: Doc<"userFiles"> | null = await ctx.db
       .query("userFiles")
       // biome-ignore lint/suspicious/noExplicitAny: Convex query builder type
       .withIndex("by_storage_id", (q: any) =>
         q.eq("userId", userId).eq("storageId", storageId)
       )
-      .unique();
+      .first();
 
     // Only mark as owned if entry exists AND userId matches
     ownershipVerification.set(

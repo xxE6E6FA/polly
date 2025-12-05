@@ -288,7 +288,7 @@ describe("fileStorage: getFileMetadata", () => {
       db: {
         query: mock(() => ({
           withIndex: mock(() => ({
-            unique: mock(() => Promise.resolve(mockUserFileEntry)),
+            first: mock(() => Promise.resolve(mockUserFileEntry)),
           })),
         })),
         system: {
@@ -347,7 +347,7 @@ describe("fileStorage: getFileUrl", () => {
       db: {
         query: mock(() => ({
           withIndex: mock(() => ({
-            unique: mock(() => Promise.resolve(mockUserFileEntry)),
+            first: mock(() => Promise.resolve(mockUserFileEntry)),
           })),
         })),
       } as any,
@@ -398,7 +398,8 @@ describe("fileStorage: deleteFile", () => {
       db: {
         query: mock(() => ({
           withIndex: mock(() => ({
-            unique: mock(() => Promise.resolve(mockUserFileEntry)),
+            first: mock(() => Promise.resolve(mockUserFileEntry)),
+            collect: mock(() => Promise.resolve([mockUserFileEntry])),
           })),
         })),
         delete: mock(() => Promise.resolve()),
@@ -434,7 +435,7 @@ describe("fileStorage: deleteFile", () => {
       db: {
         query: mock(() => ({
           withIndex: mock(() => ({
-            unique: mock(() => Promise.resolve(null)), // No userFiles entry found
+            first: mock(() => Promise.resolve(null)), // No userFiles entry found
           })),
         })),
       } as any,
@@ -929,7 +930,7 @@ describe("fileStorage: deleteMultipleFiles", () => {
     let callCount = 0;
     const queryChain = {
       withIndex: mock(() => queryChain),
-      unique: mock(() => {
+      first: mock(() => {
         const file = userFiles[callCount];
         callCount++;
         return Promise.resolve(file || null);
@@ -1022,23 +1023,16 @@ describe("fileStorage: deleteMultipleFiles", () => {
       ],
     };
 
-    // Track ownership verification calls and DB deletion calls
+    // Track ownership verification calls
     let ownershipCheckCount = 0;
-    let dbDeletionCount = 0;
 
     const queryChain = {
       withIndex: mock(() => queryChain),
-      unique: mock(() => {
+      first: mock(() => {
         // Return owned files during ownership verification phase
         if (ownershipCheckCount < storageIds.length) {
           const file = userFiles[ownershipCheckCount];
           ownershipCheckCount++;
-          return Promise.resolve(file || null);
-        }
-        // Return owned files during DB deletion verification phase
-        if (dbDeletionCount < storageIds.length) {
-          const file = userFiles[dbDeletionCount];
-          dbDeletionCount++;
           return Promise.resolve(file || null);
         }
         return Promise.resolve(null);
@@ -1132,14 +1126,13 @@ describe("fileStorage: deleteMultipleFiles", () => {
       ],
     };
 
-    // Track ownership verification calls and DB deletion calls
+    // Track ownership verification calls
     let ownershipCheckCount = 0;
-    let dbDeletionCount = 0;
     let isQueryingMessages = false;
 
     const queryChain = {
       withIndex: mock(() => queryChain),
-      unique: mock(() => {
+      first: mock(() => {
         // Return owned files during ownership verification phase
         if (ownershipCheckCount < storageIds.length) {
           const file = userFiles.find(
@@ -1149,16 +1142,6 @@ describe("fileStorage: deleteMultipleFiles", () => {
               f.userId === userId
           );
           ownershipCheckCount++;
-          return Promise.resolve(file || null);
-        }
-        // Return owned files during DB deletion verification phase
-        if (dbDeletionCount < storageIds.length) {
-          const file = userFiles.find(
-            f =>
-              f.storageId === storageIds[dbDeletionCount % storageIds.length] &&
-              f.userId === userId
-          );
-          dbDeletionCount++;
           return Promise.resolve(file || null);
         }
         return Promise.resolve(null);
