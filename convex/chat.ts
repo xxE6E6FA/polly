@@ -671,10 +671,23 @@ export const chatStream = httpAction(
                 });
 
                 // Step 4: Inject search context into the conversation
-                if (searchResult.context) {
+                if (searchResult.context && searchResult.sources?.length > 0) {
+                  // Format sources with numbers for citation
+                  const numberedSources = searchResult.sources
+                    .slice(0, 8)
+                    .map((source, i) => {
+                      const domain = source.url
+                        ? new URL(source.url).hostname.replace(/^www\./, "")
+                        : "";
+                      const title = source.title || domain;
+                      const snippet = source.snippet?.substring(0, 300) || "";
+                      return `[${i + 1}] ${title} (${domain})\n${snippet}`;
+                    })
+                    .join("\n\n");
+
                   const searchContextMessage: CoreMessage = {
                     role: "system",
-                    content: `The following web search results may help answer the user's question:\n\n${searchResult.context}\n\nUse this information to provide an accurate, up-to-date response. Cite sources when appropriate.`,
+                    content: `Web search results:\n\n${numberedSources}\n\n---\nIMPORTANT: You MUST cite these sources in your response using [1], [2], etc.\nPlace citations after punctuation: "The empire fell in 476 AD.[1]"`,
                   };
 
                   // Insert search context after the system message

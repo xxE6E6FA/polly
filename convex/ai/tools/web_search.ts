@@ -201,8 +201,8 @@ function buildContextSummary(result: WebSearchResult): string {
     summaryParts.push(parts.join("\n"));
   });
 
-  // Citation reminder for the LLM
-  summaryParts.push("\n---\nCite sources using [1], [2], etc. Place citations after punctuation: \"fact.[1]\"");
+  // Citation reminder for the LLM - make it emphatic
+  summaryParts.push("\n---\nIMPORTANT: You MUST cite these sources in your response using [1], [2], etc.\nPlace citations after punctuation: \"The empire fell in 476 AD.[1]\"");
 
   return summaryParts.join("\n\n");
 }
