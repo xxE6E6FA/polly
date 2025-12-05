@@ -108,22 +108,28 @@ export function normalizeCitationPatterns(text: string): string {
     return text;
   }
 
-  return (
-    text
-      // Remove backslashes before brackets: \[1] -> [1]
-      .replace(/\\(\[|\])/g, "$1")
-      // Convert double brackets to single: [[1]] -> [1]
-      .replace(/\[\[(\d+)\]\]/g, "[$1]")
-      // Normalize grouped citations: [1, 2,3] -> [1][2][3]
-      .replace(/\[\s*(\d+(?:\s*,\s*\d+)+)\s*\]/g, (_m, nums: string) =>
-        nums
-          .split(",")
-          .map(n => `[${n.trim()}]`)
-          .join("")
-      )
-      // Normalize single citation spacing: [ 1 ] -> [1]
-      .replace(/\[\s*(\d+)\s*\]/g, "[$1]")
-  );
+  let result = text
+    // Remove backslashes before brackets: \[1] -> [1]
+    .replace(/\\(\[|\])/g, "$1")
+    // Convert double brackets to single: [[1]] -> [1]
+    .replace(/\[\[(\d+)\]\]/g, "[$1]")
+    // Normalize grouped citations: [1, 2,3] -> [1][2][3]
+    // But NOT if followed by ( which indicates an existing markdown link
+    .replace(/\[\s*(\d+(?:\s*,\s*\d+)+)\s*\](?!\()/g, (_m, nums: string) =>
+      nums
+        .split(",")
+        .map(n => `[${n.trim()}]`)
+        .join("")
+    )
+    // Normalize single citation spacing: [ 1 ] -> [1]
+    // But NOT if followed by ( which indicates an existing markdown link
+    .replace(/\[\s*(\d+)\s*\](?!\()/g, "[$1]");
+
+  // Remove spaces between adjacent citations: [1] [2] -> [1][2]
+  // Uses lookahead to not consume the next citation, allowing chains like [1] [2] [3]
+  result = result.replace(/(\[\d+\])\s+(?=\[\d+\])/g, "$1");
+
+  return result;
 }
 
 // Convert plain [n] citations into markdown links with grouping support
@@ -131,6 +137,9 @@ export function convertCitationsToMarkdownLinks(text: string): string {
   if (!text) {
     return text;
   }
+
+  // First normalize citation patterns (escape sequences, spacing, etc.)
+  const cleaned = normalizeCitationPatterns(text);
 
   // Convert inline citation numbers to anchor links for the CitationLink component
   // Examples:
@@ -143,7 +152,7 @@ export function convertCitationsToMarkdownLinks(text: string): string {
   //
   // This makes the function idempotent - running it multiple times produces the same result.
   // Note: Assumes AI outputs clean citations like [1][2], not malformed ones like [1][2](#cite-group-1-2)
-  const normalized = text.replace(/((?:\[\d+\])+)(?!\(#cite-)/g, match => {
+  const normalized = cleaned.replace(/((?:\[\d+\])+)(?!\(#cite-)/g, match => {
     const numbers = Array.from(match.matchAll(/\[(\d+)\]/g)).map(m => m[1]);
     if (numbers.length === 1) {
       return `[${numbers[0]}](#cite-${numbers[0]})`;

@@ -198,6 +198,18 @@ describe("convertCitationsToMarkdownLinks", () => {
     );
   });
 
+  it("should group space-separated citations", () => {
+    expect(convertCitationsToMarkdownLinks("text [1] [2] [3] more")).toBe(
+      "text [1,2,3](#cite-group-1-2-3) more"
+    );
+  });
+
+  it("should group mixed spacing citations", () => {
+    expect(convertCitationsToMarkdownLinks("text [1][2] [3] more")).toBe(
+      "text [1,2,3](#cite-group-1-2-3) more"
+    );
+  });
+
   it("should be idempotent", () => {
     const text = "text [1][2] more";
     const once = convertCitationsToMarkdownLinks(text);
