@@ -55,6 +55,7 @@ import type * as lib_conversation_streaming from "../lib/conversation/streaming.
 import type * as lib_conversation_summarization from "../lib/conversation/summarization.js";
 import type * as lib_conversation_types from "../lib/conversation/types.js";
 import type * as lib_conversation_utils from "../lib/conversation_utils.js";
+import type * as lib_model_fetchers from "../lib/model_fetchers.js";
 import type * as lib_model_resolution from "../lib/model_resolution.js";
 import type * as lib_pagination from "../lib/pagination.js";
 import type * as lib_process_attachments from "../lib/process_attachments.js";
@@ -133,6 +134,7 @@ declare const fullApi: ApiFromModules<{
   "lib/conversation/summarization": typeof lib_conversation_summarization;
   "lib/conversation/types": typeof lib_conversation_types;
   "lib/conversation_utils": typeof lib_conversation_utils;
+  "lib/model_fetchers": typeof lib_model_fetchers;
   "lib/model_resolution": typeof lib_model_resolution;
   "lib/pagination": typeof lib_pagination;
   "lib/process_attachments": typeof lib_process_attachments;

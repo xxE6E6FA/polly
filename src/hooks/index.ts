@@ -57,6 +57,7 @@ export { useSpeechInputContext } from "./use-speech-input-context";
 // Model Hooks
 // =============================================================================
 
+export { useBuiltInImageModels } from "./use-built-in-image-models";
 export { useConversationModelOverride } from "./use-conversation-model-override";
 export { useEnabledImageModels } from "./use-enabled-image-models";
 export { useLastGeneratedImageSeed } from "./use-last-generated-image-seed";

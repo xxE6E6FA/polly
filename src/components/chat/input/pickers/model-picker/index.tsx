@@ -4,13 +4,14 @@ import { ProviderIcon } from "@/components/models/provider-icons";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ResponsivePicker } from "@/components/ui/responsive-picker";
+import { useBuiltInImageModels } from "@/hooks/use-built-in-image-models";
 import { useEnabledImageModels } from "@/hooks/use-enabled-image-models";
 import { useGenerationMode, useImageParams } from "@/hooks/use-generation";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useModelCatalog } from "@/hooks/use-model-catalog";
+import { useReplicateApiKey } from "@/hooks/use-replicate-api-key";
 import { useSelectModel } from "@/hooks/use-select-model";
 import { useSelectedModel } from "@/hooks/use-selected-model";
-import { cn } from "@/lib/utils";
 import { useUserDataContext } from "@/providers/user-data-context";
 import { ModelDrawerTabs } from "./drawer-tabs";
 import { ModelPickerTabs } from "./tabs";
@@ -35,12 +36,40 @@ const ModelPickerComponent = ({
   const [generationMode, setGenerationMode] = useGenerationMode();
   const { params: imageParams, setParams: setImageParams } = useImageParams();
   const enabledImageModels = useEnabledImageModels() || [];
+  const builtInImageModels = useBuiltInImageModels();
+  const { hasReplicateApiKey } = useReplicateApiKey();
   const [activeTab, setActiveTab] = useState<"text" | "image">("text");
+
+  // Determine if we should show the images tab
+  // Hide only when: no built-in models AND no API key AND no user models
+  const hasBuiltInModels = (builtInImageModels?.length ?? 0) > 0;
+  const hasUserModels = enabledImageModels.length > 0;
+  const showImagesTab = hasBuiltInModels || hasReplicateApiKey || hasUserModels;
+
+  // Determine empty state type for images tab
+  const getImageTabEmptyState = (): "needs-api-key" | "needs-models" | null => {
+    if (hasBuiltInModels && !hasReplicateApiKey) {
+      return "needs-api-key";
+    }
+    if (hasReplicateApiKey && !hasUserModels && !hasBuiltInModels) {
+      return "needs-models";
+    }
+    return null;
+  };
+  const imageTabEmptyState = getImageTabEmptyState();
 
   // Keep active tab in sync with current mode
   useEffect(() => {
     setActiveTab(generationMode === "image" ? "image" : "text");
   }, [generationMode]);
+
+  // Switch to text tab if images tab becomes hidden
+  useEffect(() => {
+    if (!showImagesTab && activeTab === "image") {
+      setActiveTab("text");
+      setGenerationMode("text");
+    }
+  }, [showImagesTab, activeTab, setGenerationMode]);
 
   const hasReachedPollyLimit = useMemo(
     () =>
@@ -159,6 +188,8 @@ const ModelPickerComponent = ({
           autoFocusSearch={open}
           className="flex-1 min-h-0"
           selectedModelId={selectedModel?.modelId}
+          showImagesTab={showImagesTab}
+          imageTabEmptyState={imageTabEmptyState}
         />
       ) : (
         <ModelDrawerTabs
@@ -172,9 +203,11 @@ const ModelPickerComponent = ({
           selectedImageModelId={imageParams.model || undefined}
           onSelectImageModel={handleSelectImageModel}
           size="md"
+          showImagesTab={showImagesTab}
+          imageTabEmptyState={imageTabEmptyState}
         />
       )}
-      {activeTab === "image" && (
+      {activeTab === "image" && !imageTabEmptyState && (
         <div
           className={
             isDesktop

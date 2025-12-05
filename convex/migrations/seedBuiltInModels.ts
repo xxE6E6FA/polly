@@ -10,7 +10,7 @@ import {
 	fetchOpenRouterModels,
 	fetchReplicateImageModel,
 	type TextModelCapabilities,
-} from "../lib/model-fetchers";
+} from "../lib/model_fetchers";
 
 // ============================================================================
 // INTERNAL MUTATIONS FOR DATABASE OPERATIONS

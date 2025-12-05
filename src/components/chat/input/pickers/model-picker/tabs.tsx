@@ -2,9 +2,14 @@
 // keyboard-friendly, compact desktop dropdown experience, whereas the mobile version
 // uses a custom drawer layout with different interaction patterns.
 import type { Doc } from "@convex/_generated/dataModel";
-import { GearIcon, MagnifyingGlass } from "@phosphor-icons/react";
-import { useState } from "react";
+import {
+  GearIcon,
+  ImageIcon,
+  KeyIcon,
+  MagnifyingGlass,
+} from "@phosphor-icons/react";
 import { Link } from "react-router-dom";
+import { buttonVariants } from "@/components/ui/button";
 import {
   Command,
   CommandEmpty,
@@ -21,6 +26,52 @@ type AvailableModel = Doc<"userModels"> | Doc<"builtInModels">;
 
 type Size = "sm" | "md";
 
+function ImageTabEmptyState({
+  emptyState,
+}: {
+  emptyState: "needs-api-key" | "needs-models";
+}) {
+  if (emptyState === "needs-api-key") {
+    return (
+      <div className="flex-1 min-h-0 overflow-hidden flex flex-col items-center justify-center p-6 text-center">
+        <KeyIcon className="h-10 w-10 text-muted-foreground/50 mb-3" />
+        <p className="text-sm font-medium text-foreground mb-1">
+          Replicate API Key Required
+        </p>
+        <p className="text-xs text-muted-foreground mb-4 max-w-[200px]">
+          Add your Replicate API key to generate images with AI models.
+        </p>
+        <Link
+          to={ROUTES.SETTINGS.API_KEYS}
+          className={buttonVariants({ variant: "secondary", size: "sm" })}
+        >
+          <GearIcon className="h-3.5 w-3.5 mr-1.5" />
+          Open Settings
+        </Link>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex-1 min-h-0 overflow-hidden flex flex-col items-center justify-center p-6 text-center">
+      <ImageIcon className="h-10 w-10 text-muted-foreground/50 mb-3" />
+      <p className="text-sm font-medium text-foreground mb-1">
+        No Image Models Enabled
+      </p>
+      <p className="text-xs text-muted-foreground mb-4 max-w-[200px]">
+        Enable image models in settings to start generating images.
+      </p>
+      <Link
+        to={ROUTES.SETTINGS.IMAGE_MODELS}
+        className={buttonVariants({ variant: "secondary", size: "sm" })}
+      >
+        <GearIcon className="h-3.5 w-3.5 mr-1.5" />
+        Open Settings
+      </Link>
+    </div>
+  );
+}
+
 export function ModelPickerTabs({
   activeTab,
   onActiveTabChange,
@@ -34,6 +85,8 @@ export function ModelPickerTabs({
   autoFocusSearch,
   className,
   selectedModelId,
+  showImagesTab = true,
+  imageTabEmptyState,
 }: {
   activeTab: "text" | "image";
   onActiveTabChange: (tab: "text" | "image") => void;
@@ -50,13 +103,16 @@ export function ModelPickerTabs({
   autoFocusSearch?: boolean;
   className?: string;
   selectedModelId?: string;
+  showImagesTab?: boolean;
+  imageTabEmptyState?: "needs-api-key" | "needs-models" | null;
 }) {
   const h = size === "sm" ? "h-9" : "h-10";
   const padX = size === "sm" ? "px-2.5" : "px-3";
   const padY = size === "sm" ? "py-2" : "py-2.5";
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") {
+    // Only handle arrow keys for tab switching if images tab is shown
+    if (!showImagesTab || (e.key !== "ArrowLeft" && e.key !== "ArrowRight")) {
       return;
     }
     const target = e.target as HTMLElement | null;
@@ -96,53 +152,55 @@ export function ModelPickerTabs({
       onKeyDown={handleKeyDown}
     >
       {/* Segmented control styled like Settings nav */}
-      <div className="flex w-full flex-col flex-shrink-0">
-        <div className="flex w-full border-b border-border/40">
-          <button
-            type="button"
-            className={cn(
-              "flex-1 whitespace-nowrap rounded-none text-xs font-medium transition-all duration-200",
-              padX,
-              padY,
-              h,
-              activeTab === "text"
-                ? "bg-gradient-to-r from-primary/80 to-primary text-primary-foreground shadow-sm"
-                : "bg-muted/30 text-muted-foreground hover:bg-muted/50 hover:text-foreground",
-              activeTab === "text"
-                ? "hover:from-primary hover:to-primary/90"
-                : "",
-              "border-r border-border/40 last:border-r-0",
-              "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-            )}
-            onClick={() => onActiveTabChange("text")}
-          >
-            Text
-          </button>
-          <button
-            type="button"
-            className={cn(
-              "flex-1 whitespace-nowrap rounded-none text-xs font-medium transition-all duration-200",
-              padX,
-              padY,
-              h,
-              activeTab === "image"
-                ? "bg-gradient-to-r from-primary/80 to-primary text-primary-foreground shadow-sm"
-                : "bg-muted/30 text-muted-foreground hover:bg-muted/50 hover:text-foreground",
-              activeTab === "image"
-                ? "hover:from-primary hover:to-primary/90"
-                : "",
-              "border-l border-border/40 first:border-l-0",
-              "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-            )}
-            onClick={() => onActiveTabChange("image")}
-          >
-            Images
-          </button>
+      {showImagesTab && (
+        <div className="flex w-full flex-col flex-shrink-0">
+          <div className="flex w-full border-b border-border/40">
+            <button
+              type="button"
+              className={cn(
+                "flex-1 whitespace-nowrap rounded-none text-xs font-medium transition-all duration-200",
+                padX,
+                padY,
+                h,
+                activeTab === "text"
+                  ? "bg-gradient-to-r from-primary/80 to-primary text-primary-foreground shadow-sm"
+                  : "bg-muted/30 text-muted-foreground hover:bg-muted/50 hover:text-foreground",
+                activeTab === "text"
+                  ? "hover:from-primary hover:to-primary/90"
+                  : "",
+                "border-r border-border/40 last:border-r-0",
+                "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              )}
+              onClick={() => onActiveTabChange("text")}
+            >
+              Text
+            </button>
+            <button
+              type="button"
+              className={cn(
+                "flex-1 whitespace-nowrap rounded-none text-xs font-medium transition-all duration-200",
+                padX,
+                padY,
+                h,
+                activeTab === "image"
+                  ? "bg-gradient-to-r from-primary/80 to-primary text-primary-foreground shadow-sm"
+                  : "bg-muted/30 text-muted-foreground hover:bg-muted/50 hover:text-foreground",
+                activeTab === "image"
+                  ? "hover:from-primary hover:to-primary/90"
+                  : "",
+                "border-l border-border/40 first:border-l-0",
+                "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              )}
+              onClick={() => onActiveTabChange("image")}
+            >
+              Images
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Content */}
-      {activeTab === "text" ? (
+      {activeTab === "text" && (
         <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
           <Command className="flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-none border-0 [&_[cmdk-input-wrapper]]:sticky [&_[cmdk-input-wrapper]]:top-0 [&_[cmdk-input-wrapper]]:z-10 [&_[cmdk-input-wrapper]]:mx-0 [&_[cmdk-input-wrapper]]:w-full [&_[cmdk-input-wrapper]]:rounded-none [&_[cmdk-input-wrapper]]:border-b [&_[cmdk-input-wrapper]]:border-border/40 [&_[cmdk-input-wrapper]]:bg-popover [&_[cmdk-input-wrapper]]:px-3 [&_[cmdk-input-wrapper]]:py-1.5 [&_[cmdk-input-wrapper]]:gap-2 [&_[cmdk-input-wrapper]]:shadow-sm [&_[cmdk-input-wrapper]_svg]:h-3.5 [&_[cmdk-input-wrapper]_svg]:w-3.5 [&_[cmdk-input-wrapper]_svg]:text-muted-foreground [&_[cmdk-input]]:h-8 [&_[cmdk-input]]:w-full [&_[cmdk-input]]:rounded-none [&_[cmdk-input]]:py-0 [&_[cmdk-input]]:text-xs">
             <CommandInput
@@ -171,7 +229,13 @@ export function ModelPickerTabs({
             </CommandList>
           </Command>
         </div>
-      ) : (
+      )}
+
+      {activeTab === "image" && imageTabEmptyState && (
+        <ImageTabEmptyState emptyState={imageTabEmptyState} />
+      )}
+
+      {activeTab === "image" && !imageTabEmptyState && (
         <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
           <Command
             className={cn(

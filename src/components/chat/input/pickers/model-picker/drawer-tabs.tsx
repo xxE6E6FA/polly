@@ -4,13 +4,17 @@
 import type { Doc } from "@convex/_generated/dataModel";
 import {
   ChatCircle,
+  GearIcon,
   Image as ImageIcon,
+  KeyIcon,
   MagnifyingGlass,
   X,
 } from "@phosphor-icons/react";
-import { memo, useCallback, useEffect, useRef, useState } from "react";
-import { Button } from "@/components/ui/button";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import { DrawerItem } from "../../drawer-item";
 import { DrawerModelList } from "./drawer-model-list";
@@ -34,6 +38,8 @@ export function ModelDrawerTabs({
   selectedModelId,
   className,
   autoFocusSearch,
+  showImagesTab = true,
+  imageTabEmptyState,
 }: {
   activeTab: "text" | "image";
   onActiveTabChange: (tab: "text" | "image") => void;
@@ -52,6 +58,8 @@ export function ModelDrawerTabs({
   setIsSearching?: (isSearching: boolean) => void;
   className?: string;
   autoFocusSearch?: boolean;
+  showImagesTab?: boolean;
+  imageTabEmptyState?: "needs-api-key" | "needs-models" | null;
 }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [internalIsSearching, setInternalIsSearching] =
@@ -120,32 +128,36 @@ export function ModelDrawerTabs({
           </div>
         ) : (
           <>
-            <div className="flex-1 flex items-center gap-1 bg-muted/50 p-1 rounded-lg h-9 mr-2">
-              <button
-                onClick={() => onActiveTabChange("text")}
-                className={cn(
-                  "flex-1 flex items-center justify-center gap-2 h-full text-sm font-medium rounded-md transition-all",
-                  activeTab === "text"
-                    ? "bg-background shadow-sm text-foreground"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                <ChatCircle className="h-4 w-4" />
-                Text
-              </button>
-              <button
-                onClick={() => onActiveTabChange("image")}
-                className={cn(
-                  "flex-1 flex items-center justify-center gap-2 h-full text-sm font-medium rounded-md transition-all",
-                  activeTab === "image"
-                    ? "bg-background shadow-sm text-foreground"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                <ImageIcon className="h-4 w-4" />
-                Image
-              </button>
-            </div>
+            {showImagesTab ? (
+              <div className="flex-1 flex items-center gap-1 bg-muted/50 p-1 rounded-lg h-9 mr-2">
+                <button
+                  onClick={() => onActiveTabChange("text")}
+                  className={cn(
+                    "flex-1 flex items-center justify-center gap-2 h-full text-sm font-medium rounded-md transition-all",
+                    activeTab === "text"
+                      ? "bg-background shadow-sm text-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <ChatCircle className="h-4 w-4" />
+                  Text
+                </button>
+                <button
+                  onClick={() => onActiveTabChange("image")}
+                  className={cn(
+                    "flex-1 flex items-center justify-center gap-2 h-full text-sm font-medium rounded-md transition-all",
+                    activeTab === "image"
+                      ? "bg-background shadow-sm text-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <ImageIcon className="h-4 w-4" />
+                  Image
+                </button>
+              </div>
+            ) : (
+              <div className="flex-1" />
+            )}
             <Button
               variant="ghost"
               size="icon"
@@ -211,16 +223,63 @@ export function ModelDrawerTabs({
 
       {!isSearching && activeTab === "image" && (
         <div className="flex w-full flex-1 flex-col overflow-y-auto">
-          {filteredImageModels.map(model => (
-            <DrawerItem
-              key={model.modelId}
-              icon={<ImageIcon className="h-5 w-5" />}
-              name={model.name}
-              description={model.description || "Image generation model"}
-              selected={selectedImageModelId === model.modelId}
-              onClick={() => onSelectImageModel(model.modelId)}
-            />
-          ))}
+          {imageTabEmptyState ? (
+            <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
+              {imageTabEmptyState === "needs-api-key" ? (
+                <>
+                  <KeyIcon className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                  <p className="text-base font-medium text-foreground mb-1">
+                    Replicate API Key Required
+                  </p>
+                  <p className="text-sm text-muted-foreground mb-6 max-w-[240px]">
+                    Add your Replicate API key to generate images with AI
+                    models.
+                  </p>
+                  <Link
+                    to={ROUTES.SETTINGS.API_KEYS}
+                    className={buttonVariants({
+                      variant: "secondary",
+                      size: "default",
+                    })}
+                  >
+                    <GearIcon className="h-4 w-4 mr-2" />
+                    Open Settings
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <ImageIcon className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                  <p className="text-base font-medium text-foreground mb-1">
+                    No Image Models Enabled
+                  </p>
+                  <p className="text-sm text-muted-foreground mb-6 max-w-[240px]">
+                    Enable image models in settings to start generating images.
+                  </p>
+                  <Link
+                    to={ROUTES.SETTINGS.IMAGE_MODELS}
+                    className={buttonVariants({
+                      variant: "secondary",
+                      size: "default",
+                    })}
+                  >
+                    <GearIcon className="h-4 w-4 mr-2" />
+                    Open Settings
+                  </Link>
+                </>
+              )}
+            </div>
+          ) : (
+            filteredImageModels.map(model => (
+              <DrawerItem
+                key={model.modelId}
+                icon={<ImageIcon className="h-5 w-5" />}
+                name={model.name}
+                description={model.description || "Image generation model"}
+                selected={selectedImageModelId === model.modelId}
+                onClick={() => onSelectImageModel(model.modelId)}
+              />
+            ))
+          )}
         </div>
       )}
     </div>
