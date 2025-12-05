@@ -31,3 +31,33 @@ export function CitationPill({
     </span>
   );
 }
+
+type CitationPillSkeletonProps = {
+  /** The citation number(s) to display, e.g. "1" or "1,2,3" */
+  citationText: string;
+  className?: string;
+};
+
+/**
+ * Skeleton placeholder for citation pills shown during streaming.
+ * Matches the dimensions of CitationPill for smooth transition.
+ */
+export function CitationPillSkeleton({
+  citationText,
+  className,
+}: CitationPillSkeletonProps) {
+  return (
+    <span
+      className={cn(
+        "h-auto px-2 py-0.5 text-[11px] font-medium text-muted-foreground/60 bg-muted/50 border border-border/30 rounded-full inline-flex items-center align-baseline no-underline mx-0.5 animate-pulse",
+        className
+      )}
+      style={{
+        verticalAlign: "baseline",
+        lineHeight: "1.4",
+      }}
+    >
+      {citationText}
+    </span>
+  );
+}

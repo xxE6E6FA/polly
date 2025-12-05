@@ -214,13 +214,18 @@ export async function streamLLMToMessage({
           });
         }
 
-        // Handle tool result - extract citations
+        // Handle tool result - extract citations and write immediately
         if (chunk.type === "tool-result") {
           const toolResult = chunk as {
             output?: { success?: boolean; citations?: Citation[] };
           };
           if (toolResult.output?.success && toolResult.output?.citations) {
             citationsFromTools = toolResult.output.citations;
+            // Write citations immediately so frontend can render them during streaming
+            await ctx.runMutation(internal.messages.internalUpdate, {
+              id: messageId,
+              citations: citationsFromTools,
+            });
           }
           isSearching = false;
           await ctx.runMutation(internal.messages.updateMessageStatus, {

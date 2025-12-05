@@ -18,9 +18,20 @@ import {
 import { CodeBlockWrapperLLM } from "./code-block-wrapper";
 import { MarkdownBlock } from "./markdown-block";
 
-// Context for passing messageId to child components
-const MessageContext = createContext<string | undefined>(undefined);
-export const useMessageId = () => useContext(MessageContext);
+// Context for passing messageId and streaming state to child components
+type StreamingContextValue = {
+  messageId: string | undefined;
+  isStreaming: boolean;
+};
+
+const StreamingContext = createContext<StreamingContextValue>({
+  messageId: undefined,
+  isStreaming: false,
+});
+
+export const useMessageId = () => useContext(StreamingContext).messageId;
+export const useIsStreaming = () => useContext(StreamingContext).isStreaming;
+export const useStreamingContext = () => useContext(StreamingContext);
 
 // Burst-then-throttle strategy:
 // - No throttling for the very first moments to minimize TTFT.
@@ -169,14 +180,19 @@ const StreamingMarkdownInner = memo(
       });
     }, [blockMatches]);
 
+    const contextValue = useMemo(
+      () => ({ messageId, isStreaming }),
+      [messageId, isStreaming]
+    );
+
     return (
-      <MessageContext.Provider value={messageId}>
+      <StreamingContext.Provider value={contextValue}>
         <div
           className={`${className ?? ""} selectable-text break-words text-[15px] leading-[1.75] sm:text-[16px] sm:leading-[1.8] max-w-[72ch]`}
         >
           {renderedBlocks}
         </div>
-      </MessageContext.Provider>
+      </StreamingContext.Provider>
     );
   },
   (prevProps, nextProps) => {

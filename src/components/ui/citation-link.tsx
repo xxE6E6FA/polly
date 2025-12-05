@@ -2,9 +2,10 @@ import { PreviewCard } from "@base-ui-components/react/preview-card";
 import React, { useMemo } from "react";
 import { useCitations } from "@/providers/citation-context";
 import type { WebSearchCitation } from "@/types";
-import { CitationPill } from "./citation-pill";
+import { CitationPill, CitationPillSkeleton } from "./citation-pill";
 import type { Citation } from "./citation-popover";
 import { CitationPreviewPopup } from "./citation-popover";
+import { useIsStreaming } from "./streaming-markdown";
 
 /**
  * Refactored CitationLink:
@@ -16,6 +17,7 @@ import { CitationPreviewPopup } from "./citation-popover";
 export const CitationLink: React.FC<React.ComponentPropsWithoutRef<"a">> =
   React.memo(({ href, children, ...props }) => {
     const { citations } = useCitations();
+    const isStreaming = useIsStreaming();
     const isCitationRef = href?.startsWith("#cite-");
 
     // Map raw WebSearchCitation objects to internal Citation shape up-front.
@@ -64,8 +66,15 @@ export const CitationLink: React.FC<React.ComponentPropsWithoutRef<"a">> =
       );
     }
 
-    // No valid citation(s): keep legacy class for styling.
+    // No valid citation(s): show skeleton during streaming, fallback anchor otherwise.
     if (groupCitations.length === 0) {
+      if (isStreaming) {
+        // Show skeleton pill during streaming - citation data will arrive when complete
+        const citationText =
+          typeof children === "string" ? children : String(children);
+        return <CitationPillSkeleton citationText={citationText} />;
+      }
+      // After streaming, keep legacy anchor for edge cases
       return (
         <a {...props} href={href} className="citation-link">
           {children}
@@ -75,6 +84,11 @@ export const CitationLink: React.FC<React.ComponentPropsWithoutRef<"a">> =
 
     const pillCitation = groupCitations[0];
     if (!pillCitation) {
+      if (isStreaming) {
+        const citationText =
+          typeof children === "string" ? children : String(children);
+        return <CitationPillSkeleton citationText={citationText} />;
+      }
       return (
         <a {...props} href={href} className="citation-link">
           {children}

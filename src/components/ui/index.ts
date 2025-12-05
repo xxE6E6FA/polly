@@ -194,7 +194,12 @@ export { TextInputDialog } from "./text-input-dialog";
 export { CodeBlock } from "./code-block";
 export { CodeBlockWrapper, CodeBlockWrapperLLM } from "./code-block-wrapper";
 export { MarkdownBlock } from "./markdown-block";
-export { StreamingMarkdown, useMessageId } from "./streaming-markdown";
+export {
+  StreamingMarkdown,
+  useIsStreaming,
+  useMessageId,
+  useStreamingContext,
+} from "./streaming-markdown";
 
 // =============================================================================
 // Citations
@@ -204,7 +209,7 @@ export { CitationProvider, useCitations } from "@/providers/citation-context";
 export type { CitationGroupProps } from "./citation-group";
 export { CitationGroup } from "./citation-group";
 export { CitationLink } from "./citation-link";
-export { CitationPill } from "./citation-pill";
+export { CitationPill, CitationPillSkeleton } from "./citation-pill";
 export type { Citation, CitationPreviewPopupProps } from "./citation-popover";
 export { CitationPreviewPopup } from "./citation-popover";
 

@@ -43,10 +43,10 @@ export const CITATION_INSTRUCTIONS = dedent`
 CITATIONS:
 - When you receive web search results, cite them using [1], [2], etc.
 - Match citation numbers to the source numbers in the search results
-- Place citations immediately after punctuation marks
-- CORRECT: "This is true.[1]" "Is this right?[2]" "Amazing![3]"
-- WRONG: "This is true[1]." "Is this right[2]?" "Amazing[3]!"
-- Consecutive citations are OK: "Multiple sources agree.[1][2][3]"
+- CRITICAL: Place citations AFTER sentence-ending punctuation, not before
+- CORRECT: "This is a fact. [1]" or "Is this true? [2]" or "Wow! [3]"
+- WRONG: "This is a fact [1]." or "Is this true [2]?" or "Wow [3]!"
+- Multiple citations: "Sources agree. [1][2][3]"
 - Integrate information naturally without explicitly mentioning "search results"
 `;
 
