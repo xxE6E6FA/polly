@@ -27,6 +27,13 @@ describe("hasMandatoryReasoning", () => {
     );
   });
 
+  test("detects Moonshot Kimi K2 Thinking", () => {
+    expect(hasMandatoryReasoning("moonshot", "kimi-k2-thinking")).toBe(true);
+    expect(hasMandatoryReasoning("moonshot", "kimi-k2-thinking-0730")).toBe(
+      true
+    );
+  });
+
   test("returns false for non-reasoning models", () => {
     expect(hasMandatoryReasoning("openai", "gpt-4o")).toBe(false);
     expect(hasMandatoryReasoning("anthropic", "claude-3-5-sonnet")).toBe(false);
@@ -36,6 +43,11 @@ describe("hasMandatoryReasoning", () => {
   test("OpenRouter inherits mandatory patterns", () => {
     expect(hasMandatoryReasoning("openrouter", "o1-preview")).toBe(true);
     expect(hasMandatoryReasoning("openrouter", "gemini-2.5-pro")).toBe(true);
+  });
+
+  test("returns false for non-thinking Moonshot models", () => {
+    expect(hasMandatoryReasoning("moonshot", "kimi-k2")).toBe(false);
+    expect(hasMandatoryReasoning("moonshot", "moonlight-16k-v2")).toBe(false);
   });
 });
 
@@ -82,6 +94,14 @@ describe("supportsReasoning", () => {
     expect(supportsReasoning("openai", "gpt-4o")).toBe(false);
     expect(supportsReasoning("anthropic", "claude-3-haiku")).toBe(false);
   });
+
+  test("returns true for Moonshot thinking models", () => {
+    expect(supportsReasoning("moonshot", "kimi-k2-thinking")).toBe(true);
+  });
+
+  test("returns false for non-thinking Moonshot models", () => {
+    expect(supportsReasoning("moonshot", "kimi-k2")).toBe(false);
+  });
 });
 
 describe("getReasoningType", () => {
@@ -98,6 +118,14 @@ describe("getReasoningType", () => {
   test("returns none for non-reasoning models", () => {
     expect(getReasoningType("openai", "gpt-4o")).toBe("none");
     expect(getReasoningType("anthropic", "claude-3-haiku")).toBe("none");
+  });
+
+  test("returns mandatory for Moonshot thinking models", () => {
+    expect(getReasoningType("moonshot", "kimi-k2-thinking")).toBe("mandatory");
+  });
+
+  test("returns none for non-thinking Moonshot models", () => {
+    expect(getReasoningType("moonshot", "kimi-k2")).toBe("none");
   });
 });
 
@@ -173,5 +201,22 @@ describe("getModelReasoningInfo", () => {
     expect(info.providerConfig).toBeDefined();
     expect(info.providerConfig?.mandatoryPatterns).toBeDefined();
     expect(info.providerConfig?.optionalPatterns).toBeDefined();
+  });
+
+  test("returns complete info for Moonshot thinking model", () => {
+    const info = getModelReasoningInfo("moonshot", "kimi-k2-thinking");
+
+    expect(info.supportsReasoning).toBe(true);
+    expect(info.reasoningType).toBe("mandatory");
+    expect(info.needsSpecialHandling).toBe(false);
+    expect(info.providerConfig).toBeDefined();
+  });
+
+  test("returns complete info for non-thinking Moonshot model", () => {
+    const info = getModelReasoningInfo("moonshot", "kimi-k2");
+
+    expect(info.supportsReasoning).toBe(false);
+    expect(info.reasoningType).toBe("none");
+    expect(info.needsSpecialHandling).toBe(false);
   });
 });

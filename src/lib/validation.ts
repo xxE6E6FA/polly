@@ -14,6 +14,8 @@ export function validateApiKey(provider: string, key: string): boolean {
       return key.length > 20; // Groq keys vary; accept reasonable length
     case "openrouter":
       return key.startsWith("sk-or-") && key.length > 20;
+    case "moonshot":
+      return key.startsWith("sk-") && key.length > 20;
     case "replicate":
       return key.startsWith("r8_") && key.length > 20;
     case "elevenlabs":

@@ -749,6 +749,71 @@ function getGoogleContextWindow(modelName: string): number {
   return 32768;
 }
 
+// Moonshot models fetcher - OpenAI-compatible API
+type MoonshotModel = {
+  id: string;
+  object: "model";
+  owned_by: string;
+  context_length: number;
+};
+
+async function fetchMoonshotModels(apiKey: string): Promise<ModelResponse[]> {
+  try {
+    const response = await fetch("https://api.moonshot.ai/v1/models", {
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Moonshot API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const models = Array.isArray(data.data) ? data.data : [];
+
+    return models.map((model: MoonshotModel) => {
+      const modelId = model.id;
+
+      // Detect capabilities from model ID patterns
+      const hasVision = modelId.includes("vision");
+      const hasReasoning = modelId.includes("thinking");
+
+      return {
+        modelId,
+        name: generateMoonshotDisplayName(modelId),
+        provider: "moonshot",
+        contextWindow: model.context_length || 32768,
+        supportsReasoning: hasReasoning,
+        supportsTools: true, // All Moonshot models support tool calling
+        supportsImages: hasVision,
+        supportsFiles: model.context_length >= 32000,
+      };
+    });
+  } catch (error) {
+    console.error("Failed to fetch Moonshot models", error);
+    return [];
+  }
+}
+
+function generateMoonshotDisplayName(modelId: string): string {
+  // kimi-k2-turbo-preview -> Kimi K2 Turbo Preview
+  // moonshot-v1-128k -> Moonshot V1 128K
+  return modelId
+    .split("-")
+    .map(part => {
+      if (part.toLowerCase() === "v1") {
+        return "V1";
+      }
+      if (/^\d+k$/i.test(part)) {
+        return part.toUpperCase();
+      }
+      return part.charAt(0).toUpperCase() + part.slice(1);
+    })
+    .join(" ");
+}
+
 // Replicate models fetcher - returns empty array since users will paste model identifiers
 async function fetchReplicateModels(apiKey: string): Promise<ModelResponse[]> {
   try {
@@ -795,6 +860,7 @@ export const fetchAllModels = action({
               | "google"
               | "groq"
               | "openrouter"
+              | "moonshot"
               | "replicate",
           }
         );
@@ -820,6 +886,9 @@ export const fetchAllModels = action({
             break;
           case "openrouter":
             models = await fetchOpenRouterModels(decryptedKey);
+            break;
+          case "moonshot":
+            models = await fetchMoonshotModels(decryptedKey);
             break;
           case "replicate":
             models = await fetchReplicateModels(decryptedKey);
@@ -854,6 +923,7 @@ export const fetchProviderModels = action({
           | "google"
           | "groq"
           | "openrouter"
+          | "moonshot"
           | "replicate",
       });
 
@@ -872,6 +942,8 @@ export const fetchProviderModels = action({
           return await fetchGroqModels(decryptedKey);
         case "openrouter":
           return await fetchOpenRouterModels(decryptedKey);
+        case "moonshot":
+          return await fetchMoonshotModels(decryptedKey);
         case "replicate":
           return await fetchReplicateModels(decryptedKey);
         default:

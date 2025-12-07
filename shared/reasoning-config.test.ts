@@ -216,6 +216,27 @@ describe("getProviderReasoningOptions", () => {
     });
   });
 
+  test("returns Moonshot reasoning config", () => {
+    const result = getProviderReasoningOptions("moonshot");
+
+    expect(result).toEqual({
+      openai: {
+        reasoning: true,
+      },
+    });
+  });
+
+  test("returns Moonshot reasoning config regardless of effort level", () => {
+    const result = getProviderReasoningOptions("moonshot", { effort: "high" });
+
+    // Moonshot always returns the same config since reasoning is mandatory
+    expect(result).toEqual({
+      openai: {
+        reasoning: true,
+      },
+    });
+  });
+
   test("returns empty object for unknown provider", () => {
     const result = getProviderReasoningOptions("unknown-provider");
     expect(result).toEqual({});

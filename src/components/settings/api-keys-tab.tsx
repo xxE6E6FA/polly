@@ -38,6 +38,7 @@ type ApiProvider =
   | "google"
   | "groq"
   | "openrouter"
+  | "moonshot"
   | "replicate"
   | "elevenlabs";
 
@@ -66,6 +67,11 @@ const API_KEY_INFO = {
     name: "OpenRouter",
     url: "https://openrouter.ai/keys",
     placeholder: "sk-or-...",
+  },
+  moonshot: {
+    name: "Moonshot",
+    url: "https://platform.moonshot.ai/console/api-keys",
+    placeholder: "sk-...",
   },
   replicate: {
     name: "Replicate",

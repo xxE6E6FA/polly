@@ -18,6 +18,7 @@ type ProviderType =
   | "google"
   | "groq"
   | "openrouter"
+  | "moonshot"
   | "replicate"
   | "elevenlabs";
 
@@ -150,6 +151,8 @@ function validateApiKeyFormat(provider: string, key: string): boolean {
       return key.length > 20; // Groq keys vary; AI SDK uses Authorization: Bearer
     case "openrouter":
       return key.startsWith("sk-or-") && key.length > 20;
+    case "moonshot":
+      return key.startsWith("sk-") && key.length > 20;
     case "replicate":
       return key.startsWith("r8_") && key.length > 20;
     case "elevenlabs":
@@ -168,6 +171,7 @@ export const storeApiKey = mutation({
       v.literal("google"),
       v.literal("groq"),
       v.literal("openrouter"),
+      v.literal("moonshot"),
       v.literal("replicate"),
       v.literal("elevenlabs")
     ),
@@ -204,6 +208,7 @@ export const storeClientEncryptedApiKey = mutation({
       v.literal("google"),
       v.literal("groq"),
       v.literal("openrouter"),
+      v.literal("moonshot"),
       v.literal("replicate"),
       v.literal("elevenlabs")
     ),
@@ -256,6 +261,7 @@ export const removeApiKey = mutation({
       v.literal("google"),
       v.literal("groq"),
       v.literal("openrouter"),
+      v.literal("moonshot"),
       v.literal("replicate"),
       v.literal("elevenlabs")
     ),
@@ -278,6 +284,7 @@ export const validateApiKey = mutation({
       v.literal("google"),
       v.literal("groq"),
       v.literal("openrouter"),
+      v.literal("moonshot"),
       v.literal("replicate"),
       v.literal("elevenlabs")
     ),
@@ -333,7 +340,8 @@ function hasEnvironmentApiKeys(): boolean {
       process.env.ANTHROPIC_API_KEY ||
       process.env.GEMINI_API_KEY ||
       process.env.GROQ_API_KEY ||
-      process.env.OPENROUTER_API_KEY
+      process.env.OPENROUTER_API_KEY ||
+      process.env.MOONSHOT_API_KEY
   );
 }
 
@@ -346,6 +354,7 @@ export const getDecryptedApiKey = action({
       v.literal("google"),
       v.literal("groq"),
       v.literal("openrouter"),
+      v.literal("moonshot"),
       v.literal("replicate"),
       v.literal("elevenlabs")
     ),
@@ -412,6 +421,7 @@ export const getClientEncryptedApiKey = query({
       v.literal("google"),
       v.literal("groq"),
       v.literal("openrouter"),
+      v.literal("moonshot"),
       v.literal("replicate"),
       v.literal("elevenlabs")
     ),
@@ -446,6 +456,7 @@ export const getEncryptedApiKeyData = internalQuery({
       v.literal("google"),
       v.literal("groq"),
       v.literal("openrouter"),
+      v.literal("moonshot"),
       v.literal("replicate"),
       v.literal("elevenlabs")
     ),
@@ -463,6 +474,7 @@ export const getEncryptedApiKeyData = internalQuery({
               | "anthropic"
               | "google"
               | "openrouter"
+              | "moonshot"
               | "replicate"
               | "elevenlabs"
           )

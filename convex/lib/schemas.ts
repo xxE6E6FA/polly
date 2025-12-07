@@ -180,6 +180,7 @@ export const providerSchema = v.union(
   v.literal("google"),
   v.literal("groq"),
   v.literal("openrouter"),
+  v.literal("moonshot"),
   v.literal("replicate"),
   v.literal("elevenlabs"),
 );

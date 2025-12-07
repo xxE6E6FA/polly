@@ -14,7 +14,7 @@ type AssistantLoadingStateProps = {
 };
 
 // Set to true to enable debug logging for re-renders
-const DEBUG_RENDERS = true;
+const DEBUG_RENDERS = false;
 
 /**
  * Extracted loading state component for assistant messages.

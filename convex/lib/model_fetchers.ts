@@ -724,6 +724,83 @@ export async function fetchGroqModels(
 }
 
 // ============================================================================
+// MOONSHOT - FETCH ALL (OpenAI-compatible API)
+// ============================================================================
+
+type MoonshotModel = {
+	id: string;
+	object: "model";
+	owned_by: string;
+	context_length: number;
+};
+
+/**
+ * Fetch all Moonshot models.
+ * Uses OpenAI-compatible API format. Context length provided directly by API.
+ */
+export async function fetchMoonshotModels(
+	apiKey: string,
+): Promise<TextModelCapabilities[]> {
+	try {
+		const response = await fetch("https://api.moonshot.ai/v1/models", {
+			headers: {
+				Authorization: `Bearer ${apiKey}`,
+				"Content-Type": "application/json",
+			},
+		});
+
+		if (!response.ok) {
+			throw new Error(`Moonshot API error: ${response.status}`);
+		}
+
+		const data = await response.json();
+		const models = Array.isArray(data.data) ? data.data : [];
+
+		return models.map((model: MoonshotModel) => {
+			const modelId = model.id;
+
+			// Detect capabilities from model ID patterns
+			const hasVision = modelId.includes("vision");
+			const hasReasoning = modelId.includes("thinking");
+
+			return {
+				modelId,
+				name: generateMoonshotDisplayName(modelId),
+				provider: "moonshot",
+				contextLength: model.context_length || 32768,
+				supportsReasoning: hasReasoning,
+				supportsTools: true, // All Moonshot models support tool calling
+				supportsImages: hasVision,
+				supportsFiles: model.context_length >= 32000,
+			};
+		});
+	} catch (error) {
+		console.error("Failed to fetch Moonshot models", error);
+		return [];
+	}
+}
+
+function generateMoonshotDisplayName(modelId: string): string {
+	// kimi-k2-turbo-preview -> Kimi K2 Turbo Preview
+	// moonshot-v1-128k -> Moonshot V1 128K
+	// kimi-k2-thinking-turbo -> Kimi K2 Thinking Turbo
+	return modelId
+		.split("-")
+		.map((part) => {
+			// Handle special cases
+			if (part.toLowerCase() === "v1") {
+				return "V1";
+			}
+			if (/^\d+k$/i.test(part)) {
+				return part.toUpperCase();
+			}
+			// Capitalize first letter
+			return part.charAt(0).toUpperCase() + part.slice(1);
+		})
+		.join(" ");
+}
+
+// ============================================================================
 // OPENROUTER - FETCH ALL
 // ============================================================================
 

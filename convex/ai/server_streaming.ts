@@ -5,9 +5,10 @@
  */
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
-import { createOpenAI } from "@ai-sdk/openai";
-import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { createGroq } from "@ai-sdk/groq";
+import { createOpenAI } from "@ai-sdk/openai";
+import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
+import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import type { LanguageModel } from "ai";
 
 import { api } from "../_generated/api";
@@ -50,6 +51,15 @@ const createProviderModel = {
   groq: (apiKey: string, model: string) => {
     const groq = createGroq({ apiKey });
     return groq(model);
+  },
+
+  moonshot: (apiKey: string, model: string) => {
+    const moonshot = createOpenAICompatible({
+      name: "moonshot",
+      apiKey,
+      baseURL: "https://api.moonshot.ai/v1",
+    });
+    return moonshot.chatModel(model);
   },
 
   openrouter: async (
@@ -121,6 +131,8 @@ export const createLanguageModel = async (
       return createProviderModel.google(apiKey, model);
     case "groq":
       return createProviderModel.groq(apiKey, model);
+    case "moonshot":
+      return createProviderModel.moonshot(apiKey, model);
     default:
       throw new Error(`Unsupported provider: ${provider}`);
   }

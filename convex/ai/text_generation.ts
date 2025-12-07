@@ -13,7 +13,7 @@ import { DEFAULT_BUILTIN_MODEL_ID } from "../../shared/constants";
 import { CONFIG } from "./config";
 
 /** Providers supported for internal text generation */
-type TextProviderType = "openai" | "anthropic" | "google" | "groq" | "openrouter";
+type TextProviderType = "openai" | "anthropic" | "google" | "groq" | "openrouter" | "moonshot";
 
 export type TextGenerationOptions = {
 	prompt: string;
@@ -59,6 +59,13 @@ function createInternalLanguageModel(
 		case "groq": {
 			const groq = createGroq({ apiKey });
 			return groq(model);
+		}
+		case "moonshot": {
+			const moonshot = createOpenAI({
+				apiKey,
+				baseURL: "https://api.moonshot.ai/v1",
+			});
+			return moonshot.chat(model);
 		}
 		case "openrouter":
 			// OpenRouter requires async setup, not suitable for simple internal ops

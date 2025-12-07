@@ -95,6 +95,7 @@ export type ProviderType =
   | "google"
   | "groq"
   | "openrouter"
+  | "moonshot"
   | "polly"
   | "replicate"
   | "elevenlabs";

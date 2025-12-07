@@ -221,6 +221,15 @@ export function getProviderReasoningOptions(
       };
     }
 
+    case "moonshot":
+      // Moonshot uses OpenAI-compatible API format
+      // Kimi K2 Thinking has mandatory reasoning that is always enabled
+      return {
+        openai: {
+          reasoning: true,
+        },
+      };
+
     default:
       return {};
   }

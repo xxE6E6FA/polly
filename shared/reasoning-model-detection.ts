@@ -36,6 +36,9 @@ export const MANDATORY_REASONING_PATTERNS = [
 
   // Mistral reasoning models (always-on)
   "magistral-medium-2506",
+
+  // Moonshot/Kimi reasoning models (always-on)
+  "kimi-k2-thinking",
 ] as const;
 
 export const OPTIONAL_REASONING_PATTERNS = [
@@ -105,6 +108,11 @@ function getProviderSpecificPatterns(
           patternLower.includes("grok")
         );
 
+      case "moonshot":
+        return (
+          patternLower.includes("kimi") || patternLower.includes("moonshot")
+        );
+
       default:
         return false;
     }
@@ -153,6 +161,13 @@ export const PROVIDER_REASONING_CONFIG = {
       maxTokens: ["gemini", "claude", "qwen"], // Models that support direct token allocation
       allSupport: ["exclude"], // All reasoning models support excluding reasoning from response
     },
+  },
+  moonshot: {
+    getMandatoryPatterns: () =>
+      getProviderSpecificPatterns(MANDATORY_REASONING_PATTERNS, "moonshot"),
+    getOptionalPatterns: () =>
+      getProviderSpecificPatterns(OPTIONAL_REASONING_PATTERNS, "moonshot"),
+    configFormat: { reasoning: true }, // Similar to OpenAI format since it uses OpenAI-compatible API
   },
 } as const;
 
