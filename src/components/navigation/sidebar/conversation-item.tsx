@@ -434,7 +434,12 @@ const ConversationItemComponent = ({
               className={cn(
                 "flex-1 flex items-center min-w-0 no-underline text-inherit rounded-lg transition-all duration-200 ease-in-out",
                 isMobile ? "py-2.5" : "py-2",
-                isBulkMode ? "pl-8 pr-2.5" : "px-2.5"
+                // Bulk mode: extra left padding for checkbox
+                // Mobile: reserve space for always-visible actions button
+                // Desktop: expand right padding on hover to make room for actions
+                isBulkMode && "pl-8 pr-2.5",
+                !isBulkMode && isMobile && "pl-2.5 pr-10",
+                !(isBulkMode || isMobile) && "px-2.5 group-hover:pr-20"
               )}
               onClick={
                 isEditing ? e => e.preventDefault() : handleConversationClick
@@ -465,8 +470,8 @@ const ConversationItemComponent = ({
               </div>
             </Link>
 
-            {/* Right side: spinner or actions - flex sibling, not overlapping Link */}
-            <div className="flex-shrink-0 flex items-center pr-2">
+            {/* Right side: spinner or actions - absolutely positioned to avoid reserving space */}
+            <div className="absolute right-2 top-0 h-full flex items-center">
               {isBeingDeleted && (
                 <Spinner className="text-destructive/70" size="sm" />
               )}

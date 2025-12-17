@@ -159,7 +159,7 @@ export const ConversationActions = memo(
               "flex flex-shrink-0 items-center gap-0.5 transition-all duration-200 ease-in-out",
               isHovered || isDesktopPopoverOpen
                 ? "opacity-100 translate-x-0"
-                : "opacity-0 translate-x-2"
+                : "opacity-0 translate-x-2 pointer-events-none"
             )}
           >
             <Tooltip>
