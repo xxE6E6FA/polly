@@ -270,6 +270,23 @@ export async function getFileMetadataHandler(
       }
     }
 
+    // If no userFiles entries exist at all, the file may have just been uploaded
+    // and the message hasn't been saved yet. Allow access if the file exists in storage.
+    // This handles the race condition between file upload and message creation.
+    if (!hasAccess && allUserFileEntries.length === 0) {
+      const metadata = await ctx.db.system.get(args.storageId);
+      const fileUrl = metadata
+        ? await ctx.storage.getUrl(args.storageId)
+        : null;
+      if (metadata && fileUrl) {
+        return {
+          storageId: args.storageId,
+          url: fileUrl,
+          metadata,
+        };
+      }
+    }
+
     if (!hasAccess) {
       throw new ConvexError("Access denied");
     }
@@ -343,6 +360,17 @@ export async function getFileUrlHandler(
       if (conversationAccess) {
         hasAccess = true;
         break;
+      }
+    }
+
+    // If no userFiles entries exist at all, the file may have just been uploaded
+    // and the message hasn't been saved yet. Allow access if the file exists in storage.
+    // This handles the race condition between file upload and message creation.
+    if (!hasAccess && allUserFileEntries.length === 0) {
+      const fileExists = await ctx.storage.getUrl(args.storageId);
+      if (fileExists) {
+        // File exists but no userFiles entry yet - likely a pending upload
+        return fileExists;
       }
     }
 
