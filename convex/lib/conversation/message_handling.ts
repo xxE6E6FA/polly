@@ -78,7 +78,7 @@ export const ensureStreamingCleared = async (
 ) => {
   // Clear streaming state by patching the conversation directly
   if ("db" in ctx) {
-    await ctx.db.patch(conversationId, { isStreaming: false });
+    await ctx.db.patch("conversations", conversationId, { isStreaming: false });
   } else {
     throw new ConvexError("Cannot clear streaming state from ActionCtx");
   }
@@ -376,7 +376,7 @@ export async function checkConversationAccess(
 
       const conversation =
         "db" in ctx
-          ? await ctx.db.get(conversationId)
+          ? await ctx.db.get("conversations", conversationId)
           : await ctx.runQuery(api.conversations.get, { id: conversationId });
       if (!conversation) {
         return { hasAccess: false, conversation: null, isDeleted: true };
@@ -402,7 +402,7 @@ export async function checkConversationAccess(
 
     const conversation =
       "db" in ctx
-        ? await ctx.db.get(conversationId)
+        ? await ctx.db.get("conversations", conversationId)
         : await ctx.runQuery(api.conversations.get, { id: conversationId });
 
     if (!conversation) {

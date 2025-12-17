@@ -26,7 +26,7 @@ export const archiveOldConversations = internalMutation({
       .take(batchSize);
 
     const archiveOperations = oldConversations.map(conv =>
-      ctx.db.patch(conv._id, {
+      ctx.db.patch("conversations", conv._id, {
         isArchived: true,
         updatedAt: Date.now(),
       })
@@ -69,6 +69,7 @@ export const cleanupOrphanedMessages = internalMutation({
 
     for (const [conversationId, messagesGroup] of conversationIdGroups) {
       const conversation = await ctx.db.get(
+        "conversations",
         conversationId as Id<"conversations">
       );
       if (!conversation) {
@@ -130,7 +131,7 @@ export const archiveConversationsForUser = internalMutation({
       .take(batchSize);
 
     const archiveOperations = oldConversations.map(conv =>
-      ctx.db.patch(conv._id, {
+      ctx.db.patch("conversations", conv._id, {
         isArchived: true,
         updatedAt: Date.now(),
       })
@@ -186,7 +187,7 @@ export const archiveConversationsForAllUsers = internalMutation({
         .take(100);
 
       const archiveOperations = oldConversations.map(conv =>
-        ctx.db.patch(conv._id, {
+        ctx.db.patch("conversations", conv._id, {
           isArchived: true,
           updatedAt: Date.now(),
         })
@@ -295,7 +296,7 @@ export const resetMonthlyUserStats = internalMutation({
         user.lastMonthlyReset < lastResetDate.getTime();
 
       if (needsReset) {
-        await ctx.db.patch(user._id, {
+        await ctx.db.patch("users", user._id, {
           monthlyMessagesSent: 0,
           lastMonthlyReset: now,
         });
@@ -348,7 +349,7 @@ export const cleanupOldSharedConversations = internalMutation({
 
     let deletedCount = 0;
     for (const sharedConversation of oldSharedConversations) {
-      await ctx.db.delete(sharedConversation._id);
+      await ctx.db.delete("sharedConversations", sharedConversation._id);
       deletedCount++;
     }
 

@@ -28,7 +28,7 @@ export const updateUserFilesMetadataBatch = mutation({
     for (const userFile of result.page) {
       try {
         // Get the message to find the full attachment data
-        const message = await ctx.db.get(userFile.messageId);
+        const message = await ctx.db.get("messages", userFile.messageId);
         if (!message) {
           errors.push(`Message ${userFile.messageId} not found for userFile ${userFile._id}`);
           continue;
@@ -57,7 +57,7 @@ export const updateUserFilesMetadataBatch = mutation({
         }
 
         // Update userFile with full metadata
-        await ctx.db.patch(userFile._id, {
+        await ctx.db.patch("userFiles", userFile._id, {
           url: attachment.url,
           content: attachment.content,
           thumbnail: attachment.thumbnail,

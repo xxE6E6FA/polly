@@ -279,7 +279,7 @@ export async function toggleModelHandler(
 
   if (existing) {
     // Remove existing user model
-    await ctx.db.delete(existing._id);
+    await ctx.db.delete("userModels", existing._id);
     return { success: true, action: "removed" };
   }
 
@@ -512,12 +512,14 @@ export async function selectModelHandler(
     const operations = [];
 
     if (selectedModel) {
-      operations.push(ctx.db.patch(selectedModel._id, { selected: false }));
+      operations.push(
+        ctx.db.patch("userModels", selectedModel._id, { selected: false })
+      );
     }
 
     operations.push(
       userSettings
-        ? ctx.db.patch(userSettings._id, {
+        ? ctx.db.patch("userSettings", userSettings._id, {
             defaultModelSelected: true,
             updatedAt: Date.now(),
           })
@@ -555,10 +557,12 @@ export async function selectModelHandler(
 
   const operations = [];
 
-  operations.push(ctx.db.patch(model._id, { selected: true }));
+  operations.push(ctx.db.patch("userModels", model._id, { selected: true }));
 
   if (selectedModel) {
-    operations.push(ctx.db.patch(selectedModel._id, { selected: false }));
+    operations.push(
+      ctx.db.patch("userModels", selectedModel._id, { selected: false })
+    );
   }
 
   const userSettingsPromise = ctx.db
@@ -572,7 +576,7 @@ export async function selectModelHandler(
   ]);
 
   if (userSettings?.defaultModelSelected) {
-    await ctx.db.patch(userSettings._id, {
+    await ctx.db.patch("userSettings", userSettings._id, {
       defaultModelSelected: false,
       updatedAt: Date.now(),
     });
@@ -605,7 +609,7 @@ export async function removeModelHandler(
     return { success: false, error: "Model not found" };
   }
 
-  await ctx.db.delete(existing._id);
+  await ctx.db.delete("userModels", existing._id);
 
   return {
     success: true,
@@ -639,7 +643,7 @@ export async function updateModelAvailabilityHandler(
     .filter(model => model.provider === args.provider)
     .map(async model => {
       const isAvailable = availableModelIdsSet.has(model.modelId);
-      await ctx.db.patch(model._id, {
+      await ctx.db.patch("userModels", model._id, {
         isAvailable,
         availabilityCheckedAt: checkedAt,
       });
@@ -684,7 +688,7 @@ export async function removeUnavailableModelsHandler(
 
   // Remove unavailable models
   const removalPromises = unavailableModels.map(model =>
-    ctx.db.delete(model._id)
+    ctx.db.delete("userModels", model._id)
   );
 
   await Promise.all(removalPromises);

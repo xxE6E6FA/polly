@@ -405,7 +405,7 @@ export const updateUserModelCapabilities = internalMutation({
       .first();
 
     if (existingModel) {
-      await ctx.db.patch(existingModel._id, {
+      await ctx.db.patch("userImageModels", existingModel._id, {
         supportedAspectRatios: args.supportedAspectRatios,
         supportsMultipleImages: args.supportsMultipleImages,
         supportsNegativePrompt: args.supportsNegativePrompt,
@@ -426,7 +426,7 @@ export const storeModelDefinition = internalMutation({
 
     if (existing) {
       // Update existing definition
-      await ctx.db.patch(existing._id, {
+      await ctx.db.patch("imageModelDefinitions", existing._id, {
         ...modelDefinition,
         lastUpdated: Date.now(),
       });
@@ -500,7 +500,7 @@ export const toggleImageModel = mutation({
 
     if (existingModel) {
       // Remove if exists
-      await ctx.db.delete(existingModel._id);
+      await ctx.db.delete("userImageModels", existingModel._id);
       return { action: "removed", model: existingModel };
     }
 
@@ -524,7 +524,7 @@ export const toggleImageModel = mutation({
       createdAt: Date.now(),
     });
 
-    const inserted = await ctx.db.get(newModel);
+    const inserted = await ctx.db.get("userImageModels", newModel);
     return { action: "added", model: inserted };
   },
 });
@@ -568,7 +568,7 @@ export const setSelectedImageModel = mutation({
       .collect();
 
     for (const model of selectedModels) {
-      await ctx.db.patch(model._id, { selected: false });
+      await ctx.db.patch("userImageModels", model._id, { selected: false });
     }
 
     // Set new selection
@@ -584,8 +584,10 @@ export const setSelectedImageModel = mutation({
       .unique();
 
     if (targetModel) {
-      await ctx.db.patch(targetModel._id, { selected: true });
-      return await ctx.db.get(targetModel._id);
+      await ctx.db.patch("userImageModels", targetModel._id, {
+        selected: true,
+      });
+      return await ctx.db.get("userImageModels", targetModel._id);
     }
 
     return null;

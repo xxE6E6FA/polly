@@ -41,7 +41,7 @@ async function handleUpsertUserSettings(
   const now = Date.now();
 
   if (existingSettings) {
-    await ctx.db.patch(existingSettings._id, {
+    await ctx.db.patch("userSettings", existingSettings._id, {
       ...updates,
       updatedAt: now,
     });

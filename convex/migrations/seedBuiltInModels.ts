@@ -42,7 +42,7 @@ export const upsertTextModel = internalMutation({
 			.first();
 
 		if (existing) {
-			await ctx.db.patch(existing._id, {
+			await ctx.db.patch("builtInModels", existing._id, {
 				name: args.name,
 				contextLength: args.contextLength,
 				maxOutputTokens: args.maxOutputTokens,
@@ -95,7 +95,7 @@ export const upsertImageModel = internalMutation({
 			.first();
 
 		if (existing) {
-			await ctx.db.patch(existing._id, {
+			await ctx.db.patch("builtInImageModels", existing._id, {
 				name: args.name,
 				description: args.description,
 				supportedAspectRatios: args.supportedAspectRatios,

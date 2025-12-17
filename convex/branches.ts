@@ -107,7 +107,10 @@ export async function internalCloneMessagesHandler(
   }
 ) {
   // Get target conversation to extract userId
-  const targetConversation = await ctx.db.get(args.targetConversationId);
+  const targetConversation = await ctx.db.get(
+    "conversations",
+    args.targetConversationId
+  );
   if (!targetConversation) {
     throw new Error("Target conversation not found");
   }
@@ -159,7 +162,7 @@ export async function internalCloneMessagesHandler(
 
   // Update conversation's messageCount
   if (messageCount > 0) {
-    await ctx.db.patch(args.targetConversationId, {
+    await ctx.db.patch("conversations", args.targetConversationId, {
       messageCount: (targetConversation.messageCount || 0) + messageCount,
     });
   }
@@ -394,7 +397,7 @@ export async function getBranchesHandler(
 
   // If none, include root if exists (backfill scenario)
   if (!conversations.length) {
-    const root = await ctx.db.get(args.rootConversationId);
+    const root = await ctx.db.get("conversations", args.rootConversationId);
     return root ? [root] : [];
   }
 
@@ -418,7 +421,10 @@ export async function getBranchesHandler(
         .collect();
       if (conv.branchFromMessageId) {
         // Find first message created after branch point
-        const branchSource = await ctx.db.get(conv.branchFromMessageId);
+        const branchSource = await ctx.db.get(
+          "messages",
+          conv.branchFromMessageId
+        );
         if (branchSource) {
           const firstAfter = msgs.find(
             m => m.createdAt > branchSource.createdAt

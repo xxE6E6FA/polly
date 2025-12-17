@@ -88,10 +88,12 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
         try {
           // Get the session to check if it belongs to an anonymous user
           const session = await typedCtx.db.get(
+            "authSessions",
             existingSessionId as Id<"authSessions">
           );
           if (session) {
             const sessionUser = await typedCtx.db.get(
+              "users",
               session.userId as Id<"users">
             );
 
@@ -110,7 +112,7 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
       // Update existing user
       if (existingUserId) {
         const existingUserDocId = existingUserId as Id<"users">;
-        const existingUser = await typedCtx.db.get(existingUserDocId);
+        const existingUser = await typedCtx.db.get("users", existingUserDocId);
         if (!existingUser) {
           console.error(
             `User document ${existingUserId} doesn't exist (orphaned account)`
@@ -120,7 +122,7 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
 
         // Only update fields that the user hasn't customized
         // On subsequent sign-ins, preserve user's custom name/image
-        await typedCtx.db.patch(existingUserDocId, {
+        await typedCtx.db.patch("users", existingUserDocId, {
           // Only set name/image if they don't exist yet (first sign-in)
           name: existingUser.name || profileName,
           image: existingUser.image || profileImage,
@@ -144,7 +146,7 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
           const existingEmailUserId = existingEmailUser._id as Id<"users">;
           // Only update fields that the user hasn't customized
           // On subsequent sign-ins, preserve user's custom name/image
-          await typedCtx.db.patch(existingEmailUserId, {
+          await typedCtx.db.patch("users", existingEmailUserId, {
             // Only set name/image if they don't exist yet (first sign-in)
             name: existingEmailUser.name || profileName,
             image: existingEmailUser.image || profileImage,

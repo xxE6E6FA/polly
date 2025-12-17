@@ -138,7 +138,7 @@ export async function createConversationHandler(
 
   // Backfill rootConversationId on creation for new conversations
   try {
-    await ctx.db.patch(conversationId, {
+    await ctx.db.patch("conversations", conversationId, {
       rootConversationId: conversationId,
     });
   } catch {
@@ -148,11 +148,11 @@ export async function createConversationHandler(
   // Update user conversation count with retry to avoid conflicts
   await withRetry(
     async () => {
-      const freshUser = await ctx.db.get(userId);
+      const freshUser = await ctx.db.get("users", userId);
       if (!freshUser) {
         throw new Error("User not found");
       }
-      await ctx.db.patch(userId, {
+      await ctx.db.patch("users", userId, {
         conversationCount: Math.max(0, (freshUser.conversationCount || 0) + 1),
       });
     },
@@ -202,11 +202,11 @@ export async function createConversationHandler(
     const delta = Math.max(1, Math.ceil((args.firstMessage || "").length / 4));
     await withRetry(
       async () => {
-        const fresh = await ctx.db.get(conversationId);
+        const fresh = await ctx.db.get("conversations", conversationId);
         if (!fresh) {
           return;
         }
-        await ctx.db.patch(conversationId, {
+        await ctx.db.patch("conversations", conversationId, {
           tokenEstimate: Math.max(0, (fresh.tokenEstimate || 0) + delta),
           messageCount: 2, // Both user and assistant messages created
         });
@@ -1270,11 +1270,11 @@ export async function patchHandler(
   const patch: Record<string, unknown> = { ...args.updates };
   if (args.setUpdatedAt) {
     // Ensure strictly monotonic updatedAt to satisfy tests that expect a bump
-    const existing = await ctx.db.get(args.id);
+    const existing = await ctx.db.get("conversations", args.id);
     const now = Date.now();
     patch.updatedAt = Math.max(now, (existing?.updatedAt || 0) + 1);
   }
-  return ctx.db.patch(args.id, patch);
+  return ctx.db.patch("conversations", args.id, patch);
 }
 
 export const patch = mutation({
@@ -1298,7 +1298,7 @@ export const internalPatch = internalMutation({
   },
   handler: async (ctx, args) => {
     // Check if conversation exists before patching (defensive)
-    const conversation = await ctx.db.get(args.id);
+    const conversation = await ctx.db.get("conversations", args.id);
     if (!conversation) {
       return; // Silent no-op if not found
     }
@@ -1317,14 +1317,14 @@ export const internalPatch = internalMutation({
       const now = Date.now();
       patch.updatedAt = Math.max(now, (conversation.updatedAt || 0) + 1);
     }
-    await ctx.db.patch(args.id, patch);
+    await ctx.db.patch("conversations", args.id, patch);
   },
 });
 
 export const internalGet = internalQuery({
   args: { id: v.id("conversations") },
   handler: async (ctx, args) => {
-    return await ctx.db.get(args.id);
+    return await ctx.db.get("conversations", args.id);
   },
 });
 
@@ -1342,7 +1342,7 @@ export const createWithUserId = internalMutation({
     reasoningConfig: v.optional(reasoningConfigSchema),
   },
   handler: async (ctx, args) => {
-    const user = await ctx.db.get(args.userId);
+    const user = await ctx.db.get("users", args.userId);
     if (!user) {
       throw new Error("User not found");
     }
@@ -1368,7 +1368,7 @@ export const createWithUserId = internalMutation({
 
     // Backfill rootConversationId for new conversations in this path
     try {
-      await ctx.db.patch(conversationId, {
+      await ctx.db.patch("conversations", conversationId, {
         rootConversationId: conversationId,
       });
     } catch {
@@ -1377,11 +1377,11 @@ export const createWithUserId = internalMutation({
 
     await withRetry(
       async () => {
-        const fresh = await ctx.db.get(args.userId);
+        const fresh = await ctx.db.get("users", args.userId);
         if (!fresh) {
           throw new Error("User not found");
         }
-        await ctx.db.patch(args.userId, {
+        await ctx.db.patch("users", args.userId, {
           conversationCount: Math.max(0, (fresh.conversationCount || 0) + 1),
         });
       },
@@ -1425,7 +1425,7 @@ export const createWithUserId = internalMutation({
     });
 
     // Update messageCount for the conversation (2 messages: user + assistant)
-    await ctx.db.patch(conversationId, { messageCount: 2 });
+    await ctx.db.patch("conversations", conversationId, { messageCount: 2 });
 
     // Schedule title generation and streaming in the background
     if (args.firstMessage && args.firstMessage.trim().length > 0) {
@@ -1488,7 +1488,7 @@ export const createEmptyInternal = internalMutation({
     clientId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const user = await ctx.db.get(args.userId);
+    const user = await ctx.db.get("users", args.userId);
     if (!user) {
       throw new Error("User not found");
     }
@@ -1508,7 +1508,7 @@ export const createEmptyInternal = internalMutation({
 
     // Set rootConversationId to self for new conversations
     try {
-      await ctx.db.patch(conversationId, {
+      await ctx.db.patch("conversations", conversationId, {
         rootConversationId: conversationId,
       });
     } catch {
@@ -1517,11 +1517,11 @@ export const createEmptyInternal = internalMutation({
 
     await withRetry(
       async () => {
-        const fresh = await ctx.db.get(args.userId);
+        const fresh = await ctx.db.get("users", args.userId);
         if (!fresh) {
           throw new Error("User not found");
         }
-        await ctx.db.patch(args.userId, {
+        await ctx.db.patch("users", args.userId, {
           conversationCount: Math.max(0, (fresh.conversationCount || 0) + 1),
         });
       },
@@ -1553,7 +1553,7 @@ export const createEmpty = mutation({
     }
 
     // Get user data for conversation count update
-    const user = await ctx.db.get(userId);
+    const user = await ctx.db.get("users", userId);
     if (!user) {
       throw new Error("User not found");
     }
@@ -1572,12 +1572,12 @@ export const createEmpty = mutation({
     });
 
     // Set rootConversationId to self
-    await ctx.db.patch(conversationId, {
+    await ctx.db.patch("conversations", conversationId, {
       rootConversationId: conversationId,
     });
 
     // Update user conversation count
-    await ctx.db.patch(userId, {
+    await ctx.db.patch("users", userId, {
       conversationCount: Math.max(0, (user.conversationCount || 0) + 1),
     });
 
@@ -1809,12 +1809,12 @@ export const remove = mutation({
     }
 
     // Delete the conversation
-    const result = await ctx.db.delete(args.id);
+    const result = await ctx.db.delete("conversations", args.id);
 
     // Use atomic decrement for conversation count
-    const user = await ctx.db.get(conversation?.userId);
+    const user = await ctx.db.get("users", conversation?.userId);
     if (user && "conversationCount" in user) {
-      await ctx.db.patch(user._id, {
+      await ctx.db.patch("users", user._id, {
         conversationCount: Math.max(0, (user.conversationCount || 0) - 1),
       });
     }
@@ -1870,15 +1870,15 @@ export const bulkRemove = mutation({
         }
 
         // Delete the conversation
-        await ctx.db.delete(id);
+        await ctx.db.delete("conversations", id);
 
         // Use atomic decrement for conversation count
         // Note: Message count is already decremented in messages.removeMultiple
         const user = conversation?.userId
-          ? await ctx.db.get(conversation.userId)
+          ? await ctx.db.get("users", conversation.userId)
           : null;
         if (user && "conversationCount" in user) {
-          await ctx.db.patch(user._id, {
+          await ctx.db.patch("users", user._id, {
             conversationCount: Math.max(0, (user.conversationCount || 0) - 1),
           });
         }
@@ -1908,7 +1908,7 @@ export const internalBulkRemove = internalMutation({
     const results = [];
     for (const id of args.ids) {
       // Verify the conversation exists and belongs to the specified user
-      const conversation = await ctx.db.get(id);
+      const conversation = await ctx.db.get("conversations", id);
       if (!conversation) {
         results.push({ id, status: "not_found" });
         continue;
@@ -1947,13 +1947,13 @@ export const internalBulkRemove = internalMutation({
       }
 
       // Delete the conversation
-      await ctx.db.delete(id);
+      await ctx.db.delete("conversations", id);
 
       // Use atomic decrement for conversation count
       // Note: Message count is already decremented in messages.removeMultiple
-      const user = await ctx.db.get(args.userId);
+      const user = await ctx.db.get("users", args.userId);
       if (user && "conversationCount" in user) {
-        await ctx.db.patch(user._id, {
+        await ctx.db.patch("users", user._id, {
           conversationCount: Math.max(0, (user.conversationCount || 0) - 1),
         });
       }
@@ -2633,7 +2633,7 @@ export const stopGenerationHandler = async (
     throw new Error("Not authenticated");
   }
 
-  const conversation = await ctx.db.get(args.conversationId);
+  const conversation = await ctx.db.get("conversations", args.conversationId);
   if (!conversation) {
     throw new Error("Conversation not found");
   }
@@ -2645,7 +2645,7 @@ export const stopGenerationHandler = async (
   // Set stopRequested signal - this is ALL we do.
   // NO message reads to avoid OCC conflicts with streaming updates.
   // The streaming action checks stopRequested and finalizes the message.
-  await ctx.db.patch(args.conversationId, {
+  await ctx.db.patch("conversations", args.conversationId, {
     isStreaming: false,
     stopRequested: Date.now(),
   });
@@ -2935,7 +2935,7 @@ export const setStreaming = mutation({
     // Use retry logic to handle concurrent updates to the conversation (e.g., tokenEstimate updates)
     await withRetry(
       async () => {
-        await ctx.db.patch(args.conversationId, {
+        await ctx.db.patch("conversations", args.conversationId, {
           isStreaming: args.isStreaming,
           ...(args.isStreaming
             ? { updatedAt: Date.now(), stopRequested: undefined }

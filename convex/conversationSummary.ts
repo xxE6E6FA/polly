@@ -62,7 +62,7 @@ async function handleUpsertConversationSummary(
 
   if (existingSummary) {
     // Update existing summary
-    await ctx.db.patch(existingSummary._id, {
+    await ctx.db.patch("conversationSummaries", existingSummary._id, {
       summary: args.summary,
       messageCount: args.messageCount,
       firstMessageId: args.firstMessageId,

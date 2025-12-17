@@ -110,7 +110,7 @@ export const processBatch = internalMutation({
 
       // Update conversation with message count
       if (messageCount > 0) {
-        await ctx.db.patch(conversationId, { messageCount });
+        await ctx.db.patch("conversations", conversationId, { messageCount });
       }
 
       conversationIds.push(conversationId);
@@ -118,9 +118,9 @@ export const processBatch = internalMutation({
 
     // Update user stats for imported conversations and messages
     if (conversationIds.length > 0 || totalUserMessages > 0) {
-      const user = await ctx.db.get(args.userId);
+      const user = await ctx.db.get("users", args.userId);
       if (user) {
-        await ctx.db.patch(args.userId, {
+        await ctx.db.patch("users", args.userId, {
           conversationCount: Math.max(
             0,
             (user.conversationCount || 0) + conversationIds.length

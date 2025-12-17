@@ -66,7 +66,7 @@ async function addUserIdToMessagesHandler(
       // Update messages that don't have userId
       for (const message of messages) {
         if (message.userId === undefined) {
-          await ctx.db.patch(message._id, {
+          await ctx.db.patch("messages", message._id, {
             userId: conversation.userId,
           });
           updated++;
@@ -87,9 +87,9 @@ async function addUserIdToMessagesHandler(
     .take(50);
 
   for (const message of orphanedMessages) {
-    const conversation = await ctx.db.get(message.conversationId);
+    const conversation = await ctx.db.get("conversations", message.conversationId);
     if (!conversation) {
-      await ctx.db.delete(message._id);
+      await ctx.db.delete("messages", message._id);
       deleted++;
     }
   }

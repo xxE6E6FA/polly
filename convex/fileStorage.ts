@@ -396,7 +396,7 @@ export async function deleteFileHandler(
     .collect();
 
   for (const entry of allEntries) {
-    await ctx.db.delete(entry._id);
+    await ctx.db.delete("userFiles", entry._id);
   }
 
   // Delete from storage
@@ -529,7 +529,10 @@ export async function getUserFilesHandler(
   const filesWithMetadata = await Promise.all(
     paginatedResult.page.map(async file => {
       try {
-        const conversation = await ctx.db.get(file.conversationId);
+        const conversation = await ctx.db.get(
+          "conversations",
+          file.conversationId
+        );
         const fileMetadata = await ctx.db.system.get(file.storageId);
         const fileUrl = await ctx.storage.getUrl(file.storageId);
 
@@ -540,7 +543,7 @@ export async function getUserFilesHandler(
         }
 
         // Get the attachment data from the message for full details
-        const message = await ctx.db.get(file.messageId);
+        const message = await ctx.db.get("messages", file.messageId);
         const attachment = message?.attachments?.find(
           att => att.storageId === file.storageId
         );
@@ -674,7 +677,7 @@ export async function deleteMultipleFilesHandler(
 
     for (const entry of userFileEntries) {
       if (entry.userId === userId) {
-        await ctx.db.delete(entry._id);
+        await ctx.db.delete("userFiles", entry._id);
       }
     }
   }
@@ -701,7 +704,7 @@ export async function deleteMultipleFilesHandler(
         );
 
         if (updatedAttachments.length !== message.attachments.length) {
-          await ctx.db.patch(message._id, {
+          await ctx.db.patch("messages", message._id, {
             attachments: updatedAttachments,
           });
         }
@@ -780,7 +783,7 @@ export async function getMessageAttachmentsHandler(
   }
 
   // Get the message to find its conversation
-  const message = await ctx.db.get(args.messageId);
+  const message = await ctx.db.get("messages", args.messageId);
   if (!message) {
     throw new Error("Message not found");
   }
@@ -855,7 +858,9 @@ export async function getBatchMessageAttachmentsHandler(
   }
 
   // Fetch all messages to verify access
-  const messages = await Promise.all(args.messageIds.map(id => ctx.db.get(id)));
+  const messages = await Promise.all(
+    args.messageIds.map(id => ctx.db.get("messages", id))
+  );
 
   // Verify access for every message's conversation
   const conversationIds = new Set<Id<"conversations">>();

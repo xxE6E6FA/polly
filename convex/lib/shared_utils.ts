@@ -29,7 +29,7 @@ export async function getAuthenticatedUserWithData(
   user: Doc<"users">;
 }> {
   const userId = await getAuthenticatedUser(ctx);
-  const user = await ctx.db.get(userId);
+  const user = await ctx.db.get("users", userId);
   if (!user) {
     throw new ConvexError("User not found");
   }
@@ -59,7 +59,7 @@ export async function validateAuthenticatedUser(
   ctx: MutationCtx | QueryCtx,
 ): Promise<Doc<"users">> {
   const userId = await getAuthenticatedUser(ctx);
-  const user = await ctx.db.get(userId);
+  const user = await ctx.db.get("users", userId);
   if (!user) {
     throw new ConvexError("User not found");
   }
@@ -77,7 +77,7 @@ export async function hasConversationAccess(
   allowShared: boolean = true,
 ): Promise<{ hasAccess: boolean; conversation: Doc<"conversations"> | null }> {
   try {
-    const conversation = await ctx.db.get(conversationId);
+    const conversation = await ctx.db.get("conversations", conversationId);
     if (!conversation) {
       return { hasAccess: false, conversation: null };
     }
@@ -354,7 +354,7 @@ export async function setConversationStreaming(
   conversationId: Id<"conversations">,
   isStreaming: boolean,
 ): Promise<void> {
-  await ctx.db.patch(conversationId, {
+  await ctx.db.patch("conversations", conversationId, {
     isStreaming,
     ...(isStreaming ? { updatedAt: Date.now() } : {}),
   });
@@ -415,7 +415,7 @@ export async function stopConversationStreaming(
         updates.reasoning = options.reasoning;
       }
       
-      await ctx.db.patch(recentAssistantMessage._id, updates);
+      await ctx.db.patch("messages", recentAssistantMessage._id, updates);
     }
   }
 }

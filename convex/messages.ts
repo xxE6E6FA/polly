@@ -70,7 +70,7 @@ async function handleGetMessageById(
   id: Id<"messages">,
   checkAccess = true
 ) {
-  const message = await ctx.db.get(id);
+  const message = await ctx.db.get("messages", id);
   if (!message) {
     return null;
   }
@@ -109,9 +109,12 @@ async function handleMessageDeletion(
     operations.push(
       (async () => {
         try {
-          const conversation = await ctx.db.get(conversationId);
+          const conversation = await ctx.db.get(
+            "conversations",
+            conversationId
+          );
           if (conversation) {
-            await ctx.db.patch(conversationId, {
+            await ctx.db.patch("conversations", conversationId, {
               isStreaming: false,
               messageCount: Math.max(0, (conversation.messageCount || 1) - 1),
             });
@@ -126,12 +129,12 @@ async function handleMessageDeletion(
     );
 
     if (message.role === "user") {
-      const conversation = await ctx.db.get(conversationId);
+      const conversation = await ctx.db.get("conversations", conversationId);
       if (conversation) {
-        const user = await ctx.db.get(conversation.userId);
+        const user = await ctx.db.get("users", conversation.userId);
         if (user) {
           operations.push(
-            ctx.db.patch(conversation.userId, {
+            ctx.db.patch("users", conversation.userId, {
               totalMessageCount: Math.max(0, (user.totalMessageCount || 0) - 1),
             })
           );
@@ -167,7 +170,7 @@ async function handleMessageDeletion(
 
                 // Verify ownership before deleting
                 if (userFileEntry && userFileEntry.userId === userId) {
-                  await ctx.db.delete(userFileEntry._id);
+                  await ctx.db.delete("userFiles", userFileEntry._id);
                 }
               } else if (message._id) {
                 // Fallback path: use by_message index when userId unavailable
@@ -183,7 +186,7 @@ async function handleMessageDeletion(
 
                 for (const entry of userFileEntries) {
                   if (entry.storageId === storageId) {
-                    await ctx.db.delete(entry._id);
+                    await ctx.db.delete("userFiles", entry._id);
                   }
                 }
               }
@@ -236,7 +239,7 @@ export async function createHandler(
   });
 
   if (args.role === "user") {
-    const conversation = await ctx.db.get(args.conversationId);
+    const conversation = await ctx.db.get("conversations", args.conversationId);
     if (conversation) {
       // Only increment stats if model and provider are provided
       if (args.model && args.provider) {
@@ -252,11 +255,11 @@ export async function createHandler(
       const delta = estimateTokens(args.content || "");
       await withRetry(
         async () => {
-          const fresh = await ctx.db.get(args.conversationId);
+          const fresh = await ctx.db.get("conversations", args.conversationId);
           if (!fresh) {
             return;
           }
-          await ctx.db.patch(args.conversationId, {
+          await ctx.db.patch("conversations", args.conversationId, {
             tokenEstimate: Math.max(0, (fresh.tokenEstimate || 0) + delta),
             messageCount: (fresh.messageCount || 0) + 1,
           });
@@ -269,11 +272,11 @@ export async function createHandler(
     // For non-user messages, still update messageCount
     await withRetry(
       async () => {
-        const fresh = await ctx.db.get(args.conversationId);
+        const fresh = await ctx.db.get("conversations", args.conversationId);
         if (!fresh) {
           return;
         }
-        await ctx.db.patch(args.conversationId, {
+        await ctx.db.patch("conversations", args.conversationId, {
           messageCount: (fresh.messageCount || 0) + 1,
         });
       },
@@ -336,7 +339,7 @@ export const createUserMessageBatched = mutation({
     });
 
     // Check if this is a built-in model
-    const conversation = await ctx.db.get(args.conversationId);
+    const conversation = await ctx.db.get("conversations", args.conversationId);
     if (conversation) {
       if (args.model && args.provider) {
         await incrementUserMessageStats(
@@ -350,11 +353,11 @@ export const createUserMessageBatched = mutation({
       // Update messageCount for the conversation
       await withRetry(
         async () => {
-          const fresh = await ctx.db.get(args.conversationId);
+          const fresh = await ctx.db.get("conversations", args.conversationId);
           if (!fresh) {
             return;
           }
-          await ctx.db.patch(args.conversationId, {
+          await ctx.db.patch("conversations", args.conversationId, {
             messageCount: (fresh.messageCount || 0) + 1,
           });
         },
@@ -479,7 +482,7 @@ export async function updateHandler(
     patch?: unknown;
   }
 ) {
-  const message = await ctx.db.get(args.id);
+  const message = await ctx.db.get("messages", args.id);
   if (!message) {
     throw new Error("Message not found");
   }
@@ -505,7 +508,7 @@ export async function updateHandler(
   );
 
   if (Object.keys(cleanUpdates).length > 0) {
-    await ctx.db.patch(id, cleanUpdates);
+    await ctx.db.patch("messages", id, cleanUpdates);
   }
 }
 
@@ -546,7 +549,7 @@ export const internalUpdate = internalMutation({
     while (retries < maxRetries) {
       try {
         // Check if message exists before patching
-        const message = await ctx.db.get(id);
+        const message = await ctx.db.get("messages", id);
         if (!message) {
           return; // Return silently instead of throwing
         }
@@ -563,7 +566,7 @@ export const internalUpdate = internalMutation({
             if (appendReasoning) {
               updates.reasoning = (message.reasoning || "") + appendReasoning;
             }
-            return await ctx.db.patch(id, updates);
+            return await ctx.db.patch("messages", id, updates);
           }
           return;
         }
@@ -593,7 +596,7 @@ export const internalUpdate = internalMutation({
           updates.metadata = newMetadata as typeof message.metadata;
         }
 
-        return await ctx.db.patch(id, updates);
+        return await ctx.db.patch("messages", id, updates);
       } catch (error) {
         if (
           retries < maxRetries - 1 &&
@@ -661,7 +664,7 @@ export const updateContent = internalMutation({
     } = args;
 
     // Check if message exists before patching
-    const message = await ctx.db.get(messageId);
+    const message = await ctx.db.get("messages", messageId);
     if (!message) {
       return false; // Message not found
     }
@@ -704,19 +707,22 @@ export const updateContent = internalMutation({
       };
     }
 
-    await ctx.db.patch(messageId, updateData);
+    await ctx.db.patch("messages", messageId, updateData);
 
     // Update rolling token estimate for assistant final content
-    const updated = await ctx.db.get(messageId);
+    const updated = await ctx.db.get("messages", messageId);
     if (updated && updated.role === "assistant") {
       const delta = Math.max(1, Math.ceil((updates.content || "").length / 4));
       await withRetry(
         async () => {
-          const freshConv = await ctx.db.get(updated.conversationId);
+          const freshConv = await ctx.db.get(
+            "conversations",
+            updated.conversationId
+          );
           if (!freshConv) {
             return;
           }
-          await ctx.db.patch(updated.conversationId, {
+          await ctx.db.patch("conversations", updated.conversationId, {
             tokenEstimate: Math.max(0, (freshConv.tokenEstimate || 0) + delta),
           });
         },
@@ -736,7 +742,7 @@ export async function setBranchHandler(
     parentId?: Id<"messages">;
   }
 ) {
-  const message = await ctx.db.get(args.messageId);
+  const message = await ctx.db.get("messages", args.messageId);
   if (!message) {
     throw new Error("Message not found");
   }
@@ -761,12 +767,12 @@ export async function setBranchHandler(
 
     await Promise.all(
       siblings.map(sibling =>
-        ctx.db.patch(sibling._id, { isMainBranch: false })
+        ctx.db.patch("messages", sibling._id, { isMainBranch: false })
       )
     );
   }
 
-  return await ctx.db.patch(args.messageId, { isMainBranch: true });
+  return await ctx.db.patch("messages", args.messageId, { isMainBranch: true });
 }
 
 export const setBranch = mutation({
@@ -786,7 +792,7 @@ export async function removeHandler(
     throw new Error("Not authenticated");
   }
 
-  const message = await ctx.db.get(args.id);
+  const message = await ctx.db.get("messages", args.id);
 
   if (!message) {
     return;
@@ -807,7 +813,7 @@ export async function removeHandler(
   // Use shared handler for deletion logic
   await handleMessageDeletion(ctx, message, operations, userId);
 
-  operations.push(ctx.db.delete(args.id));
+  operations.push(ctx.db.delete("messages", args.id));
 
   await Promise.all(operations);
 }
@@ -825,7 +831,9 @@ export const removeMultiple = mutation({
       throw new Error("Not authenticated");
     }
 
-    const messages = await Promise.all(args.ids.map(id => ctx.db.get(id)));
+    const messages = await Promise.all(
+      args.ids.map(id => ctx.db.get("messages", id))
+    );
 
     // Check access for all messages before proceeding
     for (const message of messages) {
@@ -858,7 +866,10 @@ export const removeMultiple = mutation({
           );
 
           if (message.role === "user") {
-            const conversation = await ctx.db.get(message.conversationId);
+            const conversation = await ctx.db.get(
+              "conversations",
+              message.conversationId
+            );
             if (conversation) {
               const currentCount =
                 userMessageCounts.get(conversation.userId) || 0;
@@ -895,7 +906,7 @@ export const removeMultiple = mutation({
 
                     // Verify ownership before deleting
                     if (userFileEntry && userFileEntry.userId === userId) {
-                      await ctx.db.delete(userFileEntry._id);
+                      await ctx.db.delete("userFiles", userFileEntry._id);
                     }
                   } catch (error) {
                     console.warn(
@@ -918,9 +929,12 @@ export const removeMultiple = mutation({
       operations.push(
         (async () => {
           try {
-            const conversation = await ctx.db.get(conversationId);
+            const conversation = await ctx.db.get(
+              "conversations",
+              conversationId
+            );
             if (conversation) {
-              await ctx.db.patch(conversationId, {
+              await ctx.db.patch("conversations", conversationId, {
                 isStreaming: false,
                 messageCount: Math.max(
                   0,
@@ -941,9 +955,9 @@ export const removeMultiple = mutation({
     for (const [userId, messageCount] of userMessageCounts) {
       operations.push(
         (async () => {
-          const user = await ctx.db.get(userId);
+          const user = await ctx.db.get("users", userId);
           if (user && "totalMessageCount" in user) {
-            await ctx.db.patch(userId, {
+            await ctx.db.patch("users", userId, {
               totalMessageCount: Math.max(
                 0,
                 (user.totalMessageCount || 0) - messageCount
@@ -956,7 +970,7 @@ export const removeMultiple = mutation({
 
     operations.push(
       ...args.ids.map(id =>
-        ctx.db.delete(id).catch(error => {
+        ctx.db.delete("messages", id).catch(error => {
           console.warn(`Failed to delete message ${id}:`, error);
         })
       )
@@ -974,7 +988,9 @@ export const removeMultiple = mutation({
 export const internalRemoveMultiple = internalMutation({
   args: { ids: v.array(v.id("messages")) },
   handler: async (ctx, args) => {
-    const messages = await Promise.all(args.ids.map(id => ctx.db.get(id)));
+    const messages = await Promise.all(
+      args.ids.map(id => ctx.db.get("messages", id))
+    );
 
     const conversationMessageCounts = new Map<Id<"conversations">, number>();
     const userMessageCounts = new Map<Id<"users">, number>();
@@ -993,7 +1009,10 @@ export const internalRemoveMultiple = internalMutation({
           );
 
           if (message.role === "user") {
-            const conversation = await ctx.db.get(message.conversationId);
+            const conversation = await ctx.db.get(
+              "conversations",
+              message.conversationId
+            );
             if (conversation) {
               const currentCount =
                 userMessageCounts.get(conversation.userId) || 0;
@@ -1031,7 +1050,7 @@ export const internalRemoveMultiple = internalMutation({
 
                     for (const entry of userFileEntries) {
                       if (entry.storageId === storageId) {
-                        await ctx.db.delete(entry._id);
+                        await ctx.db.delete("userFiles", entry._id);
                       }
                     }
                   } catch (error) {
@@ -1055,9 +1074,12 @@ export const internalRemoveMultiple = internalMutation({
       operations.push(
         (async () => {
           try {
-            const conversation = await ctx.db.get(conversationId);
+            const conversation = await ctx.db.get(
+              "conversations",
+              conversationId
+            );
             if (conversation) {
-              await ctx.db.patch(conversationId, {
+              await ctx.db.patch("conversations", conversationId, {
                 isStreaming: false,
                 messageCount: Math.max(
                   0,
@@ -1078,9 +1100,9 @@ export const internalRemoveMultiple = internalMutation({
     for (const [userId, messageCount] of userMessageCounts) {
       operations.push(
         (async () => {
-          const user = await ctx.db.get(userId);
+          const user = await ctx.db.get("users", userId);
           if (user && "totalMessageCount" in user) {
-            await ctx.db.patch(userId, {
+            await ctx.db.patch("users", userId, {
               totalMessageCount: Math.max(
                 0,
                 (user.totalMessageCount || 0) - messageCount
@@ -1093,7 +1115,7 @@ export const internalRemoveMultiple = internalMutation({
 
     operations.push(
       ...args.ids.map(id =>
-        ctx.db.delete(id).catch(error => {
+        ctx.db.delete("messages", id).catch(error => {
           console.warn(`Failed to delete message ${id}:`, error);
         })
       )
@@ -1122,7 +1144,7 @@ export const setTtsAudioCache = internalMutation({
     entries: v.optional(v.array(ttsAudioCacheEntrySchema)),
   },
   handler: async (ctx, args) => {
-    await ctx.db.patch(args.messageId, {
+    await ctx.db.patch("messages", args.messageId, {
       ttsAudioCache: args.entries ?? undefined,
     });
   },
@@ -1233,18 +1255,21 @@ export const internalAtomicUpdate = internalMutation({
       if (Object.keys(filteredUpdates).length === 0) {
         return { shouldStop: false };
       }
-      const message = await ctx.db.get(id);
+      const message = await ctx.db.get("messages", id);
       if (!message) {
         return { shouldStop: false };
       }
-      await ctx.db.patch(id, filteredUpdates);
-      const conversation = await ctx.db.get(message.conversationId);
+      await ctx.db.patch("messages", id, filteredUpdates);
+      const conversation = await ctx.db.get(
+        "conversations",
+        message.conversationId
+      );
       return { shouldStop: !!conversation?.stopRequested };
     }
 
     return await withRetry(
       async () => {
-        const message = await ctx.db.get(id);
+        const message = await ctx.db.get("messages", id);
         if (!message) {
           throw new Error(`Message with id ${id} not found`);
         }
@@ -1258,10 +1283,13 @@ export const internalAtomicUpdate = internalMutation({
           appendUpdates.reasoning = (message.reasoning || "") + appendReasoning;
         }
 
-        await ctx.db.patch(id, appendUpdates);
+        await ctx.db.patch("messages", id, appendUpdates);
 
         // Check if stop was requested - return signal to caller
-        const conversation = await ctx.db.get(message.conversationId);
+        const conversation = await ctx.db.get(
+          "conversations",
+          message.conversationId
+        );
         return { shouldStop: !!conversation?.stopRequested };
       },
       5,
@@ -1273,14 +1301,14 @@ export const internalAtomicUpdate = internalMutation({
 export const internalGetById = internalMutation({
   args: { id: v.id("messages") },
   handler: async (ctx, args) => {
-    return await ctx.db.get(args.id);
+    return await ctx.db.get("messages", args.id);
   },
 });
 
 export const internalGetByIdQuery = internalQuery({
   args: { id: v.id("messages") },
   handler: async (ctx, args) => {
-    return await ctx.db.get(args.id);
+    return await ctx.db.get("messages", args.id);
   },
 });
 
@@ -1319,7 +1347,7 @@ export const getMessageCount = query({
   args: { conversationId: v.id("conversations") },
   handler: async (ctx, args) => {
     // Use cached messageCount if available (O(1) instead of O(n))
-    const conversation = await ctx.db.get(args.conversationId);
+    const conversation = await ctx.db.get("conversations", args.conversationId);
     if (conversation?.messageCount !== undefined) {
       return conversation.messageCount;
     }
@@ -1354,7 +1382,7 @@ export const getConversationTokenEstimate = query({
   args: { conversationId: v.id("conversations") },
   handler: async (ctx, args) => {
     // Use cached tokenEstimate if available (O(1) instead of O(n))
-    const conversation = await ctx.db.get(args.conversationId);
+    const conversation = await ctx.db.get("conversations", args.conversationId);
     if (conversation?.tokenEstimate !== undefined) {
       return conversation.tokenEstimate;
     }
@@ -1394,7 +1422,7 @@ export const toggleFavorite = mutation({
       } as const;
     }
 
-    const message = await ctx.db.get(args.messageId);
+    const message = await ctx.db.get("messages", args.messageId);
     if (!message) {
       throw new Error("Message not found");
     }
@@ -1416,7 +1444,7 @@ export const toggleFavorite = mutation({
       .first();
 
     if (existing) {
-      await ctx.db.delete(existing._id);
+      await ctx.db.delete("messageFavorites", existing._id);
       return { favorited: false } as const;
     }
 
@@ -1480,9 +1508,9 @@ export const listFavorites = query({
 
     const items = await Promise.all(
       slice.map(async fav => {
-        const message = await ctx.db.get(fav.messageId);
+        const message = await ctx.db.get("messages", fav.messageId);
         const conversation = message
-          ? await ctx.db.get(message.conversationId)
+          ? await ctx.db.get("conversations", message.conversationId)
           : null;
         return {
           favoriteId: fav._id,
@@ -1530,9 +1558,9 @@ export const listFavoritesPaginated = query({
     // Enrich paginated results with message and conversation data
     const enrichedPage = await Promise.all(
       paginatedFavorites.page.map(async fav => {
-        const message = await ctx.db.get(fav.messageId);
+        const message = await ctx.db.get("messages", fav.messageId);
         const conversation = message
-          ? await ctx.db.get(message.conversationId)
+          ? await ctx.db.get("conversations", message.conversationId)
           : null;
         return {
           favoriteId: fav._id,
@@ -1587,7 +1615,7 @@ export const updateMessageStatus = internalMutation({
   },
   handler: async (ctx, args) => {
     // Get current message to check if it's an assistant message
-    const message = await ctx.db.get(args.messageId);
+    const message = await ctx.db.get("messages", args.messageId);
     if (!message) {
       console.error("[updateMessageStatus] Message not found:", args.messageId);
       return;
@@ -1623,7 +1651,7 @@ export const updateMessageStatus = internalMutation({
       // Update finish reason for debugging
     }
 
-    await ctx.db.patch(args.messageId, updateData);
+    await ctx.db.patch("messages", args.messageId, updateData);
   },
 });
 
@@ -1648,7 +1676,7 @@ export const updateAssistantContent = internalMutation({
     // Never overwrite "done" status - once a message is done, it stays done
     let finalUpdates = filteredUpdates;
     if (args.status && args.status !== "done") {
-      const currentMessage = await ctx.db.get(messageId);
+      const currentMessage = await ctx.db.get("messages", messageId);
       if (currentMessage?.status === "done") {
         // Don't overwrite "done" status with any other status
         const { status: _, ...updatesWithoutStatus } = filteredUpdates;
@@ -1660,18 +1688,21 @@ export const updateAssistantContent = internalMutation({
       if (Object.keys(finalUpdates).length === 0) {
         return { shouldStop: false };
       }
-      const message = await ctx.db.get(messageId);
+      const message = await ctx.db.get("messages", messageId);
       if (!message) {
         return { shouldStop: false };
       }
-      await ctx.db.patch(messageId, finalUpdates);
-      const conversation = await ctx.db.get(message.conversationId);
+      await ctx.db.patch("messages", messageId, finalUpdates);
+      const conversation = await ctx.db.get(
+        "conversations",
+        message.conversationId
+      );
       return { shouldStop: !!conversation?.stopRequested };
     }
 
     return await withRetry(
       async () => {
-        const message = await ctx.db.get(messageId);
+        const message = await ctx.db.get("messages", messageId);
         if (!message) {
           // Don't throw error, just return silently as the message might have been finalized
           return;
@@ -1698,10 +1729,13 @@ export const updateAssistantContent = internalMutation({
             (message.reasoning || "") + appendReasoning;
         }
 
-        await ctx.db.patch(messageId, finalAppendUpdates);
+        await ctx.db.patch("messages", messageId, finalAppendUpdates);
 
         // Check if stop was requested - return signal to caller
-        const conversation = await ctx.db.get(message.conversationId);
+        const conversation = await ctx.db.get(
+          "conversations",
+          message.conversationId
+        );
         return { shouldStop: !!conversation?.stopRequested };
       },
       5,
@@ -1721,7 +1755,7 @@ export const updateAssistantStatus = internalMutation({
 
     try {
       // Get current message to preserve existing metadata
-      const message = await ctx.db.get(messageId);
+      const message = await ctx.db.get("messages", messageId);
       if (!message) {
         console.error("[updateAssistantStatus] Message not found:", messageId);
         return;
@@ -1762,7 +1796,7 @@ export const updateAssistantStatus = internalMutation({
       }
 
       // Update the message status and statusText in database
-      await ctx.db.patch(messageId, updateData);
+      await ctx.db.patch("messages", messageId, updateData);
     } catch (error) {
       console.error(
         "[updateAssistantStatus] Message not found, messageId:",
@@ -1784,13 +1818,13 @@ export const updateMessageError = internalMutation({
   handler: async (ctx, args) => {
     const { messageId, error } = args;
     try {
-      const message = await ctx.db.get(messageId);
+      const message = await ctx.db.get("messages", messageId);
       if (!message) {
         console.error("[updateMessageError] Message not found:", messageId);
         return;
       }
 
-      await ctx.db.patch(messageId, {
+      await ctx.db.patch("messages", messageId, {
         status: "error",
         error,
         metadata: {
@@ -2103,7 +2137,7 @@ export const addAttachments = internalMutation({
 
     try {
       // Get current message to preserve existing attachments
-      const message = await ctx.db.get(messageId);
+      const message = await ctx.db.get("messages", messageId);
       if (!message) {
         return;
       }
@@ -2111,7 +2145,9 @@ export const addAttachments = internalMutation({
       // Merge with existing attachments, deduplicating generated images by URL
       const existingAttachments = message.attachments || [];
       if (!attachments.length) {
-        await ctx.db.patch(messageId, { attachments: existingAttachments });
+        await ctx.db.patch("messages", messageId, {
+          attachments: existingAttachments,
+        });
         return;
       }
 
@@ -2151,14 +2187,17 @@ export const addAttachments = internalMutation({
 
       const updatedAttachments = merged;
 
-      await ctx.db.patch(messageId, {
+      await ctx.db.patch("messages", messageId, {
         attachments: updatedAttachments,
       });
 
       // Create userFiles entries for new attachments (enables file library features)
       // This is especially important for generated images which bypass the normal upload flow
       if (newAttachments.length > 0) {
-        const conversation = await ctx.db.get(message.conversationId);
+        const conversation = await ctx.db.get(
+          "conversations",
+          message.conversationId
+        );
         if (conversation) {
           await createUserFileEntriesHandler(ctx, {
             userId: conversation.userId,
@@ -2185,7 +2224,7 @@ export const clearImageGenerationAttachments = internalMutation({
     const { messageId } = args;
 
     try {
-      const message = await ctx.db.get(messageId);
+      const message = await ctx.db.get("messages", messageId);
       if (!message) {
         return;
       }
@@ -2209,7 +2248,7 @@ export const clearImageGenerationAttachments = internalMutation({
         }
       );
 
-      await ctx.db.patch(messageId, {
+      await ctx.db.patch("messages", messageId, {
         attachments: filteredAttachments,
       });
     } catch (error) {
@@ -2230,7 +2269,7 @@ export const removeAttachment = mutation({
     const { messageId, attachmentName } = args;
 
     try {
-      const message = await ctx.db.get(messageId);
+      const message = await ctx.db.get("messages", messageId);
       if (!message) {
         throw new Error("Message not found");
       }
@@ -2256,7 +2295,7 @@ export const removeAttachment = mutation({
       );
 
       // Update the message with the filtered attachments
-      await ctx.db.patch(messageId, {
+      await ctx.db.patch("messages", messageId, {
         attachments: updatedAttachments,
       });
 
@@ -2270,7 +2309,7 @@ export const removeAttachment = mutation({
           .unique();
 
         if (userFileEntry) {
-          await ctx.db.delete(userFileEntry._id);
+          await ctx.db.delete("userFiles", userFileEntry._id);
         }
       }
     } catch (error) {
@@ -2312,7 +2351,7 @@ export const updateImageGeneration = internalMutation({
 
     try {
       // Get current message to preserve existing imageGeneration data
-      const message = await ctx.db.get(messageId);
+      const message = await ctx.db.get("messages", messageId);
       if (!message) {
         return;
       }
@@ -2402,7 +2441,7 @@ export const updateImageGeneration = internalMutation({
         };
       }
 
-      await ctx.db.patch(messageId, updateData);
+      await ctx.db.patch("messages", messageId, updateData);
 
       const terminalStatuses = new Set(["succeeded", "failed", "canceled"]);
       if (
@@ -2411,7 +2450,7 @@ export const updateImageGeneration = internalMutation({
         message.conversationId
       ) {
         try {
-          await ctx.db.patch(message.conversationId, {
+          await ctx.db.patch("conversations", message.conversationId, {
             isStreaming: false,
             activeImageGeneration: undefined, // Clear tracking for OCC-free stop detection
           });
@@ -2428,7 +2467,7 @@ export const updateImageGeneration = internalMutation({
       }
 
       // Get the updated message to verify it was saved correctly
-      const _updatedMessage = await ctx.db.get(messageId);
+      const _updatedMessage = await ctx.db.get("messages", messageId);
     } catch (error) {
       console.error("[updateImageGeneration] Error:", error);
       throw new ConvexError(

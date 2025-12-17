@@ -69,7 +69,9 @@
       "Bash(for:*)",
       "Bash(do [ -f \"$hook\" ])",
       "Bash([ ! \"$hook\" = *.test.* ])",
-      "Bash(echo \"Checking: $hook\" done)"
+      "Bash(echo \"Checking: $hook\" done)",
+      "WebFetch(domain:news.convex.dev)",
+      "Bash(bunx @convex-dev/codemod:*)"
     ],
     "deny": []
   },

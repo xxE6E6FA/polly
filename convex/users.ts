@@ -39,7 +39,7 @@ export async function handleGetUserById(ctx: QueryCtx, id: Id<"users">) {
       throw new ConvexError("Access denied");
     }
   }
-  return await ctx.db.get(id);
+  return await ctx.db.get("users", id);
 }
 
 export async function currentHandler(ctx: QueryCtx) {
@@ -47,7 +47,7 @@ export async function currentHandler(ctx: QueryCtx) {
   const userId = await getAuthUserId(ctx);
 
   if (userId) {
-    return await ctx.db.get(userId);
+    return await ctx.db.get("users", userId);
   }
 
   // If no authenticated user, return null
@@ -85,7 +85,7 @@ export const incrementMessage = mutation({
   handler: async (ctx, args) => {
     await withRetry(
       async () => {
-        const fresh = await ctx.db.get(args.userId);
+        const fresh = await ctx.db.get("users", args.userId);
         if (!fresh) {
           throw new Error("User not found");
         }
@@ -103,7 +103,7 @@ export const incrementMessage = mutation({
           totalMessageCount: (fresh.totalMessageCount || 0) + 1,
         };
 
-        await ctx.db.patch(args.userId, updates);
+        await ctx.db.patch("users", args.userId, updates);
       },
       5,
       25
@@ -130,8 +130,8 @@ export const graduateAnonymousUser = mutation({
     }
 
     // Get both users
-    const anonymousUser = await ctx.db.get(anonymousUserId);
-    const newUser = await ctx.db.get(newUserId);
+    const anonymousUser = await ctx.db.get("users", anonymousUserId);
+    const newUser = await ctx.db.get("users", newUserId);
 
     // If anonymous user doesn't exist, it might have already been graduated
     // (e.g., in React StrictMode or due to a race condition)
@@ -170,7 +170,7 @@ export const graduateAnonymousUser = mutation({
         .collect();
 
       for (const conversation of anonymousConversations) {
-        await ctx.db.patch(conversation._id, {
+        await ctx.db.patch("conversations", conversation._id, {
           userId: newUserId,
         });
       }
@@ -190,7 +190,7 @@ export const graduateAnonymousUser = mutation({
           (anonymousUser.conversationCount || 0)
       );
 
-      await ctx.db.patch(newUserId, {
+      await ctx.db.patch("users", newUserId, {
         messagesSent: Math.max(0, updatedMessagesSent),
         monthlyMessagesSent: Math.max(0, updatedMonthlyMessagesSent),
         totalMessageCount: Math.max(0, updatedTotalMessageCount),
@@ -198,7 +198,7 @@ export const graduateAnonymousUser = mutation({
       });
 
       // Delete the anonymous user
-      await ctx.db.delete(anonymousUserId);
+      await ctx.db.delete("users", anonymousUserId);
 
       return {
         success: true,
@@ -228,7 +228,7 @@ export const internalPatch = internalMutation({
   },
   handler: (ctx, args) => {
     const patch: Record<string, unknown> = { ...args.updates };
-    return ctx.db.patch(args.id, patch);
+    return ctx.db.patch("users", args.id, patch);
   },
 });
 
@@ -242,7 +242,7 @@ export async function getMessageSentCountHandler(ctx: QueryCtx) {
   if (!userId) {
     return null;
   }
-  const user = await ctx.db.get(userId);
+  const user = await ctx.db.get("users", userId);
   if (!user) {
     return null;
   }
@@ -285,7 +285,7 @@ export const updateProfile = mutation({
       throw new Error("User not authenticated");
     }
 
-    const user = await ctx.db.get(userId);
+    const user = await ctx.db.get("users", userId);
     if (!user) {
       throw new Error("User not found");
     }
@@ -308,7 +308,7 @@ export const updateProfile = mutation({
     }
 
     if (Object.keys(updates).length > 0) {
-      await ctx.db.patch(userId, updates);
+      await ctx.db.patch("users", userId, updates);
     }
 
     return { success: true };
@@ -339,7 +339,7 @@ export const deleteAccount = mutation({
           )
           .collect();
         for (const shared of sharedCopies) {
-          await ctx.db.delete(shared._id);
+          await ctx.db.delete("sharedConversations", shared._id);
         }
 
         const summaries = await ctx.db
@@ -349,7 +349,7 @@ export const deleteAccount = mutation({
           )
           .collect();
         for (const summary of summaries) {
-          await ctx.db.delete(summary._id);
+          await ctx.db.delete("conversationSummaries", summary._id);
         }
 
         const favorites = await ctx.db
@@ -359,7 +359,7 @@ export const deleteAccount = mutation({
           )
           .collect();
         for (const favorite of favorites) {
-          await ctx.db.delete(favorite._id);
+          await ctx.db.delete("messageFavorites", favorite._id);
         }
 
         const messageIds = await ctx.db
@@ -374,7 +374,7 @@ export const deleteAccount = mutation({
           await deleteMessagesInBatches(ctx, messageIds);
         }
 
-        await ctx.db.delete(conversationId);
+        await ctx.db.delete("conversations", conversationId);
       }
 
       const remainingFavorites = await ctx.db
@@ -382,7 +382,7 @@ export const deleteAccount = mutation({
         .withIndex("by_user_created", q => q.eq("userId", userId))
         .collect();
       for (const favorite of remainingFavorites) {
-        await ctx.db.delete(favorite._id);
+        await ctx.db.delete("messageFavorites", favorite._id);
       }
 
       const sharedByUser = await ctx.db
@@ -390,7 +390,7 @@ export const deleteAccount = mutation({
         .withIndex("by_user", q => q.eq("userId", userId))
         .collect();
       for (const shared of sharedByUser) {
-        await ctx.db.delete(shared._id);
+        await ctx.db.delete("sharedConversations", shared._id);
       }
 
       const backgroundJobs = await ctx.db
@@ -418,7 +418,7 @@ export const deleteAccount = mutation({
         .withIndex("by_user", q => q.eq("userId", userId))
         .collect();
       for (const userSettingsDoc of userSettingsDocs) {
-        await ctx.db.delete(userSettingsDoc._id);
+        await ctx.db.delete("userSettings", userSettingsDoc._id);
       }
 
       const personaSettings = await ctx.db
@@ -426,7 +426,7 @@ export const deleteAccount = mutation({
         .withIndex("by_user_persona", q => q.eq("userId", userId))
         .collect();
       for (const personaSetting of personaSettings) {
-        await ctx.db.delete(personaSetting._id);
+        await ctx.db.delete("userPersonaSettings", personaSetting._id);
       }
 
       const personas = await ctx.db
@@ -434,7 +434,7 @@ export const deleteAccount = mutation({
         .withIndex("by_user_active", q => q.eq("userId", userId))
         .collect();
       for (const persona of personas) {
-        await ctx.db.delete(persona._id);
+        await ctx.db.delete("personas", persona._id);
       }
 
       const userModels = await ctx.db
@@ -442,7 +442,7 @@ export const deleteAccount = mutation({
         .withIndex("by_user", q => q.eq("userId", userId))
         .collect();
       for (const model of userModels) {
-        await ctx.db.delete(model._id);
+        await ctx.db.delete("userModels", model._id);
       }
 
       const userImageModels = await ctx.db
@@ -450,7 +450,7 @@ export const deleteAccount = mutation({
         .withIndex("by_user", q => q.eq("userId", userId))
         .collect();
       for (const model of userImageModels) {
-        await ctx.db.delete(model._id);
+        await ctx.db.delete("userImageModels", model._id);
       }
 
       const userApiKeys = await ctx.db
@@ -458,7 +458,7 @@ export const deleteAccount = mutation({
         .withIndex("by_user_provider", q => q.eq("userId", userId))
         .collect();
       for (const key of userApiKeys) {
-        await ctx.db.delete(key._id);
+        await ctx.db.delete("userApiKeys", key._id);
       }
 
       const customAccounts = await ctx.db
@@ -466,7 +466,7 @@ export const deleteAccount = mutation({
         .filter(q => q.eq(q.field("userId"), userId))
         .collect();
       for (const account of customAccounts) {
-        await ctx.db.delete(account._id);
+        await ctx.db.delete("accounts", account._id);
       }
 
       const customSessions = await ctx.db
@@ -474,7 +474,7 @@ export const deleteAccount = mutation({
         .filter(q => q.eq(q.field("userId"), userId))
         .collect();
       for (const session of customSessions) {
-        await ctx.db.delete(session._id);
+        await ctx.db.delete("sessions", session._id);
       }
 
       const authAccounts = await ctx.db
@@ -487,9 +487,9 @@ export const deleteAccount = mutation({
           .withIndex("accountId", q => q.eq("accountId", authAccount._id))
           .collect();
         for (const code of verificationCodes) {
-          await ctx.db.delete(code._id);
+          await ctx.db.delete("authVerificationCodes", code._id);
         }
-        await ctx.db.delete(authAccount._id);
+        await ctx.db.delete("authAccounts", authAccount._id);
       }
 
       const authSessions = await ctx.db
@@ -502,7 +502,7 @@ export const deleteAccount = mutation({
           .withIndex("sessionId", q => q.eq("sessionId", authSession._id))
           .collect();
         for (const refreshToken of refreshTokens) {
-          await ctx.db.delete(refreshToken._id);
+          await ctx.db.delete("authRefreshTokens", refreshToken._id);
         }
 
         const verifiers = await ctx.db
@@ -510,13 +510,13 @@ export const deleteAccount = mutation({
           .filter(q => q.eq(q.field("sessionId"), authSession._id))
           .collect();
         for (const verifier of verifiers) {
-          await ctx.db.delete(verifier._id);
+          await ctx.db.delete("authVerifiers", verifier._id);
         }
 
-        await ctx.db.delete(authSession._id);
+        await ctx.db.delete("authSessions", authSession._id);
       }
 
-      await ctx.db.delete(userId);
+      await ctx.db.delete("users", userId);
 
       return {
         success: true,

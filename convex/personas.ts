@@ -34,7 +34,7 @@ async function handleValidatePersonaOwnership(
   personaId: Id<"personas">,
   userId: Id<"users">
 ): Promise<Doc<"personas">> {
-  const persona = await ctx.db.get(personaId);
+  const persona = await ctx.db.get("personas", personaId);
   if (!persona) {
     throw new Error("Persona not found");
   }
@@ -104,7 +104,7 @@ export async function listHandler(ctx: QueryCtx, _args: {}) {
 }
 
 export async function getHandler(ctx: QueryCtx, args: { id: Id<"personas"> }) {
-  return await ctx.db.get(args.id);
+  return await ctx.db.get("personas", args.id);
 }
 
 export async function createHandler(
@@ -170,7 +170,7 @@ export async function updateHandler(
   const userId = await handleGetAuthenticatedUser(ctx);
   await handleValidatePersonaOwnership(ctx, args.id, userId);
 
-  await ctx.db.patch(args.id, {
+  await ctx.db.patch("personas", args.id, {
     ...(args.name !== undefined && { name: args.name }),
     ...(args.description !== undefined && { description: args.description }),
     ...(args.prompt !== undefined && { prompt: args.prompt }),
@@ -202,7 +202,7 @@ export async function removeHandler(
   const userId = await handleGetAuthenticatedUser(ctx);
   await handleValidatePersonaOwnership(ctx, args.id, userId);
 
-  await ctx.db.delete(args.id);
+  await ctx.db.delete("personas", args.id);
 }
 
 export async function togglePersonaHandler(
@@ -212,7 +212,7 @@ export async function togglePersonaHandler(
   const userId = await handleGetAuthenticatedUser(ctx);
   await handleValidatePersonaOwnership(ctx, args.id, userId);
 
-  await ctx.db.patch(args.id, {
+  await ctx.db.patch("personas", args.id, {
     isActive: args.isActive,
     updatedAt: Date.now(),
   });
@@ -600,7 +600,7 @@ export async function toggleBuiltInPersonaHandler(
   const userId = await handleGetAuthenticatedUser(ctx);
 
   // Verify this is a built-in persona
-  const persona = await ctx.db.get(args.personaId);
+  const persona = await ctx.db.get("personas", args.personaId);
   if (!persona?.isBuiltIn) {
     throw new Error("Can only toggle built-in personas");
   }
@@ -617,7 +617,7 @@ export async function toggleBuiltInPersonaHandler(
 
   if (existingSetting) {
     // Update existing setting
-    await ctx.db.patch(existingSetting._id, {
+    await ctx.db.patch("userPersonaSettings", existingSetting._id, {
       isDisabled: args.isDisabled,
       updatedAt: now,
     });

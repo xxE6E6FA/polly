@@ -53,7 +53,7 @@ async function updateStoppedMessagesHandler(
       newMetadata.finishReason = "user_stopped";
       delete newMetadata.stopped;
 
-      await ctx.db.patch(message._id, {
+      await ctx.db.patch("messages", message._id, {
         metadata: newMetadata,
       });
       updated++;

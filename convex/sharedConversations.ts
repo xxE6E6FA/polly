@@ -28,7 +28,7 @@ async function handleValidateConversationOwnership(
   conversationId: Id<"conversations">,
   userId: Id<"users">
 ): Promise<Doc<"conversations">> {
-  const conversation = await ctx.db.get(conversationId);
+  const conversation = await ctx.db.get("conversations", conversationId);
   if (!conversation) {
     throw new ConvexError("Conversation not found");
   }
@@ -134,7 +134,7 @@ export const updateSharedConversation = mutation({
     });
 
     // Update the shared conversation
-    await ctx.db.patch(sharedConversation._id, {
+    await ctx.db.patch("sharedConversations", sharedConversation._id, {
       title: conversation.title,
       lastUpdated: Date.now(),
       messageCount,
@@ -159,7 +159,7 @@ export const unshareConversation = mutation({
       args.conversationId
     );
     if (sharedConversation) {
-      await ctx.db.delete(sharedConversation._id);
+      await ctx.db.delete("sharedConversations", sharedConversation._id);
     }
 
     return true;
@@ -233,6 +233,7 @@ export const getSharedConversation = query({
 
     // Get the original conversation
     const conversation = await ctx.db.get(
+      "conversations",
       sharedConversation.originalConversationId
     );
     if (!conversation) {

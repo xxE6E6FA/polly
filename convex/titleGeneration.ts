@@ -146,7 +146,7 @@ export async function batchUpdateTitlesHandler(
   // Update all titles in parallel with error handling for partial failures
   const results = await Promise.allSettled(
     args.updates.map(update =>
-      ctx.db.patch(update.conversationId, {
+      ctx.db.patch("conversations", update.conversationId, {
         title: update.title,
       })
     )

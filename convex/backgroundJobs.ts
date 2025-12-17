@@ -182,7 +182,7 @@ async function handleUpdateJobStatus(
     updates.error = args.error;
   }
 
-  await ctx.db.patch(job._id, updates);
+  await ctx.db.patch("backgroundJobs", job._id, updates);
 }
 
 // Shared handler function for updating job progress
@@ -216,7 +216,7 @@ async function handleUpdateJobProgress(
     updates.totalItems = args.totalItems;
   }
 
-  await ctx.db.patch(job._id, updates);
+  await ctx.db.patch("backgroundJobs", job._id, updates);
 }
 
 // Shared handler function for saving export result
@@ -238,7 +238,7 @@ async function handleSaveExportResult(
     throw new ConvexError("Background job not found");
   }
 
-  await ctx.db.patch(job._id, {
+  await ctx.db.patch("backgroundJobs", job._id, {
     manifest: args.manifest,
     fileStorageId: args.fileStorageId,
     status: args.status,
@@ -283,7 +283,7 @@ async function handleSaveImportResult(
     updates.error = args.error;
   }
 
-  await ctx.db.patch(job._id, updates);
+  await ctx.db.patch("backgroundJobs", job._id, updates);
 }
 
 // Create a new background job with enhanced metadata
@@ -541,7 +541,7 @@ export const deleteJob = mutation({
       }
     }
 
-    await ctx.db.delete(job._id);
+    await ctx.db.delete("backgroundJobs", job._id);
   },
 });
 
@@ -585,7 +585,7 @@ export const cleanupOldJobsForAllUsers = internalMutation({
         }
       }
 
-      await ctx.db.delete(job._id);
+      await ctx.db.delete("backgroundJobs", job._id);
       deletedCount++;
     }
 
@@ -604,7 +604,7 @@ export const getExportData = internalQuery({
   handler: async (ctx, args): Promise<ExportConversation[]> => {
     const conversations = await Promise.all(
       args.conversationIds.map(async conversationId => {
-        const conversation = await ctx.db.get(conversationId);
+        const conversation = await ctx.db.get("conversations", conversationId);
         if (!conversation || conversation.userId !== args.userId) {
           return null;
         }

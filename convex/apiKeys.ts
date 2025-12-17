@@ -57,7 +57,7 @@ async function handleUpsertApiKey(
   const existing = await handleGetUserApiKey(ctx, userId, provider);
 
   if (existing) {
-    await ctx.db.patch(existing._id, updates);
+    await ctx.db.patch("userApiKeys", existing._id, updates);
   } else {
     await ctx.db.insert("userApiKeys", {
       userId,
@@ -271,7 +271,7 @@ export const removeApiKey = mutation({
     const existing = await handleGetUserApiKey(ctx, userId, args.provider);
 
     if (existing) {
-      await ctx.db.delete(existing._id);
+      await ctx.db.delete("userApiKeys", existing._id);
     }
   },
 });
@@ -299,7 +299,7 @@ export const validateApiKey = mutation({
 
     // For now, just mark as valid since we don't have a validation endpoint
     // In a real app, you'd call the provider's API to validate the key
-    await ctx.db.patch(apiKeyRecord._id, {
+    await ctx.db.patch("userApiKeys", apiKeyRecord._id, {
       isValid: true,
       lastValidated: Date.now(),
     });

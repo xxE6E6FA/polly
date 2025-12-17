@@ -82,7 +82,7 @@ export const migrateUserModelsCapabilities = mutation({
           supportsFiles,
         };
 
-        await ctx.db.patch(model._id, updates);
+        await ctx.db.patch("userModels", model._id, updates);
         updatedCount++;
       }
     }
@@ -108,10 +108,10 @@ export const cleanupOrphanedAccounts = mutation({
     let deletedCount = 0;
 
     for (const account of accounts) {
-      const user = await ctx.db.get(account.userId);
+      const user = await ctx.db.get("users", account.userId);
       if (!user) {
         // User doesn't exist, delete the orphaned account
-        await ctx.db.delete(account._id);
+        await ctx.db.delete("accounts", account._id);
         deletedCount++;
         console.warn(
           `Deleted orphaned account ${account._id} for non-existent user ${account.userId}`

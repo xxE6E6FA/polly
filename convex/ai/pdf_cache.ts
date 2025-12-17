@@ -105,7 +105,7 @@ export const storePdfCache = internalMutation({
 
     if (existing) {
       // Update existing entry
-      await ctx.db.patch(existing._id, {
+      await ctx.db.patch("pdfTextCache", existing._id, {
         textFileId,
         extractedAt: now,
         contentLength,
@@ -136,7 +136,7 @@ export const cleanupExpiredEntry = internalMutation({
   returns: v.null(),
   handler: async (ctx, { id }) => {
     try {
-      const entry = await ctx.db.get(id);
+      const entry = await ctx.db.get("pdfTextCache", id);
       if (entry) {
         // Try to delete the stored text file
         try {
@@ -147,7 +147,7 @@ export const cleanupExpiredEntry = internalMutation({
         }
         
         // Delete the cache entry
-        await ctx.db.delete(id);
+        await ctx.db.delete("pdfTextCache", id);
       }
     } catch (error) {
       console.error("Failed to cleanup expired PDF cache entry:", error);
@@ -246,7 +246,7 @@ export const batchCleanupExpired = internalMutation({
         }
         
         // Delete the cache entry
-        await ctx.db.delete(entry._id);
+        await ctx.db.delete("pdfTextCache", entry._id);
         cleanedCount++;
       } catch (error) {
         console.error("Failed to cleanup expired cache entry:", error);
