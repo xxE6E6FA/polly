@@ -18,7 +18,6 @@ import type {
 } from "@/types";
 import { ChatHeader } from "../chat-header";
 import { ChatOutline } from "../chat-outline";
-import { ChatZeroState } from "../chat-zero-state";
 import { ChatInput } from "../input";
 import { WarningBanners } from "../input/warning-banners";
 import type { ImageRetryParams } from "../message/image-actions";
@@ -364,16 +363,6 @@ export const UnifiedChatView = memo(
           paddingTop: headerInset,
           paddingBottom: footerInset,
         };
-        if (!(isPrivateMode || conversationId)) {
-          return (
-            <div
-              className="flex h-full w-full items-center justify-center"
-              style={insetStyle}
-            >
-              <ChatZeroState />
-            </div>
-          );
-        }
         if (isPrivateMode) {
           return (
             <div
@@ -384,7 +373,7 @@ export const UnifiedChatView = memo(
             </div>
           );
         }
-        // For regular conversations that are empty, show empty state (no loading)
+        // For regular conversations that are empty (or loading), show empty state
         return <div className="h-full" style={insetStyle} />;
       }
 
