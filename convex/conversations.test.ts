@@ -874,7 +874,7 @@ describe("conversations.patch", () => {
       setUpdatedAt: true,
     });
 
-    expect(ctx.db.patch).toHaveBeenCalledWith(conversationId, {
+    expect(ctx.db.patch).toHaveBeenCalledWith("conversations", conversationId, {
       ...updates,
       updatedAt: expect.any(Number),
     });
@@ -1132,12 +1132,14 @@ describe("conversations.stopGeneration", () => {
     // The streaming action will finalize the message when it detects stopRequested
     expect(patchMock).toHaveBeenCalledTimes(1);
     const patchCall = patchMock.mock.calls[0] as [
+      string,
       Id<"conversations">,
       { isStreaming: boolean; stopRequested: number },
     ];
-    expect(patchCall[0]).toBe(conversationId);
-    expect(patchCall[1].isStreaming).toBe(false);
-    expect(typeof patchCall[1].stopRequested).toBe("number");
+    expect(patchCall[0]).toBe("conversations");
+    expect(patchCall[1]).toBe(conversationId);
+    expect(patchCall[2].isStreaming).toBe(false);
+    expect(typeof patchCall[2].stopRequested).toBe("number");
   });
 
   test("handles case with no streaming message", async () => {
@@ -1198,12 +1200,14 @@ describe("conversations.stopGeneration", () => {
     // Should only patch the conversation with stop signal
     expect(patchMock).toHaveBeenCalledTimes(1);
     const patchCall = patchMock.mock.calls[0] as [
+      string,
       Id<"conversations">,
       { isStreaming: boolean; stopRequested: number },
     ];
-    expect(patchCall[0]).toBe(conversationId);
-    expect(patchCall[1].isStreaming).toBe(false);
-    expect(typeof patchCall[1].stopRequested).toBe("number");
+    expect(patchCall[0]).toBe("conversations");
+    expect(patchCall[1]).toBe(conversationId);
+    expect(patchCall[2].isStreaming).toBe(false);
+    expect(typeof patchCall[2].stopRequested).toBe("number");
   });
 
   test("finds streaming message in thinking status", async () => {
@@ -1265,12 +1269,14 @@ describe("conversations.stopGeneration", () => {
     // Should only patch the conversation with stop signal (not the message)
     expect(patchMock).toHaveBeenCalledTimes(1);
     const patchCall = patchMock.mock.calls[0] as [
+      string,
       Id<"conversations">,
       { isStreaming: boolean; stopRequested: number },
     ];
-    expect(patchCall[0]).toBe(conversationId);
-    expect(patchCall[1].isStreaming).toBe(false);
-    expect(typeof patchCall[1].stopRequested).toBe("number");
+    expect(patchCall[0]).toBe("conversations");
+    expect(patchCall[1]).toBe(conversationId);
+    expect(patchCall[2].isStreaming).toBe(false);
+    expect(typeof patchCall[2].stopRequested).toBe("number");
   });
 
   test("ignores user messages when looking for streaming message", async () => {
@@ -1330,12 +1336,14 @@ describe("conversations.stopGeneration", () => {
     // Should only patch the conversation with stop signal (user message ignored)
     expect(patchMock).toHaveBeenCalledTimes(1);
     const patchCall = patchMock.mock.calls[0] as [
+      string,
       Id<"conversations">,
       { isStreaming: boolean; stopRequested: number },
     ];
-    expect(patchCall[0]).toBe(conversationId);
-    expect(patchCall[1].isStreaming).toBe(false);
-    expect(typeof patchCall[1].stopRequested).toBe("number");
+    expect(patchCall[0]).toBe("conversations");
+    expect(patchCall[1]).toBe(conversationId);
+    expect(patchCall[2].isStreaming).toBe(false);
+    expect(typeof patchCall[2].stopRequested).toBe("number");
   });
 });
 
@@ -1792,7 +1800,7 @@ describe("conversations.patch - extended", () => {
     });
 
     // Should not include updatedAt in patch
-    expect(patchMock).toHaveBeenCalledWith(conversationId, {
+    expect(patchMock).toHaveBeenCalledWith("conversations", conversationId, {
       title: "New Title",
     });
   });
@@ -1829,7 +1837,7 @@ describe("conversations.patch - extended", () => {
 
     // updatedAt should be at least existingUpdatedAt + 1
     const patchCall = patchMock.mock.calls[0];
-    const patchedData = patchCall[1] as { updatedAt: number };
+    const patchedData = patchCall[2] as { updatedAt: number };
     expect(patchedData.updatedAt).toBeGreaterThan(existingUpdatedAt);
   });
 

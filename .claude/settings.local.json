@@ -71,7 +71,8 @@
       "Bash([ ! \"$hook\" = *.test.* ])",
       "Bash(echo \"Checking: $hook\" done)",
       "WebFetch(domain:news.convex.dev)",
-      "Bash(bunx @convex-dev/codemod:*)"
+      "Bash(bunx @convex-dev/codemod:*)",
+      "Bash(cut:*)"
     ],
     "deny": []
   },

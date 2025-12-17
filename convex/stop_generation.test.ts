@@ -42,10 +42,11 @@ describe("stopGeneration", () => {
     // Verify conversation was updated with stop signal
     expect(ctx.db.patch).toHaveBeenCalledTimes(1);
     const patchCall = (ctx.db.patch as ReturnType<typeof mock>).mock.calls[0];
-    expect(patchCall[0]).toBe(conversationId);
-    expect(patchCall[1].isStreaming).toBe(false);
-    expect(typeof patchCall[1].stopRequested).toBe("number");
-    expect(patchCall[1].stopRequested).toBeGreaterThan(0);
+    expect(patchCall[0]).toBe("conversations");
+    expect(patchCall[1]).toBe(conversationId);
+    expect(patchCall[2].isStreaming).toBe(false);
+    expect(typeof patchCall[2].stopRequested).toBe("number");
+    expect(patchCall[2].stopRequested).toBeGreaterThan(0);
   });
 
   test("throws if user not authenticated", async () => {
@@ -138,7 +139,8 @@ describe("stopGeneration", () => {
     // Should only patch conversation
     expect(ctx.db.patch).toHaveBeenCalledTimes(1);
     const patchCall = (ctx.db.patch as ReturnType<typeof mock>).mock.calls[0];
-    expect(patchCall[0]).toBe(conversationId);
+    expect(patchCall[0]).toBe("conversations");
+    expect(patchCall[1]).toBe(conversationId);
   });
 
   test("cancels active image generation via conversation tracking", async () => {

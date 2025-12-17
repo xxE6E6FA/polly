@@ -5,8 +5,7 @@ import { CaretLeftIcon, CaretRightIcon, XIcon } from "@phosphor-icons/react";
 import { useQuery } from "convex/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { StreamingMarkdown } from "@/components/ui/streaming-markdown";
-import { getFileLanguage } from "@/lib/file-utils";
+import { TextFilePreview } from "@/components/ui/text-file-preview";
 
 import type { Attachment } from "@/types";
 
@@ -225,16 +224,13 @@ export const AttachmentGalleryDialog = ({
           return null;
         }
 
-        const language = getFileLanguage(currentDisplayAttachment.name);
-        const isCodeFile = language !== "text";
-
         return (
-          <div className="h-full w-full overflow-y-auto p-8">
-            <StreamingMarkdown isStreaming={false}>
-              {isCodeFile
-                ? `\`\`\`${language}\n${currentDisplayAttachment.content}\n\`\`\``
-                : currentDisplayAttachment.content}
-            </StreamingMarkdown>
+          <div className="flex h-full w-full items-center justify-center p-8">
+            <TextFilePreview
+              content={currentDisplayAttachment.content}
+              filename={currentDisplayAttachment.name}
+              className="max-h-full max-w-4xl"
+            />
           </div>
         );
       }

@@ -141,10 +141,14 @@ describe("userSettings.updateUserSettings", () => {
 
     await updateUserSettingsHandler(ctx as MutationCtx, updates);
 
-    expect(ctx.db.patch).toHaveBeenCalledWith(existingSettings._id, {
-      ...updates,
-      updatedAt: expect.any(Number),
-    });
+    expect(ctx.db.patch).toHaveBeenCalledWith(
+      "userSettings",
+      existingSettings._id,
+      {
+        ...updates,
+        updatedAt: expect.any(Number),
+      }
+    );
   });
 
   test("creates new user settings when none exist", async () => {
@@ -310,10 +314,14 @@ describe("userSettings.updateUserSettingsForImport", () => {
       settings: importData,
     });
 
-    expect(ctx.db.patch).toHaveBeenCalledWith(existingSettings._id, {
-      ...importData,
-      updatedAt: expect.any(Number),
-    });
+    expect(ctx.db.patch).toHaveBeenCalledWith(
+      "userSettings",
+      existingSettings._id,
+      {
+        ...importData,
+        updatedAt: expect.any(Number),
+      }
+    );
   });
 
   test("creates new settings during import", async () => {
@@ -399,10 +407,14 @@ describe("userSettings.togglePersonasEnabled", () => {
 
     await togglePersonasEnabledHandler(ctx as MutationCtx, { enabled: false });
 
-    expect(ctx.db.patch).toHaveBeenCalledWith(existingSettings._id, {
-      personasEnabled: false,
-      updatedAt: expect.any(Number),
-    });
+    expect(ctx.db.patch).toHaveBeenCalledWith(
+      "userSettings",
+      existingSettings._id,
+      {
+        personasEnabled: false,
+        updatedAt: expect.any(Number),
+      }
+    );
   });
 
   test("creates default settings with specified personas enabled value", async () => {
@@ -486,11 +498,15 @@ describe("userSettings.updateArchiveSettings", () => {
       autoArchiveDays: 60,
     });
 
-    expect(ctx.db.patch).toHaveBeenCalledWith(existingSettings._id, {
-      autoArchiveEnabled: true,
-      autoArchiveDays: 60,
-      updatedAt: expect.any(Number),
-    });
+    expect(ctx.db.patch).toHaveBeenCalledWith(
+      "userSettings",
+      existingSettings._id,
+      {
+        autoArchiveEnabled: true,
+        autoArchiveDays: 60,
+        updatedAt: expect.any(Number),
+      }
+    );
   });
 
   test("creates default settings if none exist for archive update", async () => {

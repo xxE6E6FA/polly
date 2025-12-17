@@ -295,7 +295,7 @@ describe("messages.update", () => {
       content: "New content",
     });
 
-    expect(ctx.db.patch).toHaveBeenCalledWith(messageId, {
+    expect(ctx.db.patch).toHaveBeenCalledWith("messages", messageId, {
       content: "New content",
     });
   });
@@ -321,7 +321,7 @@ describe("messages.update", () => {
       reasoning: "New reasoning",
     });
 
-    expect(ctx.db.patch).toHaveBeenCalledWith(messageId, {
+    expect(ctx.db.patch).toHaveBeenCalledWith("messages", messageId, {
       reasoning: "New reasoning",
     });
   });
@@ -352,7 +352,7 @@ describe("messages.update", () => {
       patch: patchObj,
     });
 
-    expect(ctx.db.patch).toHaveBeenCalledWith(messageId, patchObj);
+    expect(ctx.db.patch).toHaveBeenCalledWith("messages", messageId, patchObj);
   });
 
   test("filters out undefined values", async () => {
@@ -377,7 +377,7 @@ describe("messages.update", () => {
       reasoning: undefined,
     });
 
-    expect(ctx.db.patch).toHaveBeenCalledWith(messageId, {
+    expect(ctx.db.patch).toHaveBeenCalledWith("messages", messageId, {
       content: "New content",
     });
   });
@@ -446,7 +446,7 @@ describe("messages.setBranch", () => {
       messageId,
     });
 
-    expect(ctx.db.patch).toHaveBeenCalledWith(messageId, {
+    expect(ctx.db.patch).toHaveBeenCalledWith("messages", messageId, {
       isMainBranch: true,
     });
   });
@@ -494,13 +494,13 @@ describe("messages.setBranch", () => {
       parentId,
     });
 
-    expect(ctx.db.patch).toHaveBeenCalledWith("sibling-1", {
+    expect(ctx.db.patch).toHaveBeenCalledWith("messages", "sibling-1", {
       isMainBranch: false,
     });
-    expect(ctx.db.patch).toHaveBeenCalledWith("sibling-2", {
+    expect(ctx.db.patch).toHaveBeenCalledWith("messages", "sibling-2", {
       isMainBranch: false,
     });
-    expect(ctx.db.patch).toHaveBeenCalledWith(messageId, {
+    expect(ctx.db.patch).toHaveBeenCalledWith("messages", messageId, {
       isMainBranch: true,
     });
   });

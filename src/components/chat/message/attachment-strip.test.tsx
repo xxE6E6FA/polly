@@ -67,7 +67,7 @@ describe("AttachmentStrip", () => {
     expect(container.firstChild).toBeNull();
   });
 
-  test("renders user variant with FileDisplay components", () => {
+  test("renders user variant with FileDisplay for non-image files", () => {
     const attachments = [
       createMockAttachment({ name: "file1.pdf", type: "pdf" }),
       createMockAttachment({ name: "file2.docx", type: "text" }),
@@ -91,6 +91,92 @@ describe("AttachmentStrip", () => {
     expect(secondDisplay?.getAttribute("data-attachment-name")).toBe(
       "file2.docx"
     );
+  });
+
+  test("renders user variant with thumbnail buttons for images", () => {
+    const attachments = [
+      createMockAttachment({ name: "photo1.jpg", type: "image" }),
+      createMockAttachment({ name: "photo2.png", type: "image" }),
+    ];
+
+    render(
+      <AttachmentStrip
+        attachments={attachments}
+        variant="user"
+        onPreviewFile={mockOnPreviewFile}
+      />
+    );
+
+    // Images should render as buttons containing thumbnails
+    const buttons = screen.getAllByRole("button");
+    expect(buttons).toHaveLength(2);
+
+    const thumbnails = screen.getAllByTestId("image-thumbnail");
+    expect(thumbnails).toHaveLength(2);
+    expect(thumbnails[0]?.getAttribute("data-attachment-name")).toBe(
+      "photo1.jpg"
+    );
+    expect(thumbnails[1]?.getAttribute("data-attachment-name")).toBe(
+      "photo2.png"
+    );
+  });
+
+  test("user variant groups images above files", () => {
+    const attachments = [
+      createMockAttachment({ name: "doc.pdf", type: "pdf" }),
+      createMockAttachment({ name: "photo1.jpg", type: "image" }),
+      createMockAttachment({ name: "code.ts", type: "text" }),
+      createMockAttachment({ name: "photo2.png", type: "image" }),
+    ];
+
+    const { container } = render(
+      <AttachmentStrip
+        attachments={attachments}
+        variant="user"
+        onPreviewFile={mockOnPreviewFile}
+      />
+    );
+
+    // Images should render as thumbnails
+    const thumbnails = screen.getAllByTestId("image-thumbnail");
+    expect(thumbnails).toHaveLength(2);
+
+    // Files should render as FileDisplay
+    const fileDisplays = screen.getAllByTestId("file-display");
+    expect(fileDisplays).toHaveLength(2);
+
+    // Images row should appear before files row in DOM
+    const rows = container.querySelectorAll(".flex.flex-wrap");
+    expect(rows).toHaveLength(2);
+
+    // First row should contain images (buttons)
+    expect(rows[0]?.querySelectorAll("button")).toHaveLength(2);
+
+    // Second row should contain files (file-display divs)
+    expect(
+      rows[1]?.querySelectorAll('[data-testid="file-display"]')
+    ).toHaveLength(2);
+  });
+
+  test("calls onPreviewFile when image thumbnail is clicked in user variant", () => {
+    const imageAttachment = createMockAttachment({
+      name: "photo.jpg",
+      type: "image",
+    });
+
+    render(
+      <AttachmentStrip
+        attachments={[imageAttachment]}
+        variant="user"
+        onPreviewFile={mockOnPreviewFile}
+      />
+    );
+
+    const button = screen.getByRole("button");
+    fireEvent.click(button);
+
+    expect(mockOnPreviewFile).toHaveBeenCalledWith(imageAttachment);
+    expect(mockOnPreviewFile).toHaveBeenCalledTimes(1);
   });
 
   test("renders assistant variant with custom buttons and thumbnails", () => {
@@ -222,8 +308,10 @@ describe("AttachmentStrip", () => {
       />
     );
 
-    const container = screen.getByTestId("file-display").parentElement;
-    expect(container?.className).toContain("custom-class");
+    // FileDisplay is inside inner row div, which is inside outer container
+    const innerRow = screen.getByTestId("file-display").parentElement;
+    const outerContainer = innerRow?.parentElement;
+    expect(outerContainer?.className).toContain("custom-class");
   });
 
   test("applies focus styles for accessibility", () => {

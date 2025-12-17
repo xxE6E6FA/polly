@@ -411,7 +411,7 @@ describe("fileStorage: deleteFile", () => {
 
     await deleteFileHandler(ctx as MutationCtx, { storageId });
 
-    expect(ctx.db.delete).toHaveBeenCalledWith(userFileId);
+    expect(ctx.db.delete).toHaveBeenCalledWith("userFiles", userFileId);
     expect(ctx.storage.delete).toHaveBeenCalledWith(storageId);
   });
 
@@ -550,7 +550,7 @@ describe("fileStorage: getUserFiles", () => {
       },
       db: {
         query: mock(() => queryChain),
-        get: mock((id: Id<any>) => {
+        get: mock((_table: string, id: Id<any>) => {
           if (id === conversationId) {
             return Promise.resolve(conversation);
           }
@@ -627,7 +627,7 @@ describe("fileStorage: getUserFiles", () => {
       },
       db: {
         query: mock(() => queryChain),
-        get: mock((id: Id<any>) => {
+        get: mock((_table: string, id: Id<any>) => {
           if (id === conversationId) {
             return Promise.resolve(conversation);
           }
@@ -702,7 +702,7 @@ describe("fileStorage: getUserFiles", () => {
       },
       db: {
         query: mock(() => queryChain),
-        get: mock((id: Id<any>) => {
+        get: mock((_table: string, id: Id<any>) => {
           if (id === conversationId) {
             return Promise.resolve(conversation);
           }
@@ -768,7 +768,7 @@ describe("fileStorage: getUserFiles", () => {
       },
       db: {
         query: mock(() => queryChain),
-        get: mock((id: Id<any>) => {
+        get: mock((_table: string, id: Id<any>) => {
           if (id === conversationId) {
             return Promise.resolve(conversation);
           }
@@ -842,7 +842,7 @@ describe("fileStorage: getUserFiles", () => {
       },
       db: {
         query: mock(() => queryChain),
-        get: mock((id: Id<any>) => {
+        get: mock((_table: string, id: Id<any>) => {
           if (id === conversationId) {
             return Promise.resolve(conversation);
           }
@@ -1060,7 +1060,7 @@ describe("fileStorage: deleteMultipleFiles", () => {
     });
 
     expect(result.deletedCount).toBe(2);
-    expect(ctx.db.patch).toHaveBeenCalledWith(messageId, {
+    expect(ctx.db.patch).toHaveBeenCalledWith("messages", messageId, {
       attachments: [
         {
           type: "image",
@@ -1179,7 +1179,11 @@ describe("fileStorage: deleteMultipleFiles", () => {
 
     // Only user's message should be patched
     expect(ctx.db.patch).toHaveBeenCalledTimes(1);
-    expect(ctx.db.patch).toHaveBeenCalledWith(messageId, expect.anything());
+    expect(ctx.db.patch).toHaveBeenCalledWith(
+      "messages",
+      messageId,
+      expect.anything()
+    );
   });
 });
 

@@ -1239,7 +1239,7 @@ describe("userModels.toggleModel", () => {
     });
 
     expect(result).toEqual({ success: true, action: "removed" });
-    expect(deleteMock).toHaveBeenCalledWith(existingModel._id);
+    expect(deleteMock).toHaveBeenCalledWith("userModels", existingModel._id);
   });
 
   test("returns error when adding model without modelData", async () => {
@@ -1709,8 +1709,10 @@ describe("userModels.selectModel", () => {
       modelId: "gpt-4",
       isDefault: false,
     });
-    expect(patchMock).toHaveBeenCalledWith(newModel._id, { selected: true });
-    expect(patchMock).toHaveBeenCalledWith(previousModel._id, {
+    expect(patchMock).toHaveBeenCalledWith("userModels", newModel._id, {
+      selected: true,
+    });
+    expect(patchMock).toHaveBeenCalledWith("userModels", previousModel._id, {
       selected: false,
     });
   });
@@ -1939,7 +1941,7 @@ describe("userModels.removeModel", () => {
         name: "GPT-4",
       },
     });
-    expect(deleteMock).toHaveBeenCalledWith(existingModel._id);
+    expect(deleteMock).toHaveBeenCalledWith("userModels", existingModel._id);
   });
 });
 
@@ -2014,11 +2016,13 @@ describe("userModels.updateModelAvailability", () => {
     expect(patchMock).toHaveBeenCalledTimes(2);
     // gpt-4 should be available
     expect(patchMock).toHaveBeenCalledWith(
+      "userModels",
       "model-1",
       expect.objectContaining({ isAvailable: true })
     );
     // gpt-3.5 should be unavailable
     expect(patchMock).toHaveBeenCalledWith(
+      "userModels",
       "model-2",
       expect.objectContaining({ isAvailable: false })
     );
@@ -2158,7 +2162,7 @@ describe("userModels.removeUnavailableModels", () => {
         },
       ],
     });
-    expect(deleteMock).toHaveBeenCalledWith("model-2");
+    expect(deleteMock).toHaveBeenCalledWith("userModels", "model-2");
     expect(deleteMock).toHaveBeenCalledTimes(1);
   });
 

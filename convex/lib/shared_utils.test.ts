@@ -554,10 +554,10 @@ describe("stopConversationStreaming", () => {
 
     await stopConversationStreaming(ctx as any, conversationId);
 
-    expect(ctx.db.patch).toHaveBeenCalledWith(conversationId, {
+    expect(ctx.db.patch).toHaveBeenCalledWith("conversations", conversationId, {
       isStreaming: false,
     });
-    expect(ctx.db.patch).toHaveBeenCalledWith(messageId, {
+    expect(ctx.db.patch).toHaveBeenCalledWith("messages", messageId, {
       status: "done",
       metadata: {
         finishReason: "user_stopped",
@@ -595,7 +595,7 @@ describe("stopConversationStreaming", () => {
       reasoning: "Stopped reasoning",
     });
 
-    expect(ctx.db.patch).toHaveBeenCalledWith(messageId, {
+    expect(ctx.db.patch).toHaveBeenCalledWith("messages", messageId, {
       status: "done",
       content: "Stopped content",
       reasoning: "Stopped reasoning",

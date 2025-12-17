@@ -59,7 +59,10 @@ describe("branches.internalCloneMessages", () => {
       sourceMessages,
     });
 
-    expect(ctx.db.get).toHaveBeenCalledWith(targetConversationId);
+    expect(ctx.db.get).toHaveBeenCalledWith(
+      "conversations",
+      targetConversationId
+    );
     expect(ctx.db.insert).toHaveBeenCalledWith(
       "messages",
       expect.objectContaining({
@@ -244,7 +247,10 @@ describe("branches.getBranches", () => {
     });
 
     expect(result).toEqual([mockRootConversation]);
-    expect(ctx.db.get).toHaveBeenCalledWith(rootConversationId);
+    expect(ctx.db.get).toHaveBeenCalledWith(
+      "conversations",
+      rootConversationId
+    );
   });
 
   test("returns empty array when no branches and root doesn't exist", async () => {

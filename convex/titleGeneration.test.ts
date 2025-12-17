@@ -179,8 +179,12 @@ describe("titleGeneration.batchUpdateTitles", () => {
     await batchUpdateTitlesHandler(ctx, { updates });
 
     expect(ctx.db.patch).toHaveBeenCalledTimes(2);
-    expect(ctx.db.patch).toHaveBeenCalledWith("conv-1", { title: "Title 1" });
-    expect(ctx.db.patch).toHaveBeenCalledWith("conv-2", { title: "Title 2" });
+    expect(ctx.db.patch).toHaveBeenCalledWith("conversations", "conv-1", {
+      title: "Title 1",
+    });
+    expect(ctx.db.patch).toHaveBeenCalledWith("conversations", "conv-2", {
+      title: "Title 2",
+    });
   });
 
   test("handles partial failures in batch updates", async () => {

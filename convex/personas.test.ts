@@ -273,7 +273,7 @@ describe("personas.get", () => {
 
     const ctx = makeConvexCtx({
       db: {
-        get: mock((id: Id<"personas">) => {
+        get: mock((_table: string, id: Id<"personas">) => {
           if (id === personaId) {
             return Promise.resolve(mockPersona);
           }
@@ -401,7 +401,7 @@ describe("personas.update", () => {
       },
       db: {
         get: mock(() => Promise.resolve(mockPersona)),
-        patch: mock((id: Id<"personas">, data: any) => {
+        patch: mock((_table: string, id: Id<"personas">, data: any) => {
           expect(id).toBe(personaId);
           expect(data.name).toBe("New Name");
           expect(data.description).toBe("New Description");
@@ -496,7 +496,7 @@ describe("personas.update", () => {
       },
       db: {
         get: mock(() => Promise.resolve(mockPersona)),
-        patch: mock((id: Id<"personas">, data: any) => {
+        patch: mock((_table: string, _id: Id<"personas">, data: any) => {
           expect(data.temperature).toBe(0.9);
           expect(data.topP).toBe(0.95);
           expect(data.topK).toBe(40);
@@ -539,7 +539,7 @@ describe("personas.remove", () => {
       },
       db: {
         get: mock(() => Promise.resolve(mockPersona)),
-        delete: mock((id: Id<"personas">) => {
+        delete: mock((_table: string, id: Id<"personas">) => {
           expect(id).toBe(personaId);
           return Promise.resolve(undefined);
         }),
@@ -602,7 +602,7 @@ describe("personas.togglePersona", () => {
       },
       db: {
         get: mock(() => Promise.resolve(mockPersona)),
-        patch: mock((id: Id<"personas">, data: any) => {
+        patch: mock((_table: string, id: Id<"personas">, data: any) => {
           expect(id).toBe(personaId);
           expect(data.isActive).toBe(true);
           expect(data.updatedAt).toBeGreaterThan(0);
@@ -634,7 +634,7 @@ describe("personas.togglePersona", () => {
       },
       db: {
         get: mock(() => Promise.resolve(mockPersona)),
-        patch: mock((id: Id<"personas">, data: any) => {
+        patch: mock((_table: string, _id: Id<"personas">, data: any) => {
           expect(data.isActive).toBe(false);
           return Promise.resolve(undefined);
         }),
@@ -1476,12 +1476,14 @@ describe("personas.toggleBuiltInPersona", () => {
       db: {
         get: mock(() => Promise.resolve(mockPersona)),
         query: mock(() => mockQuery),
-        patch: mock((id: Id<"userPersonaSettings">, data: any) => {
-          expect(id).toBe(settingId);
-          expect(data.isDisabled).toBe(true);
-          expect(data.updatedAt).toBeGreaterThan(0);
-          return Promise.resolve(undefined);
-        }),
+        patch: mock(
+          (_table: string, id: Id<"userPersonaSettings">, data: any) => {
+            expect(id).toBe(settingId);
+            expect(data.isDisabled).toBe(true);
+            expect(data.updatedAt).toBeGreaterThan(0);
+            return Promise.resolve(undefined);
+          }
+        ),
       },
     });
 
