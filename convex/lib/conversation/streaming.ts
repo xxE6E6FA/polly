@@ -81,22 +81,23 @@ export const executeStreamingActionForRetry = async (
 
   const { conversationId, model, provider } = args;
 
-  // Create streaming assistant message
+  // Create streaming assistant message with status: "thinking"
+  // This ensures the message is properly marked as streaming from the start,
+  // even if the scheduled streaming action fails or is delayed
   const assistantMessageId = await createMessage(ctx, {
     conversationId,
     role: "assistant",
     content: "", // Empty content for streaming
+    status: "thinking",
     model,
     provider: provider as "openai" | "anthropic" | "google" | "groq" | "openrouter" | "replicate" | "elevenlabs",
-    metadata: {
-      status: "pending",
-    },
   });
 
-  // Set conversation as streaming
+  // Set conversation as streaming with the message ID to prevent race conditions
   await ctx.runMutation(api.conversations.setStreaming, {
     conversationId,
     isStreaming: true,
+    messageId: assistantMessageId,
   });
 
   // Increment user stats

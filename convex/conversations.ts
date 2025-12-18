@@ -728,9 +728,11 @@ export const streamMessage = internalAction({
         error: errorMessage,
       });
     } finally {
-      await ctx.runMutation(internal.conversations.internalPatch, {
-        id: args.conversationId,
-        updates: { isStreaming: false },
+      // Use conditional clearing to prevent race conditions with newer streaming actions.
+      // Only clears isStreaming if this message is still the current streaming message.
+      await ctx.runMutation(internal.conversations.clearStreamingForMessage, {
+        conversationId: args.conversationId,
+        messageId,
       });
     }
   },
@@ -1328,6 +1330,40 @@ export const internalGet = internalQuery({
   },
 });
 
+/**
+ * Conditionally clear streaming state only if this message is the current streaming message.
+ * This prevents race conditions where an old streaming action's finally block
+ * could interfere with a new streaming action that has already started.
+ */
+export const clearStreamingForMessageHandler = async (
+  ctx: MutationCtx,
+  args: { conversationId: Id<"conversations">; messageId: Id<"messages"> }
+) => {
+  const conversation = await ctx.db.get("conversations", args.conversationId);
+  if (!conversation) {
+    return;
+  }
+
+  // Only clear streaming state if this message is the current streaming message.
+  // If currentStreamingMessageId doesn't match, another streaming action has started
+  // and we should not interfere with it.
+  if (conversation.currentStreamingMessageId === args.messageId) {
+    await ctx.db.patch("conversations", args.conversationId, {
+      isStreaming: false,
+      currentStreamingMessageId: undefined,
+      stopRequested: undefined,
+    });
+  }
+};
+
+export const clearStreamingForMessage = internalMutation({
+  args: {
+    conversationId: v.id("conversations"),
+    messageId: v.id("messages"),
+  },
+  handler: clearStreamingForMessageHandler,
+});
+
 export const createWithUserId = internalMutation({
   args: {
     title: v.optional(v.string()),
@@ -1412,11 +1448,13 @@ export const createWithUserId = internalMutation({
       );
     }
 
-    // Create empty assistant message for streaming
+    // Create empty assistant message for streaming with status: "thinking"
+    // This ensures proper streaming state from the start
     const assistantMessageId = await ctx.db.insert("messages", {
       conversationId,
       role: "assistant",
       content: "",
+      status: "thinking",
       userId: args.userId,
       model: args.model,
       provider: args.provider,
@@ -2922,12 +2960,15 @@ export const createConversationAction = action({
 });
 
 /**
- * Set conversation streaming state
+ * Set conversation streaming state.
+ * When starting streaming, optionally provide messageId to track which message is being streamed.
+ * This helps prevent race conditions where old streaming actions interfere with new ones.
  */
 export const setStreaming = mutation({
   args: {
     conversationId: v.id("conversations"),
     isStreaming: v.boolean(),
+    messageId: v.optional(v.id("messages")),
   },
   handler: async (ctx, args) => {
     // When starting streaming (i.e., a new user message), bump updatedAt
@@ -2938,8 +2979,14 @@ export const setStreaming = mutation({
         await ctx.db.patch("conversations", args.conversationId, {
           isStreaming: args.isStreaming,
           ...(args.isStreaming
-            ? { updatedAt: Date.now(), stopRequested: undefined }
-            : {}),
+            ? {
+                updatedAt: Date.now(),
+                stopRequested: undefined,
+                currentStreamingMessageId: args.messageId,
+              }
+            : {
+                currentStreamingMessageId: undefined,
+              }),
         });
       },
       5,

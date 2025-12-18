@@ -353,10 +353,13 @@ export async function setConversationStreaming(
   ctx: MutationCtx,
   conversationId: Id<"conversations">,
   isStreaming: boolean,
+  messageId?: Id<"messages">,
 ): Promise<void> {
   await ctx.db.patch("conversations", conversationId, {
     isStreaming,
-    ...(isStreaming ? { updatedAt: Date.now() } : {}),
+    ...(isStreaming
+      ? { updatedAt: Date.now(), currentStreamingMessageId: messageId }
+      : { currentStreamingMessageId: undefined }),
   });
 }
 
@@ -365,10 +368,12 @@ export async function setConversationStreamingForAction(
   ctx: ActionCtx,
   conversationId: Id<"conversations">,
   isStreaming: boolean,
+  messageId?: Id<"messages">,
 ): Promise<void> {
   await ctx.runMutation(api.conversations.setStreaming, {
     conversationId,
     isStreaming,
+    messageId,
   });
 }
 

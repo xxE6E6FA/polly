@@ -307,11 +307,23 @@ export const conversationCreationSchema = v.object({
   updatedAt: v.optional(v.number()),
 });
 
+// Message status for production-grade AI chat
+// Defined here before messageCreationSchema which uses it
+export const messageStatusSchema = v.union(
+  v.literal("thinking"),
+  v.literal("searching"), // New status for web search in progress
+  v.literal("reading_pdf"), // New status for PDF processing
+  v.literal("streaming"),
+  v.literal("done"),
+  v.literal("error"),
+);
+
 // Complete message creation schema
 export const messageCreationSchema = v.object({
   conversationId: v.id("conversations"),
   role: messageRoleSchema,
   content: v.string(),
+  status: v.optional(messageStatusSchema),
   reasoning: v.optional(v.string()),
   model: v.optional(v.string()),
   provider: v.optional(providerSchema),
@@ -556,6 +568,10 @@ export const conversationSchema = v.object({
   // Timestamp when user requested to stop generation. The streaming action checks this
   // periodically and stops gracefully when set. This avoids OCC conflicts with message updates.
   stopRequested: v.optional(v.number()),
+  // ID of the message currently being streamed. Used to prevent race conditions where
+  // an old streaming action's finally block interferes with a new streaming action.
+  // The finally block only clears isStreaming if its messageId matches this field.
+  currentStreamingMessageId: v.optional(v.id("messages")),
   // Active image generation tracking - avoids message queries for stop detection
   activeImageGeneration: v.optional(
     v.object({
@@ -713,16 +729,6 @@ export const userSettingsUpdateSchema = userSettingsSchema.omit(
   "userId",
   "createdAt",
   "updatedAt",
-);
-
-// Message status for production-grade AI chat
-export const messageStatusSchema = v.union(
-  v.literal("thinking"),
-  v.literal("searching"), // New status for web search in progress
-  v.literal("reading_pdf"), // New status for PDF processing
-  v.literal("streaming"),
-  v.literal("done"),
-  v.literal("error"),
 );
 
 // Image generation schema

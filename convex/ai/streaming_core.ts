@@ -51,10 +51,12 @@ export async function streamLLMToMessage({
     status: "thinking",
   });
 
-  // Mark conversation as streaming and clear any previous stop request
+  // Mark conversation as streaming, set current message ID, and clear any previous stop request.
+  // The currentStreamingMessageId prevents race conditions where an old streaming action's
+  // finally block could clear isStreaming after a new action has already started.
   await ctx.runMutation(internal.conversations.internalPatch, {
     id: conversationId,
-    updates: { isStreaming: true },
+    updates: { isStreaming: true, currentStreamingMessageId: messageId },
     clearFields: ["stopRequested"],
   });
 
@@ -134,10 +136,11 @@ export async function streamLLMToMessage({
     stopped = true;
     clearInterval(periodicFlush);
     try {
-      await ctx.runMutation(internal.conversations.internalPatch, {
-        id: conversationId,
-        updates: { isStreaming: false },
-        clearFields: ["stopRequested"],
+      // Use conditional clearing to prevent race conditions with newer streaming actions.
+      // Only clears isStreaming if this message is still the current streaming message.
+      await ctx.runMutation(internal.conversations.clearStreamingForMessage, {
+        conversationId,
+        messageId,
       });
     } catch {}
   };

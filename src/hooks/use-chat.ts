@@ -307,18 +307,16 @@ export function useChat({ conversationId, initialMessages }: UseChatParams) {
       return false;
     }
 
-    // Check the most recent assistant message
+    // Find the most recent assistant message
     let lastAssistant: ChatMessage | null = null;
     for (let i = messages.length - 1; i >= 0; i--) {
       const message = messages[i];
-      if (!message) {
-        continue;
-      }
-      if (message.role === "assistant") {
+      if (message?.role === "assistant") {
         lastAssistant = message;
         break;
       }
     }
+
     if (!lastAssistant) {
       return false;
     }
@@ -326,19 +324,15 @@ export function useChat({ conversationId, initialMessages }: UseChatParams) {
     const status = lastAssistant.status;
     const hasFinish = Boolean(lastAssistant.metadata?.finishReason);
     const isStopped = Boolean(lastAssistant.metadata?.stopped);
-    const isDone = status === "done";
 
-    // Treat active transient states as streaming regardless of age
-    if (
-      status === "searching" ||
-      status === "thinking" ||
-      status === "streaming"
-    ) {
-      return !(hasFinish || isStopped || isDone);
-    }
+    // Only consider streaming if message has an explicit streaming status.
+    // This prevents undefined/null/unknown status from being treated as streaming,
+    // which was causing infinite spinning when messages were created without proper status.
+    const isActiveStreamingStatus =
+      status === "thinking" || status === "streaming" || status === "searching";
 
-    // Fallback: legacy heuristic (no finish/done/stopped)
-    return !(hasFinish || isStopped || isDone);
+    // Message is streaming if it has an active status AND no finish indicator
+    return isActiveStreamingStatus && !(hasFinish || isStopped);
   }, [messages]);
 
   // Check if we can save (private mode only)
