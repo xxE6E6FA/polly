@@ -553,16 +553,17 @@ export async function getUserFilesHandler(
   // Apply pagination - no post-pagination filtering needed
   const paginatedResult = await query.paginate(args.paginationOpts);
 
-  // Fetch conversation titles and file metadata
+  // Fetch conversation titles and file URLs
+  // Note: We build attachment data from userFiles table directly to avoid
+  // expensive message lookups (messages can be large with many attachments)
   const filesWithMetadata = await Promise.all(
     paginatedResult.page.map(async file => {
       try {
-        const conversation = await ctx.db.get(
-          "conversations",
-          file.conversationId
-        );
-        const fileMetadata = await ctx.db.system.get(file.storageId);
-        const fileUrl = await ctx.storage.getUrl(file.storageId);
+        const [conversation, fileMetadata, fileUrl] = await Promise.all([
+          ctx.db.get("conversations", file.conversationId),
+          ctx.db.system.get(file.storageId),
+          ctx.storage.getUrl(file.storageId),
+        ]);
 
         // Skip files where storage file no longer exists (was deleted)
         // This prevents broken image links in the file library
@@ -570,25 +571,27 @@ export async function getUserFilesHandler(
           return null;
         }
 
-        // Get the attachment data from the message for full details
-        const message = await ctx.db.get("messages", file.messageId);
-        const attachment = message?.attachments?.find(
-          att => att.storageId === file.storageId
-        );
+        // Build attachment from userFiles data (no message fetch needed)
+        const attachment = {
+          type: file.type,
+          name: file.name,
+          size: file.size,
+          url: fileUrl,
+          storageId: file.storageId,
+          mimeType: file.mimeType,
+          thumbnail: file.thumbnail,
+          generatedImage: file.isGenerated
+            ? {
+                isGenerated: true,
+                source: file.generatedImageSource || "unknown",
+                model: file.generatedImageModel,
+              }
+            : undefined,
+        };
 
         return {
           storageId: file.storageId,
-          attachment: attachment || {
-            type: file.type,
-            name: file.name,
-            size: file.size,
-            url: fileUrl,
-            storageId: file.storageId,
-            mimeType: file.mimeType,
-            generatedImage: file.isGenerated
-              ? { isGenerated: true, source: "unknown" }
-              : undefined,
-          },
+          attachment,
           messageId: file.messageId,
           conversationId: file.conversationId,
           conversationName: conversation?.title ?? "Untitled conversation",

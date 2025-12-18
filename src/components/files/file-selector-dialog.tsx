@@ -284,16 +284,19 @@ export function FileSelectorDialog({
   }, [open]);
 
   // Query user files with server-side filtering and pagination
+  // Skip query when dialog is closed to avoid unnecessary data loading
   const {
     results: filesData,
     status,
     loadMore,
   } = usePaginatedQuery(
     api.fileStorage.getUserFiles,
-    {
-      fileType: fileType === "all" ? undefined : fileType,
-      includeGenerated: true,
-    },
+    open
+      ? {
+          fileType: fileType === "all" ? undefined : fileType,
+          includeGenerated: true,
+        }
+      : "skip",
     { initialNumItems: FILES_PER_PAGE }
   );
 
