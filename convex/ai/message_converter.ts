@@ -217,11 +217,12 @@ export async function convertStoredMessagesToAISDK(
  * 2. storageId -> ctx.storage.get() -> data URL (fallback)
  * 3. content (base64) -> data URL (for private mode)
  * 4. url (direct URL fallback)
+ * 5. Graceful fallback to TextPart if image is unavailable
  */
 async function convertImageAttachment(
   ctx: ActionCtx,
   attachment: StoredAttachment
-): Promise<ImagePart> {
+): Promise<ImagePart | TextPart> {
   // Priority 1: Use storageId to get a fresh, signed URL
   if (attachment.storageId) {
     const storageUrl = await ctx.storage.getUrl(attachment.storageId);
@@ -256,12 +257,20 @@ async function convertImageAttachment(
     };
   }
 
-  // Priority 4: Use url directly
-  if (attachment.url) {
+  // Priority 4: Use url directly (check it's not empty)
+  if (attachment.url && attachment.url.trim()) {
     return { type: "image", image: attachment.url };
   }
 
-  throw new Error(`Image attachment "${attachment.name}" has no valid source`);
+  // Graceful degradation: return placeholder text instead of throwing
+  // This allows the conversation to continue even if the image file was deleted
+  console.warn(
+    `[message-converter] Image attachment "${attachment.name}" has no valid source (storageId: ${attachment.storageId || "none"}, url: ${attachment.url || "none"})`
+  );
+  return {
+    type: "text",
+    text: `[Image "${attachment.name}" is no longer available - the file may have been deleted]`,
+  };
 }
 
 /**

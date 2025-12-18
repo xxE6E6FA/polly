@@ -128,7 +128,7 @@ describe("convertAttachmentToAISDK", () => {
       );
     });
 
-    test("throws error when no valid image source", async () => {
+    test("returns placeholder text when no valid image source (graceful degradation)", async () => {
       const ctx = makeConvexCtx({
         storage: {
           getUrl: mock(() => Promise.resolve(null)),
@@ -143,13 +143,16 @@ describe("convertAttachmentToAISDK", () => {
         // No content, no url
       });
 
-      await expect(
-        convertAttachmentToAISDK(
-          ctx as unknown as ActionCtx,
-          attachment,
-          defaultOptions
-        )
-      ).rejects.toThrow('Image attachment "photo.jpg" has no valid source');
+      const result = await convertAttachmentToAISDK(
+        ctx as unknown as ActionCtx,
+        attachment,
+        defaultOptions
+      );
+
+      expect(result.type).toBe("text");
+      expect((result as { text: string }).text).toContain(
+        'Image "photo.jpg" is no longer available'
+      );
     });
 
     test("defaults mimeType to image/jpeg when not specified", async () => {
