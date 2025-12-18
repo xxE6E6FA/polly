@@ -144,7 +144,7 @@ const TextMessageBubble = ({
     onMouseLeave,
   } = useHoverLinger({ delay: 700 });
 
-  // Simplified hook - only uses message.status as source of truth
+  // Derive display phase from message status
   const { phase, statusLabel, isActive } = useAssistantDisplayPhase({
     messageStatus: message.status,
     hasContent: hasTextContent,

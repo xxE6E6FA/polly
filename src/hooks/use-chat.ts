@@ -292,6 +292,27 @@ export function useChat({ conversationId, initialMessages }: UseChatParams) {
   );
 
   const stopGeneration = useCallback(() => {
+    // Optimistically mark the last assistant message as stopped
+    // This provides immediate UI feedback before the server confirms
+    setMessages(prev => {
+      const lastAssistantIdx = prev.findLastIndex(m => m.role === "assistant");
+      if (lastAssistantIdx === -1) {
+        return prev;
+      }
+      return prev.map((m, i) =>
+        i === lastAssistantIdx
+          ? {
+              ...m,
+              status: "done" as const,
+              metadata: {
+                ...m.metadata,
+                stopped: true,
+                finishReason: "user_stopped",
+              },
+            }
+          : m
+      );
+    });
     chatHandlers.stopGeneration();
   }, [chatHandlers.stopGeneration]);
 
@@ -302,6 +323,7 @@ export function useChat({ conversationId, initialMessages }: UseChatParams) {
     [chatHandlers.saveConversation]
   );
 
+  // Derive streaming state from message status
   const isStreaming = useMemo(() => {
     if (messages.length === 0) {
       return false;

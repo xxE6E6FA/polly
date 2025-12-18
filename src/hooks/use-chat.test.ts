@@ -622,4 +622,529 @@ describe("useChat", () => {
       });
     });
   });
+
+  describe("retry functionality", () => {
+    test("retryFromMessage calls the retry action", async () => {
+      const mockRetryAction = mock(async () => ({
+        userMessageId: "msg-1",
+        assistantMessageId: "msg-3",
+      }));
+      setConvexMock({
+        useAction: () => mockRetryAction,
+        useMutation: () => mock(async () => undefined),
+      });
+
+      const messages = [
+        {
+          id: "msg-1",
+          role: "user",
+          content: "Hello",
+          isMainBranch: true,
+          createdAt: 123,
+        },
+        {
+          id: "msg-2",
+          role: "assistant",
+          content: "Hi there",
+          status: "done",
+          isMainBranch: true,
+          createdAt: 456,
+        },
+      ];
+
+      const { result } = renderHook(() =>
+        useChat({
+          conversationId: "conv-123",
+          initialMessages: messages,
+        })
+      );
+
+      await act(async () => {
+        await result.current.retryFromMessage("msg-2");
+      });
+
+      expect(mockRetryAction).toHaveBeenCalled();
+    });
+
+    test("retryFromMessage throws when no model selected", async () => {
+      spyOn(selectedModelModule, "useSelectedModel").mockReturnValue({
+        selectedModel: null,
+        selectModel: mock(),
+      });
+
+      setConvexMock({});
+
+      const { result } = renderHook(() =>
+        useChat({ conversationId: "conv-123" })
+      );
+
+      await expect(result.current.retryFromMessage("msg-1")).rejects.toThrow(
+        "No model selected"
+      );
+
+      // Reset spy
+      spyOn(selectedModelModule, "useSelectedModel").mockReturnValue({
+        selectedModel: { modelId: "gemini-2.0-flash", provider: "google" },
+        selectModel: mock(),
+      });
+    });
+  });
+
+  describe("stop then retry scenarios", () => {
+    test("can retry after stopping a message", async () => {
+      const mockStopMutation = mock(async () => undefined);
+      const mockRetryAction = mock(async () => ({
+        userMessageId: "msg-1",
+        assistantMessageId: "msg-3",
+      }));
+
+      setConvexMock({
+        useAction: () => mockRetryAction,
+        useMutation: () => mockStopMutation,
+      });
+
+      const streamingMessages = [
+        {
+          id: "msg-1",
+          role: "user",
+          content: "Hello",
+          isMainBranch: true,
+          createdAt: 123,
+        },
+        {
+          id: "msg-2",
+          role: "assistant",
+          content: "Partial...",
+          status: "streaming",
+          isMainBranch: true,
+          createdAt: 456,
+        },
+      ];
+
+      const { result } = renderHook(() =>
+        useChat({
+          conversationId: "conv-123",
+          initialMessages: streamingMessages,
+        })
+      );
+
+      // First, stop the streaming
+      act(() => {
+        result.current.stopGeneration();
+      });
+
+      expect(result.current.isStreaming).toBe(false);
+      expect(result.current.messages[1]?.metadata?.stopped).toBe(true);
+
+      // Then retry
+      await act(async () => {
+        await result.current.retryFromMessage("msg-2");
+      });
+
+      expect(mockRetryAction).toHaveBeenCalled();
+    });
+
+    test("stop clears streaming state before retry can start new stream", () => {
+      const mockStopMutation = mock(async () => undefined);
+
+      setConvexMock({
+        useMutation: () => mockStopMutation,
+      });
+
+      // Message in thinking phase (no content yet)
+      const thinkingMessages = [
+        {
+          id: "msg-1",
+          role: "user",
+          content: "Hello",
+          isMainBranch: true,
+          createdAt: 123,
+        },
+        {
+          id: "msg-2",
+          role: "assistant",
+          content: "",
+          status: "thinking",
+          isMainBranch: true,
+          createdAt: 456,
+        },
+      ];
+
+      const { result } = renderHook(() =>
+        useChat({
+          conversationId: "conv-123",
+          initialMessages: thinkingMessages,
+        })
+      );
+
+      // Verify initially streaming
+      expect(result.current.isStreaming).toBe(true);
+
+      // Stop
+      act(() => {
+        result.current.stopGeneration();
+      });
+
+      // Should immediately show as not streaming
+      expect(result.current.isStreaming).toBe(false);
+      expect(result.current.messages[1]?.status).toBe("done");
+    });
+  });
+
+  describe("stop during different phases", () => {
+    test("stop during thinking phase updates message correctly", () => {
+      const mockStopMutation = mock(async () => undefined);
+      setConvexMock({
+        useMutation: () => mockStopMutation,
+      });
+
+      const messages = [
+        {
+          id: "msg-1",
+          role: "user",
+          content: "Hello",
+          isMainBranch: true,
+          createdAt: 123,
+        },
+        {
+          id: "msg-2",
+          role: "assistant",
+          content: "",
+          status: "thinking",
+          isMainBranch: true,
+          createdAt: 456,
+        },
+      ];
+
+      const { result } = renderHook(() =>
+        useChat({
+          conversationId: "conv-123",
+          initialMessages: messages,
+        })
+      );
+
+      act(() => {
+        result.current.stopGeneration();
+      });
+
+      const stoppedMessage = result.current.messages[1];
+      expect(stoppedMessage?.status).toBe("done");
+      expect(stoppedMessage?.metadata?.stopped).toBe(true);
+      expect(stoppedMessage?.metadata?.finishReason).toBe("user_stopped");
+    });
+
+    test("stop during streaming phase preserves partial content", () => {
+      const mockStopMutation = mock(async () => undefined);
+      setConvexMock({
+        useMutation: () => mockStopMutation,
+      });
+
+      const messages = [
+        {
+          id: "msg-1",
+          role: "user",
+          content: "Hello",
+          isMainBranch: true,
+          createdAt: 123,
+        },
+        {
+          id: "msg-2",
+          role: "assistant",
+          content: "Here is a partial response that was",
+          status: "streaming",
+          isMainBranch: true,
+          createdAt: 456,
+        },
+      ];
+
+      const { result } = renderHook(() =>
+        useChat({
+          conversationId: "conv-123",
+          initialMessages: messages,
+        })
+      );
+
+      act(() => {
+        result.current.stopGeneration();
+      });
+
+      const stoppedMessage = result.current.messages[1];
+      // Content should be preserved
+      expect(stoppedMessage?.content).toBe(
+        "Here is a partial response that was"
+      );
+      expect(stoppedMessage?.status).toBe("done");
+      expect(stoppedMessage?.metadata?.stopped).toBe(true);
+    });
+
+    test("stop during searching phase updates message correctly", () => {
+      const mockStopMutation = mock(async () => undefined);
+      setConvexMock({
+        useMutation: () => mockStopMutation,
+      });
+
+      const messages = [
+        {
+          id: "msg-1",
+          role: "user",
+          content: "Search for something",
+          isMainBranch: true,
+          createdAt: 123,
+        },
+        {
+          id: "msg-2",
+          role: "assistant",
+          content: "",
+          status: "searching",
+          isMainBranch: true,
+          createdAt: 456,
+        },
+      ];
+
+      const { result } = renderHook(() =>
+        useChat({
+          conversationId: "conv-123",
+          initialMessages: messages,
+        })
+      );
+
+      expect(result.current.isStreaming).toBe(true);
+
+      act(() => {
+        result.current.stopGeneration();
+      });
+
+      expect(result.current.isStreaming).toBe(false);
+      expect(result.current.messages[1]?.status).toBe("done");
+      expect(result.current.messages[1]?.metadata?.stopped).toBe(true);
+    });
+
+    test("stop preserves existing metadata", () => {
+      const mockStopMutation = mock(async () => undefined);
+      setConvexMock({
+        useMutation: () => mockStopMutation,
+      });
+
+      const messages = [
+        {
+          id: "msg-1",
+          role: "user",
+          content: "Hello",
+          isMainBranch: true,
+          createdAt: 123,
+        },
+        {
+          id: "msg-2",
+          role: "assistant",
+          content: "Response",
+          status: "streaming",
+          isMainBranch: true,
+          createdAt: 456,
+          metadata: {
+            timeToFirstTokenMs: 150,
+            model: "gpt-4",
+          },
+        },
+      ];
+
+      const { result } = renderHook(() =>
+        useChat({
+          conversationId: "conv-123",
+          initialMessages: messages,
+        })
+      );
+
+      act(() => {
+        result.current.stopGeneration();
+      });
+
+      const stoppedMessage = result.current.messages[1];
+      // Original metadata should be preserved
+      expect(stoppedMessage?.metadata?.timeToFirstTokenMs).toBe(150);
+      expect(stoppedMessage?.metadata?.model).toBe("gpt-4");
+      // New metadata should be added
+      expect(stoppedMessage?.metadata?.stopped).toBe(true);
+      expect(stoppedMessage?.metadata?.finishReason).toBe("user_stopped");
+    });
+  });
+
+  describe("stop mechanism with optimistic update", () => {
+    test("stopGeneration optimistically updates message status to done", () => {
+      const mockStopMutation = mock(async () => {
+        /* no-op mock */
+      });
+      setConvexMock({
+        useMutation: () => mockStopMutation,
+      });
+
+      const streamingMessages = [
+        {
+          id: "msg-1",
+          role: "user",
+          content: "Hello",
+          isMainBranch: true,
+          createdAt: 123,
+        },
+        {
+          id: "msg-2",
+          role: "assistant",
+          content: "Hi",
+          status: "streaming",
+          isMainBranch: true,
+          createdAt: 456,
+        },
+      ];
+
+      const { result } = renderHook(() =>
+        useChat({
+          conversationId: "conv-123",
+          initialMessages: streamingMessages,
+        })
+      );
+
+      // Before stop - message is streaming
+      expect(result.current.isStreaming).toBe(true);
+      expect(result.current.messages[1]?.status).toBe("streaming");
+
+      // Call stop
+      act(() => {
+        result.current.stopGeneration();
+      });
+
+      // Immediately after stop - message should be optimistically updated
+      expect(result.current.isStreaming).toBe(false);
+      expect(result.current.messages[1]?.status).toBe("done");
+      expect(result.current.messages[1]?.metadata?.stopped).toBe(true);
+      expect(result.current.messages[1]?.metadata?.finishReason).toBe(
+        "user_stopped"
+      );
+    });
+
+    test("stopGeneration calls the mutation", () => {
+      const mockStopMutation = mock(async () => {
+        /* no-op mock */
+      });
+      setConvexMock({
+        useMutation: () => mockStopMutation,
+      });
+
+      const streamingMessages = [
+        {
+          id: "msg-1",
+          role: "user",
+          content: "Hello",
+          isMainBranch: true,
+          createdAt: 123,
+        },
+        {
+          id: "msg-2",
+          role: "assistant",
+          content: "Hi",
+          status: "streaming",
+          isMainBranch: true,
+          createdAt: 456,
+        },
+      ];
+
+      const { result } = renderHook(() =>
+        useChat({
+          conversationId: "conv-123",
+          initialMessages: streamingMessages,
+        })
+      );
+
+      act(() => {
+        result.current.stopGeneration();
+      });
+
+      expect(mockStopMutation).toHaveBeenCalledWith({
+        conversationId: "conv-123",
+      });
+    });
+
+    test("stopGeneration does nothing if no assistant message", () => {
+      const mockStopMutation = mock(async () => {
+        /* no-op mock */
+      });
+      setConvexMock({
+        useMutation: () => mockStopMutation,
+      });
+
+      const userOnlyMessages = [
+        {
+          id: "msg-1",
+          role: "user",
+          content: "Hello",
+          isMainBranch: true,
+          createdAt: 123,
+        },
+      ];
+
+      const { result } = renderHook(() =>
+        useChat({
+          conversationId: "conv-123",
+          initialMessages: userOnlyMessages,
+        })
+      );
+
+      act(() => {
+        result.current.stopGeneration();
+      });
+
+      // Messages unchanged
+      expect(result.current.messages).toHaveLength(1);
+      expect(result.current.messages[0]?.role).toBe("user");
+
+      // Mutation still called
+      expect(mockStopMutation).toHaveBeenCalled();
+    });
+
+    test("multiple rapid stop calls update message once", () => {
+      const mockStopMutation = mock(async () => {
+        /* no-op mock */
+      });
+      setConvexMock({
+        useMutation: () => mockStopMutation,
+      });
+
+      const streamingMessages = [
+        {
+          id: "msg-1",
+          role: "user",
+          content: "Hello",
+          isMainBranch: true,
+          createdAt: 123,
+        },
+        {
+          id: "msg-2",
+          role: "assistant",
+          content: "Hi",
+          status: "streaming",
+          isMainBranch: true,
+          createdAt: 456,
+        },
+      ];
+
+      const { result } = renderHook(() =>
+        useChat({
+          conversationId: "conv-123",
+          initialMessages: streamingMessages,
+        })
+      );
+
+      // Call stop multiple times rapidly
+      act(() => {
+        result.current.stopGeneration();
+        result.current.stopGeneration();
+        result.current.stopGeneration();
+      });
+
+      // Message should be stopped
+      expect(result.current.isStreaming).toBe(false);
+      expect(result.current.messages[1]?.metadata?.stopped).toBe(true);
+
+      // Mutation called 3 times
+      expect(mockStopMutation).toHaveBeenCalledTimes(3);
+    });
+  });
 });

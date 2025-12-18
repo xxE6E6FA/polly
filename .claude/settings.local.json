@@ -76,7 +76,9 @@
       "WebFetch(domain:models.dev)",
       "Bash(npx convex deploy:*)",
       "Bash(ls:*)",
-      "Bash(git hook:*)"
+      "Bash(git hook:*)",
+      "Bash(git log:*)",
+      "Bash(biome ci:*)"
     ],
     "deny": []
   },
