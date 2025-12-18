@@ -14,9 +14,10 @@ import { formatContextLength } from "@/lib/format-context";
 import { getModelCapabilities } from "@/lib/model-capabilities";
 import { cn } from "@/lib/utils";
 import { useUserDataContext } from "@/providers/user-data-context";
+import type { HydratedModel } from "@/types";
 import { DrawerItem } from "../../drawer-item";
 
-type AvailableModel = Doc<"userModels"> | Doc<"builtInModels">;
+type AvailableModel = HydratedModel;
 
 const DrawerModelItemComponent = ({
   model,

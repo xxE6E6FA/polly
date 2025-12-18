@@ -66,14 +66,14 @@ import {
 } from "@/components/ui/tooltip";
 import { useEnabledImageModels } from "@/hooks/use-enabled-image-models";
 import { useModelCatalog, useModelTitle } from "@/hooks/use-model-catalog";
-import { useSelectModel } from "@/hooks/use-select-model";
+import { useSelectedModel } from "@/hooks/use-selected-model";
 import { useUserSettings } from "@/hooks/use-user-settings";
 import { getModelCapabilities } from "@/lib/model-capabilities";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import { usePrivateMode } from "@/providers/private-mode-context";
 import { useToast } from "@/providers/toast-context";
-import type { WebSearchCitation } from "@/types";
+import type { HydratedModel, WebSearchCitation } from "@/types";
 import { CitationAvatarStack } from "../citation-avatar-stack";
 import {
   ActionButton,
@@ -89,7 +89,7 @@ import {
 } from "./image-retry-popover";
 
 // Union type for models from getAvailableModels
-type AvailableModel = Doc<"userModels"> | Doc<"builtInModels">;
+type AvailableModel = HydratedModel;
 
 type RetryDropdownProps = {
   isUser: boolean;
@@ -127,7 +127,7 @@ const RetryDropdown = memo(
     const [refineText, setRefineText] = useState("");
     const { modelGroups, userModels } = useModelCatalog();
     const enabledImageModels = useEnabledImageModels();
-    const { selectModel } = useSelectModel();
+    const { selectModel } = useSelectedModel();
 
     const normalizedProvider = currentProvider?.toLowerCase();
     const isImageProvider = normalizedProvider === "replicate";

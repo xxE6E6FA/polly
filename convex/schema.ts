@@ -10,6 +10,7 @@ import {
   imageModelDefinitionSchema,
   messageFavoriteSchema,
   messageSchema,
+  modelsDevCacheSchema,
   pdfTextCacheSchema,
   personaSchema,
   sessionSchema,
@@ -150,6 +151,12 @@ export default defineSchema({
   pdfTextCache: defineTable(pdfTextCacheSchema)
     .index("by_cache_key", ["cacheKey"])
     .index("by_expires_at", ["expiresAt"]),
+
+  // models.dev capability cache - stores model capabilities synced from models.dev API
+  modelsDevCache: defineTable(modelsDevCacheSchema)
+    .index("by_provider_model", ["provider", "modelId"])
+    .index("by_provider", ["provider"])
+    .index("by_last_fetched", ["lastFetched"]),
 
   messageFavorites: defineTable(messageFavoriteSchema)
     .index("by_user_created", ["userId", "createdAt"])

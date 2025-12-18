@@ -448,21 +448,11 @@ export const VirtualizedModelList = memo(
         }
 
         try {
-          // Convert BaseModel to the exact format expected by the mutation validator
+          // Only send identity fields - capabilities come from models.dev cache
           const modelData = {
-            userId: authenticatedUserId,
             modelId: model.modelId,
             name: model.name,
             provider: model.provider,
-            contextLength: model.contextLength || model.contextWindow || 0,
-            maxOutputTokens: model.maxOutputTokens ?? undefined,
-            supportsImages: Boolean(model.supportsImages),
-            supportsTools: Boolean(model.supportsTools),
-            supportsReasoning: Boolean(model.supportsReasoning),
-            supportsFiles: model.supportsFiles ?? undefined,
-            inputModalities: model.inputModalities ?? undefined,
-            free: model.free ?? false,
-            createdAt: Date.now(),
           };
 
           const result = (await toggleModel({

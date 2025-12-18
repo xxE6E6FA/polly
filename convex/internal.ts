@@ -61,33 +61,48 @@ export const clearBuiltInModels = mutation({
   handler: async ctx => clearTable("builtInModels", ctx),
 });
 
-export const migrateUserModelsCapabilities = mutation({
+// Migration to strip capability fields from models - capabilities now come from models.dev cache
+export const stripCapabilityFieldsFromModels = mutation({
   args: {},
   handler: async ctx => {
-    const models = await ctx.db.query("userModels").collect();
-    let updatedCount = 0;
+    let builtInUpdated = 0;
+    let userModelsUpdated = 0;
 
-    for (const model of models) {
-      // Check if model is missing the supportsFiles capability field
-      if (model.supportsFiles === undefined) {
-        const contextWindow = model.contextLength;
-
-        // Conservative default: assume file support for most modern models
-        const supportsFiles =
-          contextWindow >= 32000 ||
-          model.provider === "anthropic" ||
-          model.provider === "openrouter";
-
-        const updates: Record<string, boolean> = {
-          supportsFiles,
-        };
-
-        await ctx.db.patch("userModels", model._id, updates);
-        updatedCount++;
-      }
+    // Strip capability fields from builtInModels
+    const builtInModels = await ctx.db.query("builtInModels").collect();
+    for (const model of builtInModels) {
+      // Only keep schema-allowed fields
+      await ctx.db.replace("builtInModels", model._id, {
+        modelId: model.modelId,
+        name: model.name,
+        provider: model.provider,
+        createdAt: model.createdAt,
+        free: model.free,
+        isActive: model.isActive,
+        displayProvider: model.displayProvider,
+      });
+      builtInUpdated++;
     }
 
-    return { total: models.length, updated: updatedCount };
+    // Strip capability fields from userModels
+    const userModels = await ctx.db.query("userModels").collect();
+    for (const model of userModels) {
+      // Only keep schema-allowed fields
+      await ctx.db.replace("userModels", model._id, {
+        modelId: model.modelId,
+        name: model.name,
+        provider: model.provider,
+        createdAt: model.createdAt,
+        userId: model.userId,
+        selected: model.selected,
+        free: model.free,
+        isAvailable: model.isAvailable,
+        availabilityCheckedAt: model.availabilityCheckedAt,
+      });
+      userModelsUpdated++;
+    }
+
+    return { builtInUpdated, userModelsUpdated };
   },
 });
 

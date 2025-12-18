@@ -72,7 +72,11 @@
       "Bash(echo \"Checking: $hook\" done)",
       "WebFetch(domain:news.convex.dev)",
       "Bash(bunx @convex-dev/codemod:*)",
-      "Bash(cut:*)"
+      "Bash(cut:*)",
+      "WebFetch(domain:models.dev)",
+      "Bash(npx convex deploy:*)",
+      "Bash(ls:*)",
+      "Bash(git hook:*)"
     ],
     "deny": []
   },

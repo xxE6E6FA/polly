@@ -71,7 +71,7 @@ export function useChat({ conversationId, initialMessages }: UseChatParams) {
   const { user } = useUserDataContext();
 
   // Get user's selected model via Zustand-backed hook
-  const [selectedModel] = useSelectedModel();
+  const { selectedModel } = useSelectedModel();
 
   // Get decrypted API key action for private mode
   const getDecryptedApiKeyAction = useAction(api.apiKeys.getDecryptedApiKey);

@@ -50,4 +50,12 @@ crons.daily(
   internal.ai.pdf_cache.batchCleanupExpired
 );
 
+// Sync models.dev capability cache daily at 6 AM UTC
+crons.daily(
+  "sync models.dev cache",
+  { hourUTC: 6, minuteUTC: 0 },
+  internal.models_dev_sync.syncModelsDevCache,
+  {}
+);
+
 export default crons;

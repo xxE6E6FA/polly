@@ -64,7 +64,6 @@ export { useLastGeneratedImageSeed } from "./use-last-generated-image-seed";
 export { useModelCatalog, useModelTitle } from "./use-model-catalog";
 export { useReplicateApiKey } from "./use-replicate-api-key";
 export { useReplicateSchema } from "./use-replicate-schema";
-export { useSelectModel } from "./use-select-model";
 export { useSelectedModel } from "./use-selected-model";
 
 // =============================================================================

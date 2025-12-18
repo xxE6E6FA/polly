@@ -1,15 +1,14 @@
 import { api } from "@convex/_generated/api";
-import type { Doc } from "@convex/_generated/dataModel";
 import { useQuery } from "convex/react";
 import { useEffect } from "react";
 import { shallow, useShallow } from "zustand/shallow";
 import { useStoreWithEqualityFn } from "zustand/traditional";
 import { createStore, type StoreApi } from "zustand/vanilla";
 import { CACHE_KEYS, get, set } from "@/lib/local-storage";
+import type { HydratedModel } from "@/types";
 
-type UserModel = Doc<"userModels">;
-type BuiltInModel = Doc<"builtInModels">;
-type AvailableModel = UserModel | BuiltInModel;
+// Models from queries are hydrated with capabilities from models.dev
+type AvailableModel = HydratedModel;
 
 type Provider = string;
 
@@ -111,7 +110,10 @@ export const resetModelCatalogStoreApi = () => {
 
 export function useModelCatalog() {
   // Use single consolidated query instead of two separate ones
-  const availableModels = useQuery(api.userModels.getAvailableModels, {});
+  // Query returns hydrated models with capabilities from models.dev
+  const availableModels = useQuery(api.userModels.getAvailableModels, {}) as
+    | AvailableModel[]
+    | undefined;
 
   const setCatalog = useModelCatalogStore(s => s.setCatalog);
   const initialized = useModelCatalogStore(s => s.initialized);

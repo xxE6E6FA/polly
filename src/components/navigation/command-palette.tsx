@@ -52,7 +52,6 @@ import { TextInputDialog } from "@/components/ui/text-input-dialog";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useModelCatalog } from "@/hooks/use-model-catalog";
 import { useOnline } from "@/hooks/use-online";
-import { useSelectModel } from "@/hooks/use-select-model";
 import { useSelectedModel } from "@/hooks/use-selected-model";
 import { useTheme } from "@/hooks/use-theme";
 import {
@@ -64,7 +63,7 @@ import {
 import { getModelCapabilities } from "@/lib/model-capabilities";
 import { ROUTES } from "@/lib/routes";
 import { useUserIdentity } from "@/providers/user-data-context";
-import type { ModelForCapabilities } from "@/types";
+import type { HydratedModel, ModelForCapabilities } from "@/types";
 
 type CommandPaletteProps = {
   open: boolean;
@@ -72,7 +71,7 @@ type CommandPaletteProps = {
   onClose?: () => void;
 };
 
-type AvailableModel = Doc<"userModels"> | Doc<"builtInModels">;
+type AvailableModel = HydratedModel;
 
 type NavigationState = {
   currentMenu:
@@ -223,7 +222,7 @@ export function CommandPalette({
 
   const { userModels, modelGroups } = useModelCatalog();
   const modelsLoaded = !!userModels;
-  const [currentSelectedModel] = useSelectedModel();
+  const { selectedModel: currentSelectedModel } = useSelectedModel();
   const recentlyUsedModels = useQuery(api.userModels.getRecentlyUsedModels, {
     limit: 8,
   });
@@ -249,7 +248,7 @@ export function CommandPalette({
     return Array.from(map.values());
   }, [modelGroups]);
 
-  const { selectModel } = useSelectModel();
+  const { selectModel } = useSelectedModel();
 
   const handleSelectModel = useCallback(
     async (modelId: string, provider: string) => {

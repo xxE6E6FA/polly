@@ -7,6 +7,7 @@ import { api } from "../_generated/api";
 import type { ActionCtx, MutationCtx, QueryCtx } from "../_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { DEFAULT_BUILTIN_MODEL_ID } from "../../shared/constants";
+import { resolveModelCapabilities } from "./capability_resolver";
 
 export interface EffectiveModel {
   modelId: string;
@@ -84,7 +85,10 @@ export async function getUserEffectiveModel(
 
 
 /**
- * Get the effective model with full capabilities for internal actions
+ * Get the effective model with full capabilities for internal actions.
+ *
+ * IMPORTANT: Capabilities are now resolved dynamically from models.dev cache,
+ * NOT from stored model data. Unknown models get conservative defaults.
  */
 export async function getUserEffectiveModelWithCapabilities(
   ctx: QueryCtx | MutationCtx | ActionCtx,
@@ -99,13 +103,16 @@ export async function getUserEffectiveModelWithCapabilities(
   supportsTools?: boolean;
   supportsFiles?: boolean;
   contextLength?: number;
+  maxOutputTokens?: number;
+  inputModalities?: string[];
   free?: boolean;
 }> {
   // Get user's selected model if not fully provided
   let finalModel = requestedModel;
   let finalProvider = requestedProvider;
-  let fullModelObject: any = null;
-  
+  let modelName: string | null = null;
+  let isFree: boolean | undefined = undefined;
+
   if (!finalModel || !finalProvider) {
     try {
       if ("db" in ctx) {
@@ -117,17 +124,19 @@ export async function getUserEffectiveModelWithCapabilities(
             .filter(q => q.eq(q.field("selected"), true))
             .unique();
           if (selectedModel) {
-            fullModelObject = selectedModel;
             finalModel = finalModel || selectedModel.modelId;
             finalProvider = finalProvider || selectedModel.provider;
+            modelName = selectedModel.name;
+            isFree = selectedModel.free;
           }
         }
       } else {
         const selectedModel = await ctx.runQuery(api.userModels.getUserSelectedModel);
         if (selectedModel) {
-          fullModelObject = selectedModel;
           finalModel = finalModel || selectedModel.modelId;
           finalProvider = finalProvider || selectedModel.provider;
+          modelName = selectedModel.name;
+          isFree = "free" in selectedModel ? selectedModel.free : undefined;
         }
       }
     } catch (error) {
@@ -135,8 +144,8 @@ export async function getUserEffectiveModelWithCapabilities(
     }
   }
 
-  // If we have specific model/provider but no full object, try to fetch it
-  if ((finalModel && finalProvider) && !fullModelObject) {
+  // If we have specific model/provider but no name, try to fetch it
+  if ((finalModel && finalProvider) && !modelName) {
     try {
       if ("db" in ctx) {
         // Try user model first
@@ -153,10 +162,11 @@ export async function getUserEffectiveModelWithCapabilities(
             )
             .unique();
           if (userModel) {
-            fullModelObject = userModel;
+            modelName = userModel.name;
+            isFree = userModel.free;
           }
         }
-        if (!fullModelObject) {
+        if (!modelName) {
           const builtInModel = await ctx.db
             .query("builtInModels")
             .filter(q =>
@@ -168,7 +178,8 @@ export async function getUserEffectiveModelWithCapabilities(
             )
             .unique();
           if (builtInModel) {
-            fullModelObject = builtInModel;
+            modelName = builtInModel.name;
+            isFree = builtInModel.free;
           }
         }
       } else {
@@ -177,7 +188,8 @@ export async function getUserEffectiveModelWithCapabilities(
           provider: finalProvider,
         });
         if (modelFromDB) {
-          fullModelObject = modelFromDB;
+          modelName = modelFromDB.name;
+          isFree = "free" in modelFromDB ? modelFromDB.free : undefined;
         }
       }
     } catch (error) {
@@ -189,32 +201,44 @@ export async function getUserEffectiveModelWithCapabilities(
   const modelId = finalModel || DEFAULT_BUILTIN_MODEL_ID;
   const provider = finalProvider || "google"; // Default to google provider
 
-  // If we have the full model object, use it
-  if (fullModelObject) {
-    const result = {
-      modelId: fullModelObject.modelId,
-      provider: fullModelObject.provider,
-      name: fullModelObject.name,
-      supportsReasoning: fullModelObject.supportsReasoning || false,
-      supportsImages: fullModelObject.supportsImages,
-      supportsTools: fullModelObject.supportsTools,
-      supportsFiles: fullModelObject.supportsFiles,
-      contextLength: fullModelObject.contextLength,
-      free: fullModelObject.free,
+  // Resolve capabilities dynamically from models.dev cache
+  // We no longer use stored capabilities from userModels/builtInModels
+  if ("db" in ctx) {
+    // For Query/Mutation context, resolve capabilities directly
+    const capabilities = await resolveModelCapabilities(ctx, provider, modelId);
+
+    return {
+      modelId,
+      provider,
+      name: modelName || modelId,
+      supportsReasoning: capabilities.supportsReasoning,
+      supportsImages: capabilities.supportsImages,
+      supportsTools: capabilities.supportsTools,
+      supportsFiles: capabilities.supportsFiles,
+      contextLength: capabilities.contextLength,
+      maxOutputTokens: capabilities.maxOutputTokens,
+      inputModalities: capabilities.inputModalities,
+      free: isFree,
     };
-    return result;
   }
 
-  // Fallback for cases where we can't get the full model (anonymous users, etc.)
-  const fallbackResult = {
+  // For ActionCtx, we need to run a query to resolve capabilities
+  const capabilities = await ctx.runQuery(api.capabilities.resolveCapabilities, {
+    provider,
+    modelId,
+  });
+
+  return {
     modelId,
     provider,
-    name: modelId, // Use modelId as name fallback
-    supportsReasoning: false, // Conservative default
-    supportsImages: false,
-    supportsTools: false,
-    supportsFiles: false,
+    name: modelName || modelId,
+    supportsReasoning: capabilities.supportsReasoning,
+    supportsImages: capabilities.supportsImages,
+    supportsTools: capabilities.supportsTools,
+    supportsFiles: capabilities.supportsFiles,
+    contextLength: capabilities.contextLength,
+    maxOutputTokens: capabilities.maxOutputTokens,
+    inputModalities: capabilities.inputModalities,
+    free: isFree,
   };
-  
-  return fallbackResult;
 }

@@ -3,9 +3,9 @@ import { useCallback, useEffect, useState } from "react";
 import { useReasoningConfig } from "@/hooks/use-reasoning";
 import { isUserModel } from "@/lib/type-guards";
 import { cn } from "@/lib/utils";
-import type { ConversationId, ReasoningConfig } from "@/types";
+import type { ConversationId, HydratedModel, ReasoningConfig } from "@/types";
 
-type AvailableModel = Doc<"userModels"> | Doc<"builtInModels">;
+type AvailableModel = HydratedModel;
 
 import { RecordingControls } from "./recording-controls";
 import { SendButton } from "./send-button";

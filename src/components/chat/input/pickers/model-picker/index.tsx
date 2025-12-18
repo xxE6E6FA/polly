@@ -10,7 +10,6 @@ import { useGenerationMode, useImageParams } from "@/hooks/use-generation";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useModelCatalog } from "@/hooks/use-model-catalog";
 import { useReplicateApiKey } from "@/hooks/use-replicate-api-key";
-import { useSelectModel } from "@/hooks/use-select-model";
 import { useSelectedModel } from "@/hooks/use-selected-model";
 import { CACHE_KEYS, get, set } from "@/lib/local-storage";
 import { cn } from "@/lib/utils";
@@ -31,8 +30,7 @@ const ModelPickerComponent = ({
   const { monthlyUsage, hasUnlimitedCalls, user } = useUserDataContext();
   const { modelGroups } = useModelCatalog();
   // Use shared hook instead of direct query - provides caching for instant display
-  const [selectedModel] = useSelectedModel();
-  const { selectModel } = useSelectModel();
+  const { selectedModel, selectModel } = useSelectedModel();
   const isDesktop = useMediaQuery("(min-width: 640px)");
 
   const [generationMode, setGenerationMode] = useGenerationMode();

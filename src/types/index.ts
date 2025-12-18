@@ -19,6 +19,28 @@ export type UserId = Id<"users">;
 
 export type AIModel = Doc<"userModels">;
 export type ImageModel = Doc<"userImageModels">;
+
+/**
+ * Capabilities resolved from models.dev cache at query time.
+ * These are added to models via hydration.
+ */
+export type ModelCapabilities = {
+  supportsTools: boolean;
+  supportsImages: boolean;
+  supportsReasoning: boolean;
+  supportsFiles: boolean;
+  contextLength: number;
+  maxOutputTokens?: number;
+  inputModalities: string[];
+};
+
+/**
+ * A hydrated model with capabilities from models.dev.
+ * This is what queries return after hydration.
+ */
+export type HydratedUserModel = Doc<"userModels"> & ModelCapabilities;
+export type HydratedBuiltInModel = Doc<"builtInModels"> & ModelCapabilities;
+export type HydratedModel = HydratedUserModel | HydratedBuiltInModel;
 export type AIProviderType =
   | "openai"
   | "anthropic"

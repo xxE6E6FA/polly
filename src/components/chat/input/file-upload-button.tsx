@@ -26,7 +26,7 @@ export function FileUploadButton({
   selectedModel: propsSelectedModel,
 }: FileUploadButtonProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [hookSelectedModel] = useSelectedModel();
+  const { selectedModel: hookSelectedModel } = useSelectedModel();
   const selectedModel = (propsSelectedModel ?? hookSelectedModel) as
     | AIModel
     | undefined;

@@ -7,7 +7,11 @@ import {
   type QueryCtx,
   query,
 } from "./_generated/server";
-import { userModelSchema } from "./lib/schemas";
+import {
+  hydrateModelsWithCapabilities,
+  hydrateModelWithCapabilities,
+} from "./lib/capability_resolver";
+import { userModelInputSchema } from "./lib/schemas";
 
 // ============================================================================
 // EXPORTED HANDLERS FOR TESTING
@@ -18,10 +22,13 @@ export async function getBuiltInModelsHandler(ctx: QueryCtx, _args: {}) {
     return [];
   }
 
-  return await ctx.db
+  const builtInModels = await ctx.db
     .query("builtInModels")
     .filter(q => q.eq(q.field("isActive"), true))
     .collect();
+
+  // Hydrate with dynamic capabilities from models.dev cache
+  return await hydrateModelsWithCapabilities(ctx, builtInModels);
 }
 
 export async function checkModelConflictHandler(
@@ -58,14 +65,14 @@ export async function getUserModelsHandler(ctx: QueryCtx) {
     .withIndex("by_user", q => q.eq("userId", userId))
     .collect();
 
-  // For now, mark all user models as available since we can't fetch from API in queries
-  // The frontend will handle the actual availability checking after fetching from API
-  const userModelsWithAvailability = userModels.map(model => ({
+  // Hydrate with capabilities from models.dev cache
+  const hydratedModels = await hydrateModelsWithCapabilities(ctx, userModels);
+
+  // Add isAvailable flag (frontend will override after API check)
+  return hydratedModels.map(model => ({
     ...model,
     isAvailable: true, // Default to available, let frontend override
   }));
-
-  return userModelsWithAvailability;
 }
 
 export async function getModelByIDHandler(
@@ -88,7 +95,8 @@ export async function getModelByIDHandler(
       .unique();
 
     if (userModel) {
-      return userModel; // User's model takes precedence
+      // Hydrate with dynamic capabilities from models.dev cache
+      return await hydrateModelWithCapabilities(ctx, userModel);
     }
   }
 
@@ -104,7 +112,10 @@ export async function getModelByIDHandler(
     )
     .unique();
 
-  return builtInModel;
+  // Hydrate with dynamic capabilities from models.dev cache
+  return builtInModel
+    ? await hydrateModelWithCapabilities(ctx, builtInModel)
+    : null;
 }
 
 export async function getUnavailableModelIdsHandler(ctx: QueryCtx) {
@@ -143,7 +154,8 @@ export async function getAvailableModelsHandler(ctx: QueryCtx) {
 
   if (!userId) {
     // For anonymous users, return only built-in models
-    return builtInModels;
+    // Hydrate with dynamic capabilities from models.dev cache
+    return await hydrateModelsWithCapabilities(ctx, builtInModels);
   }
 
   // For authenticated users, get their user models (limit to 100 for performance)
@@ -163,8 +175,9 @@ export async function getAvailableModelsHandler(ctx: QueryCtx) {
       !userModelKeys.has(`${builtInModel.modelId}:${builtInModel.provider}`)
   );
 
-  // Return user models + non-conflicting built-in models
-  return [...userModels, ...availableBuiltInModels];
+  // Combine and hydrate all models with dynamic capabilities from models.dev cache
+  const allModels = [...userModels, ...availableBuiltInModels];
+  return await hydrateModelsWithCapabilities(ctx, allModels);
 }
 
 export async function getUserSelectedModelHandler(ctx: QueryCtx, _args: {}) {
@@ -178,8 +191,11 @@ export async function getUserSelectedModelHandler(ctx: QueryCtx, _args: {}) {
       .first();
 
   if (!userId) {
-    // For anonymous users, return the first built-in model
-    return await getDefaultBuiltIn();
+    // For anonymous users, return the first built-in model with hydrated capabilities
+    const defaultModel = await getDefaultBuiltIn();
+    return defaultModel
+      ? await hydrateModelWithCapabilities(ctx, defaultModel)
+      : null;
   }
 
   // Run independent queries in parallel for better performance
@@ -196,14 +212,14 @@ export async function getUserSelectedModelHandler(ctx: QueryCtx, _args: {}) {
     getDefaultBuiltIn(),
   ]);
 
-  // Check if user has a selected model
+  // Check if user has a selected model - hydrate with dynamic capabilities
   if (selectedModel) {
-    return selectedModel;
+    return await hydrateModelWithCapabilities(ctx, selectedModel);
   }
 
   // Check if user settings indicate default model should be selected
-  if (userSettings?.defaultModelSelected) {
-    return defaultBuiltIn;
+  if (userSettings?.defaultModelSelected && defaultBuiltIn) {
+    return await hydrateModelWithCapabilities(ctx, defaultBuiltIn);
   }
 
   // Check if user has any models at all
@@ -212,9 +228,9 @@ export async function getUserSelectedModelHandler(ctx: QueryCtx, _args: {}) {
     .withIndex("by_user", q => q.eq("userId", userId))
     .first();
 
-  if (!userHasModels) {
+  if (!userHasModels && defaultBuiltIn) {
     // Return the first built-in model if user has no models
-    return defaultBuiltIn;
+    return await hydrateModelWithCapabilities(ctx, defaultBuiltIn);
   }
 
   return null;
@@ -254,13 +270,7 @@ export async function toggleModelHandler(
       modelId: string;
       name: string;
       provider: string;
-      contextLength: number;
-      maxOutputTokens?: number;
-      supportsImages: boolean;
-      supportsTools: boolean;
-      supportsReasoning: boolean;
-      supportsFiles?: boolean;
-      inputModalities?: string[];
+      // No capability fields - capabilities come from models.dev cache at query time
     };
     acknowledgeConflict?: boolean;
   }
@@ -335,12 +345,13 @@ export async function getRecentlyUsedModelsHandler(
   const limit = args.limit ?? 10;
 
   if (!userId) {
-    // For anonymous users, just return built-in models
-    return await ctx.db
+    // For anonymous users, return built-in models with hydrated capabilities
+    const builtInModels = await ctx.db
       .query("builtInModels")
       .filter(q => q.eq(q.field("isActive"), true))
       .order("desc")
       .take(Math.min(limit, 5));
+    return await hydrateModelsWithCapabilities(ctx, builtInModels);
   }
 
   // Get recent assistant messages with model info from user's conversations
@@ -400,7 +411,7 @@ export async function getRecentlyUsedModelsHandler(
     }
   }
 
-  // Get model details for each recent model
+  // Get model details for each recent model and hydrate with dynamic capabilities
   const recentModelDetails: Array<{
     _id: Id<"userModels"> | Id<"builtInModels">;
     _creationTime: number;
@@ -412,12 +423,13 @@ export async function getRecentlyUsedModelsHandler(
     supportsImages: boolean;
     supportsTools: boolean;
     supportsReasoning: boolean;
-    supportsFiles?: boolean;
-    inputModalities?: string[];
+    supportsFiles: boolean;
+    inputModalities: string[];
     free?: boolean;
     selected?: boolean;
     lastUsed: number;
   }> = [];
+
   for (const recentModel of uniqueModels) {
     // First try to find user model
     let modelDetails: Doc<"userModels"> | Doc<"builtInModels"> | null =
@@ -447,19 +459,10 @@ export async function getRecentlyUsedModelsHandler(
     }
 
     if (modelDetails) {
+      // Hydrate with dynamic capabilities from models.dev cache
+      const hydrated = await hydrateModelWithCapabilities(ctx, modelDetails);
       recentModelDetails.push({
-        _id: modelDetails._id,
-        _creationTime: modelDetails._creationTime,
-        modelId: modelDetails.modelId,
-        name: modelDetails.name,
-        provider: modelDetails.provider,
-        contextLength: modelDetails.contextLength,
-        maxOutputTokens: modelDetails.maxOutputTokens,
-        supportsImages: modelDetails.supportsImages,
-        supportsTools: modelDetails.supportsTools,
-        supportsReasoning: modelDetails.supportsReasoning,
-        supportsFiles: modelDetails.supportsFiles,
-        inputModalities: modelDetails.inputModalities,
+        ...hydrated,
         free: "free" in modelDetails ? modelDetails.free : false,
         selected: "selected" in modelDetails ? modelDetails.selected : false,
         lastUsed: recentModel.lastUsed,
@@ -757,7 +760,7 @@ export const hasUserModels = query({
 export const toggleModel = mutation({
   args: {
     modelId: v.string(),
-    modelData: v.optional(userModelSchema),
+    modelData: v.optional(userModelInputSchema),
     acknowledgeConflict: v.optional(v.boolean()),
   },
   handler: toggleModelHandler,
@@ -797,4 +800,56 @@ export const updateModelAvailability = mutation({
 export const removeUnavailableModels = mutation({
   args: {},
   handler: removeUnavailableModelsHandler,
+});
+
+// ============================================================================
+// MODELS.DEV CATALOG QUERY
+// ============================================================================
+
+/**
+ * Get all available models from models.dev cache for providers the user has API keys for.
+ * This replaces the old fetchAllModels action that fetched directly from provider APIs.
+ *
+ * Returns models with capabilities pre-populated from models.dev (no hydration needed).
+ */
+export async function getAllProviderModelsHandler(
+  ctx: QueryCtx,
+  args: { providers: string[] }
+) {
+  if (args.providers.length === 0) {
+    return [];
+  }
+
+  // Fetch all models from modelsDevCache for the specified providers
+  const allModels = [];
+
+  for (const provider of args.providers) {
+    const providerModels = await ctx.db
+      .query("modelsDevCache")
+      .withIndex("by_provider_model", q => q.eq("provider", provider))
+      .collect();
+
+    allModels.push(...providerModels);
+  }
+
+  // Transform to FetchedModel format (capabilities already in cache)
+  return allModels.map(model => ({
+    modelId: model.modelId,
+    name: model.name,
+    provider: model.provider,
+    contextWindow: model.contextWindow,
+    supportsReasoning: model.supportsReasoning,
+    supportsTools: model.supportsTools,
+    supportsImages: model.inputModalities.includes("image"),
+    supportsFiles:
+      model.supportsAttachments ?? model.inputModalities.includes("file"),
+    isAvailable: true, // Models in cache are available
+  }));
+}
+
+export const getAllProviderModels = query({
+  args: {
+    providers: v.array(v.string()),
+  },
+  handler: getAllProviderModelsHandler,
 });

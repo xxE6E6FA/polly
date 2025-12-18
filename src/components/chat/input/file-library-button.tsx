@@ -27,7 +27,7 @@ export function FileLibraryButton({
   selectedModel: propsSelectedModel,
 }: FileLibraryButtonProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [hookSelectedModel] = useSelectedModel();
+  const { selectedModel: hookSelectedModel } = useSelectedModel();
   const selectedModel = propsSelectedModel ?? hookSelectedModel;
   const { isAuthenticated } = useUserIdentity();
   useChatScopedState(conversationId ?? undefined);

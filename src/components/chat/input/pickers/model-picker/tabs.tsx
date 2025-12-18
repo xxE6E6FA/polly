@@ -1,4 +1,5 @@
 // This component is separate from DrawerTabs.tsx because it uses cmdk for a
+
 // keyboard-friendly, compact desktop dropdown experience, whereas the mobile version
 // uses a custom drawer layout with different interaction patterns.
 import type { Doc } from "@convex/_generated/dataModel";
@@ -21,9 +22,10 @@ import {
 } from "@/components/ui/command";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
+import type { HydratedModel } from "@/types";
 import { ModelList } from "./model-list";
 
-type AvailableModel = Doc<"userModels"> | Doc<"builtInModels">;
+type AvailableModel = HydratedModel;
 
 type Size = "sm" | "md";
 

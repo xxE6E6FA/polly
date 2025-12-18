@@ -1,37 +1,59 @@
 import { v } from "convex/values";
 import type { Infer } from "convex/values";
 
-// Base model capabilities shared across all model types
-const baseModelCapabilities = {
+// Base model reference - just the identity, no capabilities
+// Capabilities are resolved dynamically from models.dev cache at query time
+const baseModelReference = {
   modelId: v.string(),
   name: v.string(),
   provider: v.string(),
-  contextLength: v.number(),
-  maxOutputTokens: v.optional(v.number()),
-  supportsImages: v.boolean(),
-  supportsTools: v.boolean(),
-  supportsReasoning: v.boolean(),
-  supportsFiles: v.optional(v.boolean()),
-  inputModalities: v.optional(v.array(v.string())),
   createdAt: v.number(),
 };
 
-// Base schema for model capabilities (used for .pick()/.extend())
-const baseModelSchema = v.object(baseModelCapabilities);
+// Base schema for model reference (used for .pick()/.extend())
+const baseModelSchema = v.object(baseModelReference);
 
+// User model schema - for database storage
+// Note: capability fields are optional for backward compatibility during migration
+// After running stripCapabilityFieldsFromModels migration, these can be removed
 export const userModelSchema = baseModelSchema.extend({
   userId: v.id("users"),
   selected: v.optional(v.boolean()),
   free: v.optional(v.boolean()),
   isAvailable: v.optional(v.boolean()),
   availabilityCheckedAt: v.optional(v.number()),
+  // Legacy capability fields - optional for migration, will be stripped
+  contextLength: v.optional(v.number()),
+  maxOutputTokens: v.optional(v.number()),
+  supportsImages: v.optional(v.boolean()),
+  supportsTools: v.optional(v.boolean()),
+  supportsReasoning: v.optional(v.boolean()),
+  supportsFiles: v.optional(v.boolean()),
+  inputModalities: v.optional(v.array(v.string())),
+});
+
+// User model input schema - for API mutations (without userId/createdAt which are added by handler)
+export const userModelInputSchema = v.object({
+  modelId: v.string(),
+  name: v.string(),
+  provider: v.string(),
 });
 
 // Built-in models schema (global, not per-user)
+// Note: capability fields are optional for backward compatibility during migration
+// After running stripCapabilityFieldsFromModels migration, these can be removed
 export const builtInModelSchema = baseModelSchema.extend({
   displayProvider: v.optional(v.string()),
   free: v.boolean(),
-  isActive: v.optional(v.boolean()), // Allow disabling built-in models
+  isActive: v.optional(v.boolean()),
+  // Legacy capability fields - optional for migration, will be stripped
+  contextLength: v.optional(v.number()),
+  maxOutputTokens: v.optional(v.number()),
+  supportsImages: v.optional(v.boolean()),
+  supportsTools: v.optional(v.boolean()),
+  supportsReasoning: v.optional(v.boolean()),
+  supportsFiles: v.optional(v.boolean()),
+  inputModalities: v.optional(v.array(v.string())),
 });
 
 // Image models schema for Replicate image generation models
@@ -115,22 +137,18 @@ export const imageModelDefinitionSchema = v.object({
   lastUpdated: v.number(),
 });
 
-// Model schema for internal actions (handles both user models and built-in models)
-// Uses .pick() to select required fields, then makes some optional for flexibility
-export const modelForInternalActionsSchema = baseModelSchema
-  .pick("modelId", "name", "provider", "supportsReasoning", "maxOutputTokens", "inputModalities")
-  .extend({
-    // Make capabilities optional since internal actions may not always have them
-    supportsImages: v.optional(v.boolean()),
-    supportsTools: v.optional(v.boolean()),
-    supportsFiles: v.optional(v.boolean()),
-    contextLength: v.optional(v.number()),
-    // Fields that may exist on built-in models
-    free: v.optional(v.boolean()),
-    isActive: v.optional(v.boolean()),
-    // Fields that may exist on user models
-    selected: v.optional(v.boolean()),
-  });
+// Model schema for internal actions - just reference fields
+// Capabilities are resolved dynamically from models.dev cache
+export const modelForInternalActionsSchema = v.object({
+  modelId: v.string(),
+  name: v.string(),
+  provider: v.string(),
+  // Fields that may exist on built-in models
+  free: v.optional(v.boolean()),
+  isActive: v.optional(v.boolean()),
+  // Fields that may exist on user models
+  selected: v.optional(v.boolean()),
+});
 
 // Common attachment schema used across messages and conversations
 export const attachmentSchema = v.object({
@@ -622,6 +640,41 @@ export const personaImportSchema = v.object({
   icon: v.optional(v.string()),
 });
 
+// models.dev cache schema - stores model capabilities from models.dev API
+export const modelsDevCacheSchema = v.object({
+  provider: v.string(), // "google", "openai", "anthropic", etc.
+  modelId: v.string(), // "gemini-2.5-flash", "gpt-4o", etc.
+  name: v.string(),
+
+  // Capabilities (from models.dev)
+  supportsTools: v.boolean(),
+  supportsReasoning: v.boolean(),
+  supportsAttachments: v.optional(v.boolean()), // File support
+  supportsTemperature: v.optional(v.boolean()),
+  supportsStructuredOutput: v.optional(v.boolean()),
+  inputModalities: v.array(v.string()), // ["text", "image", "audio", "video"]
+
+  // Limits
+  contextWindow: v.number(),
+  maxOutputTokens: v.optional(v.number()),
+
+  // Pricing (for future cost estimation)
+  pricing: v.optional(
+    v.object({
+      input: v.optional(v.number()),
+      output: v.optional(v.number()),
+    })
+  ),
+
+  // Additional metadata
+  knowledgeCutoff: v.optional(v.string()),
+  releaseDate: v.optional(v.string()),
+
+  // Sync metadata
+  lastFetched: v.number(),
+  createdAt: v.number(),
+});
+
 // User persona settings schema
 export const userPersonaSettingsSchema = v.object({
   userId: v.id("users"),
@@ -854,6 +907,7 @@ export type SharedConversationDoc = Infer<typeof sharedConversationSchema>;
 export type UserApiKeyDoc = Infer<typeof userApiKeySchema>;
 export type UserPersonaSettingsDoc = Infer<typeof userPersonaSettingsSchema>;
 export type PdfTextCacheDoc = Infer<typeof pdfTextCacheSchema>;
+export type ModelsDevCacheDoc = Infer<typeof modelsDevCacheSchema>;
 
 // Argument types inferred from schemas
 export type CreateMessageArgs = Infer<typeof messageCreationSchema>;

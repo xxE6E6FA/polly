@@ -1,4 +1,3 @@
-import type { Doc } from "@convex/_generated/dataModel";
 import {
   BrainIcon,
   LightbulbIcon,
@@ -21,7 +20,11 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { cn } from "@/lib/utils";
-import type { AIModel, ReasoningConfig, ReasoningEffortLevel } from "@/types";
+import type {
+  HydratedModel,
+  ReasoningConfig,
+  ReasoningEffortLevel,
+} from "@/types";
 
 type ReasoningOption = {
   value: "off" | ReasoningEffortLevel;
@@ -116,7 +119,7 @@ function getProviderTheme(provider?: string) {
 }
 
 type ReasoningPickerProps = {
-  model?: AIModel | null;
+  model?: HydratedModel | null;
   config: ReasoningConfig;
   onConfigChange: (config: ReasoningConfig) => void;
   className?: string;
@@ -341,7 +344,7 @@ const ReasoningPickerComponent = ({
         />
       ) : (
         <ReasoningControlMobile
-          model={model as Doc<"userModels">}
+          model={model}
           config={config}
           onConfigChange={onConfigChange}
           isMandatory={isMandatory}
@@ -395,7 +398,7 @@ const ReasoningControlDesktop = ({
 
 // Mobile: Full configuration interface
 interface ReasoningControlMobileProps {
-  model: Doc<"userModels"> | null;
+  model: HydratedModel | null;
   config: ReasoningConfig;
   onConfigChange: (config: ReasoningConfig) => void;
   isMandatory: boolean;

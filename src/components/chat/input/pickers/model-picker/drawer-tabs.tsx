@@ -1,4 +1,5 @@
 // This component is separate from Tabs.tsx because it implements a mobile-specific
+
 // UI with a toggleable search mode and uses a custom list implementation (DrawerModelList)
 // instead of the cmdk-based approach used in the desktop version.
 import type { Doc } from "@convex/_generated/dataModel";
@@ -16,10 +17,11 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
+import type { HydratedModel } from "@/types";
 import { DrawerItem } from "../../drawer-item";
 import { DrawerModelList } from "./drawer-model-list";
 
-type AvailableModel = Doc<"userModels"> | Doc<"builtInModels">;
+type AvailableModel = HydratedModel;
 
 type Size = "sm" | "md";
 

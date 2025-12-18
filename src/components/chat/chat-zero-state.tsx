@@ -135,7 +135,7 @@ const ChatSection = () => {
     monthlyUsage,
     user,
   } = useUserDataContext();
-  const [selectedModel] = useSelectedModel();
+  const { selectedModel } = useSelectedModel();
   const isLoading = !user;
   const chatInputRef = useRef<ChatInputRef>(null);
   // Use unified action for conversation creation + first message

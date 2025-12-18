@@ -43,7 +43,7 @@ export const ConversationStarterPopover = ({
   const managedToast = useToast();
   const navigate = useNavigate();
   const { lockSelection, unlockSelection } = useTextSelection();
-  const [selectedModel] = useSelectedModel();
+  const { selectedModel } = useSelectedModel();
 
   useEffect(() => {
     async function fetchPrompts() {

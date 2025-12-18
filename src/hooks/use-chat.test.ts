@@ -7,10 +7,10 @@ import { setConvexMock, setUserDataMock } from "../../test/global-mocks";
 const { mapServerMessageToChatMessage, useChat } = await import("./use-chat");
 
 // Mock the useSelectedModel hook using spyOn instead of mock.module
-const mockUseSelectedModel = mock(() => [
-  { modelId: "gemini-2.0-flash", provider: "google" },
-  mock(),
-]);
+const mockUseSelectedModel = mock(() => ({
+  selectedModel: { modelId: "gemini-2.0-flash", provider: "google" },
+  selectModel: mock(),
+}));
 
 // Import the module to spy on
 const selectedModelModule = await import("@/hooks/use-selected-model");
@@ -514,10 +514,10 @@ describe("useChat", () => {
       };
 
       // Override the spy for this test
-      spyOn(selectedModelModule, "useSelectedModel").mockReturnValueOnce([
-        userModel,
-        mock(),
-      ]);
+      spyOn(selectedModelModule, "useSelectedModel").mockReturnValueOnce({
+        selectedModel: userModel,
+        selectModel: mock(),
+      });
       setConvexMock({
         useAction: () => mockSaveAction,
       });
@@ -560,10 +560,10 @@ describe("useChat", () => {
   describe("model and options", () => {
     test("returns selected model", () => {
       const selectedModel = { modelId: "gpt-4", provider: "openai" };
-      spyOn(selectedModelModule, "useSelectedModel").mockReturnValue([
+      spyOn(selectedModelModule, "useSelectedModel").mockReturnValue({
         selectedModel,
-        mock(),
-      ]);
+        selectModel: mock(),
+      });
 
       setConvexMock({});
       const { result } = renderHook(() => useChat({}));
@@ -571,18 +571,18 @@ describe("useChat", () => {
       expect(result.current.selectedModel).toBe(selectedModel);
 
       // Reset spy
-      spyOn(selectedModelModule, "useSelectedModel").mockReturnValue([
-        { modelId: "gemini-2.0-flash", provider: "google" },
-        mock(),
-      ]);
+      spyOn(selectedModelModule, "useSelectedModel").mockReturnValue({
+        selectedModel: { modelId: "gemini-2.0-flash", provider: "google" },
+        selectModel: mock(),
+      });
     });
 
     test("creates model options from selected model", () => {
       const selectedModel = { modelId: "claude-3", provider: "anthropic" };
-      spyOn(selectedModelModule, "useSelectedModel").mockReturnValue([
+      spyOn(selectedModelModule, "useSelectedModel").mockReturnValue({
         selectedModel,
-        mock(),
-      ]);
+        selectModel: mock(),
+      });
 
       setConvexMock({});
       const { result } = renderHook(() => useChat({}));
@@ -591,20 +591,20 @@ describe("useChat", () => {
       expect(result.current.selectedModel).toBe(selectedModel);
 
       // Reset spy
-      spyOn(selectedModelModule, "useSelectedModel").mockReturnValue([
-        { modelId: "gemini-2.0-flash", provider: "google" },
-        mock(),
-      ]);
+      spyOn(selectedModelModule, "useSelectedModel").mockReturnValue({
+        selectedModel: { modelId: "gemini-2.0-flash", provider: "google" },
+        selectModel: mock(),
+      });
     });
   });
 
   describe("error handling", () => {
     test("handles model not loaded gracefully", () => {
       // When no selected model and no user model capabilities
-      spyOn(selectedModelModule, "useSelectedModel").mockReturnValue([
-        null,
-        mock(),
-      ]);
+      spyOn(selectedModelModule, "useSelectedModel").mockReturnValue({
+        selectedModel: null,
+        selectModel: mock(),
+      });
       setUserDataMock({ user: null }); // No user
 
       setConvexMock({});
@@ -616,10 +616,10 @@ describe("useChat", () => {
       );
 
       // Reset spy
-      spyOn(selectedModelModule, "useSelectedModel").mockReturnValue([
-        { modelId: "gemini-2.0-flash", provider: "google" },
-        mock(),
-      ]);
+      spyOn(selectedModelModule, "useSelectedModel").mockReturnValue({
+        selectedModel: { modelId: "gemini-2.0-flash", provider: "google" },
+        selectModel: mock(),
+      });
     });
   });
 });

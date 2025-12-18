@@ -1,4 +1,5 @@
 import type { Doc } from "@convex/_generated/dataModel";
+import type { HydratedUserModel } from "@/types";
 
 /*
  * Type Guard Guidelines
@@ -93,7 +94,8 @@ export function isApiKeysArray(x: unknown): x is Doc<"userApiKeys">[] {
   return isValidArray(x, isUserApiKey);
 }
 
-export function isUserModelsArray(x: unknown): x is Doc<"userModels">[] {
+// Returns HydratedUserModel[] because Convex queries hydrate models with capabilities
+export function isUserModelsArray(x: unknown): x is HydratedUserModel[] {
   return isValidArray(x, isUserModel);
 }
 

@@ -2,31 +2,21 @@ import { v } from "convex/values";
 import { builtInImageModels, builtInTextModels } from "../../config";
 import { internal } from "../_generated/api";
 import { internalAction, internalMutation } from "../_generated/server";
-import {
-	fetchAnthropicModels,
-	fetchGoogleModel,
-	fetchGroqModels,
-	fetchOpenAIModels,
-	fetchOpenRouterModels,
-	fetchReplicateImageModel,
-	type TextModelCapabilities,
-} from "../lib/model_fetchers";
+import { fetchReplicateImageModel } from "../lib/model_fetchers";
 
 // ============================================================================
 // INTERNAL MUTATIONS FOR DATABASE OPERATIONS
 // ============================================================================
 
+/**
+ * Upsert a built-in text model.
+ * Only stores identity + free/isActive - capabilities come from models.dev cache.
+ */
 export const upsertTextModel = internalMutation({
 	args: {
 		modelId: v.string(),
 		name: v.string(),
 		provider: v.string(),
-		contextLength: v.number(),
-		maxOutputTokens: v.optional(v.number()),
-		supportsImages: v.boolean(),
-		supportsTools: v.boolean(),
-		supportsReasoning: v.boolean(),
-		supportsFiles: v.boolean(),
 		free: v.boolean(),
 		isActive: v.boolean(),
 	},
@@ -44,12 +34,6 @@ export const upsertTextModel = internalMutation({
 		if (existing) {
 			await ctx.db.patch("builtInModels", existing._id, {
 				name: args.name,
-				contextLength: args.contextLength,
-				maxOutputTokens: args.maxOutputTokens,
-				supportsImages: args.supportsImages,
-				supportsTools: args.supportsTools,
-				supportsReasoning: args.supportsReasoning,
-				supportsFiles: args.supportsFiles,
 				free: args.free,
 				isActive: args.isActive,
 			});
@@ -57,7 +41,11 @@ export const upsertTextModel = internalMutation({
 		}
 
 		await ctx.db.insert("builtInModels", {
-			...args,
+			modelId: args.modelId,
+			name: args.name,
+			provider: args.provider,
+			free: args.free,
+			isActive: args.isActive,
 			createdAt: Date.now(),
 		});
 		return { inserted: true };
@@ -128,7 +116,7 @@ export const upsertImageModel = internalMutation({
 
 /**
  * Seeds built-in models from config files.
- * Capabilities are auto-discovered from provider APIs.
+ * Only stores identity + free/isActive - capabilities come from models.dev cache.
  */
 export const seedBuiltInModels = internalAction({
 	args: {},
@@ -143,92 +131,27 @@ export const seedBuiltInModels = internalAction({
 		// SEED TEXT MODELS
 		// ========================================================================
 
-		// Group text models by provider for efficient fetching
-		const modelsByProvider = new Map<string, typeof builtInTextModels>();
 		for (const config of builtInTextModels) {
 			if (config.isActive !== undefined && !config.isActive) {
 				continue;
 			}
-			const existing = modelsByProvider.get(config.provider) || [];
-			existing.push(config);
-			modelsByProvider.set(config.provider, existing);
-		}
-
-		// Process each provider
-		for (const [provider, configs] of modelsByProvider) {
-			const apiKey = getApiKeyForProvider(provider);
-
-			if (!apiKey) {
-				errors.push(`No API key for provider: ${provider}`);
-				continue;
-			}
 
 			try {
-				let fetchedModels: TextModelCapabilities[] = [];
+				const result = await ctx.runMutation(internal.migrations.seedBuiltInModels.upsertTextModel, {
+					modelId: config.modelId,
+					name: config.name ?? config.modelId,
+					provider: config.provider,
+					free: config.free,
+					isActive: config.isActive ?? true,
+				});
 
-				// Use appropriate fetch strategy based on provider
-				if (provider === "google") {
-					// Google supports individual model fetch
-					for (const config of configs) {
-						const model = await fetchGoogleModel(config.modelId, apiKey);
-						if (model) {
-							fetchedModels.push(model);
-						} else {
-							errors.push(`Failed to fetch Google model: ${config.modelId}`);
-						}
-					}
+				if (result.inserted) {
+					textInserted++;
 				} else {
-					// Other providers require fetching all models
-					switch (provider) {
-						case "openai":
-							fetchedModels = await fetchOpenAIModels(apiKey);
-							break;
-						case "anthropic":
-							fetchedModels = await fetchAnthropicModels(apiKey);
-							break;
-						case "groq":
-							fetchedModels = await fetchGroqModels(apiKey);
-							break;
-						case "openrouter":
-							fetchedModels = await fetchOpenRouterModels(apiKey);
-							break;
-						default:
-							errors.push(`Unknown provider: ${provider}`);
-							continue;
-					}
-				}
-
-				// Match config entries with fetched models and upsert
-				for (const config of configs) {
-					const fetchedModel = fetchedModels.find((m) => m.modelId === config.modelId);
-
-					if (!fetchedModel) {
-						errors.push(`Model not found in API: ${config.provider}/${config.modelId}`);
-						continue;
-					}
-
-					const result = await ctx.runMutation(internal.migrations.seedBuiltInModels.upsertTextModel, {
-						modelId: fetchedModel.modelId,
-						name: config.name || fetchedModel.name,
-						provider: fetchedModel.provider,
-						contextLength: fetchedModel.contextLength,
-						maxOutputTokens: fetchedModel.maxOutputTokens,
-						supportsImages: fetchedModel.supportsImages,
-						supportsTools: fetchedModel.supportsTools,
-						supportsReasoning: fetchedModel.supportsReasoning,
-						supportsFiles: fetchedModel.supportsFiles,
-						free: config.free,
-						isActive: config.isActive ?? true,
-					});
-
-					if (result.inserted) {
-						textInserted++;
-					} else {
-						textUpdated++;
-					}
+					textUpdated++;
 				}
 			} catch (error) {
-				errors.push(`Error fetching ${provider} models: ${error instanceof Error ? error.message : String(error)}`);
+				errors.push(`Error seeding ${config.provider}/${config.modelId}: ${error instanceof Error ? error.message : String(error)}`);
 			}
 		}
 
@@ -311,26 +234,6 @@ export const seedBuiltInModels = internalAction({
 		};
 	},
 });
-
-/**
- * Helper to get API key from environment for a provider.
- */
-function getApiKeyForProvider(provider: string): string | undefined {
-	switch (provider) {
-		case "google":
-			return process.env.GEMINI_API_KEY;
-		case "openai":
-			return process.env.OPENAI_API_KEY;
-		case "anthropic":
-			return process.env.ANTHROPIC_API_KEY;
-		case "groq":
-			return process.env.GROQ_API_KEY;
-		case "openrouter":
-			return process.env.OPENROUTER_API_KEY;
-		default:
-			return undefined;
-	}
-}
 
 /**
  * Alias for consistency with other migrations

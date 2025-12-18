@@ -69,7 +69,7 @@ export function ChatInputBottomBar({
   isPrivateMode,
   selectedImageModel,
 }: ChatInputBottomBarProps) {
-  const [selectedModel] = useSelectedModel();
+  const { selectedModel } = useSelectedModel();
   const { user } = useUserDataContext();
   const { monthlyUsage, hasUnlimitedCalls } = useUserUsage();
   const userSettings = useUserSettings();

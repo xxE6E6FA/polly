@@ -1,10 +1,11 @@
 import type { Doc } from "@convex/_generated/dataModel";
 import { memo, useMemo } from "react";
 import { CommandGroup } from "@/components/ui/command";
+import type { HydratedModel } from "@/types";
 import { ModelItem } from "./model-item";
 
 // Union type for models returned by getAvailableModels
-type AvailableModel = Doc<"userModels"> | Doc<"builtInModels">;
+type AvailableModel = HydratedModel;
 
 const ModelListComponent = ({
   modelGroups,

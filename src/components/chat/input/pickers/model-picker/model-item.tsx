@@ -16,9 +16,10 @@ import { formatContextLength } from "@/lib/format-context";
 import { getModelCapabilities } from "@/lib/model-capabilities";
 import { cn } from "@/lib/utils";
 import { useUserDataContext } from "@/providers/user-data-context";
+import type { HydratedModel } from "@/types";
 
 // Union type for models returned by getAvailableModels
-type AvailableModel = Doc<"userModels"> | Doc<"builtInModels">;
+type AvailableModel = HydratedModel;
 
 // Memoized model item component
 const ModelItemComponent = ({

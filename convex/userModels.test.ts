@@ -165,14 +165,18 @@ describe("userModels.getUserModels", () => {
     const result = await getUserModelsHandler(ctx as QueryCtx);
 
     expect(result).toHaveLength(2);
-    expect(result[0]).toEqual({
+    // Use toMatchObject since hydration adds capability fields
+    expect(result[0]).toMatchObject({
       ...mockUserModels[0],
       isAvailable: true,
     });
-    expect(result[1]).toEqual({
+    expect(result[1]).toMatchObject({
       ...mockUserModels[1],
       isAvailable: true,
     });
+    // Verify capabilities are hydrated
+    expect(result[0]).toHaveProperty("supportsTools");
+    expect(result[0]).toHaveProperty("contextLength");
   });
 
   test("returns empty array when user has no models", async () => {
@@ -360,7 +364,11 @@ describe("userModels.getAvailableModels", () => {
 
     const result = await getAvailableModelsHandler(ctx as QueryCtx);
 
-    expect(result).toEqual(mockBuiltInModels);
+    // Results are hydrated with capabilities from models.dev cache
+    expect(result).toHaveLength(mockBuiltInModels.length);
+    expect(result[0]).toMatchObject(mockBuiltInModels[0]);
+    expect(result[0]).toHaveProperty("supportsTools");
+    expect(result[0]).toHaveProperty("contextLength");
   });
 
   test("returns user models and non-conflicting built-in models for authenticated user", async () => {
@@ -432,10 +440,23 @@ describe("userModels.getAvailableModels", () => {
 
     const result = await getAvailableModelsHandler(ctx as QueryCtx);
 
+    // Results are hydrated with capabilities from models.dev cache
     expect(result).toHaveLength(2);
-    expect(result).toContain(mockUserModels[0]); // User model
-    expect(result).toContain(mockBuiltInModels[0]); // Non-conflicting built-in
-    expect(result).not.toContain(mockBuiltInModels[1]); // Conflicting built-in excluded
+    // Check user model is included (by _id match)
+    expect(result.find(m => m._id === mockUserModels[0]._id)).toMatchObject(
+      mockUserModels[0]
+    );
+    // Check non-conflicting built-in is included (by _id match)
+    expect(result.find(m => m._id === mockBuiltInModels[0]._id)).toMatchObject(
+      mockBuiltInModels[0]
+    );
+    // Check conflicting built-in is excluded (check by _id since modelId matches user model)
+    expect(
+      result.find(m => m._id === mockBuiltInModels[1]._id)
+    ).toBeUndefined();
+    // Verify hydration
+    expect(result[0]).toHaveProperty("supportsTools");
+    expect(result[0]).toHaveProperty("contextLength");
   });
 
   test("handles empty user models", async () => {
@@ -490,7 +511,11 @@ describe("userModels.getAvailableModels", () => {
 
     const result = await getAvailableModelsHandler(ctx as QueryCtx);
 
-    expect(result).toEqual(mockBuiltInModels);
+    // Results are hydrated with capabilities from models.dev cache
+    expect(result).toHaveLength(mockBuiltInModels.length);
+    expect(result[0]).toMatchObject(mockBuiltInModels[0]);
+    expect(result[0]).toHaveProperty("supportsTools");
+    expect(result[0]).toHaveProperty("contextLength");
   });
 });
 
@@ -550,7 +575,11 @@ describe("userModels.getBuiltInModels", () => {
 
     const result = await getBuiltInModelsHandler(ctx as QueryCtx, {});
 
-    expect(result).toEqual(mockBuiltInModels);
+    // Results are hydrated with capabilities from models.dev cache
+    expect(result).toHaveLength(mockBuiltInModels.length);
+    expect(result[0]).toMatchObject(mockBuiltInModels[0]);
+    expect(result[0]).toHaveProperty("supportsTools");
+    expect(result[0]).toHaveProperty("contextLength");
     expect(ctx.db.query).toHaveBeenCalledWith("builtInModels");
   });
 
@@ -622,7 +651,10 @@ describe("userModels.getModelByID", () => {
       provider: "openai",
     });
 
-    expect(result).toEqual(mockUserModel);
+    // Result includes hydrated capabilities from models.dev cache
+    expect(result).toMatchObject(mockUserModel);
+    expect(result).toHaveProperty("supportsTools");
+    expect(result).toHaveProperty("contextLength");
   });
 
   test("returns built-in model for anonymous user", async () => {
@@ -658,7 +690,10 @@ describe("userModels.getModelByID", () => {
       provider: "google",
     });
 
-    expect(result).toEqual(mockBuiltInModel);
+    // Result includes hydrated capabilities from models.dev cache
+    expect(result).toMatchObject(mockBuiltInModel);
+    expect(result).toHaveProperty("supportsTools");
+    expect(result).toHaveProperty("contextLength");
   });
 
   test("returns built-in model when user model not found", async () => {
@@ -723,7 +758,10 @@ describe("userModels.getModelByID", () => {
       provider: "google",
     });
 
-    expect(result).toEqual(mockBuiltInModel);
+    // Result includes hydrated capabilities from models.dev cache
+    expect(result).toMatchObject(mockBuiltInModel);
+    expect(result).toHaveProperty("supportsTools");
+    expect(result).toHaveProperty("contextLength");
   });
 
   test("returns null when model not found anywhere", async () => {
@@ -796,7 +834,14 @@ describe("userModels.getUserSelectedModel", () => {
 
     const result = await getUserSelectedModelHandler(ctx as QueryCtx, {});
 
-    expect(result).toEqual(mockBuiltInModel);
+    // Result includes hydrated capabilities from models.dev cache
+    expect(result).toMatchObject(mockBuiltInModel);
+    expect(result).toHaveProperty("supportsTools");
+    expect(result).toHaveProperty("supportsImages");
+    expect(result).toHaveProperty("supportsReasoning");
+    expect(result).toHaveProperty("supportsFiles");
+    expect(result).toHaveProperty("contextLength");
+    expect(result).toHaveProperty("inputModalities");
   });
 
   test("returns selected user model when one exists", async () => {
@@ -869,7 +914,10 @@ describe("userModels.getUserSelectedModel", () => {
 
     const result = await getUserSelectedModelHandler(ctx as QueryCtx, {});
 
-    expect(result).toEqual(mockSelectedModel);
+    // Result includes hydrated capabilities from models.dev cache
+    expect(result).toMatchObject(mockSelectedModel);
+    expect(result).toHaveProperty("supportsTools");
+    expect(result).toHaveProperty("contextLength");
   });
 
   test("returns default built-in when user has defaultModelSelected setting", async () => {
@@ -945,7 +993,10 @@ describe("userModels.getUserSelectedModel", () => {
 
     const result = await getUserSelectedModelHandler(ctx as QueryCtx, {});
 
-    expect(result).toEqual(mockBuiltInModel);
+    // Result includes hydrated capabilities from models.dev cache
+    expect(result).toMatchObject(mockBuiltInModel);
+    expect(result).toHaveProperty("supportsTools");
+    expect(result).toHaveProperty("contextLength");
   });
 
   test("returns null when user has models but none selected", async () => {
@@ -2275,7 +2326,11 @@ describe("userModels.getRecentlyUsedModels", () => {
 
     const result = await getRecentlyUsedModelsHandler(ctx as QueryCtx, {});
 
-    expect(result).toEqual(mockBuiltInModels);
+    // Results are hydrated with capabilities from models.dev cache
+    expect(result).toHaveLength(mockBuiltInModels.length);
+    expect(result[0]).toMatchObject(mockBuiltInModels[0]);
+    expect(result[0]).toHaveProperty("supportsTools");
+    expect(result[0]).toHaveProperty("contextLength");
   });
 
   test("returns recently used models for authenticated user", async () => {

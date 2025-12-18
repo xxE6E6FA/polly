@@ -7,8 +7,9 @@ import {
 import { isUserModel } from "@/lib/type-guards";
 import { cn } from "@/lib/utils";
 import { useUserIdentity, useUserUsage } from "@/providers/user-data-context";
+import type { HydratedModel } from "@/types";
 
-type AvailableModel = Doc<"userModels"> | Doc<"builtInModels">;
+type AvailableModel = HydratedModel;
 
 interface QuotaIndicatorProps {
   selectedModel: AvailableModel | null;

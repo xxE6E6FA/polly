@@ -1,8 +1,9 @@
 import type { Doc } from "@convex/_generated/dataModel";
 import { memo, useMemo } from "react";
+import type { HydratedModel } from "@/types";
 import { DrawerModelItem } from "./drawer-model-item";
 
-type AvailableModel = Doc<"userModels"> | Doc<"builtInModels">;
+type AvailableModel = HydratedModel;
 
 const DrawerModelListComponent = ({
   modelGroups,

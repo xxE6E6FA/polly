@@ -1,13 +1,12 @@
 import { api } from "@convex/_generated/api";
 import {
-  ArrowCounterClockwiseIcon,
   CaretDownIcon,
   FunnelIcon,
   MagnifyingGlassIcon,
 } from "@phosphor-icons/react";
 import { PROVIDER_NAMES } from "@shared/provider-constants";
-import { useAction } from "convex/react";
-import { memo, useCallback, useEffect, useState } from "react";
+import { useQuery } from "convex/react";
+import { memo, useCallback, useEffect } from "react";
 import { ProviderIcon } from "@/components/models/provider-icons";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -21,11 +20,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { getAllCapabilities } from "@/lib/model-capabilities";
 import type { FetchedModel } from "@/types";
 import type { FilterState } from "./text-models-tab";
@@ -63,33 +57,29 @@ export const ModelFilters = memo(
     onLoadingChange,
     onError,
   }: ModelFiltersProps) => {
-    const fetchAllModelsAction = useAction(api.models.fetchAllModels);
-    const [isRefreshing, setIsRefreshing] = useState(false);
+    // Fetch models from models.dev cache for the user's configured providers
+    const modelsFromCache = useQuery(
+      api.userModels.getAllProviderModels,
+      availableProviders.length > 0 ? { providers: availableProviders } : "skip"
+    );
 
-    const handleRefresh = useCallback(async () => {
-      setIsRefreshing(true);
-      onLoadingChange(true);
-      try {
-        const models = await fetchAllModelsAction({});
-        // Always exclude Replicate and ElevenLabs from Text Models listing
-        const filtered = models.filter(
-          m => !["replicate", "elevenlabs"].includes(m.provider.toLowerCase())
-        );
-        onModelsFetched(filtered);
-        onError(null);
-      } catch (e) {
-        onError(e as Error);
-      } finally {
-        setIsRefreshing(false);
-        onLoadingChange(false);
-      }
-    }, [fetchAllModelsAction, onModelsFetched, onLoadingChange, onError]);
-
+    // Update parent when models data changes
     useEffect(() => {
-      if (availableProviders.length > 0) {
-        handleRefresh();
+      if (modelsFromCache === undefined) {
+        // Query is loading
+        onLoadingChange(true);
+        return;
       }
-    }, [availableProviders.length, handleRefresh]);
+
+      // Query returned data (capabilities from models.dev cache)
+      // Filter out Replicate and ElevenLabs from Text Models listing
+      const filtered = (modelsFromCache as FetchedModel[]).filter(
+        m => !["replicate", "elevenlabs"].includes(m.provider.toLowerCase())
+      );
+      onModelsFetched(filtered);
+      onLoadingChange(false);
+      onError(null);
+    }, [modelsFromCache, onModelsFetched, onLoadingChange, onError]);
 
     const handleSearchChange = useCallback(
       (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -224,24 +214,6 @@ export const ModelFilters = memo(
               </div>
             </DropdownMenuContent>
           </DropdownMenu>
-
-          <Tooltip>
-            <TooltipTrigger>
-              <Button
-                aria-label="Refresh models"
-                className="shrink-0 w-9 h-9"
-                disabled={isRefreshing}
-                size="icon"
-                variant="ghost"
-                onClick={handleRefresh}
-              >
-                <ArrowCounterClockwiseIcon
-                  className={`h-4 w-4 ${isRefreshing ? "animate-[spin_1s_linear_infinite_reverse]" : ""}`}
-                />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Refresh models from all providers</TooltipContent>
-          </Tooltip>
         </div>
       </div>
     );
