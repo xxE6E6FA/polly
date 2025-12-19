@@ -11,8 +11,8 @@ import {
 } from "@phosphor-icons/react";
 import { usePaginatedQuery } from "convex/react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Virtualizer, type VirtualizerHandle } from "virtua";
-import { ListEmptyState, ListLoadingState } from "@/components/data-list";
+import { Virtuoso, VirtuosoGrid } from "react-virtuoso";
+import { ListEmptyState } from "@/components/data-list";
 import { ImageThumbnail } from "@/components/files/file-display";
 import { AttachmentGalleryDialog } from "@/components/ui/attachment-gallery-dialog";
 import { Badge } from "@/components/ui/badge";
@@ -40,6 +40,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { cn } from "@/lib/utils";
 import type { Attachment } from "@/types";
@@ -47,7 +48,6 @@ import type { Attachment } from "@/types";
 type FileType = "all" | "image" | "pdf" | "text";
 
 const FILES_PER_PAGE = 50;
-const LOAD_MORE_THRESHOLD = 400;
 
 interface UserFile {
   storageId: Id<"_storage"> | null;
@@ -66,11 +66,6 @@ const FILE_TYPE_OPTIONS = [
   { value: "pdf", label: "PDFs", icon: FilePdfIcon },
   { value: "text", label: "Text & Code", icon: FileTextIcon },
 ] as const;
-
-// Row height for virtualization (card height + gap)
-const ESTIMATED_ROW_HEIGHT = 180;
-// Minimum items before enabling virtualization
-const VIRTUALIZATION_THRESHOLD = 24;
 
 const TEXT_FILE_EXTENSIONS = [
   "txt",
@@ -155,7 +150,6 @@ const FileCard = memo(
           />
         ) : (
           <div className="flex flex-col h-full p-3 pointer-events-none">
-            {/* Title row - prominent at top */}
             <div className="flex items-start gap-2">
               {getFileAttachmentIcon(file.attachment, "sm")}
               <span
@@ -165,7 +159,6 @@ const FileCard = memo(
                 {file.attachment.name}
               </span>
             </div>
-            {/* Conversation name - secondary at bottom */}
             <div
               className="text-xs text-muted-foreground truncate mt-auto"
               title={file.conversationName}
@@ -175,7 +168,6 @@ const FileCard = memo(
           </div>
         )}
 
-        {/* Selection checkbox for images */}
         {isImage && (
           <button
             type="button"
@@ -194,7 +186,6 @@ const FileCard = memo(
           </button>
         )}
 
-        {/* Selection overlay for non-images */}
         {!isImage && selected && (
           <div className="absolute inset-0 bg-primary/20 flex items-center justify-center pointer-events-none">
             <div className="h-7 w-7 rounded-full bg-primary flex items-center justify-center shadow-md">
@@ -203,7 +194,6 @@ const FileCard = memo(
           </div>
         )}
 
-        {/* Generated badge */}
         {(file.attachment.generatedImage?.isGenerated ?? false) && (
           <Badge
             className={cn(
@@ -221,14 +211,135 @@ const FileCard = memo(
 
 FileCard.displayName = "FileCard";
 
+// Skeleton components for loading states
+const FileCardSkeleton = memo(() => (
+  <div className="rounded-lg border-2 border-border bg-muted/20 aspect-square">
+    <Skeleton className="h-full w-full rounded-lg" />
+  </div>
+));
+FileCardSkeleton.displayName = "FileCardSkeleton";
+
+const FileListItemSkeleton = memo(() => (
+  <div className="flex items-center gap-3 w-full p-3 border-b border-border">
+    <Skeleton className="h-12 w-12 shrink-0 rounded" />
+    <div className="flex-1 min-w-0 space-y-2">
+      <Skeleton className="h-4 w-3/4" />
+      <Skeleton className="h-3 w-1/2" />
+    </div>
+    <Skeleton className="h-6 w-6 shrink-0 rounded" />
+  </div>
+));
+FileListItemSkeleton.displayName = "FileListItemSkeleton";
+
+// Wrapper components to avoid array index key warnings
+const GridSkeletons = memo(({ count }: { count: number }) => (
+  <>
+    <FileCardSkeleton />
+    {count > 1 && <FileCardSkeleton />}
+    {count > 2 && <FileCardSkeleton />}
+    {count > 3 && <FileCardSkeleton />}
+    {count > 4 && <FileCardSkeleton />}
+    {count > 5 && <FileCardSkeleton />}
+  </>
+));
+GridSkeletons.displayName = "GridSkeletons";
+
+const GridSkeletonsDouble = memo(({ count }: { count: number }) => (
+  <>
+    <GridSkeletons count={count} />
+    <GridSkeletons count={count} />
+  </>
+));
+GridSkeletonsDouble.displayName = "GridSkeletonsDouble";
+
+const ListSkeletons = memo(() => (
+  <>
+    <FileListItemSkeleton />
+    <FileListItemSkeleton />
+    <FileListItemSkeleton />
+    <FileListItemSkeleton />
+  </>
+));
+ListSkeletons.displayName = "ListSkeletons";
+
+const ListSkeletonsDouble = memo(() => (
+  <>
+    <ListSkeletons />
+    <ListSkeletons />
+  </>
+));
+ListSkeletonsDouble.displayName = "ListSkeletonsDouble";
+
+// VirtuosoGrid Item component
+const GridItemContainer = memo(
+  ({
+    children,
+    ...props
+  }: React.ComponentProps<"div"> & { "data-index"?: number }) => (
+    <div {...props}>{children}</div>
+  )
+);
+GridItemContainer.displayName = "GridItemContainer";
+
+// Context type for virtuoso components
+interface VirtuosoContext {
+  isLoadingMore: boolean;
+  columnsPerRow: number;
+}
+
+// Grid footer for loading state - uses context from Virtuoso
+const GridFooter = memo(({ context }: { context?: VirtuosoContext }) =>
+  context?.isLoadingMore ? (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: `repeat(${context.columnsPerRow}, minmax(0, 1fr))`,
+        gap: "16px",
+        marginTop: "16px",
+      }}
+    >
+      <GridSkeletons count={context.columnsPerRow} />
+    </div>
+  ) : null
+);
+GridFooter.displayName = "GridFooter";
+
+// Grid list container - uses context from Virtuoso
+const GridList = memo(
+  ({
+    style,
+    children,
+    context,
+    ...props
+  }: React.ComponentProps<"div"> & {
+    style?: React.CSSProperties;
+    context?: VirtuosoContext;
+  }) => (
+    <div
+      {...props}
+      style={{
+        display: "grid",
+        gridTemplateColumns: `repeat(${context?.columnsPerRow ?? 4}, minmax(0, 1fr))`,
+        gap: "16px",
+        ...style,
+      }}
+    >
+      {children}
+    </div>
+  )
+);
+GridList.displayName = "GridList";
+
+// List footer for loading state - uses context from Virtuoso
+const VirtuosoListFooter = memo(({ context }: { context?: VirtuosoContext }) =>
+  context?.isLoadingMore ? <ListSkeletons /> : null
+);
+VirtuosoListFooter.displayName = "VirtuosoListFooter";
+
 interface FileSelectorDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSelectFiles: (attachments: Attachment[]) => void;
-  /**
-   * Filter files based on model capabilities
-   * If provided, will only show files that the model supports
-   */
   supportsImages?: boolean;
 }
 
@@ -243,20 +354,16 @@ export function FileSelectorDialog({
   const [columnsPerRow, setColumnsPerRow] = useState(4);
   const [previewFile, setPreviewFile] = useState<UserFile | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const virtualizerRef = useRef<VirtualizerHandle>(null);
-  const loadMoreThrottleRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Use Dialog on desktop (lg+), Drawer on mobile
   const isDesktop = useMediaQuery("(min-width: 1024px)");
 
-  // Calculate columns based on screen size (desktop only)
+  // Calculate columns based on screen size
   useEffect(() => {
     if (!open) {
       return;
     }
 
     const updateLayout = () => {
-      // Match breakpoints: 2xl:6, lg:4, md:3, sm:2
       if (window.innerWidth >= 1536) {
         setColumnsPerRow(6);
       } else if (window.innerWidth >= 1024) {
@@ -283,8 +390,7 @@ export function FileSelectorDialog({
     };
   }, [open]);
 
-  // Query user files with server-side filtering and pagination
-  // Skip query when dialog is closed to avoid unnecessary data loading
+  // Query user files with pagination
   const {
     results: filesData,
     status,
@@ -309,7 +415,6 @@ export function FileSelectorDialog({
       (file: UserFile | null) => file !== null
     ) as UserFile[];
 
-    // Filter based on model capabilities
     if (!supportsImages) {
       return filtered.filter(file => file.attachment.type !== "image");
     }
@@ -317,58 +422,7 @@ export function FileSelectorDialog({
     return filtered;
   }, [filesData, supportsImages]);
 
-  // Group files into rows for virtualization
-  const rows = useMemo(() => {
-    const result: UserFile[][] = [];
-    for (let i = 0; i < validFiles.length; i += columnsPerRow) {
-      result.push(validFiles.slice(i, i + columnsPerRow));
-    }
-    return result;
-  }, [validFiles, columnsPerRow]);
-
-  // Scroll-to-load-more: auto-fetch when near bottom
-  const canLoadMore = status === "CanLoadMore";
-  const canLoadMoreRef = useRef(canLoadMore);
-  const loadMoreRef = useRef(loadMore);
-  canLoadMoreRef.current = canLoadMore;
-  loadMoreRef.current = loadMore;
-
-  useEffect(() => {
-    const scrollContainer = scrollContainerRef.current;
-    if (!(scrollContainer && open)) {
-      return;
-    }
-
-    const handleScroll = () => {
-      if (!canLoadMoreRef.current || loadMoreThrottleRef.current) {
-        return;
-      }
-
-      const { scrollTop, scrollHeight, clientHeight } = scrollContainer;
-      const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
-
-      if (distanceFromBottom < LOAD_MORE_THRESHOLD) {
-        loadMoreRef.current(FILES_PER_PAGE);
-        loadMoreThrottleRef.current = setTimeout(() => {
-          loadMoreThrottleRef.current = null;
-        }, 300);
-      }
-    };
-
-    scrollContainer.addEventListener("scroll", handleScroll, { passive: true });
-    // Check immediately in case content doesn't fill the viewport
-    handleScroll();
-
-    return () => {
-      scrollContainer.removeEventListener("scroll", handleScroll);
-      if (loadMoreThrottleRef.current) {
-        clearTimeout(loadMoreThrottleRef.current);
-        loadMoreThrottleRef.current = null;
-      }
-    };
-  }, [open]);
-
-  // File key generation for selection
+  // File key generation
   const getFileKey = useCallback((file: UserFile) => {
     return file.storageId || `${file.messageId}-${file.attachment.name}`;
   }, []);
@@ -410,7 +464,6 @@ export function FileSelectorDialog({
   const handleOpenChange = useCallback(
     (open: boolean) => {
       if (!open) {
-        // Reset state when closing
         setSelectedFiles(new Set());
         setFileType("all");
       }
@@ -420,7 +473,6 @@ export function FileSelectorDialog({
   );
 
   const handleConfirm = useCallback(() => {
-    // Get selected file attachments
     const attachments = validFiles
       .filter(file => selectedFiles.has(getFileKey(file)))
       .map(file => file.attachment);
@@ -429,11 +481,102 @@ export function FileSelectorDialog({
     handleOpenChange(false);
   }, [validFiles, selectedFiles, getFileKey, onSelectFiles, handleOpenChange]);
 
-  const isLoading = status === "LoadingFirstPage";
-  const shouldVirtualize =
-    rows.length > VIRTUALIZATION_THRESHOLD / columnsPerRow;
+  // Load more callback for react-virtuoso
+  const handleEndReached = useCallback(() => {
+    if (status === "CanLoadMore") {
+      loadMore(FILES_PER_PAGE);
+    }
+  }, [status, loadMore]);
 
-  // Shared controls component
+  // Mobile list item renderer for Virtuoso
+  const renderMobileListItem = useCallback(
+    (index: number, file: UserFile) => {
+      const isImage = file.attachment.type === "image";
+      return (
+        <div
+          className={cn(
+            "flex items-center gap-3 w-full p-3 border-b border-border transition-colors",
+            isSelected(file) && "bg-primary/10"
+          )}
+        >
+          <button
+            type="button"
+            onClick={() =>
+              isImage ? handlePreview(file) : toggleSelection(file)
+            }
+            className="h-12 w-12 shrink-0 rounded overflow-hidden bg-muted/20"
+          >
+            {isImage ? (
+              <ImageThumbnail
+                attachment={file.attachment}
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <div className="h-full w-full flex items-center justify-center">
+                {getFileAttachmentIcon(file.attachment, "sm")}
+              </div>
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => toggleSelection(file)}
+            className="flex-1 min-w-0 text-left"
+          >
+            <div className="flex items-center gap-2">
+              <span className="truncate font-medium text-sm">
+                {file.attachment.name}
+              </span>
+              {(file.attachment.generatedImage?.isGenerated ?? false) && (
+                <Badge className="bg-purple-500/90 text-white text-[10px] px-1 py-0 h-5 shrink-0">
+                  <MagicWandIcon className="h-3 w-3" />
+                </Badge>
+              )}
+            </div>
+            <span className="text-xs text-muted-foreground truncate block">
+              {file.conversationName}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => toggleSelection(file)}
+            className={cn(
+              "h-6 w-6 shrink-0 rounded border-2 flex items-center justify-center transition-all",
+              isSelected(file) ? "bg-primary border-primary" : "border-border"
+            )}
+          >
+            {isSelected(file) && (
+              <CheckIcon className="h-4 w-4 text-primary-foreground" />
+            )}
+          </button>
+        </div>
+      );
+    },
+    [isSelected, toggleSelection, handlePreview]
+  );
+
+  // Empty state component
+  const emptyState = (
+    <ListEmptyState
+      icon={<FolderIcon className="h-12 w-12" />}
+      title="No files found"
+      description={
+        hasActiveFilters
+          ? "Try adjusting your search or filter settings"
+          : "Upload files in your conversations to see them here"
+      }
+      action={
+        hasActiveFilters ? (
+          <Button variant="outline" size="sm" onClick={handleClearFilters}>
+            Clear Filters
+          </Button>
+        ) : undefined
+      }
+    />
+  );
+
+  // Controls component
   const controlsContent = (
     <div className="flex items-center justify-between">
       <Select
@@ -480,7 +623,7 @@ export function FileSelectorDialog({
     </div>
   );
 
-  // Shared footer buttons
+  // Footer buttons
   const footerButtons = (
     <>
       <Button variant="outline" onClick={() => handleOpenChange(false)}>
@@ -492,205 +635,111 @@ export function FileSelectorDialog({
     </>
   );
 
-  // Desktop grid content
+  // Loading states
+  const isLoadingMore = status === "LoadingMore";
+  const isLoadingFirstPage = status === "LoadingFirstPage";
+
+  // Context for virtuoso components
+  const virtuosoContext = useMemo<VirtuosoContext>(
+    () => ({ isLoadingMore, columnsPerRow }),
+    [isLoadingMore, columnsPerRow]
+  );
+
+  // Static component references for react-virtuoso
+  const gridComponents = useMemo(
+    () => ({
+      List: GridList,
+      Item: GridItemContainer,
+      Footer: GridFooter,
+    }),
+    []
+  );
+
+  const listComponents = useMemo(
+    () => ({
+      Footer: VirtuosoListFooter,
+    }),
+    []
+  );
+
+  // Helper to render grid content based on state
+  const renderGridContent = () => {
+    if (isLoadingFirstPage) {
+      return (
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: `repeat(${columnsPerRow}, minmax(0, 1fr))`,
+            gap: "16px",
+          }}
+        >
+          <GridSkeletonsDouble count={columnsPerRow} />
+        </div>
+      );
+    }
+
+    if (validFiles.length === 0) {
+      return emptyState;
+    }
+
+    return (
+      <VirtuosoGrid
+        data={validFiles}
+        endReached={handleEndReached}
+        overscan={200}
+        context={virtuosoContext}
+        components={gridComponents}
+        itemContent={(index, file) => (
+          <FileCard
+            file={file}
+            selected={isSelected(file)}
+            onToggle={toggleSelection}
+            onPreview={handlePreview}
+          />
+        )}
+        customScrollParent={scrollContainerRef.current ?? undefined}
+      />
+    );
+  };
+
+  // Helper to render list content based on state
+  const renderListContent = () => {
+    if (isLoadingFirstPage) {
+      return <ListSkeletonsDouble />;
+    }
+
+    if (validFiles.length === 0) {
+      return emptyState;
+    }
+
+    return (
+      <Virtuoso
+        data={validFiles}
+        endReached={handleEndReached}
+        overscan={200}
+        context={virtuosoContext}
+        components={listComponents}
+        itemContent={renderMobileListItem}
+        customScrollParent={scrollContainerRef.current ?? undefined}
+      />
+    );
+  };
+
+  // Desktop grid content using VirtuosoGrid
   const desktopGridContent = (
     <div ref={scrollContainerRef} className="flex-1 overflow-y-auto -mx-6 px-6">
-      {isLoading && <ListLoadingState count={6} height="h-32" />}
-
-      {!isLoading && validFiles.length === 0 && (
-        <ListEmptyState
-          icon={<FolderIcon className="h-12 w-12" />}
-          title="No files found"
-          description={
-            hasActiveFilters
-              ? "Try adjusting your search or filter settings"
-              : "Upload files in your conversations to see them here"
-          }
-          action={
-            hasActiveFilters ? (
-              <Button variant="outline" size="sm" onClick={handleClearFilters}>
-                Clear Filters
-              </Button>
-            ) : undefined
-          }
-        />
-      )}
-
-      {!isLoading && validFiles.length > 0 && (
-        <>
-          {shouldVirtualize ? (
-            <Virtualizer
-              ref={virtualizerRef}
-              scrollRef={scrollContainerRef}
-              overscan={4}
-              itemSize={ESTIMATED_ROW_HEIGHT}
-            >
-              {rows.map((rowFiles, rowIndex) => (
-                <div
-                  key={`row-${rowIndex}-${rowFiles[0] ? getFileKey(rowFiles[0]) : "empty"}`}
-                  className="pb-4"
-                >
-                  <div
-                    className="grid gap-4"
-                    style={{
-                      gridTemplateColumns: `repeat(${columnsPerRow}, minmax(0, 1fr))`,
-                    }}
-                  >
-                    {rowFiles.map(file => (
-                      <FileCard
-                        key={getFileKey(file)}
-                        file={file}
-                        selected={isSelected(file)}
-                        onToggle={toggleSelection}
-                        onPreview={handlePreview}
-                      />
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </Virtualizer>
-          ) : (
-            <div
-              className="grid gap-4"
-              style={{
-                gridTemplateColumns: `repeat(${columnsPerRow}, minmax(0, 1fr))`,
-              }}
-            >
-              {validFiles.map(file => (
-                <FileCard
-                  key={getFileKey(file)}
-                  file={file}
-                  selected={isSelected(file)}
-                  onToggle={toggleSelection}
-                  onPreview={handlePreview}
-                />
-              ))}
-            </div>
-          )}
-
-          {status === "LoadingMore" && (
-            <div className="flex justify-center py-4">
-              <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                <span>Loading more files...</span>
-              </div>
-            </div>
-          )}
-        </>
-      )}
+      {renderGridContent()}
     </div>
   );
 
-  // Mobile list content
+  // Mobile list content using Virtuoso
   const mobileListContent = (
     <div ref={scrollContainerRef} className="flex-1 overflow-y-auto">
-      {isLoading && <ListLoadingState count={6} height="h-16" />}
-
-      {!isLoading && validFiles.length === 0 && (
-        <ListEmptyState
-          icon={<FolderIcon className="h-12 w-12" />}
-          title="No files found"
-          description={
-            hasActiveFilters
-              ? "Try adjusting your filters"
-              : "Upload files to see them here"
-          }
-          action={
-            hasActiveFilters ? (
-              <Button variant="outline" size="sm" onClick={handleClearFilters}>
-                Clear Filters
-              </Button>
-            ) : undefined
-          }
-        />
-      )}
-
-      {!isLoading && validFiles.length > 0 && (
-        <>
-          <Virtualizer scrollRef={scrollContainerRef} overscan={4}>
-            {validFiles.map(file => {
-              const isImage = file.attachment.type === "image";
-              return (
-                <div
-                  key={getFileKey(file)}
-                  className={cn(
-                    "flex items-center gap-3 w-full p-3 border-b border-border transition-colors",
-                    isSelected(file) && "bg-primary/10"
-                  )}
-                >
-                  <button
-                    type="button"
-                    onClick={() =>
-                      isImage ? handlePreview(file) : toggleSelection(file)
-                    }
-                    className="h-12 w-12 shrink-0 rounded overflow-hidden bg-muted/20"
-                  >
-                    {isImage ? (
-                      <ImageThumbnail
-                        attachment={file.attachment}
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <div className="h-full w-full flex items-center justify-center">
-                        {getFileAttachmentIcon(file.attachment, "sm")}
-                      </div>
-                    )}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => toggleSelection(file)}
-                    className="flex-1 min-w-0 text-left"
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="truncate font-medium text-sm">
-                        {file.attachment.name}
-                      </span>
-                      {(file.attachment.generatedImage?.isGenerated ??
-                        false) && (
-                        <Badge className="bg-purple-500/90 text-white text-[10px] px-1 py-0 h-5 shrink-0">
-                          <MagicWandIcon className="h-3 w-3" />
-                        </Badge>
-                      )}
-                    </div>
-                    <span className="text-xs text-muted-foreground truncate block">
-                      {file.conversationName}
-                    </span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => toggleSelection(file)}
-                    className={cn(
-                      "h-6 w-6 shrink-0 rounded border-2 flex items-center justify-center transition-all",
-                      isSelected(file)
-                        ? "bg-primary border-primary"
-                        : "border-border"
-                    )}
-                  >
-                    {isSelected(file) && (
-                      <CheckIcon className="h-4 w-4 text-primary-foreground" />
-                    )}
-                  </button>
-                </div>
-              );
-            })}
-          </Virtualizer>
-
-          {status === "LoadingMore" && (
-            <div className="flex justify-center py-4">
-              <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                <span>Loading more...</span>
-              </div>
-            </div>
-          )}
-        </>
-      )}
+      {renderListContent()}
     </div>
   );
 
-  // Image preview dialog (shared)
+  // Image preview dialog
   const imagePreviewDialog = previewFile && (
     <AttachmentGalleryDialog
       attachments={[previewFile.attachment]}

@@ -1,20 +1,7 @@
 import { api } from "@convex/_generated/api";
 import { useMutation, useQuery } from "convex/react";
-import {
-  memo,
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
-import {
-  Virtualizer,
-  type VirtualizerHandle,
-  WindowVirtualizer,
-  type WindowVirtualizerHandle,
-} from "virtua";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { VirtuosoGrid } from "react-virtuoso";
 import { type BaseModel, ModelCard } from "@/components/models/model-card";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { useScrollContainer } from "@/providers/scroll-container-context";
@@ -22,30 +9,48 @@ import { useToast } from "@/providers/toast-context";
 import { useUserDataContext } from "@/providers/user-data-context";
 import type { ToggleModelResult } from "@/types";
 
+// Grid list container for VirtuosoGrid
+const GridList = memo(
+  ({
+    style,
+    children,
+    ...props
+  }: React.ComponentProps<"div"> & { style?: React.CSSProperties }) => (
+    <div
+      {...props}
+      className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+      style={style}
+    >
+      {children}
+    </div>
+  )
+);
+GridList.displayName = "GridList";
+
+// Grid item container for VirtuosoGrid
+const GridItem = memo(
+  ({
+    children,
+    ...props
+  }: React.ComponentProps<"div"> & { "data-index"?: number }) => (
+    <div {...props}>{children}</div>
+  )
+);
+GridItem.displayName = "GridItem";
+
 interface VirtualizedModelListProps {
   models: BaseModel[];
-  // Optional scroll container for non-window scroll contexts (e.g., mobile carousels)
-  scrollContainerRef?: React.RefObject<HTMLElement | null>;
-  /**
-   * Offset from the top of the scroll container to account for content above the virtualizer.
-   * This tells the virtualizer that content exists before it in the scroll container.
-   * When not provided, the component auto-measures its offset from the scroll container.
-   * Pass an explicit value to override auto-detection.
-   */
-  startMargin?: number;
 }
 
+// Static components for VirtuosoGrid
+const gridComponents = {
+  List: GridList,
+  Item: GridItem,
+};
+
 export const VirtualizedModelList = memo(
-  ({
-    models,
-    scrollContainerRef,
-    startMargin: startMarginProp,
-  }: VirtualizedModelListProps) => {
-    const windowVirtualizerRef = useRef<WindowVirtualizerHandle>(null);
-    const containerVirtualizerRef = useRef<VirtualizerHandle>(null);
-    const listContainerRef = useRef<HTMLDivElement>(null);
-    const [measuredStartMargin, setMeasuredStartMargin] = useState(0);
-    const [columnsPerRow, setColumnsPerRow] = useState(4);
+  ({ models }: VirtualizedModelListProps) => {
+    const scrollRef = useRef<HTMLDivElement>(null);
     const [conflictDialog, setConflictDialog] = useState<{
       isOpen: boolean;
       model: BaseModel | null;
@@ -56,67 +61,19 @@ export const VirtualizedModelList = memo(
       conflictInfo: null,
     });
 
-    // Use explicit scrollContainerRef prop or fall back to context (for mobile carousel slides)
+    // Track scroll container for mobile carousel support
     const scrollContainerContext = useScrollContainer();
+    const [scrollParent, setScrollParent] = useState<HTMLElement | undefined>(
+      undefined
+    );
 
-    // Determine if we should use container-based virtualization
-    // Check based on prop or context presence, not ref.current value (which may not be set yet)
-    const useContainerScroll =
-      !!scrollContainerRef ||
-      scrollContainerContext?.isInScrollContainerContext;
-
-    // Get the effective scroll ref for the Virtualizer
-    const effectiveScrollContainerRef =
-      scrollContainerRef ?? scrollContainerContext?.ref;
-
-    // Auto-measure startMargin for container-based scroll when not explicitly provided
-    useLayoutEffect(() => {
-      // Skip if startMargin is explicitly provided or not using container scroll
-      if (startMarginProp !== undefined || !useContainerScroll) {
-        return;
+    // Update scroll parent when context changes (handles timing issues)
+    useEffect(() => {
+      const element = scrollContainerContext?.ref?.current;
+      if (element) {
+        setScrollParent(element);
       }
-
-      const listContainer = listContainerRef.current;
-      if (!listContainer) {
-        return;
-      }
-
-      const measureOffset = () => {
-        const scrollContainer = effectiveScrollContainerRef?.current;
-        if (!scrollContainer) {
-          return;
-        }
-
-        // Measure offset from scroll container top to list container top
-        const containerRect = scrollContainer.getBoundingClientRect();
-        const listRect = listContainer.getBoundingClientRect();
-        const offset =
-          listRect.top - containerRect.top + scrollContainer.scrollTop;
-        setMeasuredStartMargin(Math.max(0, Math.round(offset)));
-      };
-
-      // Measure immediately
-      measureOffset();
-
-      // Re-measure on resize
-      const resizeObserver = new ResizeObserver(() => {
-        measureOffset();
-      });
-
-      resizeObserver.observe(listContainer);
-
-      const scrollContainer = effectiveScrollContainerRef?.current;
-      if (scrollContainer) {
-        resizeObserver.observe(scrollContainer);
-      }
-
-      return () => {
-        resizeObserver.disconnect();
-      };
-    }, [startMarginProp, useContainerScroll, effectiveScrollContainerRef]);
-
-    // Use explicit prop if provided, otherwise use measured value
-    const startMargin = startMarginProp ?? measuredStartMargin;
+    }, [scrollContainerContext?.ref?.current]);
 
     const { user } = useUserDataContext();
     const managedToast = useToast();
@@ -238,44 +195,18 @@ export const VirtualizedModelList = memo(
       setConflictDialog({ isOpen: false, model: null, conflictInfo: null });
     }, []);
 
-    // Calculate columns based on screen size with debounced updates
-    useEffect(() => {
-      const updateLayout = () => {
-        if (window.innerWidth >= 1280) {
-          setColumnsPerRow(4);
-        } else if (window.innerWidth >= 1024) {
-          setColumnsPerRow(3);
-        } else if (window.innerWidth >= 768) {
-          setColumnsPerRow(2);
-        } else {
-          setColumnsPerRow(1);
-        }
-      };
-
-      updateLayout();
-
-      // Debounce resize events for better performance
-      let timeoutId: NodeJS.Timeout;
-      const debouncedUpdate = () => {
-        clearTimeout(timeoutId);
-        timeoutId = setTimeout(updateLayout, 150);
-      };
-
-      window.addEventListener("resize", debouncedUpdate);
-      return () => {
-        window.removeEventListener("resize", debouncedUpdate);
-        clearTimeout(timeoutId);
-      };
-    }, []);
-
-    // Group models into rows for virtualization with memoization
-    const rows = useMemo(() => {
-      const result = [];
-      for (let i = 0; i < models.length; i += columnsPerRow) {
-        result.push(models.slice(i, i + columnsPerRow));
-      }
-      return result;
-    }, [models, columnsPerRow]);
+    // Render a single model card
+    const renderModelCard = useCallback(
+      (index: number, model: BaseModel) => (
+        <ModelCard
+          model={model}
+          isEnabled={enabledModelsLookup.has(model.modelId)}
+          onToggle={onToggleModel}
+          onRemove={handleRemoveModel}
+        />
+      ),
+      [enabledModelsLookup, onToggleModel, handleRemoveModel]
+    );
 
     if (models.length === 0) {
       return (
@@ -285,28 +216,19 @@ export const VirtualizedModelList = memo(
       );
     }
 
-    // For small lists, don't use virtualization to avoid overhead
-    if (rows.length <= 20) {
+    // For small lists (< 80 models), use simple grid without virtualization
+    if (models.length < 80) {
       return (
         <>
-          <div className="stack-md">
-            {rows.map((rowModels, rowIndex) => (
-              <div
-                key={`row-${rowIndex}-${rowModels[0]?.modelId || "empty"}`}
-                className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
-              >
-                {rowModels
-                  .filter(model => model)
-                  .map(model => (
-                    <ModelCard
-                      key={`${model.provider}-${model.modelId}`}
-                      isEnabled={enabledModelsLookup.has(model.modelId)}
-                      model={model}
-                      onToggle={onToggleModel}
-                      onRemove={handleRemoveModel}
-                    />
-                  ))}
-              </div>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {models.map(model => (
+              <ModelCard
+                key={`${model.provider}-${model.modelId}`}
+                model={model}
+                isEnabled={enabledModelsLookup.has(model.modelId)}
+                onToggle={onToggleModel}
+                onRemove={handleRemoveModel}
+              />
             ))}
           </div>
           <ConfirmationDialog
@@ -334,53 +256,17 @@ export const VirtualizedModelList = memo(
       );
     }
 
-    // Helper function to render model rows for virtualization
-    const renderRows = () =>
-      rows.map((rowModels, rowIndex) => (
-        <div
-          key={`row-${rowIndex}-${rowModels[0]?.modelId || "empty"}`}
-          className="pb-3"
-        >
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {rowModels
-              .filter(model => model)
-              .map(model => (
-                <ModelCard
-                  key={`${model.provider}-${model.modelId}`}
-                  isEnabled={enabledModelsLookup.has(model.modelId)}
-                  model={model}
-                  onToggle={onToggleModel}
-                  onRemove={handleRemoveModel}
-                />
-              ))}
-          </div>
-        </div>
-      ));
-
-    // Each row is approximately 172px (card height 160px + pb-3 12px)
-    const estimatedRowHeight = 172;
-
     return (
-      <div ref={listContainerRef}>
-        {useContainerScroll ? (
-          <Virtualizer
-            ref={containerVirtualizerRef}
-            overscan={4}
-            itemSize={estimatedRowHeight}
-            scrollRef={effectiveScrollContainerRef}
-            startMargin={startMargin}
-          >
-            {renderRows()}
-          </Virtualizer>
-        ) : (
-          <WindowVirtualizer
-            ref={windowVirtualizerRef}
-            overscan={4}
-            itemSize={estimatedRowHeight}
-          >
-            {renderRows()}
-          </WindowVirtualizer>
-        )}
+      <div ref={scrollRef}>
+        <VirtuosoGrid
+          data={models}
+          overscan={200}
+          components={gridComponents}
+          itemContent={renderModelCard}
+          {...(scrollParent
+            ? { customScrollParent: scrollParent }
+            : { useWindowScroll: true })}
+        />
         <ConfirmationDialog
           open={conflictDialog.isOpen}
           onOpenChange={open => {

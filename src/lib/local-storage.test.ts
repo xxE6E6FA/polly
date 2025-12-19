@@ -7,10 +7,13 @@ import {
   del,
   get,
   set,
+  setPrivateModeChecker,
 } from "./local-storage";
 
 beforeEach(() => {
   localStorage.clear();
+  // Reset private mode checker to ensure test isolation
+  setPrivateModeChecker(() => false);
 });
 
 describe("local-storage utilities", () => {

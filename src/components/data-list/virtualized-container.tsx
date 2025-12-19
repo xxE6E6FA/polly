@@ -1,11 +1,6 @@
 import type React from "react";
-import { useRef } from "react";
-import {
-  Virtualizer,
-  type VirtualizerHandle,
-  WindowVirtualizer,
-  type WindowVirtualizerHandle,
-} from "virtua";
+import { memo, useCallback, useMemo } from "react";
+import { Virtuoso } from "react-virtuoso";
 
 export interface VirtualizedContainerProps<TItem> {
   /** Items to render */
@@ -18,7 +13,7 @@ export interface VirtualizedContainerProps<TItem> {
   useContainerScroll: boolean;
   /** Scroll container ref for container-based virtualization */
   scrollContainerRef?: React.RefObject<HTMLElement | null>;
-  /** Start margin offset for virtualization */
+  /** Start margin offset for virtualization (rendered as header spacer) */
   startMargin?: number;
   /** Number of items to render outside visible area */
   overscan?: number;
@@ -27,6 +22,31 @@ export interface VirtualizedContainerProps<TItem> {
   /** Whether currently loading more items */
   isLoadingMore?: boolean;
 }
+
+// Context type for virtuoso components
+interface VirtuosoContext {
+  startMargin: number;
+  isLoadingMore: boolean;
+  loadingMoreContent: React.ReactNode;
+}
+
+// Header component for start margin spacing
+const ListHeader = memo(({ context }: { context?: VirtuosoContext }) =>
+  context?.startMargin ? <div style={{ height: context.startMargin }} /> : null
+);
+ListHeader.displayName = "ListHeader";
+
+// Footer component for loading indicator
+const ListFooter = memo(({ context }: { context?: VirtuosoContext }) =>
+  context?.isLoadingMore ? context.loadingMoreContent : null
+);
+ListFooter.displayName = "ListFooter";
+
+// Static components object
+const virtuosoComponents = {
+  Header: ListHeader,
+  Footer: ListFooter,
+};
 
 /**
  * Layout-agnostic virtualization container.
@@ -52,33 +72,44 @@ export function VirtualizedContainer<TItem>({
   startMargin = 0,
   overscan = 4,
   loadingMoreContent,
-  isLoadingMore,
+  isLoadingMore = false,
 }: VirtualizedContainerProps<TItem>) {
-  const windowVirtualizerRef = useRef<WindowVirtualizerHandle>(null);
-  const containerVirtualizerRef = useRef<VirtualizerHandle>(null);
+  // Compute key for each item
+  const computeItemKey = useCallback(
+    (index: number, item: TItem) => getItemKey(item),
+    [getItemKey]
+  );
 
-  const renderedItems = items.map((item, index) => (
-    <div key={getItemKey(item)}>{renderItem(item, index)}</div>
-  ));
+  // Render each item
+  const itemContent = useCallback(
+    (index: number, item: TItem) => renderItem(item, index),
+    [renderItem]
+  );
+
+  // Context for virtuoso components
+  const virtuosoContext = useMemo<VirtuosoContext>(
+    () => ({
+      startMargin,
+      isLoadingMore,
+      loadingMoreContent,
+    }),
+    [startMargin, isLoadingMore, loadingMoreContent]
+  );
 
   return (
-    <>
-      {useContainerScroll ? (
-        <Virtualizer
-          ref={containerVirtualizerRef}
-          overscan={overscan}
-          scrollRef={scrollContainerRef}
-          startMargin={startMargin}
-        >
-          {renderedItems}
-        </Virtualizer>
-      ) : (
-        <WindowVirtualizer ref={windowVirtualizerRef} overscan={overscan}>
-          {renderedItems}
-        </WindowVirtualizer>
-      )}
-
-      {isLoadingMore && loadingMoreContent}
-    </>
+    <Virtuoso
+      data={items}
+      computeItemKey={computeItemKey}
+      itemContent={itemContent}
+      context={virtuosoContext}
+      components={virtuosoComponents}
+      overscan={overscan * 50}
+      useWindowScroll={!useContainerScroll}
+      customScrollParent={
+        useContainerScroll
+          ? (scrollContainerRef?.current ?? undefined)
+          : undefined
+      }
+    />
   );
 }

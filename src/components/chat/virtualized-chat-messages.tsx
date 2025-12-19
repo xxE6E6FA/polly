@@ -7,7 +7,7 @@ import {
   useMemo,
   useRef,
 } from "react";
-import { VList, type VListHandle } from "virtua";
+import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
 import { useZenModeStore } from "@/stores/zen-mode-store";
 import type { ChatMessage as ChatMessageType } from "@/types";
 import { ChatMessage } from "./chat-message";
@@ -189,6 +189,30 @@ const MessageItem = memo(
 
 MessageItem.displayName = "MessageItem";
 
+// Virtuoso context type for insets
+interface ChatVirtuosoContext {
+  topInset: number;
+  bottomInset: number;
+}
+
+// Header component for top padding
+const ChatHeader = memo(({ context }: { context?: ChatVirtuosoContext }) => (
+  <div style={{ height: context?.topInset ?? 24 }} />
+));
+ChatHeader.displayName = "ChatHeader";
+
+// Footer component for bottom padding
+const ChatFooter = memo(({ context }: { context?: ChatVirtuosoContext }) => (
+  <div style={{ height: context?.bottomInset ?? 20 }} />
+));
+ChatFooter.displayName = "ChatFooter";
+
+// Static virtuoso components
+const chatVirtuosoComponents = {
+  Header: ChatHeader,
+  Footer: ChatFooter,
+};
+
 export const VirtualizedChatMessages = memo(
   forwardRef<VirtualizedChatMessagesRef, VirtualizedChatMessagesProps>(
     (
@@ -211,7 +235,8 @@ export const VirtualizedChatMessages = memo(
       },
       ref
     ) => {
-      const vlistRef = useRef<VListHandle>(null);
+      const virtuosoRef = useRef<VirtuosoHandle>(null);
+      const scrollerRef = useRef<HTMLElement | null>(null);
       const prevMessagesLengthRef = useRef(messages.length);
       const hasScrolledForCurrentAssistant = useRef(false);
       const lastAssistantMessageId = useRef<string | null>(null);
@@ -231,12 +256,6 @@ export const VirtualizedChatMessages = memo(
           return messagesMap.get(messageId);
         },
         [messagesMap]
-      );
-
-      // Generate a unique ID for this VList instance
-      const vlistId = useMemo(
-        () => `vlist-chat-${Math.random().toString(36).substr(2, 9)}`,
-        []
       );
 
       // Filter and sort messages - optimized for streaming performance
@@ -302,12 +321,8 @@ export const VirtualizedChatMessages = memo(
 
       // Helper function to get the scroll container
       const getScrollContainer = useCallback(() => {
-        // Use the unique data attribute to reliably find the scroll container
-        const vlistElement = document.querySelector(
-          `[data-vlist-id="${vlistId}"]`
-        );
-        return vlistElement as HTMLElement | null;
-      }, [vlistId]);
+        return scrollerRef.current;
+      }, []);
 
       useEffect(() => {
         const handleZenScroll = (event: Event) => {
@@ -337,10 +352,11 @@ export const VirtualizedChatMessages = memo(
             return;
           }
 
-          if (vlistRef.current) {
-            vlistRef.current.scrollToIndex(targetIndex, {
+          if (virtuosoRef.current) {
+            virtuosoRef.current.scrollToIndex({
+              index: targetIndex,
               align: "start",
-              smooth: true,
+              behavior: "smooth",
             });
           }
         };
@@ -392,10 +408,11 @@ export const VirtualizedChatMessages = memo(
             const messageIndex = processedMessages.findIndex(
               msg => msg.id === messageId
             );
-            if (messageIndex !== -1 && vlistRef.current) {
-              vlistRef.current.scrollToIndex(messageIndex, {
+            if (messageIndex !== -1 && virtuosoRef.current) {
+              virtuosoRef.current.scrollToIndex({
+                index: messageIndex,
                 align: "start",
-                smooth: false,
+                behavior: "auto",
               });
 
               // If we have a headingId, we need to scroll to that specific heading
@@ -568,22 +585,88 @@ export const VirtualizedChatMessages = memo(
       useEffect(() => {
         if (
           processedMessages.length > 0 &&
-          vlistRef.current &&
+          virtuosoRef.current &&
           !hasInitialScrolled.current &&
           !isLoading
         ) {
           hasInitialScrolled.current = true;
           // Use requestAnimationFrame to ensure the list has rendered
           requestAnimationFrame(() => {
-            if (vlistRef.current) {
-              vlistRef.current.scrollToIndex(processedMessages.length - 1, {
+            if (virtuosoRef.current) {
+              virtuosoRef.current.scrollToIndex({
+                index: processedMessages.length - 1,
                 align: "end",
-                smooth: false,
+                behavior: "auto",
               });
             }
           });
         }
       }, [processedMessages.length, isLoading]);
+
+      const resolvedTopInset = Math.max((topInset ?? 0) + 12, 24);
+      const resolvedBottomInset = Math.max(bottomInset ?? 20, 20);
+
+      // Render function for each message
+      const renderMessage = useCallback(
+        (index: number, message: ChatMessageType) => {
+          const isMessageStreaming =
+            isStreaming &&
+            index === processedMessages.length - 1 &&
+            message.role === "assistant" &&
+            !message.metadata?.finishReason &&
+            !message.metadata?.stopped;
+
+          return (
+            <MessageItem
+              messageId={message.id}
+              isStreaming={!!isMessageStreaming}
+              conversationId={conversationId}
+              onPreviewAttachment={onPreviewAttachment}
+              onEditMessage={onEditMessage}
+              onRetryUserMessage={onRetryUserMessage}
+              onRetryAssistantMessage={onRetryAssistantMessage}
+              onRefineMessage={onRefineMessage}
+              onDeleteMessage={onDeleteMessage}
+              onRetryImageGeneration={onRetryImageGeneration}
+              messageSelector={messageSelector}
+            />
+          );
+        },
+        [
+          isStreaming,
+          processedMessages.length,
+          conversationId,
+          onPreviewAttachment,
+          onEditMessage,
+          onRetryUserMessage,
+          onRetryAssistantMessage,
+          onRefineMessage,
+          onDeleteMessage,
+          onRetryImageGeneration,
+          messageSelector,
+        ]
+      );
+
+      // Callback to capture the scroller element
+      const handleScrollerRef = useCallback(
+        (element: HTMLElement | Window | null) => {
+          if (element instanceof HTMLElement) {
+            scrollerRef.current = element;
+          } else {
+            scrollerRef.current = null;
+          }
+        },
+        []
+      );
+
+      // Context for virtuoso components
+      const virtuosoContext = useMemo<ChatVirtuosoContext>(
+        () => ({
+          topInset: resolvedTopInset,
+          bottomInset: resolvedBottomInset,
+        }),
+        [resolvedTopInset, resolvedBottomInset]
+      );
 
       if (processedMessages.length === 0) {
         return (
@@ -593,54 +676,28 @@ export const VirtualizedChatMessages = memo(
         );
       }
 
-      const resolvedTopInset = Math.max((topInset ?? 0) + 12, 24);
-      const resolvedBottomInset = Math.max(bottomInset ?? 20, 20);
-
       return (
         <>
-          <VList
-            ref={vlistRef}
+          <Virtuoso
+            ref={virtuosoRef}
+            data={processedMessages}
+            itemContent={renderMessage}
+            scrollerRef={handleScrollerRef}
+            initialTopMostItemIndex={processedMessages.length - 1}
+            overscan={overscan * 100}
             style={{
               height: "100%",
               width: "100%",
               overflowX: "clip",
               overflowY: "auto",
               contain: "layout style size",
-              paddingTop: resolvedTopInset,
-              paddingBottom: resolvedBottomInset,
               WebkitOverflowScrolling: "touch",
             }}
             className="overscroll-contain scrollbar-thin"
-            data-vlist-id={vlistId}
-            reverse // This makes it a chat-like interface
-            overscan={overscan}
-          >
-            {processedMessages.map((message, index) => {
-              const isMessageStreaming =
-                isStreaming &&
-                index === processedMessages.length - 1 &&
-                message.role === "assistant" &&
-                !message.metadata?.finishReason &&
-                !message.metadata?.stopped;
-
-              return (
-                <MessageItem
-                  key={message.displayKey ?? message.id}
-                  messageId={message.id}
-                  isStreaming={!!isMessageStreaming}
-                  conversationId={conversationId}
-                  onPreviewAttachment={onPreviewAttachment}
-                  onEditMessage={onEditMessage}
-                  onRetryUserMessage={onRetryUserMessage}
-                  onRetryAssistantMessage={onRetryAssistantMessage}
-                  onRefineMessage={onRefineMessage}
-                  onDeleteMessage={onDeleteMessage}
-                  onRetryImageGeneration={onRetryImageGeneration}
-                  messageSelector={messageSelector}
-                />
-              );
-            })}
-          </VList>
+            topItemCount={0}
+            context={virtuosoContext}
+            components={chatVirtuosoComponents}
+          />
           <ZenModeOverlay
             assistantMessages={assistantMessages}
             conversationId={conversationId}

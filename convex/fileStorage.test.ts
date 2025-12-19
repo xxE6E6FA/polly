@@ -1378,7 +1378,6 @@ import {
 } from "./fileStorage";
 
 describe("fileStorage: reference counting", () => {
-  const userId = "user-123" as Id<"users">;
   const conversationId = "conv-123" as Id<"conversations">;
 
   describe("isStorageIdReferencedByOtherMessages", () => {
