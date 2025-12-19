@@ -437,6 +437,102 @@ export const deleteFile = mutation({
 });
 
 /**
+ * Check if a storageId is referenced by any messages other than the excluded ones.
+ * This enables reference counting to prevent premature deletion of shared files.
+ *
+ * The check is scoped to a specific conversation for performance.
+ *
+ * @param ctx - Query or Mutation context
+ * @param storageId - The storage ID to check
+ * @param conversationId - The conversation to check within
+ * @param excludeMessageIds - Message IDs to exclude from the check (the ones being deleted)
+ * @returns true if the storageId is referenced by other messages in the conversation
+ */
+export async function isStorageIdReferencedByOtherMessages(
+  ctx: QueryCtx | MutationCtx,
+  storageId: Id<"_storage">,
+  conversationId: Id<"conversations">,
+  excludeMessageIds: Set<Id<"messages">>
+): Promise<boolean> {
+  // Query all messages in the conversation (uses index)
+  const conversationMessages = await ctx.db
+    .query("messages")
+    .withIndex("by_conversation", q => q.eq("conversationId", conversationId))
+    .collect();
+
+  // Check if any message (not in exclude list) references this storageId
+  for (const message of conversationMessages) {
+    if (excludeMessageIds.has(message._id)) {
+      continue;
+    }
+    if (message.attachments) {
+      for (const attachment of message.attachments) {
+        if (attachment.storageId === storageId) {
+          return true;
+        }
+      }
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Batch check for multiple storageIds - more efficient than calling the single check multiple times.
+ * Returns a Set of storageIds that are safe to delete (not referenced by other messages).
+ *
+ * @param ctx - Query or Mutation context
+ * @param storageIds - The storage IDs to check
+ * @param conversationId - The conversation to check within
+ * @param excludeMessageIds - Message IDs to exclude from the check (the ones being deleted)
+ * @returns Set of storageIds that can be safely deleted
+ */
+export async function getStorageIdsSafeToDelete(
+  ctx: QueryCtx | MutationCtx,
+  storageIds: Id<"_storage">[],
+  conversationId: Id<"conversations">,
+  excludeMessageIds: Set<Id<"messages">>
+): Promise<Set<Id<"_storage">>> {
+  if (storageIds.length === 0) {
+    return new Set();
+  }
+
+  // Build a set of storageIds for quick lookup
+  const storageIdSet = new Set(storageIds);
+  const referencedStorageIds = new Set<Id<"_storage">>();
+
+  // Query all messages in the conversation (uses index)
+  const conversationMessages = await ctx.db
+    .query("messages")
+    .withIndex("by_conversation", q => q.eq("conversationId", conversationId))
+    .collect();
+
+  // Find which storageIds are referenced by messages NOT being deleted
+  for (const message of conversationMessages) {
+    if (excludeMessageIds.has(message._id)) {
+      continue;
+    }
+    if (message.attachments) {
+      for (const attachment of message.attachments) {
+        if (attachment.storageId && storageIdSet.has(attachment.storageId)) {
+          referencedStorageIds.add(attachment.storageId);
+        }
+      }
+    }
+  }
+
+  // Return storageIds that are NOT referenced elsewhere
+  const safeToDelete = new Set<Id<"_storage">>();
+  for (const storageId of storageIds) {
+    if (!referencedStorageIds.has(storageId)) {
+      safeToDelete.add(storageId);
+    }
+  }
+
+  return safeToDelete;
+}
+
+/**
  * Get all user files with metadata and usage information
  * Now using the dedicated userFiles table with proper pagination support
  */

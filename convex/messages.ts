@@ -19,7 +19,11 @@ import { CONFIG } from "./ai/config";
 import { getApiKey } from "./ai/encryption";
 import { withRetry } from "./ai/error_handlers";
 import { createLanguageModel } from "./ai/server_streaming";
-import { createUserFileEntriesHandler } from "./fileStorage";
+import {
+  createUserFileEntriesHandler,
+  getStorageIdsSafeToDelete,
+  isStorageIdReferencedByOtherMessages,
+} from "./fileStorage";
 import {
   checkConversationAccess,
   getPersonaPrompt,
@@ -143,19 +147,40 @@ async function handleMessageDeletion(
     }
   }
 
-  if (message.attachments) {
+  if (message.attachments && message.conversationId && message._id) {
+    const conversationId = message.conversationId;
+    const excludeMessageIds = new Set([message._id]);
+
     for (const attachment of message.attachments) {
       if (attachment.storageId) {
         const storageId = attachment.storageId;
 
-        // Delete from storage
+        // Check if this storageId is referenced by other messages before deleting
         operations.push(
-          ctx.storage.delete(storageId).catch(error => {
-            console.warn(`Failed to delete file ${storageId}:`, error);
-          })
+          (async () => {
+            try {
+              const isReferenced = await isStorageIdReferencedByOtherMessages(
+                ctx,
+                storageId,
+                conversationId,
+                excludeMessageIds
+              );
+
+              if (isReferenced) {
+                // Skip storage deletion - file is still in use by other messages
+                return;
+              }
+
+              // Safe to delete - no other references
+              await ctx.storage.delete(storageId);
+            } catch (error) {
+              console.warn(`Failed to delete file ${storageId}:`, error);
+            }
+          })()
         );
 
         // Delete userFiles entry (with ownership verification)
+        // Note: We still delete the userFiles entry for THIS message even if storage is kept
         operations.push(
           (async () => {
             try {
@@ -854,6 +879,13 @@ export const removeMultiple = mutation({
     const storageDeletePromises: Promise<void>[] = [];
     const userFileDeletionPromises: Promise<void>[] = [];
 
+    // Collect storageIds per conversation for batch reference checking
+    const storageIdsByConversation = new Map<
+      Id<"conversations">,
+      Id<"_storage">[]
+    >();
+    const excludeMessageIds = new Set(args.ids);
+
     for (const message of messages) {
       if (message) {
         if (message.conversationId) {
@@ -876,47 +908,85 @@ export const removeMultiple = mutation({
               userMessageCounts.set(conversation.userId, currentCount + 1);
             }
           }
+
+          // Collect storageIds for batch reference checking
+          if (message.attachments) {
+            for (const attachment of message.attachments) {
+              if (attachment.storageId) {
+                const existing =
+                  storageIdsByConversation.get(message.conversationId) || [];
+                existing.push(attachment.storageId);
+                storageIdsByConversation.set(message.conversationId, existing);
+              }
+            }
+          }
         }
+      }
+    }
 
-        if (message.attachments) {
-          for (const attachment of message.attachments) {
-            if (attachment.storageId) {
-              const storageId = attachment.storageId;
+    // Batch check which storageIds are safe to delete (per conversation)
+    const safeToDeleteByConversation = new Map<
+      Id<"conversations">,
+      Set<Id<"_storage">>
+    >();
+    for (const [conversationId, storageIds] of storageIdsByConversation) {
+      const safeToDelete = await getStorageIdsSafeToDelete(
+        ctx,
+        storageIds,
+        conversationId,
+        excludeMessageIds
+      );
+      safeToDeleteByConversation.set(conversationId, safeToDelete);
+    }
 
+    // Now process storage deletions with reference counting
+    for (const message of messages) {
+      if (message?.attachments && message.conversationId) {
+        const safeToDelete = safeToDeleteByConversation.get(
+          message.conversationId
+        );
+
+        for (const attachment of message.attachments) {
+          if (attachment.storageId) {
+            const storageId = attachment.storageId;
+
+            // Only delete storage if safe (not referenced by other messages)
+            if (safeToDelete?.has(storageId)) {
               storageDeletePromises.push(
                 ctx.storage.delete(storageId).catch(error => {
                   console.warn(`Failed to delete file ${storageId}:`, error);
                 })
               );
-
-              // Delete corresponding userFiles entry (with ownership verification)
-              userFileDeletionPromises.push(
-                (async () => {
-                  try {
-                    if (!storageId) {
-                      return;
-                    }
-
-                    const userFileEntry = await ctx.db
-                      .query("userFiles")
-                      .withIndex("by_storage_id", q =>
-                        q.eq("userId", userId).eq("storageId", storageId)
-                      )
-                      .unique();
-
-                    // Verify ownership before deleting
-                    if (userFileEntry && userFileEntry.userId === userId) {
-                      await ctx.db.delete("userFiles", userFileEntry._id);
-                    }
-                  } catch (error) {
-                    console.warn(
-                      `Failed to delete userFile entry for storage ${storageId}:`,
-                      error
-                    );
-                  }
-                })()
-              );
             }
+
+            // Delete corresponding userFiles entry (with ownership verification)
+            // Note: We still delete the userFiles entry for THIS message even if storage is kept
+            userFileDeletionPromises.push(
+              (async () => {
+                try {
+                  if (!storageId) {
+                    return;
+                  }
+
+                  const userFileEntry = await ctx.db
+                    .query("userFiles")
+                    .withIndex("by_storage_id", q =>
+                      q.eq("userId", userId).eq("storageId", storageId)
+                    )
+                    .unique();
+
+                  // Verify ownership before deleting
+                  if (userFileEntry && userFileEntry.userId === userId) {
+                    await ctx.db.delete("userFiles", userFileEntry._id);
+                  }
+                } catch (error) {
+                  console.warn(
+                    `Failed to delete userFile entry for storage ${storageId}:`,
+                    error
+                  );
+                }
+              })()
+            );
           }
         }
       }
@@ -997,6 +1067,13 @@ export const internalRemoveMultiple = internalMutation({
     const storageDeletePromises: Promise<void>[] = [];
     const userFileDeletionPromises: Promise<void>[] = [];
 
+    // Collect storageIds per conversation for batch reference checking
+    const storageIdsByConversation = new Map<
+      Id<"conversations">,
+      Id<"_storage">[]
+    >();
+    const excludeMessageIds = new Set(args.ids);
+
     for (const message of messages) {
       if (message) {
         if (message.conversationId) {
@@ -1019,49 +1096,87 @@ export const internalRemoveMultiple = internalMutation({
               userMessageCounts.set(conversation.userId, currentCount + 1);
             }
           }
+
+          // Collect storageIds for batch reference checking
+          if (message.attachments) {
+            for (const attachment of message.attachments) {
+              if (attachment.storageId) {
+                const existing =
+                  storageIdsByConversation.get(message.conversationId) || [];
+                existing.push(attachment.storageId);
+                storageIdsByConversation.set(message.conversationId, existing);
+              }
+            }
+          }
         }
+      }
+    }
 
-        if (message.attachments) {
-          for (const attachment of message.attachments) {
-            if (attachment.storageId) {
-              const storageId = attachment.storageId;
+    // Batch check which storageIds are safe to delete (per conversation)
+    const safeToDeleteByConversation = new Map<
+      Id<"conversations">,
+      Set<Id<"_storage">>
+    >();
+    for (const [conversationId, storageIds] of storageIdsByConversation) {
+      const safeToDelete = await getStorageIdsSafeToDelete(
+        ctx,
+        storageIds,
+        conversationId,
+        excludeMessageIds
+      );
+      safeToDeleteByConversation.set(conversationId, safeToDelete);
+    }
 
+    // Now process storage deletions with reference counting
+    for (const message of messages) {
+      if (message?.attachments && message.conversationId) {
+        const safeToDelete = safeToDeleteByConversation.get(
+          message.conversationId
+        );
+
+        for (const attachment of message.attachments) {
+          if (attachment.storageId) {
+            const storageId = attachment.storageId;
+
+            // Only delete storage if safe (not referenced by other messages)
+            if (safeToDelete?.has(storageId)) {
               storageDeletePromises.push(
                 ctx.storage.delete(storageId).catch(error => {
                   console.warn(`Failed to delete file ${storageId}:`, error);
                 })
               );
-
-              // Delete corresponding userFiles entry by messageId (works even if userId unavailable)
-              userFileDeletionPromises.push(
-                (async () => {
-                  try {
-                    if (!storageId) {
-                      return;
-                    }
-
-                    // Clean up by messageId to handle cases where userId is unavailable
-                    const userFileEntries = await ctx.db
-                      .query("userFiles")
-                      .withIndex("by_message", q =>
-                        q.eq("messageId", message._id)
-                      )
-                      .collect();
-
-                    for (const entry of userFileEntries) {
-                      if (entry.storageId === storageId) {
-                        await ctx.db.delete("userFiles", entry._id);
-                      }
-                    }
-                  } catch (error) {
-                    console.warn(
-                      `Failed to delete userFile entry for storage ${storageId}:`,
-                      error
-                    );
-                  }
-                })()
-              );
             }
+
+            // Delete corresponding userFiles entry by messageId (works even if userId unavailable)
+            // Note: We still delete the userFiles entry for THIS message even if storage is kept
+            userFileDeletionPromises.push(
+              (async () => {
+                try {
+                  if (!storageId) {
+                    return;
+                  }
+
+                  // Clean up by messageId to handle cases where userId is unavailable
+                  const userFileEntries = await ctx.db
+                    .query("userFiles")
+                    .withIndex("by_message", q =>
+                      q.eq("messageId", message._id)
+                    )
+                    .collect();
+
+                  for (const entry of userFileEntries) {
+                    if (entry.storageId === storageId) {
+                      await ctx.db.delete("userFiles", entry._id);
+                    }
+                  }
+                } catch (error) {
+                  console.warn(
+                    `Failed to delete userFile entry for storage ${storageId}:`,
+                    error
+                  );
+                }
+              })()
+            );
           }
         }
       }

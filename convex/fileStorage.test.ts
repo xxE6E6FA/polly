@@ -1370,3 +1370,280 @@ describe("fileStorage: getUserFileStats", () => {
     expect(result.typeCounts.image).toBe(1);
   });
 });
+
+// Import the new reference counting functions
+import {
+  getStorageIdsSafeToDelete,
+  isStorageIdReferencedByOtherMessages,
+} from "./fileStorage";
+
+describe("fileStorage: reference counting", () => {
+  const userId = "user-123" as Id<"users">;
+  const conversationId = "conv-123" as Id<"conversations">;
+
+  describe("isStorageIdReferencedByOtherMessages", () => {
+    test("returns false when no other messages reference the storageId", async () => {
+      const storageId = "storage-123" as Id<"_storage">;
+      const messageId = "msg-1" as Id<"messages">;
+      const excludeMessageIds = new Set([messageId]);
+
+      // Only the excluded message references this storageId
+      const messages = [
+        {
+          _id: messageId,
+          conversationId,
+          attachments: [{ storageId, type: "image" as const }],
+        },
+      ];
+
+      const queryChain = {
+        withIndex: mock(() => queryChain),
+        collect: mock(() => Promise.resolve(messages)),
+      };
+
+      const ctx = makeConvexCtx({
+        db: {
+          query: mock(() => queryChain),
+        } as any,
+      });
+
+      const result = await isStorageIdReferencedByOtherMessages(
+        ctx as QueryCtx,
+        storageId,
+        conversationId,
+        excludeMessageIds
+      );
+
+      expect(result).toBe(false);
+    });
+
+    test("returns true when another message references the storageId", async () => {
+      const storageId = "storage-123" as Id<"_storage">;
+      const messageId1 = "msg-1" as Id<"messages">;
+      const messageId2 = "msg-2" as Id<"messages">;
+      const excludeMessageIds = new Set([messageId1]);
+
+      // Both messages reference the same storageId
+      const messages = [
+        {
+          _id: messageId1,
+          conversationId,
+          attachments: [{ storageId, type: "image" as const }],
+        },
+        {
+          _id: messageId2,
+          conversationId,
+          attachments: [{ storageId, type: "image" as const }],
+        },
+      ];
+
+      const queryChain = {
+        withIndex: mock(() => queryChain),
+        collect: mock(() => Promise.resolve(messages)),
+      };
+
+      const ctx = makeConvexCtx({
+        db: {
+          query: mock(() => queryChain),
+        } as any,
+      });
+
+      const result = await isStorageIdReferencedByOtherMessages(
+        ctx as QueryCtx,
+        storageId,
+        conversationId,
+        excludeMessageIds
+      );
+
+      expect(result).toBe(true);
+    });
+
+    test("returns false when messages have no attachments", async () => {
+      const storageId = "storage-123" as Id<"_storage">;
+      const messageId = "msg-1" as Id<"messages">;
+      const excludeMessageIds = new Set([messageId]);
+
+      const messages = [
+        {
+          _id: "msg-2" as Id<"messages">,
+          conversationId,
+          attachments: undefined,
+        },
+      ];
+
+      const queryChain = {
+        withIndex: mock(() => queryChain),
+        collect: mock(() => Promise.resolve(messages)),
+      };
+
+      const ctx = makeConvexCtx({
+        db: {
+          query: mock(() => queryChain),
+        } as any,
+      });
+
+      const result = await isStorageIdReferencedByOtherMessages(
+        ctx as QueryCtx,
+        storageId,
+        conversationId,
+        excludeMessageIds
+      );
+
+      expect(result).toBe(false);
+    });
+  });
+
+  describe("getStorageIdsSafeToDelete", () => {
+    test("returns all storageIds when none are referenced elsewhere", async () => {
+      const storageId1 = "storage-1" as Id<"_storage">;
+      const storageId2 = "storage-2" as Id<"_storage">;
+      const messageId = "msg-1" as Id<"messages">;
+      const excludeMessageIds = new Set([messageId]);
+
+      // Only the excluded message has these attachments
+      const messages = [
+        {
+          _id: messageId,
+          conversationId,
+          attachments: [
+            { storageId: storageId1, type: "image" as const },
+            { storageId: storageId2, type: "image" as const },
+          ],
+        },
+      ];
+
+      const queryChain = {
+        withIndex: mock(() => queryChain),
+        collect: mock(() => Promise.resolve(messages)),
+      };
+
+      const ctx = makeConvexCtx({
+        db: {
+          query: mock(() => queryChain),
+        } as any,
+      });
+
+      const result = await getStorageIdsSafeToDelete(
+        ctx as QueryCtx,
+        [storageId1, storageId2],
+        conversationId,
+        excludeMessageIds
+      );
+
+      expect(result.size).toBe(2);
+      expect(result.has(storageId1)).toBe(true);
+      expect(result.has(storageId2)).toBe(true);
+    });
+
+    test("excludes storageIds that are referenced by other messages", async () => {
+      const storageId1 = "storage-1" as Id<"_storage">;
+      const storageId2 = "storage-2" as Id<"_storage">;
+      const messageId1 = "msg-1" as Id<"messages">;
+      const messageId2 = "msg-2" as Id<"messages">;
+      const excludeMessageIds = new Set([messageId1]);
+
+      // storageId1 is only in excluded message, storageId2 is in both
+      const messages = [
+        {
+          _id: messageId1,
+          conversationId,
+          attachments: [
+            { storageId: storageId1, type: "image" as const },
+            { storageId: storageId2, type: "image" as const },
+          ],
+        },
+        {
+          _id: messageId2,
+          conversationId,
+          attachments: [{ storageId: storageId2, type: "image" as const }],
+        },
+      ];
+
+      const queryChain = {
+        withIndex: mock(() => queryChain),
+        collect: mock(() => Promise.resolve(messages)),
+      };
+
+      const ctx = makeConvexCtx({
+        db: {
+          query: mock(() => queryChain),
+        } as any,
+      });
+
+      const result = await getStorageIdsSafeToDelete(
+        ctx as QueryCtx,
+        [storageId1, storageId2],
+        conversationId,
+        excludeMessageIds
+      );
+
+      // Only storageId1 is safe to delete
+      expect(result.size).toBe(1);
+      expect(result.has(storageId1)).toBe(true);
+      expect(result.has(storageId2)).toBe(false);
+    });
+
+    test("returns empty set when all storageIds are referenced elsewhere", async () => {
+      const storageId = "storage-1" as Id<"_storage">;
+      const messageId1 = "msg-1" as Id<"messages">;
+      const messageId2 = "msg-2" as Id<"messages">;
+      const excludeMessageIds = new Set([messageId1]);
+
+      // Both messages reference the same storageId
+      const messages = [
+        {
+          _id: messageId1,
+          conversationId,
+          attachments: [{ storageId, type: "image" as const }],
+        },
+        {
+          _id: messageId2,
+          conversationId,
+          attachments: [{ storageId, type: "image" as const }],
+        },
+      ];
+
+      const queryChain = {
+        withIndex: mock(() => queryChain),
+        collect: mock(() => Promise.resolve(messages)),
+      };
+
+      const ctx = makeConvexCtx({
+        db: {
+          query: mock(() => queryChain),
+        } as any,
+      });
+
+      const result = await getStorageIdsSafeToDelete(
+        ctx as QueryCtx,
+        [storageId],
+        conversationId,
+        excludeMessageIds
+      );
+
+      expect(result.size).toBe(0);
+    });
+
+    test("returns empty set for empty storageIds array", async () => {
+      const queryChain = {
+        withIndex: mock(() => queryChain),
+        collect: mock(() => Promise.resolve([])),
+      };
+
+      const ctx = makeConvexCtx({
+        db: {
+          query: mock(() => queryChain),
+        } as any,
+      });
+
+      const result = await getStorageIdsSafeToDelete(
+        ctx as QueryCtx,
+        [],
+        conversationId,
+        new Set()
+      );
+
+      expect(result.size).toBe(0);
+    });
+  });
+});
