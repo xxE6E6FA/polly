@@ -4,6 +4,8 @@ Guidance for Claude Code when working with this repository.
 
 ## Commands
 
+**Always use `bun`** - never npm, pnpm, or npx.
+
 ```bash
 bun run dev          # Start dev server (React Router + Convex)
 bun run build        # Production build
@@ -11,6 +13,7 @@ bun run fix          # Auto-fix formatting/linting (Biome)
 bun run check        # Full verification: lint + types + build
 bun run typecheck    # TypeScript only
 bun run test         # Run tests
+bunx <package>       # Instead of npx
 ```
 
 ## Stack
@@ -25,37 +28,22 @@ bun run test         # Run tests
 
 ```
 src/
-├── components/
-│   ├── ui/          # Base UI primitives (Button, Dialog, etc.) - see ui/index.ts
-│   ├── chat/        # Chat domain (messages, input, bubbles)
-│   ├── navigation/  # Sidebar, command palette
-│   ├── files/       # File display and selection
-│   ├── models/      # AI model components
-│   ├── layouts/     # Page layouts
-│   ├── settings/    # Settings pages
-│   ├── data-list/   # VirtualizedDataList
-│   └── auth/        # Auth components
-├── hooks/           # All hooks organized by domain - see hooks/index.ts
+├── components/      # UI primitives in ui/, domain components in chat/, navigation/, etc.
+├── hooks/           # All custom hooks - see hooks/index.ts
+├── lib/             # Utilities - see lib/index.ts
 ├── pages/           # Route components
 ├── providers/       # React context providers
-├── lib/             # Utilities
-└── shared/          # Frontend/backend shared code
+├── stores/          # Zustand stores
+├── types/           # Type definitions
+└── loaders/         # React Router loaders
 
-convex/
-├── ai/              # AI provider integrations
-├── lib/             # Backend utilities
-└── schema.ts        # Database schema
+shared/              # Frontend/backend shared code (top-level)
+convex/              # Backend: schema.ts, ai/, lib/
 ```
-
-## Key Data Models (convex/schema.ts)
-
-- `users`, `conversations`, `messages`, `personas`
-- `userApiKeys`, `backgroundJobs`, `sharedConversations`
 
 ## Routes
 
-- `/` - Home, `/chat/:id` - Conversation, `/private` - Private mode
-- `/settings/*` - Settings, `/share/:id` - Shared conversation
+`/`, `/chat/:id`, `/chat/favorites`, `/private`, `/settings/*`, `/share/:id`
 
 ## Code Style (Biome)
 
@@ -68,28 +56,8 @@ Run `bun run fix` before committing. Key rules:
 
 ## React 19 Patterns
 
-**Refs as props**: Components receive `ref` as a regular prop - no `forwardRef` needed:
-```tsx
-type InputProps = React.ComponentProps<"input"> & {
-  ref?: React.Ref<HTMLInputElement>;
-};
-
-function Input({ className, ref, ...props }: InputProps) {
-  return <input ref={ref} className={className} {...props} />;
-}
-```
-
-**useTransition for mutations**: Use `useTransition` for async operations instead of manual loading state:
-```tsx
-const [isPending, startTransition] = useTransition();
-
-const handleSubmit = () => {
-  startTransition(async () => {
-    await mutation();
-    navigate("/success");
-  });
-};
-```
+- **Refs as props**: Pass `ref` as a regular prop - no `forwardRef` needed
+- **useTransition**: Use for async mutations instead of manual loading state
 
 ## React Compiler
 
@@ -100,35 +68,19 @@ Trust the compiler for optimization. Keep `useMemo`/`useCallback` only for:
 
 Avoid memoization for: simple booleans, strings, filters, zero-dep callbacks.
 
-## Hooks
+## Code Organization
 
-**All custom hooks MUST live in `src/hooks/`** - no exceptions.
+- **Hooks**: All in `src/hooks/`, exported from `hooks/index.ts`. Domain subdirs allowed (e.g., `chat-ui/`).
+- **Utilities**: All in `src/lib/`, exported from `lib/index.ts`
+- **Providers**: All in `src/providers/`
+- **Stores**: All Zustand stores in `src/stores/`
 
-- Never create `use-*.ts` files in component directories
-- Never create `hooks/` subdirectories inside components
-- Export all hooks from `src/hooks/index.ts` barrel file
-- Context consumer hooks (e.g., `useSpeechInputContext`) belong in `src/hooks/`, not with their provider
-
-## Utilities
-
-**All utility functions MUST live in `src/lib/`** - no exceptions.
-
-- Never create `*-utils.ts` or helper files in component directories
-- Parsers, formatters, validators, and general helpers belong in `src/lib/`
-- Export from `src/lib/index.ts` barrel file
-
-## Providers
-
-**All React context providers MUST live in `src/providers/`** - no exceptions.
-
-- Never create `*-context.tsx` files in component directories
-- Context providers that are used across components belong in `src/providers/`
-- The only exception is truly component-internal state (rare)
+Never create hooks, utils, or context files inside component directories.
 
 ## UI Components
 
-- **Tooltips**: Base UI `TooltipTrigger` does NOT support `asChild` - wrap children directly
-- **Model types**: Use `Doc<"userModels"> | Doc<"builtInModels">` for selected models (not `Model`)
+- Base UI `TooltipTrigger` does NOT support `asChild` - wrap children directly
+- Model types: `Doc<"userModels"> | Doc<"builtInModels">` for selected models
 
 ## Styling
 
@@ -147,24 +99,6 @@ Avoid memoization for: simple booleans, strings, filters, zero-dep callbacks.
 
 All files use **kebab-case**: `chat-message.tsx`, `use-chat.ts`, `user-bubble.tsx`
 
-## Module Discovery
+## Imports
 
-Import from barrel files for discoverability:
-
-```typescript
-// UI primitives
-import { Button, Dialog, Input } from "@/components/ui";
-
-// Hooks by domain
-import { useChat, useSelectedModel, useDebounce } from "@/hooks";
-
-// Utilities
-import { cn, formatDate, ROUTES } from "@/lib";
-
-// Domain components
-import { Sidebar, CommandPalette } from "@/components/navigation";
-import { FileDisplay, FileSelectorDialog } from "@/components/files";
-import { ProviderIcon, VirtualizedModelList } from "@/components/models";
-```
-
-See JSDoc comments in barrel files (`ui/index.ts`, `hooks/index.ts`, `lib/index.ts`).
+Use barrel files: `@/components/ui`, `@/hooks`, `@/lib`. See JSDoc in each `index.ts`.
