@@ -1,70 +1,39 @@
 # Environment Variables
 
-Complete reference for all environment variables used by Polly.
-
 ## Frontend (.env.local)
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `VITE_CONVEX_URL` | Yes | Your Convex deployment URL |
+```
+VITE_CONVEX_URL=https://your-deployment.convex.cloud
+```
 
 ## Convex Backend
 
-Set these in your Convex Dashboard → Settings → Environment Variables.
+Set in Convex Dashboard → Settings → Environment Variables.
 
-### Core Services
+### Required
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `GEMINI_API_KEY` | Yes | Google Gemini API key (required for title and summary generation) |
-| `OPENAI_API_KEY` | Yes | OpenAI API key (required for audio transcription) |
-| `EXA_API_KEY` | No | Exa.ai API key (enables web search for all AI models) |
+| Variable | Description |
+|----------|-------------|
+| `API_KEY_ENCRYPTION_SECRET` | `openssl rand -base64 32` |
+| `GEMINI_API_KEY` | Title/summary generation |
+| `OPENAI_API_KEY` | Audio transcription |
+| `AUTH_GOOGLE_ID` | Google OAuth |
+| `AUTH_GOOGLE_SECRET` | Google OAuth |
+| `SITE_URL` | Production URL |
+| `CONVEX_SITE_URL` | Same as SITE_URL |
 
-### OAuth Authentication
+### Optional
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `AUTH_GOOGLE_ID` | Yes | Google OAuth Client ID |
-| `AUTH_GOOGLE_SECRET` | Yes | Google OAuth Client Secret |
-| `SITE_URL` | Yes | Your production URL, e.g., `https://your-app.com` |
-| `CONVEX_SITE_URL` | Yes | Same as SITE_URL (for backward compatibility) |
+| Variable | Description |
+|----------|-------------|
+| `EXA_API_KEY` | Web search |
+| `ANTHROPIC_API_KEY` | Built-in models |
+| `GROQ_API_KEY` | Built-in models |
+| `OPENROUTER_API_KEY` | Built-in models |
+| `REPLICATE_API_TOKEN` | Built-in image models |
 
-### Built-in Models (Optional)
+## Google OAuth
 
-Required only if you're using [built-in models](models.md) for the respective providers:
-
-| Variable | Provider |
-|----------|----------|
-| `GEMINI_API_KEY` | Google |
-| `OPENAI_API_KEY` | OpenAI |
-| `ANTHROPIC_API_KEY` | Anthropic |
-| `GROQ_API_KEY` | Groq |
-| `OPENROUTER_API_KEY` | OpenRouter |
-| `REPLICATE_API_TOKEN` | Replicate (images) |
-
-## Setting up Google OAuth
-
-1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Create a new project or select existing
-3. Enable Google+ API
-4. Go to Credentials → Create Credentials → OAuth 2.0 Client ID
-5. Configure:
-   - Application type: Web application
-   - Authorized JavaScript origins:
-     - `http://localhost:5173` (development)
-     - Your production domain
-   - Authorized redirect URIs:
-     - `http://localhost:5173/auth/callback` (development)
-     - `https://your-domain.com/auth/callback` (production)
-6. Copy the Client ID and Client Secret
-7. Add them to Convex Dashboard → Settings → Environment Variables
-
-## Example .env.local
-
-```bash
-# Required
-VITE_CONVEX_URL=https://your-deployment.convex.cloud
-
-# Optional: for local development with specific features
-# (Most env vars go in Convex Dashboard, not here)
-```
+1. [Google Cloud Console](https://console.cloud.google.com/) → Credentials → OAuth 2.0 Client ID
+2. Origins: `http://localhost:5173`, production domain
+3. Redirects: `http://localhost:5173/auth/callback`, `https://your-domain.com/auth/callback`
