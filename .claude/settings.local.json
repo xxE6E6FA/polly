@@ -85,7 +85,10 @@
       "Bash(timeout 60 bun run test:*)",
       "Bash(bunx vite build:*)",
       "Bash(biome check:*)",
-      "Bash(bunx biome check:*)"
+      "Bash(bunx biome check:*)",
+      "Bash(bunx vite-bundle-visualizer:*)",
+      "Bash(bunx vite-bundle-analyzer:*)",
+      "Bash(bunx source-map-explorer:*)"
     ],
     "deny": []
   },

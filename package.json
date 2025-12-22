@@ -99,7 +99,6 @@
     "husky": "^9.1.7",
     "lint-staged": "^16.1.0",
     "react-compiler-healthcheck": "^1.0.0",
-    "rollup-plugin-visualizer": "^6.0.5",
     "typescript": "^5",
     "vite": "^7.2.2"
   },
