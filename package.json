@@ -48,6 +48,7 @@
     "framer-motion": "^12.23.24",
     "frimousse": "^0.3.0",
     "fuse.js": "^7.1.0",
+    "heic2any": "^0.0.4",
     "humanize-ai-lib": "^1.0.0",
     "idb-keyval": "^6.2.2",
     "jszip": "^3.10.1",

@@ -16,7 +16,7 @@ describe("FILE_LIMITS", () => {
   });
 
   test("has correct max dimension", () => {
-    expect(FILE_LIMITS.MAX_DIMENSION).toBe(1920);
+    expect(FILE_LIMITS.MAX_DIMENSION).toBe(1024);
   });
 
   test("has correct thumbnail size", () => {
@@ -24,7 +24,7 @@ describe("FILE_LIMITS", () => {
   });
 
   test("has correct image quality", () => {
-    expect(FILE_LIMITS.IMAGE_QUALITY).toBe(0.85);
+    expect(FILE_LIMITS.IMAGE_QUALITY).toBe(0.8);
   });
 });
 
@@ -112,6 +112,8 @@ describe("FILE_EXTENSIONS", () => {
       "webp",
       "svg",
       "bmp",
+      "heic",
+      "heif",
     ]);
   });
 

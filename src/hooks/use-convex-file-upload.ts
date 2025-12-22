@@ -52,9 +52,14 @@ export function useConvexFileUpload() {
         fileProgress.progress = 80;
         onProgress?.(fileProgress);
 
-        // Determine attachment type based on file type
+        // Determine attachment type based on file type and extension
         let attachmentType: "image" | "pdf" | "text";
-        if (file.type.startsWith("image/")) {
+        const isImage =
+          file.type.startsWith("image/") ||
+          file.name.toLowerCase().endsWith(".heic") ||
+          file.name.toLowerCase().endsWith(".heif");
+
+        if (isImage) {
           attachmentType = "image";
         } else if (file.type === "application/pdf") {
           attachmentType = "pdf";

@@ -83,3 +83,50 @@ export function setTemperature(
   const key = getChatKey(conversationId ?? undefined);
   (store ?? getChatInputStore()).getState().setTemperature(key, value);
 }
+
+/**
+ * Update an attachment's storageId after background upload completes.
+ * Matches by filename and size to find the correct attachment.
+ */
+export function updateAttachmentStorageId(
+  conversationId: string | null | undefined,
+  fileName: string,
+  fileSize: number,
+  storageId: Id<"_storage">,
+  store?: ChatInputStoreApi
+) {
+  const key = getChatKey(conversationId ?? undefined);
+  const targetStore = store ?? getChatInputStore();
+  targetStore.setState(current => {
+    const prev = current.attachmentsByKey[key];
+    if (!Array.isArray(prev)) {
+      return current;
+    }
+
+    // Find the attachment by name and size (without storageId)
+    const index = prev.findIndex(
+      att => att.name === fileName && att.size === fileSize && !att.storageId
+    );
+
+    if (index === -1) {
+      return current;
+    }
+
+    // Update the attachment with the storageId
+    const existingAttachment = prev[index];
+    if (!existingAttachment) {
+      return current;
+    }
+
+    const next = [...prev];
+    next[index] = { ...existingAttachment, storageId };
+
+    return {
+      ...current,
+      attachmentsByKey: {
+        ...current.attachmentsByKey,
+        [key]: next,
+      },
+    };
+  }, true);
+}

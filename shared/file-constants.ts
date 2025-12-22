@@ -3,9 +3,9 @@
 export const FILE_LIMITS = {
   MAX_SIZE_BYTES: 20 * 1024 * 1024, // 20MB (default for images and text files)
   PDF_MAX_SIZE_BYTES: 50 * 1024 * 1024, // 50MB (larger limit for PDFs)
-  MAX_DIMENSION: 1920,
-  THUMBNAIL_SIZE: 200, // Increased from 80 to 200 for better quality
-  IMAGE_QUALITY: 0.85,
+  MAX_DIMENSION: 1024,
+  THUMBNAIL_SIZE: 200,
+  IMAGE_QUALITY: 0.8,
 } as const;
 
 export const BATCH_PROCESSING = {
@@ -47,6 +47,6 @@ export const FILE_EXTENSIONS = {
     "sql",
     "sh",
   ],
-  IMAGE: ["jpg", "jpeg", "png", "gif", "webp", "svg", "bmp"],
+  IMAGE: ["jpg", "jpeg", "png", "gif", "webp", "svg", "bmp", "heic", "heif"],
   PDF: ["pdf"],
 } as const;

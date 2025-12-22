@@ -26,7 +26,8 @@ export type ProcessFilesDeps = {
   ) => Promise<{ base64: string; mimeType: string }>;
   isFileTypeSupported?: (
     fileType: string,
-    model: { provider: string; modelId: string }
+    model: { provider: string; modelId: string },
+    fileName?: string
   ) => FileSupport;
 };
 
@@ -80,7 +81,7 @@ export async function processFilesForAttachments(
       continue;
     }
 
-    const fileSupport = isFileTypeSupported(file.type, validModel);
+    const fileSupport = isFileTypeSupported(file.type, validModel, file.name);
     if (!fileSupport.supported) {
       notify?.({
         title: "Unsupported File Type",
@@ -115,11 +116,27 @@ export async function processFilesForAttachments(
         let mimeType = file.type;
 
         if (fileSupport.category === "image") {
+          // Check if this is a HEIC file - conversion is required
+          const isHeic =
+            file.name.toLowerCase().endsWith(".heic") ||
+            file.name.toLowerCase().endsWith(".heif") ||
+            file.type === "image/heic" ||
+            file.type === "image/heif";
+
           try {
             const converted = await convertImageToWebP(file);
             base64Content = converted.base64;
             mimeType = converted.mimeType;
-          } catch {
+          } catch (_error) {
+            // HEIC files require conversion - can't fall back to original
+            if (isHeic) {
+              notify?.({
+                title: "HEIC Conversion Failed",
+                description: `Could not convert ${file.name}. Please try converting it to JPEG or PNG first.`,
+                type: "error",
+              });
+              continue;
+            }
             base64Content = await readFileAsBase64(file);
           }
         } else {

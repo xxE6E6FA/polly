@@ -1,5 +1,17 @@
-export function isImageType(fileType: string): boolean {
-  return fileType.startsWith("image/");
+export function isImageType(fileType: string, fileName?: string): boolean {
+  if (fileType.startsWith("image/")) {
+    return true;
+  }
+
+  // Check by extension for HEIC/HEIF (browsers often report empty or octet-stream MIME)
+  if (fileName) {
+    const lowerName = fileName.toLowerCase();
+    if (lowerName.endsWith(".heic") || lowerName.endsWith(".heif")) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 export function isTextType(fileType: string): boolean {
@@ -50,10 +62,11 @@ export function checkModelCapability(
 
 export function isFileTypeSupported(
   fileType: string,
-  model?: ModelForCapabilityCheck
+  model?: ModelForCapabilityCheck,
+  fileName?: string
 ): { supported: boolean; category: "image" | "pdf" | "text" | "unsupported" } {
-  // Check image support
-  if (isImageType(fileType)) {
+  // Check image support (including HEIC by extension)
+  if (isImageType(fileType, fileName)) {
     const hasImageCapability = model?.supportsImages ?? false;
     if (hasImageCapability) {
       return { supported: true, category: "image" };

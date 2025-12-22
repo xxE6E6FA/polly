@@ -1,11 +1,58 @@
 // Shared file processing utilities
 import { FILE_LIMITS } from "@shared/file-constants";
 
-export function convertImageToWebP(
+/**
+ * Check if a file is HEIC/HEIF format
+ */
+function isHeicFile(file: File): boolean {
+  const type = file.type.toLowerCase();
+  const name = file.name.toLowerCase();
+  return (
+    type === "image/heic" ||
+    type === "image/heif" ||
+    name.endsWith(".heic") ||
+    name.endsWith(".heif")
+  );
+}
+
+/**
+ * Convert HEIC/HEIF to JPEG for browser compatibility
+ * Dynamically imports heic2any to avoid bundling it in the main chunk
+ */
+async function convertHeicToJpeg(file: File): Promise<File> {
+  const heic2any = (await import("heic2any")).default;
+
+  const blob = await heic2any({
+    blob: file,
+    toType: "image/jpeg",
+    quality: 0.92,
+  });
+
+  // heic2any can return an array for multi-image HEIC files
+  const resultBlob = Array.isArray(blob) ? blob[0] : blob;
+
+  if (!resultBlob) {
+    throw new Error("Failed to convert HEIC image");
+  }
+
+  return new File(
+    [resultBlob],
+    file.name.replace(/\.heic$/i, ".jpg").replace(/\.heif$/i, ".jpg"),
+    { type: "image/jpeg" }
+  );
+}
+
+export async function convertImageToWebP(
   file: File,
   maxDimension = FILE_LIMITS.MAX_DIMENSION,
   quality = FILE_LIMITS.IMAGE_QUALITY
 ): Promise<{ base64: string; mimeType: string }> {
+  // Convert HEIC/HEIF to JPEG first (browsers can't decode HEIC natively)
+  let processedFile = file;
+  if (isHeicFile(file)) {
+    processedFile = await convertHeicToJpeg(file);
+  }
+
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = e => {
@@ -68,7 +115,7 @@ export function convertImageToWebP(
       img.src = e.target?.result as string;
     };
     reader.onerror = () => reject(new Error("Failed to read file"));
-    reader.readAsDataURL(file);
+    reader.readAsDataURL(processedFile);
   });
 }
 
@@ -92,11 +139,17 @@ export function getCanvas2DContext(
   return ctx;
 }
 
-export function generateThumbnail(
+export async function generateThumbnail(
   file: File,
   maxSize = FILE_LIMITS.THUMBNAIL_SIZE,
   deps: ThumbnailDeps = {}
 ): Promise<string> {
+  // Convert HEIC/HEIF to JPEG first (browsers can't decode HEIC natively)
+  let processedFile = file;
+  if (isHeicFile(file)) {
+    processedFile = await convertHeicToJpeg(file);
+  }
+
   return new Promise((resolve, reject) => {
     const createCanvas =
       deps.createCanvas ?? (() => document.createElement("canvas"));
@@ -147,7 +200,7 @@ export function generateThumbnail(
       revokeObjectURL(objectUrl);
       reject(error);
     };
-    const objectUrl = toObjectURL(file);
+    const objectUrl = toObjectURL(processedFile);
     img.src = objectUrl;
   });
 }

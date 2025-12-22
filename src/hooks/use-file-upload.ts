@@ -56,8 +56,12 @@ export function useFileUpload({
           continue;
         }
 
-        // Check file type support
-        const fileSupport = isFileTypeSupported(file.type, currentModel);
+        // Check file type support (pass filename for HEIC detection by extension)
+        const fileSupport = isFileTypeSupported(
+          file.type,
+          currentModel,
+          file.name
+        );
         if (!fileSupport.supported) {
           notificationDialog.notify({
             title: "Unsupported File Type",
@@ -106,6 +110,13 @@ export function useFileUpload({
 
             // Convert images to WebP for optimization
             if (isImage) {
+              // Check if this is a HEIC file - conversion is required for these
+              const isHeic =
+                file.name.toLowerCase().endsWith(".heic") ||
+                file.name.toLowerCase().endsWith(".heif") ||
+                file.type === "image/heic" ||
+                file.type === "image/heif";
+
               try {
                 const converted = await convertImageToWebP(file);
                 // Store thumbnail for progress indicator
@@ -122,6 +133,16 @@ export function useFileUpload({
                 });
                 mimeType = converted.mimeType;
               } catch (error) {
+                // HEIC files require conversion - can't fall back to original
+                if (isHeic) {
+                  console.error("Failed to convert HEIC image:", error);
+                  notificationDialog.notify({
+                    title: "HEIC Conversion Failed",
+                    description: `Could not convert ${file.name}. Please try converting it to JPEG or PNG first.`,
+                    type: "error",
+                  });
+                  continue;
+                }
                 console.warn(
                   "Failed to convert image to WebP, using original:",
                   error
@@ -196,9 +217,19 @@ export function useFileUpload({
                     )
                 );
               })
-                .then(() => {
-                  // Upload complete - attachment already has base64 content for display
-                  // The storageId would be used for server-side processing
+                .then(async uploadedAttachment => {
+                  // Upload complete - update the attachment with storageId to prevent re-upload
+                  if (uploadedAttachment.storageId) {
+                    const { updateAttachmentStorageId } = await import(
+                      "@/stores/actions/chat-input-actions"
+                    );
+                    updateAttachmentStorageId(
+                      conversationId ?? undefined,
+                      file.name,
+                      processedFile.size,
+                      uploadedAttachment.storageId
+                    );
+                  }
                   progressStore.completeUpload(fileKey);
                   setUploadProgress(prev => {
                     const newMap = new Map(prev);

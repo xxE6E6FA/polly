@@ -82,7 +82,9 @@
       "WebFetch(domain:virtuoso.dev)",
       "mcp__plugin_context7_context7__resolve-library-id",
       "mcp__plugin_context7_context7__get-library-docs",
-      "Bash(timeout 60 bun run test:*)"
+      "Bash(timeout 60 bun run test:*)",
+      "Bash(bunx vite build:*)",
+      "Bash(biome check:*)"
     ],
     "deny": []
   },
