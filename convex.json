@@ -8,8 +8,6 @@
       "@ai-sdk/google",
       "@ai-sdk/openai",
       "@openrouter/ai-sdk-provider"
-    ],
-    "version": "20"
-  },
-  "schema": "./convex/schema.ts"
+    ]
+  }
 }
