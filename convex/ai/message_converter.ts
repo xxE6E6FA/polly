@@ -225,9 +225,17 @@ async function convertImageAttachment(
 ): Promise<ImagePart | TextPart> {
   // Priority 1: Use storageId to get a fresh, signed URL
   if (attachment.storageId) {
-    const storageUrl = await ctx.storage.getUrl(attachment.storageId);
-    if (storageUrl) {
-      return { type: "image", image: storageUrl };
+    try {
+      const storageUrl = await ctx.storage.getUrl(attachment.storageId);
+      if (storageUrl) {
+        return { type: "image", image: storageUrl };
+      }
+    } catch (error) {
+      console.warn(
+        "[message-converter] Failed to get storage URL, falling back to blob fetch:",
+        error
+      );
+      // Fall through to blob fetch
     }
 
     // Priority 2: Fetch blob and convert to data URL
