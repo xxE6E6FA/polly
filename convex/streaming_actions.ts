@@ -22,6 +22,100 @@ import { streamLLMToMessage } from "./ai/streaming_core";
 import { reasoningConfigSchema } from "./lib/schemas";
 
 /**
+ * Check if a message content part is an attachment (image, file, pdf, etc.)
+ */
+function isAttachmentPart(part: unknown): boolean {
+  if (!part || typeof part !== "object") {
+    return false;
+  }
+  const p = part as Record<string, unknown>;
+
+  // Check for attachment marker
+  if ("attachment" in p) {
+    return true;
+  }
+
+  // Check for legacy image_url format
+  if (p.type === "image_url") {
+    return true;
+  }
+
+  // Check for file type
+  if (p.type === "file") {
+    return true;
+  }
+
+  // Check for direct attachment types
+  if (p.type === "image" || p.type === "pdf") {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Strip attachments from all messages except the last user message.
+ *
+ * LLMs don't benefit from seeing old attachments - the conversation text
+ * already captures what was discussed about them. This dramatically reduces:
+ * - Payload size
+ * - Memory usage during conversion
+ * - API costs (fewer tokens)
+ * - Risk of hitting provider limits
+ */
+function stripAttachmentsFromOlderMessages(
+  messages: Array<{ role: string; content: unknown }>
+): Array<{ role: string; content: unknown }> {
+  // Find the index of the last user message
+  let lastUserMessageIndex = -1;
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i]?.role === "user") {
+      lastUserMessageIndex = i;
+      break;
+    }
+  }
+
+  // If no user message found, return as-is
+  if (lastUserMessageIndex === -1) {
+    return messages;
+  }
+
+  // Process messages, keeping attachments only on the last user message
+  return messages.map((msg, index) => {
+    // Keep the last user message intact (with attachments)
+    if (index === lastUserMessageIndex) {
+      return msg;
+    }
+
+    // For string content, no changes needed
+    if (typeof msg.content === "string") {
+      return msg;
+    }
+
+    // For array content, filter out attachments
+    if (Array.isArray(msg.content)) {
+      const filteredContent = msg.content.filter(
+        part => !isAttachmentPart(part)
+      );
+
+      // If we removed attachments and content is now empty, return as-is
+      // (the message might have been purely attachments, which is fine to drop)
+      if (filteredContent.length === 0 && msg.content.length > 0) {
+        // Keep at least an empty text part to maintain message structure
+        return {
+          ...msg,
+          content: [{ type: "text", text: "" }],
+        };
+      }
+
+      return { ...msg, content: filteredContent };
+    }
+
+    return msg;
+  });
+}
+
+/**
  * Server-side streaming action for conversation messages.
  * Uses Node.js runtime for 512 MiB memory (vs 64 MiB in default runtime).
  * This is necessary for providers like Gemini that may use more memory during streaming.
@@ -81,11 +175,15 @@ export const streamMessage = internalAction({
         reasoningConfig
       );
 
-      // 4. Convert messages with attachments to AI SDK format
-      // Use capabilities passed from mutation context (where auth is available)
+      // 4. Strip attachments from older messages (keep only on last user message)
+      // This dramatically reduces payload size and avoids provider limits
+      const messagesWithRecentAttachmentsOnly =
+        stripAttachmentsFromOlderMessages(args.messages);
 
+      // 5. Convert messages with attachments to AI SDK format
+      // Use capabilities passed from mutation context (where auth is available)
       const convertedMessages = await Promise.all(
-        args.messages.map(async msg => {
+        messagesWithRecentAttachmentsOnly.map(async msg => {
           // String content - no conversion needed
           if (typeof msg.content === "string") {
             return msg;
@@ -131,7 +229,7 @@ export const streamMessage = internalAction({
         })
       );
 
-      // 5. Stream using consolidated streaming_core
+      // 6. Stream using consolidated streaming_core
       await streamLLMToMessage({
         ctx,
         conversationId,
