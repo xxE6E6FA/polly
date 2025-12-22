@@ -76,6 +76,7 @@ import type * as migrations_updateUserFilesMetadata from "../migrations/updateUs
 import type * as models_dev_sync from "../models_dev_sync.js";
 import type * as personas from "../personas.js";
 import type * as sharedConversations from "../sharedConversations.js";
+import type * as streaming_actions from "../streaming_actions.js";
 import type * as titleGeneration from "../titleGeneration.js";
 import type * as types from "../types.js";
 import type * as userModels from "../userModels.js";
@@ -157,6 +158,7 @@ declare const fullApi: ApiFromModules<{
   models_dev_sync: typeof models_dev_sync;
   personas: typeof personas;
   sharedConversations: typeof sharedConversations;
+  streaming_actions: typeof streaming_actions;
   titleGeneration: typeof titleGeneration;
   types: typeof types;
   userModels: typeof userModels;

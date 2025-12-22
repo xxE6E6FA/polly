@@ -104,7 +104,7 @@ export const executeStreamingActionForRetry = async (
   await incrementUserMessageStats(ctx, userId, model, provider);
 
   // Schedule server-side streaming
-  await ctx.scheduler.runAfter(0, internal.conversations.streamMessage, {
+  await ctx.scheduler.runAfter(0, internal.streaming_actions.streamMessage, {
     messageId: assistantMessageId,
     conversationId: args.conversationId,
     model,

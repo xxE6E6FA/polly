@@ -360,11 +360,15 @@ export async function streamLLMToMessage({
       } catch {}
     }
 
-    // Drain the full stream to trigger onChunk/onFinish
-    // Using fullStream instead of textStream to properly handle multi-step tool calls
-    for await (const _ of result.fullStream) {
-      if (stopped) break;
-    }
+    // Consume the stream to trigger onChunk/onFinish callbacks
+    // Using consumeStream() instead of `for await (fullStream)` to avoid memory accumulation.
+    // The `for await` pattern buffers all chunks in memory (backpressure issue), which causes
+    // Gemini models to hit the 64MB Convex action limit due to:
+    // 1. Gemini returns larger chunks than other providers
+    // 2. Gemini thinking tokens can be up to 24K tokens
+    // 3. The eager iteration doesn't allow garbage collection until stream completes
+    // consumeStream() processes chunks without buffering, triggering callbacks as data arrives.
+    await result.consumeStream()
   } catch (error) {
     console.error("Stream error: stream failed", error);
     const errorMessage = getUserFriendlyErrorMessage(error);

@@ -262,7 +262,7 @@ export async function createConversationHandler(
       },
     ];
 
-    await ctx.scheduler.runAfter(0, internal.conversations.streamMessage, {
+    await ctx.scheduler.runAfter(0, internal.streaming_actions.streamMessage, {
       messageId: assistantMessageId,
       conversationId,
       model: fullModel.modelId,
@@ -583,7 +583,7 @@ export const sendMessage = action({
     });
 
     // Schedule server-side streaming
-    await ctx.scheduler.runAfter(0, internal.conversations.streamMessage, {
+    await ctx.scheduler.runAfter(0, internal.streaming_actions.streamMessage, {
       messageId: assistantMessageId,
       conversationId: args.conversationId,
       model: fullModel.modelId,
@@ -597,144 +597,6 @@ export const sendMessage = action({
     });
 
     return { userMessageId, assistantMessageId };
-  },
-});
-
-export const streamMessage = internalAction({
-  args: {
-    messageId: v.id("messages"),
-    conversationId: v.id("conversations"),
-    model: v.string(),
-    provider: v.string(),
-    messages: v.array(v.object({ role: v.string(), content: v.any() })),
-    personaId: v.optional(v.id("personas")),
-    reasoningConfig: v.optional(reasoningConfigSchema),
-    // Model capabilities passed from mutation context (where auth is available)
-    supportsTools: v.optional(v.boolean()),
-    supportsFiles: v.optional(v.boolean()),
-  },
-  handler: async (ctx, args) => {
-    const {
-      messageId,
-      conversationId,
-      model: modelId,
-      provider,
-      supportsTools,
-      supportsFiles,
-    } = args;
-
-    try {
-      // 1. Get API key for the provider
-      const apiKey = await getApiKey(
-        ctx,
-        provider as Parameters<typeof getApiKey>[1],
-        modelId,
-        conversationId
-      );
-
-      // 2. Create language model
-      const languageModel = await createLanguageModel(
-        ctx,
-        provider as Parameters<typeof createLanguageModel>[1],
-        modelId,
-        apiKey
-      );
-
-      // 3. Get reasoning stream options if enabled
-      const reasoningConfig = args.reasoningConfig?.enabled
-        ? {
-            effort: args.reasoningConfig.effort,
-            maxTokens: args.reasoningConfig.maxTokens,
-          }
-        : undefined;
-
-      const streamOptions = await getProviderStreamOptions(
-        ctx,
-        provider as Parameters<typeof getProviderStreamOptions>[1],
-        modelId,
-        reasoningConfig
-      );
-
-      // 4. Convert messages with attachments to AI SDK format
-      // Use capabilities passed from mutation context (where auth is available)
-
-      const convertedMessages = await Promise.all(
-        args.messages.map(async msg => {
-          // String content - no conversion needed
-          if (typeof msg.content === "string") {
-            return msg;
-          }
-
-          // Array content - convert each part
-          if (Array.isArray(msg.content)) {
-            const convertedParts = await Promise.all(
-              msg.content.map((part: LegacyMessagePart) => {
-                // Plain text parts - pass through
-                if (
-                  part.type === "text" &&
-                  "text" in part &&
-                  !("attachment" in part)
-                ) {
-                  return part;
-                }
-
-                // Parts with attachments - use unified converter
-                if (
-                  "attachment" in part ||
-                  part.type === "image_url" ||
-                  part.type === "file"
-                ) {
-                  return convertLegacyPartToAISDK(ctx, part, {
-                    provider,
-                    modelId,
-                    supportsFiles: supportsFiles ?? false,
-                  });
-                }
-
-                return part;
-              })
-            );
-
-            return {
-              ...msg,
-              content: convertedParts,
-            };
-          }
-
-          return msg;
-        })
-      );
-
-      // 5. Stream using consolidated streaming_core
-      await streamLLMToMessage({
-        ctx,
-        conversationId,
-        messageId,
-        model: languageModel,
-        messages: convertedMessages as Parameters<
-          typeof streamLLMToMessage
-        >[0]["messages"],
-        // Pass capabilities directly instead of re-looking them up (action context lacks auth)
-        supportsTools: supportsTools ?? false,
-        extraOptions: streamOptions,
-      });
-    } catch (error) {
-      // Update message to error state on any failure (including setup errors before streaming)
-      // This prevents messages from being stuck in "thinking" status indefinitely
-      console.error("Stream setup error:", error);
-      const errorMessage = getUserFriendlyErrorMessage(error);
-      await ctx.runMutation(internal.messages.updateMessageError, {
-        messageId,
-        error: errorMessage,
-      });
-    } finally {
-      // Use conditional clearing to prevent race conditions with newer streaming actions.
-      // Only clears isStreaming if this message is still the current streaming message.
-      await ctx.runMutation(internal.conversations.clearStreamingForMessage, {
-        conversationId: args.conversationId,
-        messageId,
-      });
-    }
   },
 });
 
@@ -1498,7 +1360,7 @@ export const createWithUserId = internalMutation({
 
       // Schedule server-side streaming
       // Note: No model capabilities available in this internal mutation path
-      await scheduleRunAfter(ctx, 0, internal.conversations.streamMessage, {
+      await scheduleRunAfter(ctx, 0, internal.streaming_actions.streamMessage, {
         messageId: assistantMessageId,
         conversationId,
         model: args.model || "unknown",
@@ -1735,7 +1597,7 @@ export const startConversation = action({
     });
 
     // 6. Schedule server-side streaming (runs in background)
-    await ctx.scheduler.runAfter(0, internal.conversations.streamMessage, {
+    await ctx.scheduler.runAfter(0, internal.streaming_actions.streamMessage, {
       messageId: assistantMessageId,
       conversationId,
       model: fullModel.modelId,
@@ -2388,17 +2250,21 @@ export const retryFromMessage = action({
       });
 
       // Schedule the streaming action to regenerate the assistant response
-      await ctx.scheduler.runAfter(0, internal.conversations.streamMessage, {
-        messageId: targetMessage._id,
-        conversationId: args.conversationId,
-        model: fullModel.modelId,
-        provider: fullModel.provider,
-        messages: contextMessages,
-        personaId: effectivePersonaId,
-        reasoningConfig: args.reasoningConfig,
-        supportsTools: fullModel.supportsTools ?? false,
-        supportsFiles: fullModel.supportsFiles ?? false,
-      });
+      await ctx.scheduler.runAfter(
+        0,
+        internal.streaming_actions.streamMessage,
+        {
+          messageId: targetMessage._id,
+          conversationId: args.conversationId,
+          model: fullModel.modelId,
+          provider: fullModel.provider,
+          messages: contextMessages,
+          personaId: effectivePersonaId,
+          reasoningConfig: args.reasoningConfig,
+          supportsTools: fullModel.supportsTools ?? false,
+          supportsFiles: fullModel.supportsFiles ?? false,
+        }
+      );
 
       return { assistantMessageId: targetMessage._id };
     }
