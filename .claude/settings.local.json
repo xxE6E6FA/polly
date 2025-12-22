@@ -84,7 +84,8 @@
       "mcp__plugin_context7_context7__get-library-docs",
       "Bash(timeout 60 bun run test:*)",
       "Bash(bunx vite build:*)",
-      "Bash(biome check:*)"
+      "Bash(biome check:*)",
+      "Bash(bunx biome check:*)"
     ],
     "deny": []
   },

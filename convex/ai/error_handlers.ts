@@ -96,11 +96,14 @@ export function classifyStreamError(error: unknown): StreamError {
 }
 
 /**
- * Unified retry handler with exponential backoff
+ * Unified retry handler with exponential backoff and jitter.
+ *
+ * Uses jitter to prevent thundering herd when multiple operations
+ * retry simultaneously after a conflict.
  */
 export async function withRetry<T>(
   operation: () => Promise<T>,
-  maxAttempts: number = 3,
+  maxAttempts: number = 5,
   baseDelayMs: number = 25
 ): Promise<T> {
   let lastError: unknown;
@@ -117,9 +120,12 @@ export async function withRetry<T>(
         throw error;
       }
 
-      // Exponential backoff for retryable errors
+      // Exponential backoff with jitter for retryable errors
       if (errorInfo.type === "WriteConflict") {
-        const delay = baseDelayMs * 2 ** (attempt - 1);
+        const exponentialDelay = baseDelayMs * 2 ** (attempt - 1);
+        // Add 0-50% jitter to prevent thundering herd
+        const jitter = Math.random() * 0.5 * exponentialDelay;
+        const delay = exponentialDelay + jitter;
         await new Promise(resolve => setTimeout(resolve, delay));
       }
     }

@@ -1299,27 +1299,29 @@ export const internalPatch = internalMutation({
     clearFields: v.optional(v.array(v.string())),
   },
   handler: async (ctx, args) => {
-    // Check if conversation exists before patching (defensive)
-    const conversation = await ctx.db.get("conversations", args.id);
-    if (!conversation) {
-      return; // Silent no-op if not found
-    }
-
-    const patch: Record<string, unknown> = { ...args.updates };
-
-    // Apply explicit field deletions (undefined inside handler = actual deletion)
-    if (args.clearFields) {
-      for (const field of args.clearFields) {
-        patch[field] = undefined;
+    await withRetry(async () => {
+      // Check if conversation exists before patching (defensive)
+      const conversation = await ctx.db.get("conversations", args.id);
+      if (!conversation) {
+        return; // Silent no-op if not found
       }
-    }
 
-    if (args.setUpdatedAt) {
-      // Ensure strictly monotonic updatedAt to satisfy tests that expect a bump
-      const now = Date.now();
-      patch.updatedAt = Math.max(now, (conversation.updatedAt || 0) + 1);
-    }
-    await ctx.db.patch("conversations", args.id, patch);
+      const patch: Record<string, unknown> = { ...args.updates };
+
+      // Apply explicit field deletions (undefined inside handler = actual deletion)
+      if (args.clearFields) {
+        for (const field of args.clearFields) {
+          patch[field] = undefined;
+        }
+      }
+
+      if (args.setUpdatedAt) {
+        // Ensure strictly monotonic updatedAt to satisfy tests that expect a bump
+        const now = Date.now();
+        patch.updatedAt = Math.max(now, (conversation.updatedAt || 0) + 1);
+      }
+      await ctx.db.patch("conversations", args.id, patch);
+    });
   },
 });
 

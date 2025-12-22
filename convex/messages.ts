@@ -568,76 +568,57 @@ export const internalUpdate = internalMutation({
     const { id, appendContent, appendReasoning, clearMetadataFields, ...rest } =
       args;
 
-    let retries = 0;
-    const maxRetries = 3;
-
-    while (retries < maxRetries) {
-      try {
-        // Check if message exists before patching
-        const message = await ctx.db.get("messages", id);
-        if (!message) {
-          return; // Return silently instead of throwing
-        }
-
-        // Don't overwrite error status - if message already has an error, skip metadata updates
-        if (message.status === "error" && rest.metadata) {
-          // Still allow non-metadata updates (like model/provider changes)
-          const { metadata: _metadata, ...nonMetadataUpdates } = rest;
-          if (Object.keys(nonMetadataUpdates).length > 0) {
-            const updates: Partial<Doc<"messages">> = { ...nonMetadataUpdates };
-            if (appendContent) {
-              updates.content = (message.content || "") + appendContent;
-            }
-            if (appendReasoning) {
-              updates.reasoning = (message.reasoning || "") + appendReasoning;
-            }
-            return await ctx.db.patch("messages", id, updates);
-          }
-          return;
-        }
-
-        const updates: Partial<Doc<"messages">> = { ...rest };
-        if (appendContent) {
-          updates.content = (message.content || "") + appendContent;
-        }
-        if (appendReasoning) {
-          updates.reasoning = (message.reasoning || "") + appendReasoning;
-        }
-
-        // Handle explicit metadata field deletions by merging with existing metadata
-        // and setting fields to undefined (which Convex will delete from the document)
-        if (clearMetadataFields && clearMetadataFields.length > 0) {
-          const existingMetadata = (message.metadata || {}) as Record<
-            string,
-            unknown
-          >;
-          const newMetadata: Record<string, unknown> = {
-            ...existingMetadata,
-            ...(rest.metadata || {}),
-          };
-          for (const field of clearMetadataFields) {
-            newMetadata[field] = undefined;
-          }
-          updates.metadata = newMetadata as typeof message.metadata;
-        }
-
-        return await ctx.db.patch("messages", id, updates);
-      } catch (error) {
-        if (
-          retries < maxRetries - 1 &&
-          error instanceof Error &&
-          (error.message.includes("write conflict") ||
-            error.message.includes("conflict"))
-        ) {
-          retries++;
-          await new Promise(resolve =>
-            setTimeout(resolve, 10 * 2 ** (retries - 1))
-          );
-          continue;
-        }
-        throw error;
+    return await withRetry(async () => {
+      // Check if message exists before patching
+      const message = await ctx.db.get("messages", id);
+      if (!message) {
+        return; // Return silently instead of throwing
       }
-    }
+
+      // Don't overwrite error status - if message already has an error, skip metadata updates
+      if (message.status === "error" && rest.metadata) {
+        // Still allow non-metadata updates (like model/provider changes)
+        const { metadata: _metadata, ...nonMetadataUpdates } = rest;
+        if (Object.keys(nonMetadataUpdates).length > 0) {
+          const updates: Partial<Doc<"messages">> = { ...nonMetadataUpdates };
+          if (appendContent) {
+            updates.content = (message.content || "") + appendContent;
+          }
+          if (appendReasoning) {
+            updates.reasoning = (message.reasoning || "") + appendReasoning;
+          }
+          return await ctx.db.patch("messages", id, updates);
+        }
+        return;
+      }
+
+      const updates: Partial<Doc<"messages">> = { ...rest };
+      if (appendContent) {
+        updates.content = (message.content || "") + appendContent;
+      }
+      if (appendReasoning) {
+        updates.reasoning = (message.reasoning || "") + appendReasoning;
+      }
+
+      // Handle explicit metadata field deletions by merging with existing metadata
+      // and setting fields to undefined (which Convex will delete from the document)
+      if (clearMetadataFields && clearMetadataFields.length > 0) {
+        const existingMetadata = (message.metadata || {}) as Record<
+          string,
+          unknown
+        >;
+        const newMetadata: Record<string, unknown> = {
+          ...existingMetadata,
+          ...(rest.metadata || {}),
+        };
+        for (const field of clearMetadataFields) {
+          newMetadata[field] = undefined;
+        }
+        updates.metadata = newMetadata as typeof message.metadata;
+      }
+
+      return await ctx.db.patch("messages", id, updates);
+    });
   },
 });
 
@@ -995,36 +976,36 @@ export const removeMultiple = mutation({
     const operations: Promise<void>[] = [];
 
     // Decrement messageCount for each affected conversation
+    // Use withRetry to handle write conflicts with fresh reads
     for (const [conversationId, deletedCount] of conversationMessageCounts) {
       operations.push(
-        (async () => {
-          try {
-            const conversation = await ctx.db.get(
-              "conversations",
-              conversationId
-            );
-            if (conversation) {
-              await ctx.db.patch("conversations", conversationId, {
-                isStreaming: false,
-                messageCount: Math.max(
-                  0,
-                  (conversation.messageCount || deletedCount) - deletedCount
-                ),
-              });
-            }
-          } catch (error) {
-            console.warn(
-              `Failed to update conversation state for ${conversationId}:`,
-              error
-            );
+        withRetry(async () => {
+          const conversation = await ctx.db.get(
+            "conversations",
+            conversationId
+          );
+          if (conversation) {
+            await ctx.db.patch("conversations", conversationId, {
+              isStreaming: false,
+              messageCount: Math.max(
+                0,
+                (conversation.messageCount || deletedCount) - deletedCount
+              ),
+            });
           }
-        })()
+        }).catch(error => {
+          console.warn(
+            `Failed to update conversation state for ${conversationId}:`,
+            error
+          );
+        })
       );
     }
 
+    // Decrement user message counts with retry logic
     for (const [userId, messageCount] of userMessageCounts) {
       operations.push(
-        (async () => {
+        withRetry(async () => {
           const user = await ctx.db.get("users", userId);
           if (user && "totalMessageCount" in user) {
             await ctx.db.patch("users", userId, {
@@ -1034,7 +1015,12 @@ export const removeMultiple = mutation({
               ),
             });
           }
-        })()
+        }).catch(error => {
+          console.warn(
+            `Failed to update user message count for ${userId}:`,
+            error
+          );
+        })
       );
     }
 
@@ -1185,36 +1171,36 @@ export const internalRemoveMultiple = internalMutation({
     const operations: Promise<void>[] = [];
 
     // Decrement messageCount for each affected conversation
+    // Use withRetry to handle write conflicts with fresh reads
     for (const [conversationId, deletedCount] of conversationMessageCounts) {
       operations.push(
-        (async () => {
-          try {
-            const conversation = await ctx.db.get(
-              "conversations",
-              conversationId
-            );
-            if (conversation) {
-              await ctx.db.patch("conversations", conversationId, {
-                isStreaming: false,
-                messageCount: Math.max(
-                  0,
-                  (conversation.messageCount || deletedCount) - deletedCount
-                ),
-              });
-            }
-          } catch (error) {
-            console.warn(
-              `Failed to update conversation state for ${conversationId}:`,
-              error
-            );
+        withRetry(async () => {
+          const conversation = await ctx.db.get(
+            "conversations",
+            conversationId
+          );
+          if (conversation) {
+            await ctx.db.patch("conversations", conversationId, {
+              isStreaming: false,
+              messageCount: Math.max(
+                0,
+                (conversation.messageCount || deletedCount) - deletedCount
+              ),
+            });
           }
-        })()
+        }).catch(error => {
+          console.warn(
+            `Failed to update conversation state for ${conversationId}:`,
+            error
+          );
+        })
       );
     }
 
+    // Decrement user message counts with retry logic
     for (const [userId, messageCount] of userMessageCounts) {
       operations.push(
-        (async () => {
+        withRetry(async () => {
           const user = await ctx.db.get("users", userId);
           if (user && "totalMessageCount" in user) {
             await ctx.db.patch("users", userId, {
@@ -1224,7 +1210,12 @@ export const internalRemoveMultiple = internalMutation({
               ),
             });
           }
-        })()
+        }).catch(error => {
+          console.warn(
+            `Failed to update user message count for ${userId}:`,
+            error
+          );
+        })
       );
     }
 
@@ -1729,44 +1720,47 @@ export const updateMessageStatus = internalMutation({
     status: messageStatusSchema,
   },
   handler: async (ctx, args) => {
-    // Get current message to check if it's an assistant message
-    const message = await ctx.db.get("messages", args.messageId);
-    if (!message) {
-      console.error("[updateMessageStatus] Message not found:", args.messageId);
-      return;
-    }
+    await withRetry(async () => {
+      // Get current message to check if it's an assistant message
+      const message = await ctx.db.get("messages", args.messageId);
+      if (!message) {
+        console.error(
+          "[updateMessageStatus] Message not found:",
+          args.messageId
+        );
+        return;
+      }
 
-    // Don't overwrite error status - if message already has an error, skip this update
-    if (message.status === "error" && args.status !== "error") {
-      return;
-    }
+      // Don't overwrite error status - if message already has an error, skip this update
+      if (message.status === "error" && args.status !== "error") {
+        return;
+      }
 
-    const updateData: {
-      status:
-        | "error"
-        | "thinking"
-        | "searching"
-        | "reading_pdf"
-        | "streaming"
-        | "done";
-      metadata?: Record<string, unknown>;
-    } = {
-      status: args.status,
-    };
-
-    // For assistant messages with status "done", ensure finishReason is set
-    if (message.role === "assistant" && args.status === "done") {
-      const currentMetadata = message.metadata || {};
-      const finalFinishReason = currentMetadata.finishReason || "stop";
-      updateData.metadata = {
-        ...currentMetadata,
-        finishReason: finalFinishReason,
+      const updateData: {
+        status:
+          | "error"
+          | "thinking"
+          | "searching"
+          | "reading_pdf"
+          | "streaming"
+          | "done";
+        metadata?: Record<string, unknown>;
+      } = {
+        status: args.status,
       };
 
-      // Update finish reason for debugging
-    }
+      // For assistant messages with status "done", ensure finishReason is set
+      if (message.role === "assistant" && args.status === "done") {
+        const currentMetadata = message.metadata || {};
+        const finalFinishReason = currentMetadata.finishReason || "stop";
+        updateData.metadata = {
+          ...currentMetadata,
+          finishReason: finalFinishReason,
+        };
+      }
 
-    await ctx.db.patch("messages", args.messageId, updateData);
+      await ctx.db.patch("messages", args.messageId, updateData);
+    });
   },
 });
 
@@ -2464,11 +2458,12 @@ export const updateImageGeneration = internalMutation({
   handler: async (ctx, args) => {
     const { messageId, ...imageGenerationData } = args;
 
-    try {
+    // Use withRetry to handle write conflicts - re-reads message on each retry
+    const message = await withRetry(async () => {
       // Get current message to preserve existing imageGeneration data
       const message = await ctx.db.get("messages", messageId);
       if (!message) {
-        return;
+        return null;
       }
 
       // Merge with existing imageGeneration data
@@ -2557,37 +2552,35 @@ export const updateImageGeneration = internalMutation({
       }
 
       await ctx.db.patch("messages", messageId, updateData);
+      return message;
+    });
 
-      const terminalStatuses = new Set(["succeeded", "failed", "canceled"]);
-      if (
-        args.status &&
-        terminalStatuses.has(args.status) &&
-        message.conversationId
-      ) {
-        try {
-          await ctx.db.patch("conversations", message.conversationId, {
-            isStreaming: false,
-            activeImageGeneration: undefined, // Clear tracking for OCC-free stop detection
-          });
-        } catch (error) {
-          console.warn(
-            "[updateImageGeneration] Failed to clear conversation streaming state",
-            {
-              conversationId: message.conversationId,
-              status: args.status,
-              error: error instanceof Error ? error.message : String(error),
-            }
-          );
-        }
-      }
+    if (!message) {
+      return;
+    }
 
-      // Get the updated message to verify it was saved correctly
-      const _updatedMessage = await ctx.db.get("messages", messageId);
-    } catch (error) {
-      console.error("[updateImageGeneration] Error:", error);
-      throw new ConvexError(
-        `Failed to update image generation for message ${messageId}: ${error instanceof Error ? error.message : String(error)}`
-      );
+    // Handle conversation update separately with its own retry
+    const terminalStatuses = new Set(["succeeded", "failed", "canceled"]);
+    if (
+      args.status &&
+      terminalStatuses.has(args.status) &&
+      message.conversationId
+    ) {
+      await withRetry(async () => {
+        await ctx.db.patch("conversations", message.conversationId, {
+          isStreaming: false,
+          activeImageGeneration: undefined, // Clear tracking for OCC-free stop detection
+        });
+      }).catch(error => {
+        console.warn(
+          "[updateImageGeneration] Failed to clear conversation streaming state",
+          {
+            conversationId: message.conversationId,
+            status: args.status,
+            error: error instanceof Error ? error.message : String(error),
+          }
+        );
+      });
     }
   },
 });
