@@ -366,16 +366,24 @@ describe("timing stress tests", () => {
   test("handles rapid fire operations", async () => {
     let successCount = 0;
     const operations: Promise<void>[] = [];
+    // Track retry attempts per operation for deterministic behavior
+    const attemptCounts = new Map<number, number>();
 
     // Fire 50 operations rapidly
     for (let i = 0; i < 50; i++) {
+      const opIndex = i;
+      attemptCounts.set(opIndex, 0);
+
       operations.push(
         withRetry(
           async () => {
             // Random delay to simulate real DB operations
             await new Promise((r) => setTimeout(r, Math.random() * 5));
-            // 20% conflict rate
-            if (Math.random() < 0.2) {
+            // Deterministic: fail first 1-2 attempts based on operation index
+            const attempts = attemptCounts.get(opIndex)! + 1;
+            attemptCounts.set(opIndex, attempts);
+            const failuresNeeded = (opIndex % 3); // 0, 1, or 2 failures
+            if (attempts <= failuresNeeded) {
               throw new Error(WRITE_CONFLICT_ERROR);
             }
             successCount++;
