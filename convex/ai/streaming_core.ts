@@ -1,4 +1,4 @@
-import { streamText, stepCountIs, type ModelMessage } from "ai";
+import { streamText, stepCountIs, type ModelMessage, type LanguageModel } from "ai";
 import { createSmoothStreamTransform } from "../../shared/streaming-utils";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
@@ -16,7 +16,7 @@ type StreamingParams = {
   ctx: ActionCtx;
   conversationId: Id<"conversations">;
   messageId: Id<"messages">;
-  model: any; // AI SDK LanguageModel
+  model: LanguageModel;
   messages: ModelMessage[];
   // Model capability for tool calling (passed from mutation context where auth is available)
   supportsTools?: boolean;
@@ -195,7 +195,11 @@ export async function streamLLMToMessage({
   const useTools = supportsTools && !!exaApiKey;
 
   try {
-    const genOpts: any = {
+    // Build streamText options - base required fields with optional additions
+    const genOpts: {
+      model: LanguageModel;
+      messages: ModelMessage[];
+    } & Record<string, unknown> = {
       model,
       messages,
       // Only apply smooth stream transform when NOT using tools
@@ -409,8 +413,19 @@ export async function streamLLMToMessage({
         });
       },
       // AI SDK v6: Handle errors during streaming without crashing
-      onError: ({ error }) => {
+      onError: async ({ error }) => {
         console.error("Stream error in onError callback:", error);
+        stopped = true;
+        // Propagate error to UI
+        try {
+          const errorMessage = getUserFriendlyErrorMessage(error);
+          await ctx.runMutation(internal.messages.updateMessageError, {
+            messageId,
+            error: errorMessage,
+          });
+        } catch (updateError) {
+          console.error("Failed to update message with error:", updateError);
+        }
       },
       // AI SDK v6: Handle stream abort for cleanup
       onAbort: async ({ steps }) => {

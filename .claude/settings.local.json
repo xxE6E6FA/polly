@@ -94,7 +94,11 @@
       "WebFetch(domain:vercel.com)",
       "Bash(bunx @ai-sdk/codemod:*)",
       "Bash(git checkout:*)",
-      "Bash(bunx convex dev:*)"
+      "Bash(bunx convex dev:*)",
+      "Bash(git push:*)",
+      "Bash(gh pr reviews:*)",
+      "Bash(gh pr review:*)",
+      "WebFetch(domain:v6.ai-sdk.dev)"
     ],
     "deny": []
   },
