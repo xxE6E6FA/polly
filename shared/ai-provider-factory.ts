@@ -18,7 +18,7 @@ export const createProviderModel = {
       apiKey,
       baseURL: "https://openrouter.ai/api/v1",
       headers: {
-        "HTTP-Referer": "https://polly.ai",
+        "HTTP-Referer": "https://pollyai.chat",
         "X-Title": "Polly Chat",
       },
     });

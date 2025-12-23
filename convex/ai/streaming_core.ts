@@ -134,7 +134,11 @@ export async function streamLLMToMessage({
     }
   };
 
-  // Serialized flush that prevents OCC conflicts between content and reasoning updates
+  // Serialized flush that prevents OCC (Optimistic Concurrency Control) conflicts.
+  // Convex doesn't support concurrent mutations on the same document - if two mutations
+  // try to update the same message simultaneously, one will fail with an OCC error.
+  // By serializing all flushes through this function, we ensure only one mutation
+  // runs at a time, preventing race conditions between content and reasoning updates.
   const flushAll = async () => {
     if (isFlushing || stopped) return;
     isFlushing = true;

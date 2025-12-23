@@ -69,7 +69,7 @@ const createProviderModel = {
   ) => {
     try {
       // Use OpenAI-compatible provider for OpenRouter (AI SDK v6 compatible)
-      const openrouter = createOpenAICompatible({
+      const openrouterProvider = createOpenAICompatible({
         name: "openrouter",
         apiKey,
         baseURL: "https://openrouter.ai/api/v1",
@@ -98,7 +98,7 @@ const createProviderModel = {
       // Apply OpenRouter sorting shortcuts
       const modifiedModel = applyOpenRouterSorting(model, sorting);
 
-      return openrouter.chatModel(modifiedModel);
+      return openrouterProvider.chatModel(modifiedModel);
     } catch (error) {
       console.error("[server_streaming] Error creating OpenRouter model:", {
         error,
