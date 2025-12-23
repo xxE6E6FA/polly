@@ -115,7 +115,7 @@ export const storeChunkSummary = mutation({
 export const generateConversationSummary = action({
   args: {
     conversationId: v.id("conversations"),
-    maxTokens: v.optional(v.number()),
+    maxOutputTokens: v.optional(v.number()),
   },
   handler: async (ctx, args): Promise<string> => {
     if (!isTextGenerationAvailable()) {
@@ -146,7 +146,7 @@ export const generateConversationSummary = action({
         return "Previous conversation (no content found)";
       }
 
-      const prompt = `Please provide a concise summary of the following conversation between a user and an AI assistant. Focus on the key topics discussed, questions asked, and main points covered. Keep the summary under ${args.maxTokens || 150} words and make it suitable as context for continuing the conversation in a new thread.
+      const prompt = `Please provide a concise summary of the following conversation between a user and an AI assistant. Focus on the key topics discussed, questions asked, and main points covered. Keep the summary under ${args.maxOutputTokens || 150} words and make it suitable as context for continuing the conversation in a new thread.
 
 Conversation:
 ${conversationText}
@@ -155,7 +155,7 @@ Summary:`;
 
       const summary = await generateTextWithProvider({
         prompt,
-        maxTokens: 1000,
+        maxOutputTokens: 1000,
         temperature: 0.7,
       });
 
@@ -364,7 +364,7 @@ Rich Summary:`;
 
     const summary = await generateTextWithProvider({
       prompt,
-      maxTokens: 500,
+      maxOutputTokens: 500,
       temperature: 0.2,
       topP: 0.9,
     });

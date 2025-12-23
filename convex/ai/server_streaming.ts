@@ -8,7 +8,6 @@ import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createGroq } from "@ai-sdk/groq";
 import { createOpenAI } from "@ai-sdk/openai";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
-import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import type { LanguageModel } from "ai";
 
 import { api } from "../_generated/api";
@@ -69,7 +68,16 @@ const createProviderModel = {
     userId?: Id<"users">
   ) => {
     try {
-      const openrouter = createOpenRouter({ apiKey });
+      // Use OpenAI-compatible provider for OpenRouter (AI SDK v6 compatible)
+      const openrouterProvider = createOpenAICompatible({
+        name: "openrouter",
+        apiKey,
+        baseURL: "https://openrouter.ai/api/v1",
+        headers: {
+          "HTTP-Referer": "https://pollyai.chat",
+          "X-Title": "Polly Chat",
+        },
+      });
 
       // Get user's OpenRouter sorting preference
       let sorting: "default" | "price" | "throughput" | "latency" = "default";
@@ -90,10 +98,7 @@ const createProviderModel = {
       // Apply OpenRouter sorting shortcuts
       const modifiedModel = applyOpenRouterSorting(model, sorting);
 
-      const chatModel = openrouter.chat(modifiedModel);
-      // Cast to LanguageModel to handle OpenRouter type compatibility
-      // Use double cast through unknown to avoid type overlap error
-      return chatModel as unknown as LanguageModel;
+      return openrouterProvider.chatModel(modifiedModel);
     } catch (error) {
       console.error("[server_streaming] Error creating OpenRouter model:", {
         error,
@@ -142,7 +147,7 @@ export const getProviderStreamOptions = async (
   ctx: ActionCtx,
   provider: ProviderType,
   model: string,
-  reasoningConfig?: { effort?: "low" | "medium" | "high"; maxTokens?: number },
+  reasoningConfig?: { effort?: "low" | "medium" | "high"; maxOutputTokens?: number },
   modelObject?: { 
     modelId: string; 
     provider: string; 

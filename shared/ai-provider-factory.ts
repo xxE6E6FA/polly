@@ -2,7 +2,7 @@ import { createAnthropic } from "@ai-sdk/anthropic";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createGroq } from "@ai-sdk/groq";
 import { createOpenAI } from "@ai-sdk/openai";
-import { createOpenRouter } from "@openrouter/ai-sdk-provider";
+import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 
 export const createProviderModel = {
   openai: (apiKey: string, model: string) => createOpenAI({ apiKey })(model),
@@ -12,14 +12,17 @@ export const createProviderModel = {
     createGoogleGenerativeAI({ apiKey })(model),
   groq: (apiKey: string, model: string) => createGroq({ apiKey })(model),
   openrouter: (apiKey: string, model: string) => {
-    const provider = createOpenRouter({
+    // Use OpenAI-compatible provider for OpenRouter (AI SDK v6 compatible)
+    const provider = createOpenAICompatible({
+      name: "openrouter",
       apiKey,
+      baseURL: "https://openrouter.ai/api/v1",
       headers: {
-        "HTTP-Referer": "https://polly.ai", // Required for OpenRouter
-        "X-Title": "Polly Chat", // Optional but good practice
+        "HTTP-Referer": "https://pollyai.chat",
+        "X-Title": "Polly Chat",
       },
     });
-    return provider(model);
+    return provider.chatModel(model);
   },
 };
 

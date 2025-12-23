@@ -81,10 +81,23 @@ export async function streamChat(
             inputTokens: usage.inputTokens ?? 0,
             outputTokens: usage.outputTokens ?? 0,
             totalTokens: usage.totalTokens ?? 0,
-            reasoningTokens: usage.reasoningTokens,
-            cachedInputTokens: usage.cachedInputTokens,
+            // AI SDK v6: Use new detailed token fields, fallback to deprecated fields
+            reasoningTokens:
+              usage.outputTokenDetails?.reasoningTokens ??
+              usage.reasoningTokens,
+            cachedInputTokens:
+              usage.inputTokenDetails?.cacheReadTokens ??
+              usage.cachedInputTokens,
           };
         }
+      },
+      // AI SDK v6: Handle errors during streaming without crashing
+      onError: ({ error }) => {
+        console.error("Stream error in onError callback:", error);
+      },
+      // AI SDK v6: Handle stream abort for cleanup
+      onAbort: () => {
+        // Abort is handled via the for-await loop break
       },
     });
 

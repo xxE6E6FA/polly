@@ -67,13 +67,13 @@ const citationExtractors = {
 
 // Enhanced extract citations that uses shared logic plus Convex-specific formats
 export const extractCitations = (
-  providerMetadata?: ProviderMetadata | Record<string, unknown>,
+  providerOptions?: ProviderMetadata | Record<string, unknown>,
   sources?: WebSource[]
 ): Citation[] | undefined => {
   const citations: Citation[] = [];
 
   // First try the shared extraction (handles standard formats)
-  const sharedCitations = extractCitationsShared(providerMetadata);
+  const sharedCitations = extractCitationsShared(providerOptions);
   if (sharedCitations) {
     citations.push(...sharedCitations);
   }
@@ -84,7 +84,7 @@ export const extractCitations = (
   }
 
   // Type-safe check for Convex-specific metadata
-  const convexMetadata = providerMetadata as ProviderMetadata | undefined;
+  const convexMetadata = providerOptions as ProviderMetadata | undefined;
 
   if (convexMetadata?.openrouter?.citations) {
     citations.push(

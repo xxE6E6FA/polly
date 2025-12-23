@@ -1,12 +1,12 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import {
-  type CoreMessage,
-  convertToCoreMessages,
+  convertToModelMessages,
   type FileUIPart,
   generateText,
   isFileUIPart,
   isReasoningUIPart,
   isTextUIPart,
+  type ModelMessage,
   type ReasoningUIPart,
   stepCountIs,
   streamText,
@@ -363,9 +363,9 @@ export const chatStream = httpAction(
         )
       );
 
-      let coreMessages: CoreMessage[];
+      let coreMessages: ModelMessage[];
       try {
-        coreMessages = convertToCoreMessages(
+        coreMessages = await convertToModelMessages(
           messagesWithContent as UIMessage<unknown, UIDataTypes, UITools>[]
         );
       } catch (conversionError) {
@@ -563,8 +563,8 @@ export const chatStream = httpAction(
       const resolvedReasoningConfig = reasoningConfig ?? _reasoningConfig;
 
       // Ensure messages have proper system prompt
-      const processedMessages: CoreMessage[] = [...coreMessages];
-      const systemMessage: CoreMessage = {
+      const processedMessages: ModelMessage[] = [...coreMessages];
+      const systemMessage: ModelMessage = {
         role: "system",
         content: mergedSystemPrompt,
       };
@@ -685,7 +685,7 @@ export const chatStream = httpAction(
                     })
                     .join("\n\n");
 
-                  const searchContextMessage: CoreMessage = {
+                  const searchContextMessage: ModelMessage = {
                     role: "system",
                     content: `Web search results:\n\n${numberedSources}\n\n---\nIMPORTANT: You MUST cite these sources in your response using [1], [2], etc.\nPlace citations after punctuation: "The empire fell in 476 AD.[1]"`,
                   };

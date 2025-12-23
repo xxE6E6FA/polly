@@ -2,12 +2,13 @@
  * Text generation utility for internal operations
  * Uses AI SDK for non-streaming text generation (titles, summaries, starters)
  */
-import { generateText } from "ai";
+import { generateText, Output } from "ai";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createOpenAI } from "@ai-sdk/openai";
 import { createGroq } from "@ai-sdk/groq";
 import type { LanguageModel } from "ai";
+import type { z } from "zod/v3";
 
 import { DEFAULT_BUILTIN_MODEL_ID } from "../../shared/constants";
 import { CONFIG } from "./config";
@@ -17,7 +18,7 @@ type TextProviderType = "openai" | "anthropic" | "google" | "groq" | "openrouter
 
 export type TextGenerationOptions = {
 	prompt: string;
-	maxTokens?: number;
+	maxOutputTokens?: number;
 	temperature?: number;
 	topP?: number;
 	topK?: number;
@@ -102,12 +103,132 @@ export async function generateTextWithProvider(
 	const result = await generateText({
 		model: languageModel,
 		prompt: options.prompt,
-		maxOutputTokens: options.maxTokens,
+		maxOutputTokens: options.maxOutputTokens,
 		temperature: options.temperature,
 		topP: options.topP,
+		// AI SDK v6: Telemetry for observability
+		// biome-ignore lint/style/useNamingConvention: AI SDK option
+		experimental_telemetry: {
+			isEnabled: true,
+			functionId: "internal-text-generation",
+			metadata: {
+				provider,
+				model,
+			},
+		},
 	});
 
 	return result.text;
+}
+
+/**
+ * AI SDK v6: Generate structured object output using Output.object()
+ * Type-safe structured generation with schema validation
+ */
+export async function generateObjectWithProvider<T>(
+	options: TextGenerationOptions & {
+		schema: z.ZodType<T>;
+		schemaName?: string;
+		schemaDescription?: string;
+	},
+	config?: TextGenerationConfig
+): Promise<T> {
+	const provider = config?.provider ?? "google";
+	const model = config?.model ?? DEFAULT_BUILTIN_MODEL_ID;
+
+	const languageModel = createInternalLanguageModel(provider, model);
+
+	if (!languageModel) {
+		throw new Error(
+			`No API key available for provider: ${provider}. ` +
+				`Set ${CONFIG.PROVIDER_ENV_KEYS[provider]} environment variable.`
+		);
+	}
+
+	const result = await generateText({
+		model: languageModel,
+		prompt: options.prompt,
+		maxOutputTokens: options.maxOutputTokens,
+		temperature: options.temperature,
+		topP: options.topP,
+		output: Output.object({
+			schema: options.schema,
+			name: options.schemaName,
+			description: options.schemaDescription,
+		}),
+		// AI SDK v6: Telemetry for observability
+		// biome-ignore lint/style/useNamingConvention: AI SDK option
+		experimental_telemetry: {
+			isEnabled: true,
+			functionId: "internal-object-generation",
+			metadata: {
+				provider,
+				model,
+				...(options.schemaName && { schemaName: options.schemaName }),
+			},
+		},
+	});
+
+	if (!result.output) {
+		throw new Error("No structured output generated");
+	}
+
+	return result.output;
+}
+
+/**
+ * AI SDK v6: Generate array output using Output.array()
+ * Type-safe array generation with element schema validation
+ */
+export async function generateArrayWithProvider<T>(
+	options: TextGenerationOptions & {
+		elementSchema: z.ZodType<T>;
+		schemaName?: string;
+		schemaDescription?: string;
+	},
+	config?: TextGenerationConfig
+): Promise<T[]> {
+	const provider = config?.provider ?? "google";
+	const model = config?.model ?? DEFAULT_BUILTIN_MODEL_ID;
+
+	const languageModel = createInternalLanguageModel(provider, model);
+
+	if (!languageModel) {
+		throw new Error(
+			`No API key available for provider: ${provider}. ` +
+				`Set ${CONFIG.PROVIDER_ENV_KEYS[provider]} environment variable.`
+		);
+	}
+
+	const result = await generateText({
+		model: languageModel,
+		prompt: options.prompt,
+		maxOutputTokens: options.maxOutputTokens,
+		temperature: options.temperature,
+		topP: options.topP,
+		output: Output.array({
+			element: options.elementSchema,
+			name: options.schemaName,
+			description: options.schemaDescription,
+		}),
+		// AI SDK v6: Telemetry for observability
+		// biome-ignore lint/style/useNamingConvention: AI SDK option
+		experimental_telemetry: {
+			isEnabled: true,
+			functionId: "internal-array-generation",
+			metadata: {
+				provider,
+				model,
+				...(options.schemaName && { schemaName: options.schemaName }),
+			},
+		},
+	});
+
+	if (!result.output) {
+		throw new Error("No array output generated");
+	}
+
+	return result.output;
 }
 
 /**

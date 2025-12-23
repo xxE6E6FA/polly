@@ -196,7 +196,7 @@ export function useChatInputSubmission({
           try {
             contextSummary = await generateSummaryAction({
               conversationId,
-              maxTokens: 150,
+              maxOutputTokens: 150,
             });
           } catch (_error) {
             // Summary generation failed, continue without summary

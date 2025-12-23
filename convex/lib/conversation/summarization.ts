@@ -226,7 +226,7 @@ async function generateLLMSummary(prompt: string, maxLength: number): Promise<st
   try {
     let summary = await generateTextWithProvider({
       prompt,
-      maxTokens: Math.min(CONTEXT_CONFIG.MAX_API_TOKENS, maxLength * 2),
+      maxOutputTokens: Math.min(CONTEXT_CONFIG.MAX_API_TOKENS, maxLength * 2),
       temperature: CONTEXT_CONFIG.TEMPERATURE,
       topP: CONTEXT_CONFIG.TOP_P,
     });

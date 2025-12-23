@@ -137,7 +137,7 @@ export async function streamAndSaveMessage(
     reasoningConfig?: {
       enabled: boolean;
       effort?: "low" | "medium" | "high";
-      maxTokens?: number;
+      maxOutputTokens?: number;
     };
   }
 ) {
@@ -195,7 +195,7 @@ export async function streamAndSaveMessage(
       reasoningConfig?.enabled
         ? {
             effort: reasoningConfig.effort,
-            maxTokens: reasoningConfig.maxTokens,
+            maxOutputTokens: reasoningConfig.maxOutputTokens,
           }
         : undefined
     );
@@ -206,6 +206,18 @@ export async function streamAndSaveMessage(
       messages: finalMessages,
       ...streamOpts,
       experimental_transform: createSmoothStreamTransform(),
+      // AI SDK v6: Telemetry for observability
+      // biome-ignore lint/style/useNamingConvention: AI SDK option
+      experimental_telemetry: {
+        isEnabled: true,
+        functionId: "stream-and-save",
+        metadata: {
+          conversationId,
+          messageId,
+          modelId,
+          provider,
+        },
+      },
       onChunk: async ({ chunk }) => {
         if (!firstTokenTime) {
           firstTokenTime = Date.now();
@@ -240,13 +252,12 @@ export async function streamAndSaveMessage(
       },
       onFinish: async ({ usage, response, warnings }) => {
         // Capture final metadata
-        const tokenUsage = usage as Record<string, number | undefined>;
         const endTime = Date.now();
         const duration = endTime - startTime;
         const timeToFirstTokenMs = firstTokenTime
           ? firstTokenTime - startTime
           : undefined;
-        const totalTokens = tokenUsage.totalTokens ?? 0;
+        const totalTokens = usage?.totalTokens ?? 0;
         const tokensPerSecond =
           duration > 0 ? totalTokens / (duration / 1000) : 0;
 
@@ -256,25 +267,35 @@ export async function streamAndSaveMessage(
           reasoning: reasoningBuffer,
           finishReason: "stop",
           tokenUsage: {
-            inputTokens:
-              tokenUsage.promptTokens ?? tokenUsage.inputTokens ?? 0,
-            outputTokens:
-              tokenUsage.completionTokens ?? tokenUsage.outputTokens ?? 0,
+            inputTokens: usage?.inputTokens ?? 0,
+            outputTokens: usage?.outputTokens ?? 0,
             totalTokens: totalTokens,
           },
           providerMessageId: response.id,
           timestamp: response.timestamp?.toString(),
-          warnings: warnings?.map(w =>
-            w.type === "unsupported-setting"
-              ? `Unsupported setting: ${w.setting}${w.details ? ` (${w.details})` : ""}`
-              : JSON.stringify(w)
-          ),
+          // AI SDK v6 unified Warning type with feature + details
+          warnings: warnings?.map(w => {
+            if (w.type === "unsupported") {
+              return `Unsupported: ${w.feature}${w.details ? ` - ${w.details}` : ""}`;
+            }
+            if (w.type === "compatibility") {
+              return `Compatibility: ${w.feature}${w.details ? ` - ${w.details}` : ""}`;
+            }
+            if (w.type === "other") {
+              return w.message;
+            }
+            return JSON.stringify(w);
+          }),
           timeToFirstTokenMs,
           tokensPerSecond,
           // Include citations from tool calls
           citations:
             citationsFromTools.length > 0 ? citationsFromTools : undefined,
         });
+      },
+      // AI SDK v6: Handle errors during streaming without crashing
+      onError: ({ error }) => {
+        console.error("Stream error in onError callback:", error);
       },
     };
 

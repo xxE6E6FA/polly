@@ -1,5 +1,5 @@
 import { tool } from "ai";
-import { z } from "zod";
+import { z } from 'zod/v3';
 import { performWebSearch, type WebSearchResult } from "../exa";
 import type { Citation } from "../../types";
 
