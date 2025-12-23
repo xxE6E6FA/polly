@@ -4,6 +4,7 @@ import {
   getReasoningType,
   hasMandatoryReasoning,
   hasOptionalReasoning,
+  isGemini3Model,
   needsSpecialReasoningHandling,
   supportsReasoning,
 } from "./reasoning-model-detection";
@@ -13,6 +14,11 @@ describe("hasMandatoryReasoning", () => {
     expect(hasMandatoryReasoning("openai", "o1-preview")).toBe(true);
     expect(hasMandatoryReasoning("openai", "o1-mini")).toBe(true);
     expect(hasMandatoryReasoning("openai", "o3-mini")).toBe(true);
+  });
+
+  test("detects Google Gemini 3 Pro", () => {
+    expect(hasMandatoryReasoning("google", "gemini-3-pro-preview")).toBe(true);
+    expect(hasMandatoryReasoning("google", "gemini-3-pro")).toBe(true);
   });
 
   test("detects Google Gemini 2.5 Pro", () => {
@@ -52,7 +58,12 @@ describe("hasMandatoryReasoning", () => {
 });
 
 describe("hasOptionalReasoning", () => {
-  test("detects Google Gemini Flash models", () => {
+  test("detects Google Gemini 3 Flash", () => {
+    expect(hasOptionalReasoning("google", "gemini-3-flash-preview")).toBe(true);
+    expect(hasOptionalReasoning("google", "gemini-3-flash")).toBe(true);
+  });
+
+  test("detects Google Gemini 2.x Flash models", () => {
     expect(hasOptionalReasoning("google", "gemini-2.5-flash")).toBe(true);
     expect(hasOptionalReasoning("google", "gemini-2.0-flash-exp")).toBe(true);
     expect(hasOptionalReasoning("google", "gemini-1.5-pro")).toBe(true);
@@ -104,8 +115,45 @@ describe("supportsReasoning", () => {
   });
 });
 
+describe("isGemini3Model", () => {
+  test("returns true for Gemini 3 Pro models", () => {
+    expect(isGemini3Model("gemini-3-pro-preview")).toBe(true);
+    expect(isGemini3Model("gemini-3-pro")).toBe(true);
+    expect(isGemini3Model("Gemini-3-Pro-Preview")).toBe(true); // case insensitive
+  });
+
+  test("returns true for Gemini 3 Flash models", () => {
+    expect(isGemini3Model("gemini-3-flash-preview")).toBe(true);
+    expect(isGemini3Model("gemini-3-flash")).toBe(true);
+  });
+
+  test("returns false for Gemini 2.x models", () => {
+    expect(isGemini3Model("gemini-2.5-pro")).toBe(false);
+    expect(isGemini3Model("gemini-2.5-flash")).toBe(false);
+    expect(isGemini3Model("gemini-2.0-flash")).toBe(false);
+  });
+
+  test("returns false for other models", () => {
+    expect(isGemini3Model("gpt-4o")).toBe(false);
+    expect(isGemini3Model("claude-3-opus")).toBe(false);
+  });
+});
+
 describe("getReasoningType", () => {
-  test("returns mandatory for o-series models", () => {
+  test("returns mandatory for Gemini 3 Pro", () => {
+    expect(getReasoningType("google", "gemini-3-pro-preview")).toBe(
+      "mandatory"
+    );
+    expect(getReasoningType("google", "gemini-3-pro")).toBe("mandatory");
+  });
+
+  test("returns optional for Gemini 3 Flash", () => {
+    expect(getReasoningType("google", "gemini-3-flash-preview")).toBe(
+      "optional"
+    );
+  });
+
+  test("returns mandatory for o-series and Gemini 2.5 Pro models", () => {
     expect(getReasoningType("openai", "o1-preview")).toBe("mandatory");
     expect(getReasoningType("google", "gemini-2.5-pro")).toBe("mandatory");
   });
@@ -130,6 +178,13 @@ describe("getReasoningType", () => {
 });
 
 describe("needsSpecialReasoningHandling", () => {
+  test("returns true for Google Gemini 3 Pro", () => {
+    expect(
+      needsSpecialReasoningHandling("google", "gemini-3-pro-preview")
+    ).toBe(true);
+    expect(needsSpecialReasoningHandling("google", "gemini-3-pro")).toBe(true);
+  });
+
   test("returns true for Google Gemini 2.5 Pro", () => {
     expect(needsSpecialReasoningHandling("google", "gemini-2.5-pro")).toBe(
       true

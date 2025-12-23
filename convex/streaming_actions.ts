@@ -23,8 +23,9 @@ import { reasoningConfigSchema } from "./lib/schemas";
 
 /**
  * Check if a message content part is an attachment (image, file, pdf, etc.)
+ * Exported for testing.
  */
-function isAttachmentPart(part: unknown): boolean {
+export function isAttachmentPart(part: unknown): boolean {
   if (!part || typeof part !== "object") {
     return false;
   }
@@ -62,8 +63,10 @@ function isAttachmentPart(part: unknown): boolean {
  * - Memory usage during conversion
  * - API costs (fewer tokens)
  * - Risk of hitting provider limits
+ *
+ * Exported for testing.
  */
-function stripAttachmentsFromOlderMessages(
+export function stripAttachmentsFromOlderMessages(
   messages: Array<{ role: string; content: unknown }>
 ): Array<{ role: string; content: unknown }> {
   // Find the index of the last user message

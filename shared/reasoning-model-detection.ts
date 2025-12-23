@@ -12,6 +12,9 @@ export const MANDATORY_REASONING_PATTERNS = [
   "o3-",
   "o4-",
 
+  // Google Gemini 3 Pro (reasoning on by default with thinkingLevel: high)
+  "gemini-3-pro",
+
   // Google Gemini 2.5 Pro (reasoning enforced)
   "gemini-2.5-pro",
 
@@ -42,6 +45,9 @@ export const MANDATORY_REASONING_PATTERNS = [
 ] as const;
 
 export const OPTIONAL_REASONING_PATTERNS = [
+  // Google Gemini 3 Flash (supports thinkingLevel: minimal, low, medium, high)
+  "gemini-3-flash",
+
   // Google Gemini 2.5 Flash series (reasoning supported but can be disabled)
   "gemini-2.5-flash",
   "gemini-2.5-flash-lite",
@@ -326,6 +332,17 @@ export function getReasoningType(
 }
 
 /**
+ * Check if a model is a Gemini 3 model (uses thinkingLevel instead of thinkingBudget)
+ */
+export function isGemini3Model(modelId: string): boolean {
+  const modelIdLower = modelId.toLowerCase();
+  return (
+    modelIdLower.includes("gemini-3-pro") ||
+    modelIdLower.includes("gemini-3-flash")
+  );
+}
+
+/**
  * Special handling for provider-specific reasoning rules
  */
 export function needsSpecialReasoningHandling(
@@ -333,6 +350,11 @@ export function needsSpecialReasoningHandling(
   modelId: string
 ): boolean {
   const modelIdLower = modelId.toLowerCase();
+
+  // Google Gemini 3 Pro enforces reasoning with thinkingLevel: high by default
+  if (provider === "google" && modelIdLower.includes("gemini-3-pro")) {
+    return true;
+  }
 
   // Google Gemini 2.5 Pro enforces reasoning - it cannot be disabled
   if (provider === "google" && modelIdLower.includes("gemini-2.5-pro")) {

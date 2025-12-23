@@ -2,7 +2,7 @@ import type { ActionCtx, MutationCtx, QueryCtx } from "../../_generated/server";
 import type { Doc, Id } from "../../_generated/dataModel";
 import { ConvexError } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
-import type { CreateMessageArgs, CreateConversationArgs } from "../schemas";
+import type { CreateMessageArgs } from "../schemas";
 import { api } from "../../_generated/api";
 import { mergeSystemPrompts } from "@shared/system-prompts";
 import { scheduleRunAfter } from "../scheduler";
@@ -59,164 +59,6 @@ export const handleMessageDeletion = async (
     }
   }
 };
-
-// Helper to find streaming assistant message
-export const findStreamingMessage = (
-  messages: Doc<"messages">[],
-): Doc<"messages"> | null => {
-  return (
-    messages
-      .filter((m) => m.role === "assistant")
-      .find((m) => !m.content || m.content.trim() === "") || null
-  );
-};
-
-// Helper to ensure conversation streaming state is cleared
-export const ensureStreamingCleared = async (
-  ctx: ActionCtx | MutationCtx,
-  conversationId: Id<"conversations">,
-) => {
-  // Clear streaming state by patching the conversation directly
-  if ("db" in ctx) {
-    await ctx.db.patch("conversations", conversationId, { isStreaming: false });
-  } else {
-    throw new ConvexError("Cannot clear streaming state from ActionCtx");
-  }
-};
-
-// Common helper for message deletion operations
-export const deleteMessagesAfterIndex = async (
-  ctx: ActionCtx | MutationCtx,
-  conversationId: Id<"conversations">,
-  afterMessageId: Id<"messages">,
-) => {
-  // Get all messages in conversation
-  const allMessages = await ctx.runQuery(api.messages.getAllInConversation, {
-    conversationId,
-  });
-
-  // Find the index of the target message
-  const afterMessageIndex = allMessages.findIndex(
-    (msg: any) => msg._id === afterMessageId,
-  );
-  if (afterMessageIndex === -1) return;
-
-  // Get messages to delete (all messages after the target message)
-  const messagesToDelete = allMessages.slice(afterMessageIndex + 1);
-  const messageIds = messagesToDelete.map((msg: any) => msg._id);
-
-  if (messageIds.length > 0) {
-    await ctx.runMutation(api.messages.removeMultiple, {
-      ids: messageIds,
-    });
-  }
-};
-
-// Helper function to resolve attachment URLs from storage IDs
-export const resolveAttachmentUrls = async (
-  ctx: QueryCtx | ActionCtx | MutationCtx,
-  attachments: Array<{
-    storageId?: Id<"_storage">;
-    url?: string;
-    name: string;
-    type: "image" | "pdf" | "text";
-    size: number;
-    content?: string;
-    thumbnail?: string;
-  }>,
-): Promise<
-  Array<{
-    type: "image" | "pdf" | "text";
-    url: string;
-    name: string;
-    size: number;
-    content?: string;
-    thumbnail?: string;
-  }>
-> => {
-  const resolvedAttachments = await Promise.all(
-    attachments.map(async (attachment) => {
-      let url = attachment.url;
-
-      if (attachment.storageId && !url) {
-        url = (await ctx.storage.getUrl(attachment.storageId)) ?? undefined;
-        if (!url) {
-          throw new ConvexError("Failed to resolve attachment URL");
-        }
-      }
-
-      if (!url) {
-        throw new ConvexError("Attachment must have either storageId or url");
-      }
-
-      return {
-        type: attachment.type,
-        url,
-        name: attachment.name,
-        size: attachment.size,
-        content: attachment.content,
-        thumbnail: attachment.thumbnail,
-      };
-    }),
-  );
-
-  return resolvedAttachments;
-};
-
-// Helper function to build user message content with attachments
-export const buildUserMessageContent = async (
-  ctx: QueryCtx | ActionCtx | MutationCtx,
-  content: string,
-  attachments?: Array<{
-    storageId?: Id<"_storage">;
-    url?: string;
-    name: string;
-    type: "image" | "pdf" | "text";
-    size: number;
-    content?: string;
-    thumbnail?: string;
-  }>,
-): Promise<{
-  content: string;
-  resolvedAttachments?: Array<{
-    type: "image" | "pdf" | "text";
-    url: string;
-    name: string;
-    size: number;
-    content?: string;
-    thumbnail?: string;
-  }>;
-}> => {
-  if (!attachments || attachments.length === 0) {
-    return { content };
-  }
-
-  const resolvedAttachments = await resolveAttachmentUrls(ctx, attachments);
-
-  // For text and PDF attachments with content, include in the message content
-  let enhancedContent = content;
-  const imageAttachments: typeof resolvedAttachments = [];
-
-  for (const attachment of resolvedAttachments) {
-    if (attachment.type === "image") {
-      imageAttachments.push(attachment);
-    } else if (attachment.content) {
-      // Add text/PDF content to the message
-      enhancedContent += `\n\n--- Content from ${attachment.name} ---\n${attachment.content}\n--- End of ${attachment.name} ---`;
-    }
-  }
-
-  return {
-    content: enhancedContent,
-    resolvedAttachments:
-      imageAttachments.length > 0 ? imageAttachments : undefined,
-  };
-};
-
-// Helper to get a default system prompt based on conversation messages
-
-// DRY Helper: Process attachments for storage
-// (This would be implemented based on your attachment processing logic)
 
 // DRY Helper: Fetch persona prompt if needed
 export async function getPersonaPrompt(
@@ -290,22 +132,6 @@ export async function incrementUserMessageStats(
   } catch (error) {
     // Log error but don't fail the operation
     console.warn("Failed to increment user message stats:", error);
-  }
-}
-
-export async function scheduleTitleGeneration(
-  ctx: ActionCtx,
-  conversationId: Id<"conversations">,
-  delayMs: number = 3000,
-): Promise<void> {
-  try {
-    await scheduleRunAfter(ctx, delayMs, api.titleGeneration.generateTitle, {
-      conversationId,
-      message: "Generated title", // Add required message field
-    });
-  } catch (error) {
-    console.warn("Failed to schedule title generation:", error);
-    // Don't throw - this is not critical for the conversation flow
   }
 }
 

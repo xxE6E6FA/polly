@@ -841,17 +841,23 @@ export const removeMultiple = mutation({
       args.ids.map(id => ctx.db.get("messages", id))
     );
 
-    // Check access for all messages before proceeding
+    // Collect unique conversation IDs to check access once per conversation (not per message)
+    const uniqueConversationIds = new Set<Id<"conversations">>();
     for (const message of messages) {
-      if (message) {
-        const { hasAccess } = await checkConversationAccess(
-          ctx,
-          message.conversationId,
-          false
-        );
-        if (!hasAccess) {
-          throw new Error("Access denied to one or more messages");
-        }
+      if (message?.conversationId) {
+        uniqueConversationIds.add(message.conversationId);
+      }
+    }
+
+    // Check access for each unique conversation
+    for (const conversationId of uniqueConversationIds) {
+      const { hasAccess } = await checkConversationAccess(
+        ctx,
+        conversationId,
+        false
+      );
+      if (!hasAccess) {
+        throw new Error("Access denied to one or more messages");
       }
     }
 
@@ -867,6 +873,32 @@ export const removeMultiple = mutation({
     >();
     const excludeMessageIds = new Set(args.ids);
 
+    // Collect unique conversation IDs from user messages to batch fetch
+    const userMessageConversationIds = new Set<Id<"conversations">>();
+    for (const message of messages) {
+      if (message?.conversationId && message.role === "user") {
+        userMessageConversationIds.add(message.conversationId);
+      }
+    }
+
+    // Batch fetch all conversations needed for user message counting
+    const conversationsById = new Map<
+      Id<"conversations">,
+      { userId: Id<"users"> }
+    >();
+    if (userMessageConversationIds.size > 0) {
+      const conversations = await Promise.all(
+        Array.from(userMessageConversationIds).map(id =>
+          ctx.db.get("conversations", id)
+        )
+      );
+      for (const conv of conversations) {
+        if (conv) {
+          conversationsById.set(conv._id, { userId: conv.userId });
+        }
+      }
+    }
+
     for (const message of messages) {
       if (message) {
         if (message.conversationId) {
@@ -879,10 +911,8 @@ export const removeMultiple = mutation({
           );
 
           if (message.role === "user") {
-            const conversation = await ctx.db.get(
-              "conversations",
-              message.conversationId
-            );
+            // Use pre-fetched conversation data instead of fetching per message
+            const conversation = conversationsById.get(message.conversationId);
             if (conversation) {
               const currentCount =
                 userMessageCounts.get(conversation.userId) || 0;
@@ -2128,13 +2158,10 @@ export const refineAssistantMessage = action({
 
     try {
       // Delete the current assistant message and subsequent messages (preserve context)
-      const allMessages: Array<{ _id: Id<"messages">; role: string }> =
-        await ctx.runQuery(api.messages.getAllInConversation, {
-          conversationId: message.conversationId,
-        });
-      const currentIndex = allMessages.findIndex(m => m._id === args.messageId);
+      // Reuse convoMessages from earlier to avoid redundant query
+      const currentIndex = convoArray.findIndex(m => m._id === args.messageId);
       if (currentIndex >= 0) {
-        for (const msg of allMessages.slice(currentIndex)) {
+        for (const msg of convoArray.slice(currentIndex)) {
           if (msg.role === "context") {
             continue;
           }

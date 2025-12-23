@@ -193,34 +193,6 @@ export function createError(
   return new ConvexError(ERROR_MESSAGES[message]);
 }
 
-// Handle optional user authentication (returns null if not authenticated)
-export async function getOptionalUser(
-  ctx: MutationCtx | QueryCtx,
-): Promise<Id<"users"> | null> {
-  try {
-    return await getAuthUserId(ctx);
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Shared database operation utilities
- */
-
-// Check if user owns a resource (generic version removed due to type constraints)
-export async function validateOwnership(
-  _ctx: MutationCtx | QueryCtx,
-  resourceUserId: Id<"users">,
-  errorMessage: string = "Access denied",
-): Promise<void> {
-  // This function is currently a no-op but kept for interface compatibility
-  // The actual validation should happen in mutations that check user access
-  if (resourceUserId === undefined) {
-    throw new ConvexError<string>(errorMessage);
-  }
-}
-
 /**
  * Shared business logic utilities
  */

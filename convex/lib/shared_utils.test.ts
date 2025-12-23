@@ -7,12 +7,10 @@ import {
   createError,
   getAuthenticatedUser,
   getAuthenticatedUserWithData,
-  getOptionalUser,
   hasConversationAccess,
   validateAuthenticatedUser,
   validateConversationAccess,
   validateMonthlyMessageLimit,
-  validateOwnership,
   sanitizeSchema,
   getConversationMessages,
   stopConversationStreaming,
@@ -257,41 +255,6 @@ describe("validateConversationAccess", () => {
   });
 });
 
-describe("getOptionalUser", () => {
-  test("returns userId when authenticated", async () => {
-    const ctx = makeConvexCtx({
-      auth: {
-        getUserIdentity: mock(() => Promise.resolve({ subject: "user-123" })),
-      },
-    });
-
-    const userId = await getOptionalUser(ctx as any);
-    expect(userId).toBe("user-123");
-  });
-
-  test("returns null when not authenticated", async () => {
-    const ctx = makeConvexCtx({
-      auth: {
-        getUserIdentity: mock(() => Promise.resolve(null)),
-      },
-    });
-
-    const userId = await getOptionalUser(ctx as any);
-    expect(userId).toBeNull();
-  });
-
-  test("returns null when auth throws error", async () => {
-    const ctx = makeConvexCtx({
-      auth: {
-        getUserIdentity: mock(() => Promise.reject(new Error("Auth error"))),
-      },
-    });
-
-    const userId = await getOptionalUser(ctx as any);
-    expect(userId).toBeNull();
-  });
-});
-
 describe("validateMonthlyMessageLimit", () => {
   test("does not throw when under limit", async () => {
     const ctx = makeConvexCtx();
@@ -346,33 +309,6 @@ describe("validateMonthlyMessageLimit", () => {
     await validateMonthlyMessageLimit(ctx as any, user as any);
     // If we get here without throwing, the test passes
     expect(true).toBe(true);
-  });
-});
-
-describe("validateOwnership", () => {
-  test("does not throw when resourceUserId is provided", async () => {
-    const ctx = makeConvexCtx();
-    const resourceUserId = "user-123" as Id<"users">;
-
-    await validateOwnership(ctx as any, resourceUserId);
-    // If we get here without throwing, the test passes
-    expect(true).toBe(true);
-  });
-
-  test("throws when resourceUserId is undefined", async () => {
-    const ctx = makeConvexCtx();
-
-    await expect(
-      validateOwnership(ctx as any, undefined as any)
-    ).rejects.toThrow("Access denied");
-  });
-
-  test("uses custom error message", async () => {
-    const ctx = makeConvexCtx();
-
-    await expect(
-      validateOwnership(ctx as any, undefined as any, "Custom error")
-    ).rejects.toThrow("Custom error");
   });
 });
 

@@ -1,4 +1,7 @@
-import { getModelReasoningInfo } from "./reasoning-model-detection";
+import {
+  getModelReasoningInfo,
+  isGemini3Model,
+} from "./reasoning-model-detection";
 
 export type ReasoningEffortLevel = "low" | "medium" | "high";
 
@@ -20,17 +23,32 @@ type OpenRouterReasoningOptions = {
   enabled?: boolean;
 } & Partial<Record<"max_tokens", number>>;
 
+// Gemini 3 thinking levels (thinkingLevel parameter)
+// Pro models support: low, high (default: high)
+// Flash models support: minimal, low, medium, high
+export type Gemini3ThinkingLevel = "minimal" | "low" | "medium" | "high";
+
+// Gemini 2.5 uses thinkingBudget (token count)
+// Gemini 3 uses thinkingLevel (categorical)
+export type GoogleProviderOptions = {
+  structuredOutputs?: boolean;
+  thinkingConfig?: {
+    // Gemini 2.5: token budget for thinking
+    thinkingBudget?: number;
+    // Gemini 3: categorical thinking level
+    thinkingLevel?: Gemini3ThinkingLevel;
+    // Whether to include thought summaries in response
+    // Works properly on Gemini 3, but not on Gemini 2.5 via @ai-sdk/google
+    includeThoughts?: boolean;
+  };
+};
+
 export type ProviderStreamOptions =
   | Record<string, never> // Empty object for non-reasoning models
   | { openai: { reasoning: boolean } }
   | {
       providerOptions: {
-        google: {
-          thinkingConfig: {
-            thinkingBudget: number;
-            includeThoughts?: boolean;
-          };
-        };
+        google: GoogleProviderOptions;
       };
     }
   | { anthropic: { thinking: { type: "enabled"; budgetTokens: number } } }
@@ -75,9 +93,10 @@ export function getProviderReasoningConfig(
   // Use centralized reasoning detection
   const reasoningInfo = getModelReasoningInfo(provider, modelId);
 
-  // If model doesn't support reasoning at all, return empty config
+  // If model doesn't support reasoning at all, return base provider options
+  // (e.g., Google needs structuredOutputs: false even without reasoning)
   if (!(reasoningInfo.supportsReasoning || modelSupportsReasoning)) {
-    return {};
+    return getProviderBaseOptions(provider);
   }
 
   // Handle built-in provider mapping - use provider as-is since it should already be resolved
@@ -92,7 +111,8 @@ export function getProviderReasoningConfig(
       actualProvider,
       reasoningConfig || {
         effort: "medium",
-      }
+      },
+      modelId
     );
   }
 
@@ -106,16 +126,43 @@ export function getProviderReasoningConfig(
       reasoningConfig.maxTokens
     )
   ) {
-    return {}; // Simply omit reasoning settings when not enabled
+    // Return base provider options when reasoning not enabled
+    // (e.g., Google needs structuredOutputs: false even without reasoning)
+    return getProviderBaseOptions(provider);
   }
 
   // Delegate to provider-specific implementation when reasoning is explicitly enabled
-  return getProviderReasoningOptions(actualProvider, reasoningConfig);
+  return getProviderReasoningOptions(actualProvider, reasoningConfig, modelId);
+}
+
+/**
+ * Map our effort levels to Gemini 3's thinkingLevel
+ * Pro models only support: low, high
+ * Flash models support: minimal, low, medium, high
+ */
+function getGemini3ThinkingLevel(
+  effort: ReasoningEffortLevel,
+  modelId: string
+): Gemini3ThinkingLevel {
+  const isFlashModel = modelId.toLowerCase().includes("flash");
+
+  switch (effort) {
+    case "low":
+      return "low";
+    case "medium":
+      // Flash supports medium, Pro falls back to low
+      return isFlashModel ? "medium" : "low";
+    case "high":
+      return "high";
+    default:
+      return "high"; // Default to high for Gemini 3
+  }
 }
 
 export function getProviderReasoningOptions(
   provider: string,
-  reasoningConfig?: ReasoningConfig
+  reasoningConfig?: ReasoningConfig,
+  modelId?: string
 ): ProviderStreamOptions {
   switch (provider) {
     case "openai":
@@ -126,6 +173,28 @@ export function getProviderReasoningOptions(
       };
 
     case "google": {
+      // Gemini 3 uses thinkingLevel (categorical), Gemini 2.5 uses thinkingBudget (token count)
+      if (modelId && isGemini3Model(modelId)) {
+        const thinkingLevel = getGemini3ThinkingLevel(
+          reasoningConfig?.effort ?? "high", // Gemini 3 defaults to high
+          modelId
+        );
+
+        return {
+          providerOptions: {
+            google: {
+              structuredOutputs: false,
+              thinkingConfig: {
+                thinkingLevel,
+                // Gemini 3 properly supports includeThoughts via @ai-sdk/google
+                includeThoughts: true,
+              },
+            },
+          },
+        };
+      }
+
+      // Gemini 2.5 and earlier: use thinkingBudget
       const thinkingBudget =
         reasoningConfig?.maxTokens ??
         GOOGLE_THINKING_BUDGET_MAP[reasoningConfig?.effort ?? "medium"];
@@ -133,8 +202,13 @@ export function getProviderReasoningOptions(
       return {
         providerOptions: {
           google: {
+            // Explicitly disable structured outputs - AI SDK defaults to true
+            // which causes some Gemini models to output JSON instead of prose
+            structuredOutputs: false,
             thinkingConfig: {
               thinkingBudget,
+              // Include thought summaries in response - @ai-sdk/google v2.0.51+
+              // now properly supports this for Gemini 2.5 models
               includeThoughts: true,
             },
           },
@@ -233,6 +307,27 @@ export function getProviderReasoningOptions(
     default:
       return {};
   }
+}
+
+/**
+ * Get baseline provider options that should always be applied.
+ * Currently only Google requires this to explicitly disable structured outputs.
+ */
+export function getProviderBaseOptions(
+  provider: string
+): ProviderStreamOptions {
+  if (provider === "google") {
+    return {
+      providerOptions: {
+        google: {
+          // Explicitly disable structured outputs - AI SDK defaults to true
+          // which causes some Gemini models to output JSON instead of prose
+          structuredOutputs: false,
+        },
+      },
+    };
+  }
+  return {};
 }
 
 /**

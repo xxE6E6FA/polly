@@ -2071,7 +2071,7 @@ export const editAndResendMessage = action({
       preferredProvider
     );
 
-    // Build context messages including the edited message
+    // Build context messages including the edited message, passing pre-fetched data
     await buildContextMessages(ctx, {
       conversationId: message.conversationId,
       personaId: conversation.personaId,
@@ -2081,6 +2081,8 @@ export const editAndResendMessage = action({
       },
       provider: fullModel.provider,
       modelId: fullModel.modelId,
+      prefetchedMessages: messages, // Pass already-fetched messages
+      prefetchedModelInfo: { contextLength: fullModel.contextLength },
     });
 
     // Create new assistant message for streaming
@@ -2236,7 +2238,7 @@ export const retryFromMessage = action({
         throw new Error("Cannot find previous user message to retry from");
       }
 
-      // Build context messages for streaming
+      // Build context messages for streaming, passing pre-fetched data to avoid redundant queries
       const { contextMessages } = await buildContextMessages(ctx, {
         conversationId: args.conversationId,
         personaId: effectivePersonaId,
@@ -2247,6 +2249,8 @@ export const retryFromMessage = action({
         },
         provider: fullModel.provider,
         modelId: fullModel.modelId,
+        prefetchedMessages: messages, // Pass already-fetched messages
+        prefetchedModelInfo: { contextLength: fullModel.contextLength },
       });
 
       // Schedule the streaming action to regenerate the assistant response
@@ -2394,7 +2398,7 @@ export const retryFromMessage = action({
     // Delete messages after the user message (preserve the user message and context)
     await handleMessageDeletion(ctx, messages, messageIndex, "user");
 
-    // Build context messages up to the retry point
+    // Build context messages up to the retry point, passing pre-fetched data
     const { contextMessages } = await buildContextMessages(ctx, {
       conversationId: args.conversationId,
       personaId: effectivePersonaId,
@@ -2405,6 +2409,8 @@ export const retryFromMessage = action({
       },
       provider: fullModel.provider,
       modelId: fullModel.modelId,
+      prefetchedMessages: messages, // Pass already-fetched messages
+      prefetchedModelInfo: { contextLength: fullModel.contextLength },
     });
 
     // Execute streaming action for retry (creates a NEW assistant message)
@@ -2497,7 +2503,7 @@ export const editMessage = action({
       preferredProvider
     );
 
-    // Build context messages including the edited message
+    // Build context messages including the edited message, passing pre-fetched data
     const { contextMessages } = await buildContextMessages(ctx, {
       conversationId: args.conversationId,
       personaId: conversation.personaId,
@@ -2507,6 +2513,8 @@ export const editMessage = action({
       },
       provider: fullModel.provider,
       modelId: fullModel.modelId,
+      prefetchedMessages: messages, // Pass already-fetched messages
+      prefetchedModelInfo: { contextLength: fullModel.contextLength },
     });
 
     // Execute streaming action for retry

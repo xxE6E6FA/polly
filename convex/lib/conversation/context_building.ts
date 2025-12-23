@@ -24,17 +24,25 @@ export const buildHierarchicalContextMessages = async (
   userId?: Id<"users">,
   modelId?: string,
   recentMessageCount: number = 50,
+  /** Pre-fetched messages to avoid redundant queries */
+  prefetchedMessages?: Array<{ _id: any; role: string; content: string; _creationTime: number; [key: string]: any }>,
+  /** Pre-resolved model info to avoid redundant getUserEffectiveModelWithCapabilities calls */
+  prefetchedModelInfo?: { contextLength?: number },
 ): Promise<{ role: "system"; content: string }[]> => {
   try {
-    // Get the model capabilities for context window optimization
+    // Use pre-fetched model info or fetch if needed
     const modelInfo =
-      modelId && userId
+      prefetchedModelInfo ??
+      (modelId && userId
         ? await getUserEffectiveModelWithCapabilities(ctx, userId, modelId)
-        : undefined;
+        : undefined);
 
-    const allMessages = await ctx.runQuery(api.messages.getAllInConversation, {
-      conversationId,
-    });
+    // Use pre-fetched messages or fetch if not provided
+    const allMessages =
+      prefetchedMessages ??
+      (await ctx.runQuery(api.messages.getAllInConversation, {
+        conversationId,
+      }));
 
     if (!allMessages || allMessages.length === 0) {
       return [];
@@ -267,6 +275,17 @@ export const buildContextMessages = async (
     };
     provider?: string;
     modelId?: string;
+    /** Pre-fetched messages to avoid redundant queries */
+    prefetchedMessages?: Array<{
+      _id: any;
+      role: string;
+      content: string;
+      _creationTime: number;
+      attachments?: any[];
+      [key: string]: any;
+    }>;
+    /** Pre-resolved model info to avoid redundant queries */
+    prefetchedModelInfo?: { contextLength?: number };
   },
 ): Promise<{
   contextMessages: Array<{
@@ -281,10 +300,12 @@ export const buildContextMessages = async (
       throw new Error("User not authenticated");
     }
 
-    // Get conversation messages up to the specified index
-    const allMessages = await ctx.runQuery(api.messages.getAllInConversation, {
-      conversationId: args.conversationId,
-    });
+    // Use pre-fetched messages or fetch if not provided
+    const allMessages =
+      args.prefetchedMessages ??
+      (await ctx.runQuery(api.messages.getAllInConversation, {
+        conversationId: args.conversationId,
+      }));
 
     // Slice messages up to the includeUpToIndex if specified
     const messagesToInclude =
@@ -292,13 +313,15 @@ export const buildContextMessages = async (
         ? allMessages.slice(0, args.includeUpToIndex + 1)
         : allMessages;
 
-    // Build hierarchical context if needed
+    // Build hierarchical context if needed, passing pre-fetched data
     const contextSystemMessages = await buildHierarchicalContextMessages(
       ctx,
       args.conversationId,
       userId,
       undefined, // model ID not needed for retry context
       50, // recent message count
+      allMessages, // Pass pre-fetched messages to avoid another query
+      args.prefetchedModelInfo, // Pass model info if available
     );
 
     // Get persona prompt if specified

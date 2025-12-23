@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   ANTHROPIC_BUDGET_MAP,
   GOOGLE_THINKING_BUDGET_MAP,
+  getProviderBaseOptions,
   getProviderReasoningConfig,
   getProviderReasoningOptions,
   type ModelWithCapabilities,
@@ -50,8 +51,11 @@ describe("getProviderReasoningOptions", () => {
     expect(result).toEqual({
       providerOptions: {
         google: {
+          // structuredOutputs is explicitly disabled to prevent JSON output
+          structuredOutputs: false,
           thinkingConfig: {
             thinkingBudget: GOOGLE_THINKING_BUDGET_MAP.medium,
+            // includeThoughts is enabled - @ai-sdk/google v2.0.51+ properly supports it
             includeThoughts: true,
           },
         },
@@ -65,6 +69,7 @@ describe("getProviderReasoningOptions", () => {
     expect(result).toEqual({
       providerOptions: {
         google: {
+          structuredOutputs: false,
           thinkingConfig: {
             thinkingBudget: GOOGLE_THINKING_BUDGET_MAP.high,
             includeThoughts: true,
@@ -80,8 +85,91 @@ describe("getProviderReasoningOptions", () => {
     expect(result).toEqual({
       providerOptions: {
         google: {
+          structuredOutputs: false,
           thinkingConfig: {
             thinkingBudget: 2048,
+            includeThoughts: true,
+          },
+        },
+      },
+    });
+  });
+
+  test("returns Gemini 3 Pro config with thinkingLevel high by default", () => {
+    const result = getProviderReasoningOptions(
+      "google",
+      { effort: "high" },
+      "gemini-3-pro-preview"
+    );
+
+    expect(result).toEqual({
+      providerOptions: {
+        google: {
+          structuredOutputs: false,
+          thinkingConfig: {
+            thinkingLevel: "high",
+            includeThoughts: true,
+          },
+        },
+      },
+    });
+  });
+
+  test("returns Gemini 3 Pro config with thinkingLevel low", () => {
+    const result = getProviderReasoningOptions(
+      "google",
+      { effort: "low" },
+      "gemini-3-pro-preview"
+    );
+
+    expect(result).toEqual({
+      providerOptions: {
+        google: {
+          structuredOutputs: false,
+          thinkingConfig: {
+            thinkingLevel: "low",
+            includeThoughts: true,
+          },
+        },
+      },
+    });
+  });
+
+  test("returns Gemini 3 Pro config with low for medium effort (Pro doesn't support medium)", () => {
+    const result = getProviderReasoningOptions(
+      "google",
+      { effort: "medium" },
+      "gemini-3-pro-preview"
+    );
+
+    expect(result).toEqual({
+      providerOptions: {
+        google: {
+          structuredOutputs: false,
+          thinkingConfig: {
+            // Pro falls back to low for medium effort
+            thinkingLevel: "low",
+            includeThoughts: true,
+          },
+        },
+      },
+    });
+  });
+
+  test("returns Gemini 3 Flash config with thinkingLevel medium", () => {
+    const result = getProviderReasoningOptions(
+      "google",
+      { effort: "medium" },
+      "gemini-3-flash-preview"
+    );
+
+    expect(result).toEqual({
+      providerOptions: {
+        google: {
+          structuredOutputs: false,
+          thinkingConfig: {
+            // Flash supports medium
+            thinkingLevel: "medium",
             includeThoughts: true,
           },
         },
@@ -243,8 +331,33 @@ describe("getProviderReasoningOptions", () => {
   });
 });
 
+describe("getProviderBaseOptions", () => {
+  test("returns Google base options with structuredOutputs disabled", () => {
+    const result = getProviderBaseOptions("google");
+    expect(result).toEqual({
+      providerOptions: {
+        google: {
+          structuredOutputs: false,
+        },
+      },
+    });
+  });
+
+  test("returns empty object for OpenAI", () => {
+    expect(getProviderBaseOptions("openai")).toEqual({});
+  });
+
+  test("returns empty object for Anthropic", () => {
+    expect(getProviderBaseOptions("anthropic")).toEqual({});
+  });
+
+  test("returns empty object for unknown provider", () => {
+    expect(getProviderBaseOptions("unknown")).toEqual({});
+  });
+});
+
 describe("getProviderReasoningConfig", () => {
-  test("returns empty config for non-reasoning model", () => {
+  test("returns empty config for non-reasoning OpenAI model", () => {
     const model: ModelWithCapabilities = {
       modelId: "gpt-3.5-turbo",
       provider: "openai",
@@ -255,7 +368,24 @@ describe("getProviderReasoningConfig", () => {
     expect(result).toEqual({});
   });
 
-  test("returns empty config when reasoning disabled explicitly", () => {
+  test("returns Google base options for non-reasoning Google model", () => {
+    const model: ModelWithCapabilities = {
+      modelId: "gemini-1.5-flash",
+      provider: "google",
+      supportsReasoning: false,
+    };
+
+    const result = getProviderReasoningConfig(model);
+    expect(result).toEqual({
+      providerOptions: {
+        google: {
+          structuredOutputs: false,
+        },
+      },
+    });
+  });
+
+  test("returns empty config when reasoning disabled explicitly for OpenAI", () => {
     const model: ModelWithCapabilities = {
       modelId: "gpt-4o",
       provider: "openai",
@@ -264,6 +394,24 @@ describe("getProviderReasoningConfig", () => {
 
     const result = getProviderReasoningConfig(model, { enabled: false });
     expect(result).toEqual({});
+  });
+
+  test("returns Google base options when reasoning disabled explicitly for Google", () => {
+    // Use a model with optional reasoning (not mandatory like gemini-2.5-pro)
+    const model: ModelWithCapabilities = {
+      modelId: "gemini-2.5-flash",
+      provider: "google",
+      supportsReasoning: true,
+    };
+
+    const result = getProviderReasoningConfig(model, { enabled: false });
+    expect(result).toEqual({
+      providerOptions: {
+        google: {
+          structuredOutputs: false,
+        },
+      },
+    });
   });
 
   test("enables reasoning when model supports it and config provided", () => {

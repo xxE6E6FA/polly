@@ -88,7 +88,9 @@
       "Bash(bunx biome check:*)",
       "Bash(bunx vite-bundle-visualizer:*)",
       "Bash(bunx vite-bundle-analyzer:*)",
-      "Bash(bunx source-map-explorer:*)"
+      "Bash(bunx source-map-explorer:*)",
+      "WebFetch(domain:ai.google.dev)",
+      "Bash(npm view:*)"
     ],
     "deny": []
   },
