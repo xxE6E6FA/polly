@@ -1,4 +1,5 @@
 import { v } from "convex/values";
+import { z } from "zod/v3";
 
 import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
@@ -9,10 +10,18 @@ import {
   type MutationCtx,
 } from "./_generated/server";
 import {
-  generateTextWithProvider,
+  generateObjectWithProvider,
   isTextGenerationAvailable,
 } from "./ai/text_generation";
 import { scheduleRunAfter } from "./lib/scheduler";
+
+// AI SDK v6: Schema for structured title generation
+const titleSchema = z.object({
+  title: z
+    .string()
+    .max(40)
+    .describe("A short, direct title (2-5 words) for the conversation"),
+});
 
 // Helper function to generate title without updating conversation
 async function generateTitleHelper(message: string): Promise<string> {
@@ -22,6 +31,7 @@ async function generateTitleHelper(message: string): Promise<string> {
   }
 
   try {
+    // AI SDK v6: Use Output.object() for structured, validated title generation
     const prompt = `Generate a short title (2-5 words, max 40 characters) for this chat message. Be direct and specific. Avoid phrases like "Discussion about", "Help with", or "Question regarding".
 
 Examples of good titles:
@@ -29,17 +39,18 @@ Examples of good titles:
 - "Fix Login Bug"
 - "Database Schema Design"
 
-Message: "${message}"
+Message: "${message}"`;
 
-Title:`;
-
-    const title = await generateTextWithProvider({
+    const result = await generateObjectWithProvider({
       prompt,
-      maxTokens: 10,
+      schema: titleSchema,
+      schemaName: "title",
+      schemaDescription: "A short, direct title for the conversation",
+      maxOutputTokens: 50,
       temperature: 0.3,
     });
 
-    const trimmedTitle = title.trim();
+    const trimmedTitle = result.title.trim();
     if (!trimmedTitle) {
       throw new Error("No title generated");
     }

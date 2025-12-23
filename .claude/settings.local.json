@@ -90,7 +90,11 @@
       "Bash(bunx vite-bundle-analyzer:*)",
       "Bash(bunx source-map-explorer:*)",
       "WebFetch(domain:ai.google.dev)",
-      "Bash(npm view:*)"
+      "Bash(npm view:*)",
+      "WebFetch(domain:vercel.com)",
+      "Bash(bunx @ai-sdk/codemod:*)",
+      "Bash(git checkout:*)",
+      "Bash(bunx convex dev:*)"
     ],
     "deny": []
   },

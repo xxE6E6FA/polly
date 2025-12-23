@@ -28,6 +28,10 @@ type StreamingParams = {
   presencePenalty?: number;
   extraOptions?: Record<string, unknown>;
   abortController?: AbortController;
+  // AI SDK v6: Telemetry metadata
+  userId?: Id<"users">;
+  modelId?: string;
+  provider?: string;
 };
 
 export async function streamLLMToMessage({
@@ -44,6 +48,9 @@ export async function streamLLMToMessage({
   presencePenalty,
   extraOptions = {},
   abortController,
+  userId,
+  modelId,
+  provider,
 }: StreamingParams) {
   // Initial state
   await ctx.runMutation(internal.messages.updateMessageStatus, {
@@ -80,8 +87,10 @@ export async function streamLLMToMessage({
   let chunkCounter = 0;
   let stopped = false;
   let userStopped = false; // Track if stopped by user request
+  let isFlushing = false; // Prevent concurrent flushes causing OCC conflicts
 
-  const flushContent = async () => {
+  // Internal flush functions - should only be called via flushAll to avoid OCC conflicts
+  const _flushContentInternal = async () => {
     if (!contentBuf || stopped) return;
     const toSend = contentBuf;
     contentBuf = "";
@@ -103,7 +112,7 @@ export async function streamLLMToMessage({
     }
   };
 
-  const flushReasoning = async () => {
+  const _flushReasoningInternal = async () => {
     if (!reasoningBuf || stopped) return;
     const toSend = reasoningBuf;
     reasoningBuf = "";
@@ -125,16 +134,50 @@ export async function streamLLMToMessage({
     }
   };
 
-  // Periodic flush for batched content (stop check happens in the mutations themselves)
-  const periodicFlush = setInterval(async () => {
-    await flushContent();
-    await flushReasoning();
-  }, DEFAULT_STREAM_CONFIG.BATCH_TIMEOUT);
+  // Serialized flush that prevents OCC conflicts between content and reasoning updates
+  const flushAll = async () => {
+    if (isFlushing || stopped) return;
+    isFlushing = true;
+    try {
+      // Flush sequentially to avoid concurrent mutations on the same document
+      await _flushContentInternal();
+      await _flushReasoningInternal();
+    } finally {
+      isFlushing = false;
+    }
+  };
+
+  // Public flush functions that go through flushAll for serialization
+  const flushContent = flushAll;
+  const flushReasoning = flushAll;
+
+  // Track pending flush promise to avoid Convex dangling promise warnings
+  let pendingFlush: Promise<void> | null = null;
+
+  // Periodic flush using recursive setTimeout to properly await promises
+  let flushTimeoutId: ReturnType<typeof setTimeout> | null = null;
+  const scheduleFlush = () => {
+    if (stopped) return;
+    flushTimeoutId = setTimeout(() => {
+      pendingFlush = flushAll().finally(() => {
+        pendingFlush = null;
+        scheduleFlush(); // Schedule next flush after current completes
+      });
+    }, DEFAULT_STREAM_CONFIG.BATCH_TIMEOUT);
+  };
+  scheduleFlush();
 
   const stopAll = async () => {
     if (stopped && !userStopped) return; // Already stopped for other reasons
     stopped = true;
-    clearInterval(periodicFlush);
+    if (flushTimeoutId) {
+      clearTimeout(flushTimeoutId);
+      flushTimeoutId = null;
+    }
+    // Wait for any pending flush to complete
+    if (pendingFlush) {
+      await pendingFlush;
+    }
     try {
       // Use conditional clearing to prevent race conditions with newer streaming actions.
       // Only clears isStreaming if this message is still the current streaming message.
@@ -163,6 +206,19 @@ export async function streamLLMToMessage({
             // biome-ignore lint/style/useNamingConvention: AI SDK option
             experimental_transform: createSmoothStreamTransform(),
           }),
+      // AI SDK v6: Telemetry for observability
+      // biome-ignore lint/style/useNamingConvention: AI SDK option
+      experimental_telemetry: {
+        isEnabled: true,
+        functionId: "chat-streaming",
+        metadata: {
+          conversationId,
+          messageId,
+          ...(userId && { userId }),
+          ...(modelId && { modelId }),
+          ...(provider && { provider }),
+        },
+      },
       ...extraOptions,
     };
 
@@ -237,7 +293,7 @@ export async function streamLLMToMessage({
           });
         }
 
-        // Reasoning chunks (v5 uses "reasoning-delta" type)
+        // Reasoning chunks
         if (isReasoningDelta(chunk)) {
           // Track when reasoning starts
           if (!reasoningStartTime) {
@@ -250,7 +306,7 @@ export async function streamLLMToMessage({
           return;
         }
 
-        // Text deltas (v5 uses "text" property instead of "textDelta")
+        // Text deltas
         if (chunk.type === "text-delta" && chunk.text) {
           // Track when content starts (marks end of reasoning phase)
           if (!hasReceivedContent && reasoningStartTime && !reasoningEndTime) {
@@ -298,7 +354,7 @@ export async function streamLLMToMessage({
               ? endTime - reasoningStartTime // If no content, reasoning lasted until the end
               : undefined;
 
-        // Use AI SDK v5's rich metadata for comprehensive final state
+        // Use AI SDK v6's rich metadata for comprehensive final state
         await ctx.runMutation(internal.messages.internalUpdate, {
           id: messageId,
           // Include citations from tool calls if any
@@ -314,8 +370,13 @@ export async function streamLLMToMessage({
                     inputTokens: usage.inputTokens,
                     outputTokens: usage.outputTokens,
                     totalTokens: usage.totalTokens,
-                    reasoningTokens: usage.reasoningTokens,
-                    cachedInputTokens: usage.cachedInputTokens,
+                    // AI SDK v6: Use new detailed token fields, fallback to deprecated fields
+                    reasoningTokens:
+                      usage.outputTokenDetails?.reasoningTokens ??
+                      usage.reasoningTokens,
+                    cachedInputTokens:
+                      usage.inputTokenDetails?.cacheReadTokens ??
+                      usage.cachedInputTokens,
                   }
                 : undefined,
             providerMessageId: response?.id,
@@ -323,11 +384,12 @@ export async function streamLLMToMessage({
               ? new Date(response.timestamp).toISOString()
               : undefined,
             warnings: warnings?.map((w) => {
-              if (w.type === "unsupported-setting") {
-                return `Unsupported setting: ${w.setting}${w.details ? ` - ${w.details}` : ""}`;
+              // AI SDK v6 unified Warning type with feature + details
+              if (w.type === "unsupported") {
+                return `Unsupported: ${w.feature}${w.details ? ` - ${w.details}` : ""}`;
               }
-              if (w.type === "unsupported-tool") {
-                return `Unsupported tool${w.details ? `: ${w.details}` : ""}`;
+              if (w.type === "compatibility") {
+                return `Compatibility: ${w.feature}${w.details ? ` - ${w.details}` : ""}`;
               }
               if (w.type === "other") {
                 return w.message;
@@ -345,6 +407,16 @@ export async function streamLLMToMessage({
           messageId,
           status: "done",
         });
+      },
+      // AI SDK v6: Handle errors during streaming without crashing
+      onError: ({ error }) => {
+        console.error("Stream error in onError callback:", error);
+      },
+      // AI SDK v6: Handle stream abort for cleanup
+      onAbort: async ({ steps }) => {
+        console.log(`Stream aborted after ${steps.length} steps`);
+        userStopped = true;
+        stopped = true;
       },
     });
 

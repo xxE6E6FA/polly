@@ -7,7 +7,7 @@
       "@ai-sdk/anthropic",
       "@ai-sdk/google",
       "@ai-sdk/openai",
-      "@openrouter/ai-sdk-provider"
+      "@ai-sdk/openai-compatible"
     ]
   }
 }

@@ -13,7 +13,7 @@ describe("extractCitations", () => {
   });
 
   test("extracts Google Search Grounding citations", () => {
-    const providerMetadata = {
+    const providerOptions = {
       groundingMetadata: {
         groundingChunks: [
           {
@@ -29,7 +29,7 @@ describe("extractCitations", () => {
       },
     };
 
-    const result = extractCitations(providerMetadata);
+    const result = extractCitations(providerOptions);
     expect(result).toEqual([
       {
         type: "url_citation",
@@ -41,18 +41,18 @@ describe("extractCitations", () => {
   });
 
   test("returns undefined when Google grounding has no chunks", () => {
-    const providerMetadata = {
+    const providerOptions = {
       groundingMetadata: {
         groundingChunks: [],
       },
     };
 
-    const result = extractCitations(providerMetadata);
+    const result = extractCitations(providerOptions);
     expect(result).toBeUndefined();
   });
 
   test("extracts OpenRouter web search citations", () => {
-    const providerMetadata = {
+    const providerOptions = {
       sources: [
         {
           url: "https://openrouter.ai/docs",
@@ -62,7 +62,7 @@ describe("extractCitations", () => {
       ],
     };
 
-    const result = extractCitations(providerMetadata);
+    const result = extractCitations(providerOptions);
     expect(result).toEqual([
       {
         type: "url_citation",
@@ -74,16 +74,16 @@ describe("extractCitations", () => {
   });
 
   test("returns undefined when OpenRouter sources is empty array", () => {
-    const providerMetadata = {
+    const providerOptions = {
       sources: [],
     };
 
-    const result = extractCitations(providerMetadata);
+    const result = extractCitations(providerOptions);
     expect(result).toBeUndefined();
   });
 
   test("handles missing properties in Google grounding", () => {
-    const providerMetadata = {
+    const providerOptions = {
       groundingMetadata: {
         groundingChunks: [
           {
@@ -94,7 +94,7 @@ describe("extractCitations", () => {
       },
     };
 
-    const result = extractCitations(providerMetadata);
+    const result = extractCitations(providerOptions);
     expect(result).toEqual([
       {
         type: "url_citation",
@@ -106,7 +106,7 @@ describe("extractCitations", () => {
   });
 
   test("handles missing properties in OpenRouter sources", () => {
-    const providerMetadata = {
+    const providerOptions = {
       sources: [
         {
           url: undefined,
@@ -116,7 +116,7 @@ describe("extractCitations", () => {
       ],
     };
 
-    const result = extractCitations(providerMetadata);
+    const result = extractCitations(providerOptions);
     expect(result).toEqual([
       {
         type: "url_citation",
@@ -128,11 +128,11 @@ describe("extractCitations", () => {
   });
 
   test("returns undefined for unknown metadata format", () => {
-    const providerMetadata = {
+    const providerOptions = {
       someOtherField: "value",
     };
 
-    const result = extractCitations(providerMetadata);
+    const result = extractCitations(providerOptions);
     expect(result).toBeUndefined();
   });
 });
