@@ -102,3 +102,23 @@ All files use **kebab-case**: `chat-message.tsx`, `use-chat.ts`, `user-bubble.ts
 ## Imports
 
 Use barrel files: `@/components/ui`, `@/hooks`, `@/lib`. See JSDoc in each `index.ts`.
+
+## Code Review (GitHub)
+
+When reviewing PRs (via `@claude review` or `claude-review` label):
+
+**Flag these:**
+- Security issues (auth bypass, injection, data exposure)
+- Bugs and correctness problems
+- Incorrect Convex patterns (missing indexes, wrong validators)
+- Missing error handling in critical paths
+
+**Skip these:**
+- Style preferences (Biome handles formatting/linting)
+- Minor naming suggestions
+- "Consider using X instead of Y" unless it's a real problem
+
+**Critical paths** (extra scrutiny):
+- `convex/auth/` — authentication logic
+- `convex/ai/` — AI integration, prompt handling, streaming
+- `src/providers/` — React context, state management

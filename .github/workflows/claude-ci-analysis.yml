@@ -1,0 +1,47 @@
+name: Claude CI Analysis
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+
+jobs:
+  analyze-failure:
+    if: |
+      github.event.workflow_run.conclusion == 'failure' &&
+      github.event.workflow_run.event == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      actions: read
+      id-token: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Get PR number
+        id: pr
+        run: |
+          PR_NUMBER=$(gh run view ${{ github.event.workflow_run.id }} --json pullRequests -q '.pullRequests[0].number')
+          echo "number=$PR_NUMBER" >> $GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Analyze CI Failure
+        if: steps.pr.outputs.number != ''
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            CI failed on PR #${{ steps.pr.outputs.number }}.
+
+            1. Run `gh run view ${{ github.event.workflow_run.id }} --log-failed` to see what failed
+            2. Identify the failure (test, build, lint, or types)
+            3. Explain why it failed in 1-2 sentences
+            4. Suggest a specific fix
+
+            Post a concise comment on the PR using `gh pr comment`.
+          claude_args: '--allowed-tools "Bash(gh run view:*),Bash(gh pr comment:*),Bash(gh pr diff:*)"'
