@@ -51,6 +51,7 @@ interface ChatInputBottomBarProps {
     supportsNegativePrompt: boolean;
     supportsImageToImage?: boolean;
     supportsImages?: boolean;
+    free?: boolean;
   } | null;
 }
 
@@ -114,6 +115,7 @@ export function ChatInputBottomBar({
     canSend,
     selectedModel,
     selectedImageModelSupportsInput: selectedImageModel?.supportsImageToImage,
+    selectedImageModelIsFree: selectedImageModel?.free,
     isAnonymous: user?.isAnonymous,
     hideTemperaturePicker: userSettings?.showTemperaturePicker === false,
   });

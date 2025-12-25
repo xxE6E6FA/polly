@@ -163,14 +163,15 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
         onProcessFiles: handleFileUpload,
       });
 
+    // Force back to text mode if in private mode (image gen not supported)
+    // Allow image mode if user has Replicate key OR selected model is free
+    const canUseImageMode =
+      hasReplicateApiKey || (selectedImageModel?.free ?? false);
     useEffect(() => {
-      if (
-        (isPrivateMode || !hasReplicateApiKey) &&
-        generationMode === "image"
-      ) {
+      if ((isPrivateMode || !canUseImageMode) && generationMode === "image") {
         setGenerationMode("text");
       }
-    }, [isPrivateMode, hasReplicateApiKey, generationMode, setGenerationMode]);
+    }, [isPrivateMode, canUseImageMode, generationMode, setGenerationMode]);
 
     // Auto-switch to image mode for image generation conversations
     // WHY: When users continue an image generation conversation, we want to keep them
@@ -187,7 +188,7 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
         hasExistingMessages &&
         isLikelyImageConversation &&
         generationMode === "text" &&
-        hasReplicateApiKey &&
+        canUseImageMode &&
         !isPrivateMode &&
         autoAppliedForConversationRef.current == null;
 
@@ -201,7 +202,7 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
       conversationId,
       hasExistingMessages,
       isLikelyImageConversation,
-      hasReplicateApiKey,
+      canUseImageMode,
       isPrivateMode,
       generationMode,
       setGenerationMode,

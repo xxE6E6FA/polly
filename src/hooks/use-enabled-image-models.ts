@@ -1,12 +1,13 @@
 import { api } from "@convex/_generated/api";
 import { useQuery } from "convex/react";
-import { useUserDataContext } from "@/providers/user-data-context";
 
+/**
+ * Returns all available image models (user + built-in).
+ * Built-in models have `isBuiltIn: true` and `free: boolean`.
+ */
 export function useEnabledImageModels() {
-  const { user } = useUserDataContext();
-  const enabledImageModels = useQuery(
-    api.imageModels.getUserImageModels,
-    user?._id ? {} : "skip"
+  const availableImageModels = useQuery(
+    api.imageModels.getAvailableImageModels
   );
-  return Array.isArray(enabledImageModels) ? enabledImageModels : undefined;
+  return Array.isArray(availableImageModels) ? availableImageModels : undefined;
 }

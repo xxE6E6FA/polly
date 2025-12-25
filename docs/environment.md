@@ -12,25 +12,25 @@ Set in Convex Dashboard → Settings → Environment Variables.
 
 ### Required
 
-| Variable | Description |
-|----------|-------------|
+| Variable                    | Description               |
+| --------------------------- | ------------------------- |
 | `API_KEY_ENCRYPTION_SECRET` | `openssl rand -base64 32` |
-| `GEMINI_API_KEY` | Title/summary generation |
-| `OPENAI_API_KEY` | Audio transcription |
-| `AUTH_GOOGLE_ID` | Google OAuth |
-| `AUTH_GOOGLE_SECRET` | Google OAuth |
-| `SITE_URL` | Production URL |
-| `CONVEX_SITE_URL` | Same as SITE_URL |
+| `GEMINI_API_KEY`            | Title/summary generation  |
+| `OPENAI_API_KEY`            | Audio transcription       |
+| `AUTH_GOOGLE_ID`            | Google OAuth              |
+| `AUTH_GOOGLE_SECRET`        | Google OAuth              |
+| `SITE_URL`                  | Production URL            |
+| `CONVEX_SITE_URL`           | Same as SITE_URL          |
 
 ### Optional
 
-| Variable | Description |
-|----------|-------------|
-| `EXA_API_KEY` | Web search |
-| `ANTHROPIC_API_KEY` | Built-in models |
-| `GROQ_API_KEY` | Built-in models |
-| `OPENROUTER_API_KEY` | Built-in models |
-| `REPLICATE_API_TOKEN` | Built-in image models |
+| Variable             | Description           |
+| -------------------- | --------------------- |
+| `EXA_API_KEY`        | Web search            |
+| `ANTHROPIC_API_KEY`  | Built-in models       |
+| `GROQ_API_KEY`       | Built-in models       |
+| `OPENROUTER_API_KEY` | Built-in models       |
+| `REPLICATE_API_KEY`  | Built-in image models |
 
 ## Google OAuth
 

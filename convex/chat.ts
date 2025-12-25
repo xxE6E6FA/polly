@@ -16,7 +16,6 @@ import {
   type UIMessagePart,
   type UITools,
 } from "ai";
-import { MONTHLY_MESSAGE_LIMIT } from "../shared/constants";
 import { getProviderReasoningConfig } from "../shared/reasoning-config";
 import { createSmoothStreamTransform } from "../shared/streaming-utils";
 import { mergeSystemPrompts } from "../shared/system-prompts";
@@ -42,6 +41,7 @@ import { createLanguageModel } from "./ai/server_streaming";
 import { createWebSearchTool } from "./ai/tools";
 import { getBaselineInstructions } from "./constants";
 import { incrementUserMessageStats } from "./lib/conversation_utils";
+import { checkFreeModelUsage } from "./lib/shared_utils";
 
 type IncomingUIMessage = UIMessage<unknown, UIDataTypes, UITools> & {
   content?: unknown;
@@ -406,18 +406,21 @@ export const chatStream = httpAction(
 
             const isFreePollyModel = model?.free === true;
 
-            // Check monthly limits for built-in models
+            // Check message limits for free/built-in models
+            // Applies to both anonymous and signed-in users
             if (isFreePollyModel) {
               const user = await ctx.runQuery(api.users.getById, {
                 id: userId,
               });
-              if (user && !user.hasUnlimitedCalls) {
-                const monthlyLimit = user.monthlyLimit ?? MONTHLY_MESSAGE_LIMIT;
-                const monthlyMessagesSent = user.monthlyMessagesSent ?? 0;
-                if (monthlyMessagesSent >= monthlyLimit) {
+              if (user) {
+                const { canSend, limit } = checkFreeModelUsage(user);
+                if (!canSend) {
+                  const errorMessage = user.isAnonymous
+                    ? `You've reached your limit of ${limit} free messages. Sign in for more messages or add your own API keys.`
+                    : `You've reached your monthly limit of ${limit} free messages. Add your own API keys for unlimited usage.`;
                   return new Response(
                     JSON.stringify({
-                      error: "Monthly built-in model message limit reached.",
+                      error: errorMessage,
                     }),
                     {
                       status: 429,

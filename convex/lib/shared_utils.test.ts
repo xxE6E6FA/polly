@@ -281,7 +281,7 @@ describe("validateMonthlyMessageLimit", () => {
 
     await expect(
       validateMonthlyMessageLimit(ctx as any, user as any)
-    ).rejects.toThrow("Monthly built-in model message limit reached");
+    ).rejects.toThrow("You've reached your monthly limit of 100 free messages");
   });
 
   test("throws when over limit", async () => {
@@ -295,7 +295,7 @@ describe("validateMonthlyMessageLimit", () => {
 
     await expect(
       validateMonthlyMessageLimit(ctx as any, user as any)
-    ).rejects.toThrow("Monthly built-in model message limit reached");
+    ).rejects.toThrow("You've reached your monthly limit of 100 free messages");
   });
 
   test("uses default limit when monthlyLimit is undefined", async () => {
@@ -303,7 +303,7 @@ describe("validateMonthlyMessageLimit", () => {
     const user = {
       _id: "user-123" as Id<"users">,
       _creationTime: Date.now(),
-      monthlyMessagesSent: 999,
+      monthlyMessagesSent: 499, // Under the default 500 limit
     };
 
     await validateMonthlyMessageLimit(ctx as any, user as any);

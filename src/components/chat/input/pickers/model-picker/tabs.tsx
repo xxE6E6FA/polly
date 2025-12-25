@@ -8,9 +8,12 @@ import {
   ImageIcon,
   KeyIcon,
   MagnifyingGlass,
+  SignInIcon,
   XIcon,
 } from "@phosphor-icons/react";
 import { Link } from "react-router-dom";
+import { ProviderIcon } from "@/components/models/provider-icons";
+import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import {
   Command,
@@ -29,37 +32,12 @@ type AvailableModel = HydratedModel;
 
 type Size = "sm" | "md";
 
-function ImageTabEmptyState({
-  emptyState,
-}: {
-  emptyState: "needs-api-key" | "needs-models";
-}) {
-  if (emptyState === "needs-api-key") {
-    return (
-      <div className="flex-1 min-h-0 overflow-hidden flex flex-col items-center justify-center p-6 text-center">
-        <KeyIcon className="h-10 w-10 text-muted-foreground/50 mb-3" />
-        <p className="text-sm font-medium text-foreground mb-1">
-          Replicate API Key Required
-        </p>
-        <p className="text-xs text-muted-foreground mb-4 max-w-[200px]">
-          Add your Replicate API key to generate images with AI models.
-        </p>
-        <Link
-          to={ROUTES.SETTINGS.API_KEYS}
-          className={buttonVariants({ variant: "secondary", size: "sm" })}
-        >
-          <GearIcon className="h-3.5 w-3.5 mr-1.5" />
-          Open Settings
-        </Link>
-      </div>
-    );
-  }
-
+function ImageTabEmptyState() {
   return (
     <div className="flex-1 min-h-0 overflow-hidden flex flex-col items-center justify-center p-6 text-center">
       <ImageIcon className="h-10 w-10 text-muted-foreground/50 mb-3" />
       <p className="text-sm font-medium text-foreground mb-1">
-        No Image Models Enabled
+        No Image Models Available
       </p>
       <p className="text-xs text-muted-foreground mb-4 max-w-[200px]">
         Enable image models in settings to start generating images.
@@ -91,8 +69,10 @@ export function ModelPickerTabs({
   showImagesTab = true,
   imageTabEmptyState,
   showTextSearch = true,
+  showImageSearch = true,
   showApiKeysPrompt = false,
   onDismissApiKeysPrompt,
+  showSignInPrompt = false,
 }: {
   activeTab: "text" | "image";
   onActiveTabChange: (tab: "text" | "image") => void;
@@ -102,7 +82,13 @@ export function ModelPickerTabs({
   };
   onSelectTextModel: (modelId: string, provider: string) => void;
   hasReachedPollyLimit: boolean;
-  imageModels: Array<{ modelId: string; name: string; description?: string }>;
+  imageModels: Array<{
+    modelId: string;
+    name: string;
+    description?: string;
+    free?: boolean;
+    isBuiltIn?: boolean;
+  }>;
   selectedImageModelId?: string;
   onSelectImageModel: (modelId: string) => void;
   size?: Size;
@@ -110,14 +96,27 @@ export function ModelPickerTabs({
   className?: string;
   selectedModelId?: string;
   showImagesTab?: boolean;
-  imageTabEmptyState?: "needs-api-key" | "needs-models" | null;
+  imageTabEmptyState?: "needs-models" | null;
   showTextSearch?: boolean;
+  showImageSearch?: boolean;
   showApiKeysPrompt?: boolean;
   onDismissApiKeysPrompt?: () => void;
+  showSignInPrompt?: boolean;
 }) {
   const h = size === "sm" ? "h-9" : "h-10";
   const padX = size === "sm" ? "px-2.5" : "px-3";
   const padY = size === "sm" ? "py-2" : "py-2.5";
+
+  // Sort image models with built-in first
+  const sortedImageModels = [...imageModels].sort((a, b) => {
+    if (a.isBuiltIn && !b.isBuiltIn) {
+      return -1;
+    }
+    if (!a.isBuiltIn && b.isBuiltIn) {
+      return 1;
+    }
+    return 0;
+  });
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     // Only handle arrow keys for tab switching if images tab is shown
@@ -272,27 +271,28 @@ export function ModelPickerTabs({
         </div>
       )}
 
-      {activeTab === "image" && imageTabEmptyState && (
-        <ImageTabEmptyState emptyState={imageTabEmptyState} />
-      )}
+      {activeTab === "image" && imageTabEmptyState && <ImageTabEmptyState />}
 
       {activeTab === "image" && !imageTabEmptyState && (
         <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
           <Command
             className={cn(
               "flex h-full min-h-0 flex-1 flex-col overflow-hidden",
-              // Style the input wrapper to look like Settings search
-              "[&_[cmdk-input-wrapper]]:sticky [&_[cmdk-input-wrapper]]:top-0 [&_[cmdk-input-wrapper]]:z-10 [&_[cmdk-input-wrapper]]:mx-0 [&_[cmdk-input-wrapper]]:mb-0 [&_[cmdk-input-wrapper]]:w-full [&_[cmdk-input-wrapper]]:rounded-none [&_[cmdk-input-wrapper]]:border-b [&_[cmdk-input-wrapper]]:border-border/40",
-              "[&_[cmdk-input-wrapper]]:bg-popover [&_[cmdk-input-wrapper]]:px-3 [&_[cmdk-input-wrapper]]:py-1.5 [&_[cmdk-input-wrapper]]:gap-2 [&_[cmdk-input-wrapper]]:shadow-sm dark:[&_[cmdk-input-wrapper]]:bg-muted/20",
-              // Tune the search icon and input sizing
-              "[&_[cmdk-input-wrapper]_svg]:h-3.5 [&_[cmdk-input-wrapper]_svg]:w-3.5 [&_[cmdk-input-wrapper]_svg]:text-muted-foreground",
-              "[&_[cmdk-input]]:h-8 [&_[cmdk-input]]:w-full [&_[cmdk-input]]:rounded-none [&_[cmdk-input]]:py-0 [&_[cmdk-input]]:text-xs"
+              showImageSearch && [
+                // Style the input wrapper to look like Settings search
+                "[&_[cmdk-input-wrapper]]:sticky [&_[cmdk-input-wrapper]]:top-0 [&_[cmdk-input-wrapper]]:z-10 [&_[cmdk-input-wrapper]]:mx-0 [&_[cmdk-input-wrapper]]:mb-0 [&_[cmdk-input-wrapper]]:w-full [&_[cmdk-input-wrapper]]:rounded-none [&_[cmdk-input-wrapper]]:border-b [&_[cmdk-input-wrapper]]:border-border/40",
+                "[&_[cmdk-input-wrapper]]:bg-popover [&_[cmdk-input-wrapper]]:px-3 [&_[cmdk-input-wrapper]]:py-1.5 [&_[cmdk-input-wrapper]]:gap-2 [&_[cmdk-input-wrapper]]:shadow-sm dark:[&_[cmdk-input-wrapper]]:bg-muted/20",
+                // Tune the search icon and input sizing
+                "[&_[cmdk-input-wrapper]_svg]:h-3.5 [&_[cmdk-input-wrapper]_svg]:w-3.5 [&_[cmdk-input-wrapper]_svg]:text-muted-foreground",
+                "[&_[cmdk-input]]:h-8 [&_[cmdk-input]]:w-full [&_[cmdk-input]]:rounded-none [&_[cmdk-input]]:py-0 [&_[cmdk-input]]:text-xs",
+              ],
+              !showImageSearch && "[&_[cmdk-input-wrapper]]:hidden"
             )}
           >
             <CommandInput
               className="h-8 w-full rounded-none text-xs"
               placeholder="Search image models..."
-              autoFocus={autoFocusSearch}
+              autoFocus={showImageSearch && autoFocusSearch}
             />
             <CommandList className="max-h-[min(calc(100dvh-14rem),260px)] overflow-y-auto">
               <CommandEmpty>
@@ -306,13 +306,13 @@ export function ModelPickerTabs({
                   </p>
                 </div>
               </CommandEmpty>
-              {imageModels.length === 0 ? (
+              {sortedImageModels.length === 0 ? (
                 <div className="p-6 text-center text-sm text-muted-foreground">
                   No image models available
                 </div>
               ) : (
                 <CommandGroup className="p-0">
-                  {imageModels.map(m => (
+                  {sortedImageModels.map(m => (
                     <CommandItem
                       key={m.modelId}
                       value={`${m.name ?? m.modelId} ${m.modelId}`}
@@ -322,15 +322,28 @@ export function ModelPickerTabs({
                         selectedImageModelId === m.modelId && "bg-muted"
                       )}
                     >
-                      <div className="min-w-0 flex-1">
-                        <div className="font-medium text-xs truncate">
-                          {m.name || m.modelId}
-                        </div>
-                        {m.description && (
-                          <div className="text-[10px] text-muted-foreground truncate">
-                            {m.description}
+                      <div className="flex items-center gap-2 w-full">
+                        <ProviderIcon
+                          provider={m.free ? "polly" : "replicate"}
+                          className="h-5 w-5 shrink-0"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <div className="font-medium text-xs truncate">
+                            {m.name || m.modelId}
                           </div>
-                        )}
+                          <div className="flex items-center gap-1 mt-0.5">
+                            {m.free && (
+                              <Badge variant="status-free" size="xs">
+                                Free
+                              </Badge>
+                            )}
+                            {m.description && (
+                              <div className="text-[10px] text-muted-foreground truncate">
+                                {m.description}
+                              </div>
+                            )}
+                          </div>
+                        </div>
                       </div>
                     </CommandItem>
                   ))}
@@ -338,6 +351,26 @@ export function ModelPickerTabs({
               )}
             </CommandList>
           </Command>
+        </div>
+      )}
+
+      {/* Sign-in prompt for anonymous users */}
+      {showSignInPrompt && (
+        <div className="shrink-0 border-t border-border/40 bg-muted/30 px-3 py-2.5">
+          <Link
+            to={ROUTES.AUTH}
+            className="flex items-center justify-between gap-2 group"
+          >
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <SignInIcon className="h-4 w-4" />
+              <span>
+                <span className="font-medium text-foreground group-hover:underline">
+                  Sign in
+                </span>{" "}
+                for higher limits, BYOK & more
+              </span>
+            </div>
+          </Link>
         </div>
       )}
     </div>

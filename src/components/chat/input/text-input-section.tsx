@@ -25,6 +25,7 @@ interface TextInputSectionProps {
     modelId: string;
     supportsMultipleImages: boolean;
     supportsNegativePrompt: boolean;
+    free?: boolean;
   } | null;
   textareaClassNameOverride?: string;
   disableAutoResize?: boolean;
@@ -63,10 +64,15 @@ export function TextInputSection({
   );
   const { params: imageParams, setParams: setImageParams } = useImageParams();
   const history = useChatHistory(conversationId);
+  // Show negative prompt in image mode when:
+  // - User has Replicate API key, OR
+  // - Selected image model is free (uses server-side key)
+  const canUseImageMode =
+    hasReplicateApiKey || (selectedImageModel?.free ?? false);
   const shouldRenderNegativePrompt = Boolean(
     canSend &&
       generationMode === "image" &&
-      hasReplicateApiKey &&
+      canUseImageMode &&
       selectedImageModel?.supportsNegativePrompt
   );
 

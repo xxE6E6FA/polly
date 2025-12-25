@@ -111,7 +111,7 @@ export const ModelCard = memo(
               }`}
             >
               <ProviderIcon
-                provider={model.provider}
+                provider={model.free ? "polly" : model.provider}
                 className={`h-3 w-3 ${isUnavailable ? "text-danger" : ""}`}
               />
               <span
@@ -119,7 +119,7 @@ export const ModelCard = memo(
                   isUnavailable ? "text-danger" : "text-muted-foreground"
                 }`}
               >
-                {model.provider}
+                {model.free ? "polly" : model.provider}
               </span>
             </div>
             <div className="flex shrink-0 items-center gap-2">

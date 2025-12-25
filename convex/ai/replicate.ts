@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { internal } from "../_generated/api";
+import { api, internal } from "../_generated/api";
 import { action, internalAction } from "../_generated/server";
 import type { Doc, Id } from "../_generated/dataModel";
 import { getApiKey } from "./encryption";
@@ -7,6 +7,7 @@ import Replicate from "replicate";
 import type { Prediction } from "replicate";
 import { getUserFriendlyErrorMessage } from "./error_handlers";
 import { scheduleRunAfter } from "../lib/scheduler";
+import { validateFreeModelUsage } from "../lib/shared_utils";
 
 function toMessageDoc(message: unknown): Doc<"messages"> | null {
   return message ? (message as Doc<"messages">) : null;
@@ -324,17 +325,62 @@ export const generateImage = action({
           error: undefined,
         });
       }
-      // Get Replicate API key
-      const apiKey = await getApiKey(
-        ctx,
-        "replicate",
-        undefined,
-        args.conversationId,
+
+      // Check if this is a free built-in model
+      const builtInModel = await ctx.runQuery(
+        internal.imageModels.getBuiltInImageModelByModelId,
+        { modelId: args.model },
       );
+      const isFreeBuiltInModel = builtInModel?.free === true;
+
+      // For free built-in models, validate user's message limit
+      // This applies to both anonymous users and signed-in users using free models
+      if (isFreeBuiltInModel) {
+        const conversation = await ctx.runQuery(
+          internal.conversations.internalGet,
+          { id: args.conversationId },
+        );
+        if (conversation?.userId) {
+          const user = await ctx.runQuery(internal.users.internalGetById, {
+            id: conversation.userId,
+          });
+          if (user) {
+            // validateFreeModelUsage throws ConvexError if limit reached
+            validateFreeModelUsage(user);
+          }
+        }
+      }
+
+      // Get Replicate API key
+      // For free built-in models, use server-side key; otherwise require user's key
+      let apiKey: string | null = null;
+
+      // First try user's API key (doesn't throw, just returns null if not found)
+      try {
+        apiKey = await getApiKey(
+          ctx,
+          "replicate",
+          undefined,
+          args.conversationId,
+        );
+      } catch {
+        // User doesn't have a Replicate API key, will fall back to server key for free models
+        apiKey = null;
+      }
+
+      // For free built-in models without user key, use server-side key
+      if (!apiKey && isFreeBuiltInModel) {
+        const envKey = process.env.REPLICATE_API_KEY;
+        if (envKey) {
+          apiKey = envKey;
+        }
+      }
 
       if (!apiKey) {
         throw new Error(
-          "No Replicate API key found. Please add one in Settings.",
+          isFreeBuiltInModel
+            ? "Server Replicate API key not configured. Please contact support."
+            : "No Replicate API key found. Please add one in Settings.",
         );
       }
 
@@ -749,6 +795,22 @@ export const generateImage = action({
         attempt: 1,
       });
 
+      // For free built-in models, increment user's message count towards their monthly limit
+      if (isFreeBuiltInModel) {
+        const conversation = await ctx.runQuery(
+          internal.conversations.internalGet,
+          { id: args.conversationId },
+        );
+        if (conversation?.userId) {
+          await scheduleRunAfter(ctx, 50, api.users.incrementMessage, {
+            userId: conversation.userId,
+            model: args.model,
+            provider: "replicate",
+            countTowardsMonthly: true,
+          });
+        }
+      }
+
       return {
         replicateId: prediction.id,
         status: prediction.status,
@@ -810,12 +872,33 @@ export const pollPrediction = internalAction({
         return;
       }
 
-      const apiKey = await getApiKey(
-        ctx,
-        "replicate",
-        undefined, // modelId is not available here
-        messageDoc?.conversationId,
-      );
+      // Get the model from the message metadata to check if it's a free built-in model
+      const modelId = messageDoc?.imageGeneration?.metadata?.model;
+      let isFreeBuiltInModel = false;
+      if (modelId) {
+        const builtInModel = await ctx.runQuery(
+          internal.imageModels.getBuiltInImageModelByModelId,
+          { modelId },
+        );
+        isFreeBuiltInModel = builtInModel?.free === true;
+      }
+
+      // Get API key - try user's key first, then server key for free models
+      let apiKey: string | null = null;
+      try {
+        apiKey = await getApiKey(
+          ctx,
+          "replicate",
+          undefined,
+          messageDoc?.conversationId,
+        );
+      } catch {
+        apiKey = null;
+      }
+
+      if (!apiKey && isFreeBuiltInModel) {
+        apiKey = process.env.REPLICATE_API_KEY || null;
+      }
 
       if (!apiKey) {
         throw new Error("No Replicate API key found");
@@ -1195,7 +1278,7 @@ export const cancelPrediction = internalAction({
 
   handler: async (ctx, args) => {
     try {
-      // Get the message to access conversationId
+      // Get the message to access conversationId and model info
       const messageResult = await ctx.runQuery(
         internal.messages.internalGetByIdQuery,
         {
@@ -1204,12 +1287,33 @@ export const cancelPrediction = internalAction({
       );
       const messageDoc = toMessageDoc(messageResult);
 
-      const apiKey = await getApiKey(
-        ctx,
-        "replicate",
-        undefined,
-        messageDoc?.conversationId,
-      );
+      // Get the model from the message metadata to check if it's a free built-in model
+      const modelId = messageDoc?.imageGeneration?.metadata?.model;
+      let isFreeBuiltInModel = false;
+      if (modelId) {
+        const builtInModel = await ctx.runQuery(
+          internal.imageModels.getBuiltInImageModelByModelId,
+          { modelId },
+        );
+        isFreeBuiltInModel = builtInModel?.free === true;
+      }
+
+      // Get API key - try user's key first, then server key for free models
+      let apiKey: string | null = null;
+      try {
+        apiKey = await getApiKey(
+          ctx,
+          "replicate",
+          undefined,
+          messageDoc?.conversationId,
+        );
+      } catch {
+        apiKey = null;
+      }
+
+      if (!apiKey && isFreeBuiltInModel) {
+        apiKey = process.env.REPLICATE_API_KEY || null;
+      }
 
       if (!apiKey) {
         throw new Error("No Replicate API key found");

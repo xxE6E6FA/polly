@@ -132,13 +132,35 @@ const RetryDropdown = memo(
     const normalizedProvider = currentProvider?.toLowerCase();
     const isImageProvider = normalizedProvider === "replicate";
 
-    const imageModelOptions = useMemo(() => {
+    // Common type for image models (user or built-in)
+    type ImageModelOption = {
+      modelId: string;
+      name: string;
+      provider: string;
+      description?: string;
+      free?: boolean;
+      isBuiltIn?: boolean;
+      supportsMultipleImages?: boolean;
+      supportsNegativePrompt?: boolean;
+      supportsImageToImage?: boolean;
+    };
+
+    const imageModelOptions = useMemo((): ImageModelOption[] => {
       if (!enabledImageModels) {
-        return [] as Doc<"userImageModels">[];
+        return [];
       }
-      return [...enabledImageModels].sort((a, b) =>
-        a.name.localeCompare(b.name)
-      );
+      // Sort built-in (free) models first, then by name
+      return [...enabledImageModels].sort((a, b) => {
+        const aBuiltIn = "isBuiltIn" in a && a.isBuiltIn;
+        const bBuiltIn = "isBuiltIn" in b && b.isBuiltIn;
+        if (aBuiltIn && !bBuiltIn) {
+          return -1;
+        }
+        if (!aBuiltIn && bBuiltIn) {
+          return 1;
+        }
+        return a.name.localeCompare(b.name);
+      });
     }, [enabledImageModels]);
 
     const handleOpenChange = (newOpen: boolean) => {

@@ -1430,7 +1430,7 @@ export function CommandPalette({
                             className="flex items-center gap-3 px-4 py-3 text-sm transition-colors rounded-md mx-2"
                           >
                             <ProviderIcon
-                              provider={model.provider}
+                              provider={model.free ? "polly" : model.provider}
                               className="h-4 w-4 text-muted-foreground flex-shrink-0"
                             />
                             <div className="flex-1 min-w-0">
@@ -1544,7 +1544,7 @@ export function CommandPalette({
                               className="flex items-center gap-3 px-4 py-3 text-sm transition-colors rounded-md mx-2"
                             >
                               <ProviderIcon
-                                provider={model.provider}
+                                provider={model.free ? "polly" : model.provider}
                                 className="h-4 w-4 text-muted-foreground flex-shrink-0"
                               />
                               <div className="flex-1 min-w-0">

@@ -67,6 +67,16 @@ export function useChatInputImageGeneration({
   // Simple conditional logic - React Compiler will optimize if needed
   const selectedImageModel = imageParams.model
     ? (() => {
+        // Always look up the matching model to get `free` status
+        const matchingModel = enabledImageModels?.find(
+          model => model.modelId === imageParams.model
+        );
+        // Only built-in models have `free` property
+        const isFree =
+          matchingModel?.isBuiltIn && "free" in matchingModel
+            ? matchingModel.free
+            : false;
+
         // If we have a fresh schema, prefer its capabilities
         if (schema) {
           return {
@@ -76,14 +86,11 @@ export function useChatInputImageGeneration({
             supportsNegativePrompt: capabilities.supportsNegativePrompt,
             supportsImageToImage: capabilities.supportsImageInput,
             supportsImages: capabilities.supportsImageInput,
+            free: isFree,
           };
         }
 
         // Fallback to database values if schema not yet loaded
-        const matchingModel = enabledImageModels?.find(
-          model => model.modelId === imageParams.model
-        );
-
         if (!matchingModel) {
           return {
             modelId: imageParams.model,
@@ -92,6 +99,7 @@ export function useChatInputImageGeneration({
             supportsNegativePrompt: false,
             supportsImageToImage: false,
             supportsImages: false,
+            free: false,
           };
         }
 
@@ -102,6 +110,7 @@ export function useChatInputImageGeneration({
           supportsNegativePrompt: matchingModel.supportsNegativePrompt ?? false,
           supportsImageToImage: matchingModel.supportsImageToImage ?? false,
           supportsImages: matchingModel.supportsImageToImage ?? false,
+          free: isFree,
         };
       })()
     : null;

@@ -2,7 +2,13 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import Replicate from "replicate";
 import { api, internal } from "./_generated/api";
-import { action, internalMutation, mutation, query } from "./_generated/server";
+import {
+  action,
+  internalMutation,
+  internalQuery,
+  mutation,
+  query,
+} from "./_generated/server";
 import { imageModelDefinitionSchema } from "./lib/schemas";
 import { sanitizeSchema } from "./lib/shared_utils";
 
@@ -275,6 +281,25 @@ export const getBuiltInImageModels = query({
       .query("builtInImageModels")
       .filter(q => q.eq(q.field("isActive"), true))
       .collect();
+  },
+});
+
+/**
+ * Get a built-in image model by its modelId.
+ * Internal query for checking if a model is free during image generation.
+ */
+export const getBuiltInImageModelByModelId = internalQuery({
+  args: { modelId: v.string() },
+  handler: async (ctx, { modelId }) => {
+    return await ctx.db
+      .query("builtInImageModels")
+      .filter(q =>
+        q.and(
+          q.eq(q.field("modelId"), modelId),
+          q.eq(q.field("isActive"), true)
+        )
+      )
+      .first();
   },
 });
 

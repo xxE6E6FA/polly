@@ -9,10 +9,13 @@ import {
   Image as ImageIcon,
   KeyIcon,
   MagnifyingGlass,
+  SignInIcon,
   X,
 } from "@phosphor-icons/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { ProviderIcon } from "@/components/models/provider-icons";
+import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ROUTES } from "@/lib/routes";
@@ -43,8 +46,10 @@ export function ModelDrawerTabs({
   showImagesTab = true,
   imageTabEmptyState,
   showTextSearch = true,
+  showImageSearch = true,
   showApiKeysPrompt = false,
   onDismissApiKeysPrompt,
+  showSignInPrompt = false,
 }: {
   activeTab: "text" | "image";
   onActiveTabChange: (tab: "text" | "image") => void;
@@ -55,7 +60,13 @@ export function ModelDrawerTabs({
   onSelectTextModel: (modelId: string, provider: string) => void;
   hasReachedPollyLimit: boolean;
   selectedModelId?: string;
-  imageModels: Array<{ modelId: string; name: string; description?: string }>;
+  imageModels: Array<{
+    modelId: string;
+    name: string;
+    description?: string;
+    free?: boolean;
+    isBuiltIn?: boolean;
+  }>;
   selectedImageModelId?: string;
   onSelectImageModel: (modelId: string) => void;
   size?: Size;
@@ -64,10 +75,12 @@ export function ModelDrawerTabs({
   className?: string;
   autoFocusSearch?: boolean;
   showImagesTab?: boolean;
-  imageTabEmptyState?: "needs-api-key" | "needs-models" | null;
+  imageTabEmptyState?: "needs-models" | null;
   showTextSearch?: boolean;
+  showImageSearch?: boolean;
   showApiKeysPrompt?: boolean;
   onDismissApiKeysPrompt?: () => void;
+  showSignInPrompt?: boolean;
 }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [internalIsSearching, setInternalIsSearching] =
@@ -96,15 +109,25 @@ export function ModelDrawerTabs({
     [isSearching, setIsSearching]
   );
 
-  // Filter image models based on search query
+  // Sort image models with built-in first, then filter by search query
+  const sortedImageModels = [...imageModels].sort((a, b) => {
+    if (a.isBuiltIn && !b.isBuiltIn) {
+      return -1;
+    }
+    if (!a.isBuiltIn && b.isBuiltIn) {
+      return 1;
+    }
+    return 0;
+  });
+
   const filteredImageModels = searchQuery
-    ? imageModels.filter(
+    ? sortedImageModels.filter(
         m =>
           m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
           m.modelId.toLowerCase().includes(searchQuery.toLowerCase()) ||
           m.description?.toLowerCase().includes(searchQuery.toLowerCase())
       )
-    : imageModels;
+    : sortedImageModels;
 
   return (
     <div
@@ -166,7 +189,8 @@ export function ModelDrawerTabs({
             ) : (
               <div className="flex-1" />
             )}
-            {showTextSearch && (
+            {((activeTab === "text" && showTextSearch) ||
+              (activeTab === "image" && showImageSearch)) && (
               <Button
                 variant="ghost"
                 size="icon"
@@ -204,11 +228,23 @@ export function ModelDrawerTabs({
                 {filteredImageModels.map(model => (
                   <DrawerItem
                     key={model.modelId}
-                    icon={<ImageIcon className="h-5 w-5" />}
+                    icon={
+                      <ProviderIcon
+                        provider={model.free ? "polly" : "replicate"}
+                        className="h-5 w-5"
+                      />
+                    }
                     name={model.name}
-                    description={model.description || "Image generation model"}
+                    badges={
+                      model.free ? (
+                        <Badge variant="status-free" size="xs">
+                          Free
+                        </Badge>
+                      ) : undefined
+                    }
                     selected={selectedImageModelId === model.modelId}
                     onClick={() => onSelectImageModel(model.modelId)}
+                    iconWrapper={false}
                   />
                 ))}
               </div>
@@ -260,61 +296,68 @@ export function ModelDrawerTabs({
         <div className="flex w-full flex-1 flex-col overflow-y-auto">
           {imageTabEmptyState ? (
             <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
-              {imageTabEmptyState === "needs-api-key" ? (
-                <>
-                  <KeyIcon className="h-12 w-12 text-muted-foreground/50 mb-4" />
-                  <p className="text-base font-medium text-foreground mb-1">
-                    Replicate API Key Required
-                  </p>
-                  <p className="text-sm text-muted-foreground mb-6 max-w-[240px]">
-                    Add your Replicate API key to generate images with AI
-                    models.
-                  </p>
-                  <Link
-                    to={ROUTES.SETTINGS.API_KEYS}
-                    className={buttonVariants({
-                      variant: "secondary",
-                      size: "default",
-                    })}
-                  >
-                    <GearIcon className="h-4 w-4 mr-2" />
-                    Open Settings
-                  </Link>
-                </>
-              ) : (
-                <>
-                  <ImageIcon className="h-12 w-12 text-muted-foreground/50 mb-4" />
-                  <p className="text-base font-medium text-foreground mb-1">
-                    No Image Models Enabled
-                  </p>
-                  <p className="text-sm text-muted-foreground mb-6 max-w-[240px]">
-                    Enable image models in settings to start generating images.
-                  </p>
-                  <Link
-                    to={ROUTES.SETTINGS.IMAGE_MODELS}
-                    className={buttonVariants({
-                      variant: "secondary",
-                      size: "default",
-                    })}
-                  >
-                    <GearIcon className="h-4 w-4 mr-2" />
-                    Open Settings
-                  </Link>
-                </>
-              )}
+              <ImageIcon className="h-12 w-12 text-muted-foreground/50 mb-4" />
+              <p className="text-base font-medium text-foreground mb-1">
+                No Image Models Available
+              </p>
+              <p className="text-sm text-muted-foreground mb-6 max-w-[240px]">
+                Enable image models in settings to start generating images.
+              </p>
+              <Link
+                to={ROUTES.SETTINGS.IMAGE_MODELS}
+                className={buttonVariants({
+                  variant: "secondary",
+                  size: "default",
+                })}
+              >
+                <GearIcon className="h-4 w-4 mr-2" />
+                Open Settings
+              </Link>
             </div>
           ) : (
             filteredImageModels.map(model => (
               <DrawerItem
                 key={model.modelId}
-                icon={<ImageIcon className="h-5 w-5" />}
+                icon={
+                  <ProviderIcon
+                    provider={model.free ? "polly" : "replicate"}
+                    className="h-5 w-5"
+                  />
+                }
                 name={model.name}
-                description={model.description || "Image generation model"}
+                badges={
+                  model.free ? (
+                    <Badge variant="status-free" size="xs">
+                      Free
+                    </Badge>
+                  ) : undefined
+                }
                 selected={selectedImageModelId === model.modelId}
                 onClick={() => onSelectImageModel(model.modelId)}
+                iconWrapper={false}
               />
             ))
           )}
+        </div>
+      )}
+
+      {/* Sign-in prompt for anonymous users */}
+      {showSignInPrompt && (
+        <div className="shrink-0 border-t border-border/40 bg-muted/30 px-4 py-3">
+          <Link
+            to={ROUTES.AUTH}
+            className="flex items-center justify-between gap-2 group"
+          >
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <SignInIcon className="h-4 w-4" />
+              <span>
+                <span className="font-medium text-foreground group-hover:underline">
+                  Sign in
+                </span>{" "}
+                for higher limits, BYOK & more
+              </span>
+            </div>
+          </Link>
         </div>
       )}
     </div>

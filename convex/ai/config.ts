@@ -42,5 +42,6 @@ export const CONFIG = {
     groq: "GROQ_API_KEY",
     openrouter: "OPENROUTER_API_KEY",
     moonshot: "MOONSHOT_API_KEY",
+    replicate: "REPLICATE_API_KEY",
   },
 } as const;

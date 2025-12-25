@@ -10,6 +10,7 @@ interface UseVisibleControlsProps {
   canSend: boolean;
   selectedModel?: Model | null;
   selectedImageModelSupportsInput?: boolean;
+  selectedImageModelIsFree?: boolean;
   isAnonymous?: boolean;
   hideTemperaturePicker?: boolean;
 }
@@ -31,6 +32,7 @@ export function useVisibleControls({
   canSend,
   selectedModel,
   selectedImageModelSupportsInput = false,
+  selectedImageModelIsFree = false,
   isAnonymous = false,
   hideTemperaturePicker = false,
 }: UseVisibleControlsProps): VisibleControls {
@@ -41,9 +43,15 @@ export function useVisibleControls({
   const showTextControls = canSend && isTextMode;
 
   // Image Mode Controls
-  // Image generation requires Replicate API key and cannot be in private mode
+  // Image generation requires either:
+  // - User's own Replicate API key, OR
+  // - A free/built-in image model (uses server-side key)
+  // Cannot be in private mode (no server-side storage)
   const canGenerateImages =
-    canSend && isImageMode && !isPrivateMode && hasReplicateApiKey;
+    canSend &&
+    isImageMode &&
+    !isPrivateMode &&
+    (hasReplicateApiKey || selectedImageModelIsFree);
 
   // File Upload Controls
   // Show in text mode (for multimodal models) OR in image mode when model supports image input

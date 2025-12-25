@@ -4,12 +4,10 @@ import { ProviderIcon } from "@/components/models/provider-icons";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ResponsivePicker } from "@/components/ui/responsive-picker";
-import { useBuiltInImageModels } from "@/hooks/use-built-in-image-models";
 import { useEnabledImageModels } from "@/hooks/use-enabled-image-models";
 import { useGenerationMode, useImageParams } from "@/hooks/use-generation";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useModelCatalog } from "@/hooks/use-model-catalog";
-import { useReplicateApiKey } from "@/hooks/use-replicate-api-key";
 import { useSelectedModel } from "@/hooks/use-selected-model";
 import { CACHE_KEYS, get, set } from "@/lib/local-storage";
 import { cn } from "@/lib/utils";
@@ -36,27 +34,17 @@ const ModelPickerComponent = ({
   const [generationMode, setGenerationMode] = useGenerationMode();
   const { params: imageParams, setParams: setImageParams } = useImageParams();
   const enabledImageModels = useEnabledImageModels() || [];
-  const builtInImageModels = useBuiltInImageModels();
-  const { hasReplicateApiKey } = useReplicateApiKey();
   const [activeTab, setActiveTab] = useState<"text" | "image">("text");
 
   // Determine if we should show the images tab
-  // Hide only when: no built-in models AND no API key AND no user models
-  const hasBuiltInModels = (builtInImageModels?.length ?? 0) > 0;
-  const hasUserModels = enabledImageModels.length > 0;
-  const showImagesTab = hasBuiltInModels || hasReplicateApiKey || hasUserModels;
+  // Show if there are any image models available (built-in or user)
+  const hasAnyImageModels = enabledImageModels.length > 0;
+  const showImagesTab = hasAnyImageModels;
 
-  // Determine empty state type for images tab
-  const getImageTabEmptyState = (): "needs-api-key" | "needs-models" | null => {
-    if (hasBuiltInModels && !hasReplicateApiKey) {
-      return "needs-api-key";
-    }
-    if (hasReplicateApiKey && !hasUserModels && !hasBuiltInModels) {
-      return "needs-models";
-    }
-    return null;
-  };
-  const imageTabEmptyState = getImageTabEmptyState();
+  // Show empty state only if no models at all (edge case)
+  const imageTabEmptyState: "needs-models" | null = hasAnyImageModels
+    ? null
+    : "needs-models";
 
   // Text model state logic
   const hasProviderModels = Object.keys(modelGroups.providerModels).length > 0;
@@ -64,6 +52,7 @@ const ModelPickerComponent = ({
     modelGroups.freeModels.length +
     Object.values(modelGroups.providerModels).flat().length;
   const showTextSearch = totalTextModels >= 5;
+  const showImageSearch = enabledImageModels.length >= 5;
 
   // API keys prompt dismissal state (only show if no provider models)
   const [apiKeysPromptDismissed, setApiKeysPromptDismissed] = useState(() =>
@@ -192,27 +181,8 @@ const ModelPickerComponent = ({
     );
   }
 
-  // Anonymous user content
-  if (user?.isAnonymous) {
-    return (
-      <ResponsivePicker
-        open={open}
-        onOpenChange={setOpen}
-        trigger={isDesktop ? desktopTriggerContent : mobileTriggerContent}
-        title="Select Model"
-        tooltip="Select model"
-        disabled={disabled}
-        triggerClassName={className}
-        pickerVariant="accent"
-        ariaLabel="Select model"
-        contentClassName={
-          isDesktop ? "p-0" : "h-[85dvh] max-h-[85dvh] pt-0 flex flex-col"
-        }
-      >
-        <AnonymousUserUpsell />
-      </ResponsivePicker>
-    );
-  }
+  // For anonymous users, show model picker with upsell banner
+  const isAnonymous = user?.isAnonymous ?? false;
 
   // Model picker content (shared between mobile and desktop)
   const modelPickerContent = (
@@ -234,8 +204,10 @@ const ModelPickerComponent = ({
           showImagesTab={showImagesTab}
           imageTabEmptyState={imageTabEmptyState}
           showTextSearch={showTextSearch}
-          showApiKeysPrompt={showApiKeysPrompt}
+          showImageSearch={showImageSearch}
+          showApiKeysPrompt={!isAnonymous && showApiKeysPrompt}
           onDismissApiKeysPrompt={handleDismissApiKeysPrompt}
+          showSignInPrompt={isAnonymous}
         />
       ) : (
         <ModelDrawerTabs
@@ -252,11 +224,13 @@ const ModelPickerComponent = ({
           showImagesTab={showImagesTab}
           imageTabEmptyState={imageTabEmptyState}
           showTextSearch={showTextSearch}
-          showApiKeysPrompt={showApiKeysPrompt}
+          showImageSearch={showImageSearch}
+          showApiKeysPrompt={!isAnonymous && showApiKeysPrompt}
           onDismissApiKeysPrompt={handleDismissApiKeysPrompt}
+          showSignInPrompt={isAnonymous}
         />
       )}
-      {activeTab === "image" && !imageTabEmptyState && (
+      {activeTab === "image" && !imageTabEmptyState && !isAnonymous && (
         <div
           className={
             isDesktop
@@ -306,72 +280,5 @@ const ModelPickerComponent = ({
     </ResponsivePicker>
   );
 };
-
-import { ChatCircleIcon, KeyIcon, LightningIcon } from "@phosphor-icons/react";
-import { MONTHLY_MESSAGE_LIMIT } from "@shared/constants";
-import { Link } from "react-router-dom";
-import { buttonVariants } from "@/components/ui/button";
-import { ROUTES } from "@/lib/routes";
-
-function AnonymousUserUpsell() {
-  return (
-    <div className="relative p-6">
-      <h3 className="mb-2 text-center text-base font-semibold text-foreground">
-        Sign in for more features!
-      </h3>
-
-      <div className="mb-6 stack-md">
-        <div className="flex items-start gap-3">
-          <ChatCircleIcon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-          <div className="text-sm">
-            <div className="font-medium text-foreground">
-              Higher message limits
-            </div>
-            <div className="text-xs text-muted-foreground">
-              {MONTHLY_MESSAGE_LIMIT} messages/month for free
-            </div>
-          </div>
-        </div>
-
-        <div className="flex items-start gap-3">
-          <KeyIcon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-          <div className="text-sm">
-            <div className="font-medium text-foreground">
-              Bring your own API keys
-            </div>
-            <div className="text-xs text-muted-foreground">
-              Use OpenAI, Anthropic, Google and OpenRouter models
-            </div>
-          </div>
-        </div>
-
-        <div className="flex items-start gap-3">
-          <LightningIcon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-          <div className="text-sm">
-            <div className="font-medium text-foreground">Advanced features</div>
-            <div className="text-xs text-muted-foreground">
-              Custom personas, conversation sharing, and more!
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <Link
-        to={ROUTES.AUTH}
-        className={buttonVariants({
-          className: "w-full",
-          size: "sm",
-          variant: "default",
-        })}
-      >
-        Sign In
-      </Link>
-
-      <p className="mt-3 text-center text-xs text-muted-foreground">
-        Free to use • No credit card required
-      </p>
-    </div>
-  );
-}
 
 export const ModelPicker = memo(ModelPickerComponent);

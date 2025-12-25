@@ -131,7 +131,7 @@ const ModelItemComponent = ({
             )}
           >
             <ProviderIcon
-              provider={model.provider}
+              provider={model.free ? "polly" : model.provider}
               className={cn(size === "sm" ? "h-5 w-5" : "h-8 w-8")}
             />
           </div>

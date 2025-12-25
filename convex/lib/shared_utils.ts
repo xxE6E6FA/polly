@@ -5,6 +5,10 @@ import type { MutationCtx, QueryCtx, ActionCtx } from "../_generated/server";
 import { api } from "../_generated/api";
 import { getUserEffectiveModelWithCapabilities } from "./model_resolution";
 import { MAX_USER_MESSAGE_CHARS } from "../constants";
+import {
+  ANONYMOUS_MESSAGE_LIMIT,
+  MONTHLY_MESSAGE_LIMIT,
+} from "../../shared/constants";
 
 /**
  * Shared authentication and user validation utilities
@@ -197,34 +201,73 @@ export function createError(
  * Shared business logic utilities
  */
 
-// Validate monthly message limits
-export async function validateMonthlyMessageLimit(
-  _ctx: MutationCtx | QueryCtx,
-  user: Doc<"users">,
-): Promise<void> {
-  const monthlyLimit = user.monthlyLimit ?? 1000; // Default from shared constants
-  const monthlyMessagesSent = user.monthlyMessagesSent ?? 0;
-  if (monthlyMessagesSent >= monthlyLimit) {
+/**
+ * Get the monthly message limit for a user.
+ * Anonymous users have a lower limit than signed-in users.
+ */
+export function getUserMonthlyLimit(user: Doc<"users">): number {
+  if (user.isAnonymous) {
+    return ANONYMOUS_MESSAGE_LIMIT;
+  }
+  return user.monthlyLimit ?? MONTHLY_MESSAGE_LIMIT;
+}
+
+/**
+ * Check if user can send a message to a free/built-in model.
+ * Returns { canSend: boolean, remaining: number, limit: number }
+ */
+export function checkFreeModelUsage(user: Doc<"users">): {
+  canSend: boolean;
+  remaining: number;
+  limit: number;
+} {
+  // Users with unlimited calls bypass limits
+  if (user.hasUnlimitedCalls) {
+    return { canSend: true, remaining: Number.MAX_SAFE_INTEGER, limit: 0 };
+  }
+
+  const limit = getUserMonthlyLimit(user);
+  const sent = user.monthlyMessagesSent ?? 0;
+  const remaining = Math.max(0, limit - sent);
+
+  return {
+    canSend: remaining > 0,
+    remaining,
+    limit,
+  };
+}
+
+/**
+ * Validate that user can use a free/built-in model.
+ * Throws ConvexError if limit is reached.
+ */
+export function validateFreeModelUsage(user: Doc<"users">): void {
+  const { canSend, limit } = checkFreeModelUsage(user);
+  if (!canSend) {
+    const userType = user.isAnonymous ? "anonymous" : "monthly";
     throw new ConvexError<string>(
-      "Monthly built-in model message limit reached.",
+      `You've reached your ${userType} limit of ${limit} free messages. ` +
+        (user.isAnonymous
+          ? "Sign in for more messages or add your own API keys."
+          : "Add your own API keys for unlimited usage."),
     );
   }
 }
 
-// Validate monthly message limits for actions (no-op since actions don't have db access for validation)
+// Validate monthly message limits (legacy - use validateFreeModelUsage instead)
+export async function validateMonthlyMessageLimit(
+  _ctx: MutationCtx | QueryCtx,
+  user: Doc<"users">,
+): Promise<void> {
+  validateFreeModelUsage(user);
+}
+
+// Validate monthly message limits for actions
 export async function validateMonthlyMessageLimitForAction(
   _ctx: ActionCtx,
   user: Doc<"users">,
 ): Promise<void> {
-  // For actions, we'll skip the validation since we can't reliably check/update the count
-  // The actual validation should happen in mutations that process the messages
-  const monthlyLimit = user.monthlyLimit ?? 1000;
-  const monthlyMessagesSent = user.monthlyMessagesSent ?? 0;
-  if (monthlyMessagesSent >= monthlyLimit) {
-    throw new ConvexError<string>(
-      "Monthly built-in model message limit reached.",
-    );
-  }
+  validateFreeModelUsage(user);
 }
 
 // Create default conversation fields
