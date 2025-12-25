@@ -4,6 +4,7 @@
 // uses a custom drawer layout with different interaction patterns.
 import type { Doc } from "@convex/_generated/dataModel";
 import {
+  CheckCircle,
   GearIcon,
   ImageIcon,
   KeyIcon,
@@ -11,6 +12,7 @@ import {
   SignInIcon,
   XIcon,
 } from "@phosphor-icons/react";
+import { useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { ProviderIcon } from "@/components/models/provider-icons";
 import { Badge } from "@/components/ui/badge";
@@ -73,6 +75,7 @@ export function ModelPickerTabs({
   showApiKeysPrompt = false,
   onDismissApiKeysPrompt,
   showSignInPrompt = false,
+  generationMode,
 }: {
   activeTab: "text" | "image";
   onActiveTabChange: (tab: "text" | "image") => void;
@@ -102,6 +105,7 @@ export function ModelPickerTabs({
   showApiKeysPrompt?: boolean;
   onDismissApiKeysPrompt?: () => void;
   showSignInPrompt?: boolean;
+  generationMode: "text" | "image";
 }) {
   const h = size === "sm" ? "h-9" : "h-10";
   const padX = size === "sm" ? "px-2.5" : "px-3";
@@ -117,6 +121,23 @@ export function ModelPickerTabs({
     }
     return 0;
   });
+
+  // Refs to focus the appropriate input when switching tabs
+  const textInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+
+  // Focus the appropriate input when tab changes
+  useEffect(() => {
+    // Small delay to ensure the DOM has updated
+    const timer = setTimeout(() => {
+      if (activeTab === "text") {
+        textInputRef.current?.focus();
+      } else if (activeTab === "image" && !imageTabEmptyState) {
+        imageInputRef.current?.focus();
+      }
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [activeTab, imageTabEmptyState]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     // Only handle arrow keys for tab switching if images tab is shown
@@ -165,6 +186,7 @@ export function ModelPickerTabs({
           <div className="flex w-full border-b border-border/40">
             <button
               type="button"
+              tabIndex={-1}
               className={cn(
                 "flex-1 whitespace-nowrap rounded-none text-xs font-medium transition-all duration-200",
                 padX,
@@ -185,6 +207,7 @@ export function ModelPickerTabs({
             </button>
             <button
               type="button"
+              tabIndex={-1}
               className={cn(
                 "flex-1 whitespace-nowrap rounded-none text-xs font-medium transition-all duration-200",
                 padX,
@@ -209,7 +232,10 @@ export function ModelPickerTabs({
 
       {/* Content */}
       {activeTab === "text" && (
-        <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
+        <div
+          key="text-tab"
+          className="flex-1 min-h-0 overflow-hidden flex flex-col"
+        >
           {/* API Keys Prompt Banner */}
           {showApiKeysPrompt && (
             <div className="flex items-center gap-2 px-3 py-2 bg-muted/50 border-b border-border/40">
@@ -240,13 +266,14 @@ export function ModelPickerTabs({
               "flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-none border-0",
               showTextSearch &&
                 "[&_[cmdk-input-wrapper]]:sticky [&_[cmdk-input-wrapper]]:top-0 [&_[cmdk-input-wrapper]]:z-10 [&_[cmdk-input-wrapper]]:mx-0 [&_[cmdk-input-wrapper]]:w-full [&_[cmdk-input-wrapper]]:rounded-none [&_[cmdk-input-wrapper]]:border-b [&_[cmdk-input-wrapper]]:border-border/40 [&_[cmdk-input-wrapper]]:bg-popover [&_[cmdk-input-wrapper]]:px-3 [&_[cmdk-input-wrapper]]:py-1.5 [&_[cmdk-input-wrapper]]:gap-2 [&_[cmdk-input-wrapper]]:shadow-sm [&_[cmdk-input-wrapper]_svg]:h-3.5 [&_[cmdk-input-wrapper]_svg]:w-3.5 [&_[cmdk-input-wrapper]_svg]:text-muted-foreground [&_[cmdk-input]]:h-8 [&_[cmdk-input]]:w-full [&_[cmdk-input]]:rounded-none [&_[cmdk-input]]:py-0 [&_[cmdk-input]]:text-xs",
-              !showTextSearch && "[&_[cmdk-input-wrapper]]:hidden"
+              !showTextSearch && "[&_[cmdk-input-wrapper]]:sr-only"
             )}
           >
             <CommandInput
+              ref={textInputRef}
               placeholder="Search text models..."
               className="h-8 w-full text-xs"
-              autoFocus={autoFocusSearch && showTextSearch}
+              autoFocus={autoFocusSearch}
             />
             <CommandList className="max-h-[min(calc(100dvh-14rem),260px)] overflow-y-auto">
               <CommandEmpty>
@@ -264,7 +291,9 @@ export function ModelPickerTabs({
                 modelGroups={modelGroups}
                 handleSelect={onSelectTextModel}
                 hasReachedPollyLimit={hasReachedPollyLimit}
-                selectedModelId={selectedModelId}
+                selectedModelId={
+                  generationMode === "text" ? selectedModelId : undefined
+                }
               />
             </CommandList>
           </Command>
@@ -274,7 +303,10 @@ export function ModelPickerTabs({
       {activeTab === "image" && imageTabEmptyState && <ImageTabEmptyState />}
 
       {activeTab === "image" && !imageTabEmptyState && (
-        <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
+        <div
+          key="image-tab"
+          className="flex-1 min-h-0 overflow-hidden flex flex-col"
+        >
           <Command
             className={cn(
               "flex h-full min-h-0 flex-1 flex-col overflow-hidden",
@@ -286,13 +318,14 @@ export function ModelPickerTabs({
                 "[&_[cmdk-input-wrapper]_svg]:h-3.5 [&_[cmdk-input-wrapper]_svg]:w-3.5 [&_[cmdk-input-wrapper]_svg]:text-muted-foreground",
                 "[&_[cmdk-input]]:h-8 [&_[cmdk-input]]:w-full [&_[cmdk-input]]:rounded-none [&_[cmdk-input]]:py-0 [&_[cmdk-input]]:text-xs",
               ],
-              !showImageSearch && "[&_[cmdk-input-wrapper]]:hidden"
+              !showImageSearch && "[&_[cmdk-input-wrapper]]:sr-only"
             )}
           >
             <CommandInput
+              ref={imageInputRef}
               className="h-8 w-full rounded-none text-xs"
               placeholder="Search image models..."
-              autoFocus={showImageSearch && autoFocusSearch}
+              autoFocus={autoFocusSearch}
             />
             <CommandList className="max-h-[min(calc(100dvh-14rem),260px)] overflow-y-auto">
               <CommandEmpty>
@@ -319,31 +352,42 @@ export function ModelPickerTabs({
                       onSelect={() => onSelectImageModel(m.modelId)}
                       className={cn(
                         "cursor-pointer rounded-none px-3 py-2.5 text-xs transition-colors hover:bg-muted",
-                        selectedImageModelId === m.modelId && "bg-muted"
+                        generationMode === "image" &&
+                          selectedImageModelId === m.modelId &&
+                          "bg-muted/50"
                       )}
                     >
-                      <div className="flex items-center gap-2 w-full">
-                        <ProviderIcon
-                          provider={m.free ? "polly" : "replicate"}
-                          className="h-5 w-5 shrink-0"
-                        />
-                        <div className="min-w-0 flex-1">
-                          <div className="font-medium text-xs truncate">
-                            {m.name || m.modelId}
-                          </div>
-                          <div className="flex items-center gap-1 mt-0.5">
-                            {m.free && (
-                              <Badge variant="status-free" size="xs">
-                                Free
-                              </Badge>
-                            )}
-                            {m.description && (
-                              <div className="text-[10px] text-muted-foreground truncate">
-                                {m.description}
-                              </div>
-                            )}
+                      <div className="flex items-center justify-between gap-2 w-full">
+                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                          <ProviderIcon
+                            provider={m.free ? "polly" : "replicate"}
+                            className="h-5 w-5 shrink-0"
+                          />
+                          <div className="min-w-0 flex-1">
+                            <div className="font-medium text-xs truncate">
+                              {m.name || m.modelId}
+                            </div>
+                            <div className="flex items-center gap-1 mt-0.5">
+                              {m.free && (
+                                <Badge variant="status-free" size="xs">
+                                  Free
+                                </Badge>
+                              )}
+                              {m.description && (
+                                <div className="text-[10px] text-muted-foreground truncate">
+                                  {m.description}
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </div>
+                        {generationMode === "image" &&
+                          selectedImageModelId === m.modelId && (
+                            <CheckCircle
+                              className="h-5 w-5 shrink-0 fill-primary text-primary-foreground"
+                              weight="fill"
+                            />
+                          )}
                       </div>
                     </CommandItem>
                   ))}

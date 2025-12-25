@@ -208,6 +208,7 @@ const ModelPickerComponent = ({
           showApiKeysPrompt={!isAnonymous && showApiKeysPrompt}
           onDismissApiKeysPrompt={handleDismissApiKeysPrompt}
           showSignInPrompt={isAnonymous}
+          generationMode={generationMode}
         />
       ) : (
         <ModelDrawerTabs
