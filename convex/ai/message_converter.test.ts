@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { makeConvexCtx } from "../../test/convex-ctx";
 import type { Id } from "../_generated/dataModel";
 import type { ActionCtx } from "../_generated/server";
@@ -7,9 +7,20 @@ import {
   convertLegacyPartToAISDK,
   convertStoredMessageToAISDK,
   convertStoredMessagesToAISDK,
+  resetRetryConfig,
+  setRetryConfig,
   type ConversionOptions,
   type StoredAttachment,
 } from "./message_converter";
+
+// Disable retry delays for all tests to avoid timeouts
+beforeEach(() => {
+  setRetryConfig({ maxRetries: 0, baseDelayMs: 0 });
+});
+
+afterEach(() => {
+  resetRetryConfig();
+});
 
 // Default conversion options
 const defaultOptions: ConversionOptions = {
