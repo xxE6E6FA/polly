@@ -243,7 +243,7 @@ export async function convertStoredMessagesToAISDK(
  * Fetch storage with retry logic to handle eventual consistency
  * Retries with exponential backoff using retryConfig settings
  */
-async function fetchStorageWithRetry(
+export async function fetchStorageWithRetry(
   ctx: ActionCtx,
   storageId: Id<"_storage">
 ): Promise<Blob> {

@@ -6,6 +6,7 @@ import type { ActionCtx } from "../_generated/server";
 import type { Id } from "../_generated/dataModel";
 import { action } from "../_generated/server";
 import { v } from "convex/values";
+import { fetchStorageWithRetry } from "./message_converter";
 
 
 // ==================== Capability Detection ====================
@@ -69,11 +70,7 @@ export async function getStoredPdfText(
   textFileId: Id<"_storage">
 ): Promise<string | null> {
   try {
-    const textBlob = await ctx.storage.get(textFileId);
-    if (!textBlob) {
-      return null;
-    }
-
+    const textBlob = await fetchStorageWithRetry(ctx, textFileId);
     return await textBlob.text();
   } catch (error) {
     console.error("Failed to retrieve stored text:", error);
