@@ -210,11 +210,50 @@ export async function convertStoredMessagesToAISDK(
 // ==================== Private Conversion Helpers ====================
 
 /**
+ * Fetch storage with retry logic to handle eventual consistency
+ * Retries with exponential backoff (500ms, 1000ms, 2000ms, 4000ms)
+ */
+async function fetchStorageWithRetry(
+  ctx: ActionCtx,
+  storageId: Id<"_storage">,
+  maxRetries = 4,
+  baseDelayMs = 500
+): Promise<Blob> {
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const result = await ctx.storage.get(storageId);
+      if (result) {
+        return result;
+      }
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      console.warn(
+        `[fetchStorageWithRetry] Attempt ${attempt + 1}/${maxRetries + 1} failed:`,
+        lastError.message
+      );
+    }
+
+    if (attempt < maxRetries) {
+      const delayMs = baseDelayMs * Math.pow(2, attempt);
+      console.warn(`[fetchStorageWithRetry] Retrying after ${delayMs}ms...`);
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+
+  console.error(
+    `[fetchStorageWithRetry] File not available after ${maxRetries} attempts`
+  );
+  throw lastError ?? new Error("File not found in storage");
+}
+
+/**
  * Convert an image attachment to AI SDK ImagePart
  *
  * Priority chain:
- * 1. storageId -> ctx.storage.getUrl() (preferred - avoids consistency issues)
- * 2. storageId -> ctx.storage.get() -> data URL (fallback)
+ * 1. storageId -> ctx.storage.getUrl() with retry (preferred)
+ * 2. storageId -> ctx.storage.get() with retry -> data URL (fallback)
  * 3. content (base64) -> data URL (for private mode)
  * 4. url (direct URL fallback)
  * 5. Graceful fallback to TextPart if image is unavailable
@@ -223,33 +262,43 @@ async function convertImageAttachment(
   ctx: ActionCtx,
   attachment: StoredAttachment
 ): Promise<ImagePart | TextPart> {
-  // Priority 1: Use storageId to get a fresh, signed URL
+  // Priority 1: Use storageId to get a fresh, signed URL with retry
   if (attachment.storageId) {
-    try {
-      const storageUrl = await ctx.storage.getUrl(attachment.storageId);
-      if (storageUrl) {
-        return { type: "image", image: storageUrl };
+    // Try getUrl first (faster, returns signed URL)
+    // Retry with exponential backoff to handle storage consistency delays
+    for (let attempt = 0; attempt <= 4; attempt++) {
+      try {
+        const storageUrl = await ctx.storage.getUrl(attachment.storageId);
+        if (storageUrl) {
+          return { type: "image", image: storageUrl };
+        }
+      } catch (error) {
+        if (attempt < 4) {
+          const delayMs = 500 * Math.pow(2, attempt);
+          console.warn(
+            `[message-converter] getUrl attempt ${attempt + 1}/5 failed, retrying after ${delayMs}ms:`,
+            error
+          );
+          await new Promise((resolve) => setTimeout(resolve, delayMs));
+        } else {
+          console.warn(
+            "[message-converter] Failed to get storage URL after retries, falling back to blob fetch:",
+            error
+          );
+        }
       }
-    } catch (error) {
-      console.warn(
-        "[message-converter] Failed to get storage URL, falling back to blob fetch:",
-        error
-      );
-      // Fall through to blob fetch
     }
 
-    // Priority 2: Fetch blob and convert to data URL
+    // Priority 2: Fetch blob with retry and convert to data URL
     try {
-      const blob = await ctx.storage.get(attachment.storageId);
-      if (blob) {
-        const arrayBuffer = await blob.arrayBuffer();
-        const base64 = bufferToBase64(new Uint8Array(arrayBuffer));
-        const mimeType = blob.type || attachment.mimeType || "image/jpeg";
-        return { type: "image", image: `data:${mimeType};base64,${base64}` };
-      }
+      const blob = await fetchStorageWithRetry(ctx, attachment.storageId);
+      const arrayBuffer = await blob.arrayBuffer();
+      const base64 = bufferToBase64(new Uint8Array(arrayBuffer));
+      const mimeType = blob.type || attachment.mimeType || "image/jpeg";
+      return { type: "image", image: `data:${mimeType};base64,${base64}` };
     } catch (error) {
       console.warn(
-        "[message-converter] Failed to fetch image from storage:",
+        "[message-converter] Failed to fetch image from storage after retries:",
         error
       );
       // Fall through to other options
@@ -308,18 +357,16 @@ async function convertPdfAttachment(
   // Native PDF support - send raw file
   if (!needsExtraction && attachment.storageId) {
     try {
-      const blob = await ctx.storage.get(attachment.storageId);
-      if (blob) {
-        const arrayBuffer = await blob.arrayBuffer();
-        return {
-          type: "file",
-          data: new Uint8Array(arrayBuffer),
-          mediaType: "application/pdf",
-        };
-      }
+      const blob = await fetchStorageWithRetry(ctx, attachment.storageId);
+      const arrayBuffer = await blob.arrayBuffer();
+      return {
+        type: "file",
+        data: new Uint8Array(arrayBuffer),
+        mediaType: "application/pdf",
+      };
     } catch (error) {
       console.warn(
-        "[message-converter] Failed to fetch PDF from storage, falling back to extraction:",
+        "[message-converter] Failed to fetch PDF from storage after retries, falling back to extraction:",
         error
       );
       // Fall through to extraction
@@ -342,11 +389,19 @@ async function extractPdfText(
   ctx: ActionCtx,
   attachment: StoredAttachment
 ): Promise<string> {
-  // Priority 1: Use textFileId (stored extracted text)
+  // Priority 1: Use textFileId (stored extracted text) with retry
   if (attachment.textFileId) {
-    const storedText = await getStoredPdfText(ctx, attachment.textFileId);
-    if (storedText) {
-      return storedText;
+    try {
+      const storedText = await getStoredPdfText(ctx, attachment.textFileId);
+      if (storedText) {
+        return storedText;
+      }
+    } catch (error) {
+      console.warn(
+        "[message-converter] Failed to fetch stored PDF text, falling back to extraction:",
+        error
+      );
+      // Fall through to next priority
     }
   }
 
@@ -406,20 +461,18 @@ async function convertTextAttachment(
     };
   }
 
-  // Priority 2: Fetch from storage
+  // Priority 2: Fetch from storage with retry
   if (attachment.storageId) {
     try {
-      const blob = await ctx.storage.get(attachment.storageId);
-      if (blob) {
-        const text = await blob.text();
-        return {
-          type: "text",
-          text: formatTextContent(text, attachment.name),
-        };
-      }
+      const blob = await fetchStorageWithRetry(ctx, attachment.storageId);
+      const text = await blob.text();
+      return {
+        type: "text",
+        text: formatTextContent(text, attachment.name),
+      };
     } catch (error) {
       console.warn(
-        "[message-converter] Failed to fetch text file from storage:",
+        "[message-converter] Failed to fetch text file from storage after retries:",
         error
       );
     }

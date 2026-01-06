@@ -256,8 +256,15 @@ export async function createHandler(
   const estimateTokens = (text: string) =>
     Math.max(1, Math.ceil((text || "").length / 4));
 
+  // Strip large fields from attachments before storing in database
+  // thumbnail: Base64 preview (can be >1MB on iOS), regenerate from storageId when needed
+  // content: Text file content, fetch from storageId when needed
+  // These fields are only needed for UI during upload, not for storage
+  const attachmentsForStorage = args.attachments?.map(({ thumbnail, content, ...attachment }) => attachment);
+
   const messageId = await ctx.db.insert("messages", {
     ...args,
+    attachments: attachmentsForStorage,
     userId,
     isMainBranch: args.isMainBranch ?? true,
     createdAt: Date.now(),
