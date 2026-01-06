@@ -12,3 +12,11 @@ export {
   type WebSearchToolParams,
   type WebSearchToolResult,
 } from "./web_search";
+
+export {
+  createConversationSearchTool,
+  conversationSearchToolSchema,
+  CONVERSATION_SEARCH_TOOL_NAME,
+  type ConversationSearchToolParams,
+  type ConversationSearchToolResult,
+} from "./conversation_search";
