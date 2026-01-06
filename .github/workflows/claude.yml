@@ -43,3 +43,6 @@ jobs:
 
           # For label-triggered reviews, provide a focused review prompt
           prompt: ${{ github.event_name == 'pull_request' && 'Review this PR. Flag bugs, security issues, and correctness problems. Skip style nits (Biome handles that). Be concise.' || '' }}
+
+          # Post reviews as PR comments instead of only in Actions summary
+          use_sticky_comment: true
