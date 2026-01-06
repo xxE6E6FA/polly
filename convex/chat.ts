@@ -346,9 +346,54 @@ export const chatStream = httpAction(
         // Default to false if we can't get model info
       }
 
-      // Check for Exa API key availability (needed for system prompt and tool config)
+      /**
+       * Anonymous User Tool Call Restrictions
+       *
+       * Web search tools (Exa) are disabled for anonymous users to prevent abuse
+       * and manage costs. This ensures that:
+       * 1. Anonymous users can still use all chat features except web search
+       * 2. Signed-in users get full access to web search capabilities
+       * 3. System prompt accurately reflects available features
+       *
+       * Prerequisites for web search to be enabled:
+       * - Model must support tools (modelSupportsTools = true)
+       * - Exa API key must be configured (EXA_API_KEY env var)
+       * - User must be authenticated AND not anonymous (isAnonymous = false)
+       *
+       * See convex/chat.test.ts for comprehensive test coverage
+       */
+
+      // Check for Exa API key availability and user authentication status
+      // Web search is only enabled for signed-in users (not anonymous)
       const exaApiKey = process.env.EXA_API_KEY;
-      const webSearchEnabled = modelSupportsTools && !!exaApiKey;
+
+      // Get API key using proper authentication
+      let apiKey: string;
+      // Check if user is authenticated via JWT token in Authorization header
+      const userId = await getAuthUserId(ctx);
+
+      // Check if user is anonymous - web search disabled for anonymous users
+      // Cache the user object to avoid redundant queries later
+      let isAnonymousUser = true;
+      let cachedUser = null;
+      if (userId) {
+        try {
+          cachedUser = await ctx.runQuery(api.users.getById, {
+            id: userId,
+          });
+          isAnonymousUser = cachedUser?.isAnonymous ?? true;
+        } catch (error) {
+          console.warn("[chatStream] Failed to get user info:", error);
+          // Default to anonymous if we can't get user info (fail-safe)
+        }
+      }
+
+      // Enable web search only when ALL conditions are met:
+      // 1. Model supports tools
+      // 2. Exa API key is configured
+      // 3. User is authenticated AND not anonymous
+      const webSearchEnabled =
+        modelSupportsTools && !!exaApiKey && !isAnonymousUser;
 
       // Process messages with PDF extraction if needed
       const messagesWithContent = await Promise.all(
@@ -387,10 +432,6 @@ export const chatStream = httpAction(
         );
       }
 
-      // Get API key using proper authentication
-      let apiKey: string;
-      // Check if user is authenticated via JWT token in Authorization header
-      const userId = await getAuthUserId(ctx);
       try {
         // Try to get user API key first if authenticated
         let userApiKey: string | null = null;
@@ -409,9 +450,12 @@ export const chatStream = httpAction(
             // Check message limits for free/built-in models
             // Applies to both anonymous and signed-in users
             if (isFreePollyModel) {
-              const user = await ctx.runQuery(api.users.getById, {
-                id: userId,
-              });
+              // Use cached user to avoid redundant query
+              const user =
+                cachedUser ||
+                (await ctx.runQuery(api.users.getById, {
+                  id: userId,
+                }));
               if (user) {
                 const { canSend, limit } = checkFreeModelUsage(user);
                 if (!canSend) {
@@ -622,7 +666,7 @@ export const chatStream = httpAction(
 
         // Determine if we need to use pre-check fallback for models without tool support
         let finalMessages = processedMessages;
-        if (exaApiKey && !modelSupportsTools) {
+        if (exaApiKey && !modelSupportsTools && !isAnonymousUser) {
           // Fallback approach: Use pre-check for models without tool support
           // This adds search context to messages if the pre-check determines search is needed
           try {
@@ -721,7 +765,7 @@ export const chatStream = httpAction(
 
         // Start streaming with appropriate configuration
         const result =
-          modelSupportsTools && exaApiKey
+          modelSupportsTools && exaApiKey && !isAnonymousUser
             ? streamText({
                 ...streamOptionsBase,
                 messages: finalMessages,
