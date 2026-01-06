@@ -20,6 +20,36 @@ import {
   shouldExtractPdfText,
 } from "./pdf";
 
+// ==================== Retry Configuration ====================
+
+/**
+ * Configurable retry settings for storage operations.
+ * Defaults are tuned for production (eventual consistency handling).
+ * Tests can override via setRetryConfig() to avoid timeouts.
+ */
+let retryConfig = {
+  maxRetries: 4,
+  baseDelayMs: 500,
+};
+
+/**
+ * Configure retry behavior. Primarily for testing.
+ * @example setRetryConfig({ maxRetries: 0, baseDelayMs: 0 }) // Disable retries
+ */
+export function setRetryConfig(config: {
+  maxRetries: number;
+  baseDelayMs: number;
+}): void {
+  retryConfig = config;
+}
+
+/**
+ * Reset retry config to production defaults.
+ */
+export function resetRetryConfig(): void {
+  retryConfig = { maxRetries: 4, baseDelayMs: 500 };
+}
+
 // ==================== Types ====================
 
 /**
@@ -211,14 +241,13 @@ export async function convertStoredMessagesToAISDK(
 
 /**
  * Fetch storage with retry logic to handle eventual consistency
- * Retries with exponential backoff (500ms, 1000ms, 2000ms, 4000ms)
+ * Retries with exponential backoff using retryConfig settings
  */
 async function fetchStorageWithRetry(
   ctx: ActionCtx,
-  storageId: Id<"_storage">,
-  maxRetries = 4,
-  baseDelayMs = 500
+  storageId: Id<"_storage">
 ): Promise<Blob> {
+  const { maxRetries, baseDelayMs } = retryConfig;
   let lastError: Error | null = null;
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -235,7 +264,7 @@ async function fetchStorageWithRetry(
       );
     }
 
-    if (attempt < maxRetries) {
+    if (attempt < maxRetries && baseDelayMs > 0) {
       const delayMs = baseDelayMs * Math.pow(2, attempt);
       console.warn(`[fetchStorageWithRetry] Retrying after ${delayMs}ms...`);
       await new Promise((resolve) => setTimeout(resolve, delayMs));
@@ -243,7 +272,7 @@ async function fetchStorageWithRetry(
   }
 
   console.error(
-    `[fetchStorageWithRetry] File not available after ${maxRetries} attempts`
+    `[fetchStorageWithRetry] File not available after ${maxRetries + 1} attempts`
   );
   throw lastError ?? new Error("File not found in storage");
 }
@@ -264,22 +293,25 @@ async function convertImageAttachment(
 ): Promise<ImagePart | TextPart> {
   // Priority 1: Use storageId to get a fresh, signed URL with retry
   if (attachment.storageId) {
+    const { maxRetries, baseDelayMs } = retryConfig;
     // Try getUrl first (faster, returns signed URL)
     // Retry with exponential backoff to handle storage consistency delays
-    for (let attempt = 0; attempt <= 4; attempt++) {
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
         const storageUrl = await ctx.storage.getUrl(attachment.storageId);
         if (storageUrl) {
           return { type: "image", image: storageUrl };
         }
       } catch (error) {
-        if (attempt < 4) {
-          const delayMs = 500 * Math.pow(2, attempt);
-          console.warn(
-            `[message-converter] getUrl attempt ${attempt + 1}/5 failed, retrying after ${delayMs}ms:`,
-            error
-          );
-          await new Promise((resolve) => setTimeout(resolve, delayMs));
+        if (attempt < maxRetries) {
+          const delayMs = baseDelayMs * Math.pow(2, attempt);
+          if (baseDelayMs > 0) {
+            console.warn(
+              `[message-converter] getUrl attempt ${attempt + 1}/${maxRetries + 1} failed, retrying after ${delayMs}ms:`,
+              error
+            );
+            await new Promise((resolve) => setTimeout(resolve, delayMs));
+          }
         } else {
           console.warn(
             "[message-converter] Failed to get storage URL after retries, falling back to blob fetch:",
