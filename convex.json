@@ -9,5 +9,6 @@
       "@ai-sdk/openai",
       "@ai-sdk/openai-compatible"
     ]
-  }
+  },
+  "includeSourcesContent": false
 }
