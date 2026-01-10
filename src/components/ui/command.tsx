@@ -6,7 +6,7 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
 type CommandProps = React.ComponentPropsWithoutRef<typeof CommandPrimitive> & {
-  ref?: React.Ref<React.ElementRef<typeof CommandPrimitive>>;
+  ref?: React.Ref<React.ComponentRef<typeof CommandPrimitive>>;
 };
 
 function Command({ className, ref, ...props }: CommandProps) {
@@ -22,10 +22,14 @@ function Command({ className, ref, ...props }: CommandProps) {
   );
 }
 
-function CommandDialog({
-  children,
-  ...props
-}: React.ComponentProps<typeof Dialog>) {
+type CommandDialogProps = Omit<
+  React.ComponentProps<typeof Dialog>,
+  "children"
+> & {
+  children?: React.ReactNode;
+};
+
+function CommandDialog({ children, ...props }: CommandDialogProps) {
   return (
     <Dialog {...props}>
       <DialogContent className="overflow-hidden p-0">
@@ -52,7 +56,7 @@ function CommandDialog({
 type CommandInputProps = React.ComponentPropsWithoutRef<
   typeof CommandPrimitive.Input
 > & {
-  ref?: React.Ref<React.ElementRef<typeof CommandPrimitive.Input>>;
+  ref?: React.Ref<React.ComponentRef<typeof CommandPrimitive.Input>>;
 };
 
 function CommandInput({ className, ref, ...props }: CommandInputProps) {
@@ -77,7 +81,7 @@ function CommandInput({ className, ref, ...props }: CommandInputProps) {
 type CommandListProps = React.ComponentPropsWithoutRef<
   typeof CommandPrimitive.List
 > & {
-  ref?: React.Ref<React.ElementRef<typeof CommandPrimitive.List>>;
+  ref?: React.Ref<React.ComponentRef<typeof CommandPrimitive.List>>;
 };
 
 function CommandList({ className, ref, ...props }: CommandListProps) {
@@ -96,7 +100,7 @@ function CommandList({ className, ref, ...props }: CommandListProps) {
 type CommandEmptyProps = React.ComponentPropsWithoutRef<
   typeof CommandPrimitive.Empty
 > & {
-  ref?: React.Ref<React.ElementRef<typeof CommandPrimitive.Empty>>;
+  ref?: React.Ref<React.ComponentRef<typeof CommandPrimitive.Empty>>;
 };
 
 function CommandEmpty({ ref, ...props }: CommandEmptyProps) {
@@ -112,7 +116,7 @@ function CommandEmpty({ ref, ...props }: CommandEmptyProps) {
 type CommandGroupProps = React.ComponentPropsWithoutRef<
   typeof CommandPrimitive.Group
 > & {
-  ref?: React.Ref<React.ElementRef<typeof CommandPrimitive.Group>>;
+  ref?: React.Ref<React.ComponentRef<typeof CommandPrimitive.Group>>;
 };
 
 function CommandGroup({ className, ref, ...props }: CommandGroupProps) {
@@ -131,7 +135,7 @@ function CommandGroup({ className, ref, ...props }: CommandGroupProps) {
 type CommandSeparatorProps = React.ComponentPropsWithoutRef<
   typeof CommandPrimitive.Separator
 > & {
-  ref?: React.Ref<React.ElementRef<typeof CommandPrimitive.Separator>>;
+  ref?: React.Ref<React.ComponentRef<typeof CommandPrimitive.Separator>>;
 };
 
 function CommandSeparator({ className, ref, ...props }: CommandSeparatorProps) {
@@ -147,7 +151,7 @@ function CommandSeparator({ className, ref, ...props }: CommandSeparatorProps) {
 type CommandItemProps = React.ComponentPropsWithoutRef<
   typeof CommandPrimitive.Item
 > & {
-  ref?: React.Ref<React.ElementRef<typeof CommandPrimitive.Item>>;
+  ref?: React.Ref<React.ComponentRef<typeof CommandPrimitive.Item>>;
 };
 
 function CommandItem({ className, ref, ...props }: CommandItemProps) {

@@ -371,7 +371,11 @@ export default function AttachmentsPage() {
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <Select
             value={fileType}
-            onValueChange={(value: FileType) => setFileType(value)}
+            onValueChange={(value: FileType | null) => {
+              if (value) {
+                setFileType(value);
+              }
+            }}
           >
             <SelectTrigger className="w-[180px]">
               <SelectValue>

@@ -1,5 +1,5 @@
-import { Toggle as TogglePrimitive } from "@base-ui-components/react/toggle";
-import { ToggleGroup as ToggleGroupPrimitive } from "@base-ui-components/react/toggle-group";
+import { Toggle as TogglePrimitive } from "@base-ui/react/toggle";
+import { ToggleGroup as ToggleGroupPrimitive } from "@base-ui/react/toggle-group";
 import type * as React from "react";
 import { useCallback, useMemo } from "react";
 import { cn } from "@/lib/utils";
@@ -11,7 +11,7 @@ type ToggleGroupProps = Omit<
   type?: "single" | "multiple";
   value?: string | readonly string[];
   onValueChange?: (value: string | readonly string[]) => void;
-  ref?: React.Ref<React.ElementRef<typeof ToggleGroupPrimitive>>;
+  ref?: React.Ref<React.ComponentRef<typeof ToggleGroupPrimitive>>;
 };
 
 function ToggleGroup({
@@ -73,7 +73,7 @@ function ToggleGroup({
 type ToggleGroupItemProps = React.ComponentPropsWithoutRef<
   typeof TogglePrimitive
 > & {
-  ref?: React.Ref<React.ElementRef<typeof TogglePrimitive>>;
+  ref?: React.Ref<React.ComponentRef<typeof TogglePrimitive>>;
 };
 
 function ToggleGroupItem({ className, ref, ...props }: ToggleGroupItemProps) {

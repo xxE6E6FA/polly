@@ -1,4 +1,4 @@
-import { AlertDialog } from "@base-ui-components/react/alert-dialog";
+import { AlertDialog } from "@base-ui/react/alert-dialog";
 import type * as React from "react";
 
 import { Backdrop } from "@/components/ui/backdrop";
@@ -14,7 +14,7 @@ const AlertDialogPortal = AlertDialog.Portal;
 type AlertDialogOverlayProps = React.ComponentPropsWithoutRef<
   typeof AlertDialog.Backdrop
 > & {
-  ref?: React.Ref<React.ElementRef<typeof AlertDialog.Backdrop>>;
+  ref?: React.Ref<React.ComponentRef<typeof AlertDialog.Backdrop>>;
 };
 
 function AlertDialogOverlay({
@@ -32,7 +32,7 @@ function AlertDialogOverlay({
 type AlertDialogContentProps = React.ComponentPropsWithoutRef<
   typeof AlertDialog.Popup
 > & {
-  ref?: React.Ref<React.ElementRef<typeof AlertDialog.Popup>>;
+  ref?: React.Ref<React.ComponentRef<typeof AlertDialog.Popup>>;
 };
 
 function AlertDialogContent({
@@ -87,7 +87,7 @@ const AlertDialogFooter = ({
 type AlertDialogTitleProps = React.ComponentPropsWithoutRef<
   typeof AlertDialog.Title
 > & {
-  ref?: React.Ref<React.ElementRef<typeof AlertDialog.Title>>;
+  ref?: React.Ref<React.ComponentRef<typeof AlertDialog.Title>>;
 };
 
 function AlertDialogTitle({ className, ref, ...props }: AlertDialogTitleProps) {
@@ -106,7 +106,7 @@ function AlertDialogTitle({ className, ref, ...props }: AlertDialogTitleProps) {
 type AlertDialogDescriptionProps = React.ComponentPropsWithoutRef<
   typeof AlertDialog.Description
 > & {
-  ref?: React.Ref<React.ElementRef<typeof AlertDialog.Description>>;
+  ref?: React.Ref<React.ComponentRef<typeof AlertDialog.Description>>;
 };
 
 function AlertDialogDescription({
@@ -126,7 +126,7 @@ function AlertDialogDescription({
 type AlertDialogActionProps = React.ComponentPropsWithoutRef<
   typeof AlertDialog.Close
 > & {
-  ref?: React.Ref<React.ElementRef<typeof AlertDialog.Close>>;
+  ref?: React.Ref<React.ComponentRef<typeof AlertDialog.Close>>;
 };
 
 function AlertDialogAction({
@@ -146,7 +146,7 @@ function AlertDialogAction({
 type AlertDialogCancelProps = React.ComponentPropsWithoutRef<
   typeof AlertDialog.Close
 > & {
-  ref?: React.Ref<React.ElementRef<typeof AlertDialog.Close>>;
+  ref?: React.Ref<React.ComponentRef<typeof AlertDialog.Close>>;
 };
 
 function AlertDialogCancel({

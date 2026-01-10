@@ -1,4 +1,4 @@
-import { Popover } from "@base-ui-components/react/popover";
+import { Popover } from "@base-ui/react/popover";
 import type * as React from "react";
 
 import { cn } from "@/lib/utils";
@@ -15,7 +15,7 @@ type PopoverPopupProps = React.ComponentPropsWithoutRef<
   typeof Popover.Popup
 > & {
   rounded?: boolean;
-  ref?: React.Ref<React.ElementRef<typeof Popover.Popup>>;
+  ref?: React.Ref<React.ComponentRef<typeof Popover.Popup>>;
 };
 
 function PopoverPopup({
@@ -48,7 +48,7 @@ const PopoverBackdrop = Popover.Backdrop;
 type PopoverTitleProps = React.ComponentPropsWithoutRef<
   typeof Popover.Title
 > & {
-  ref?: React.Ref<React.ElementRef<typeof Popover.Title>>;
+  ref?: React.Ref<React.ComponentRef<typeof Popover.Title>>;
 };
 
 function PopoverTitle({ className, ref, ...props }: PopoverTitleProps) {
@@ -64,7 +64,7 @@ function PopoverTitle({ className, ref, ...props }: PopoverTitleProps) {
 type PopoverDescriptionProps = React.ComponentPropsWithoutRef<
   typeof Popover.Description
 > & {
-  ref?: React.Ref<React.ElementRef<typeof Popover.Description>>;
+  ref?: React.Ref<React.ComponentRef<typeof Popover.Description>>;
 };
 
 function PopoverDescription({
@@ -92,7 +92,7 @@ type PopoverContentProps = React.ComponentPropsWithoutRef<
   sideOffset?: number;
   alignOffset?: number;
   rounded?: boolean;
-  ref?: React.Ref<React.ElementRef<typeof Popover.Popup>>;
+  ref?: React.Ref<React.ComponentRef<typeof Popover.Popup>>;
 };
 
 function PopoverContent({

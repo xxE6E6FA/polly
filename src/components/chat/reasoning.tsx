@@ -1,4 +1,4 @@
-import Markdown from "markdown-to-jsx";
+import Markdown from "markdown-to-jsx/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 function getReasoningButtonLabel(

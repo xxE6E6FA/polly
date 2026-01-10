@@ -86,7 +86,12 @@ export function VoiceSelect({
   return (
     <Select
       value={value || sentinelDefault}
-      onValueChange={v => onChange(v === sentinelDefault ? undefined : v)}
+      onValueChange={v => {
+        if (v === null) {
+          return;
+        }
+        onChange(v === sentinelDefault ? undefined : v);
+      }}
     >
       <SelectTrigger className="w-full">
         <SelectValue />

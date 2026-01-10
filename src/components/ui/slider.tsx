@@ -1,6 +1,6 @@
 "use client";
 
-import * as SliderPrimitive from "@base-ui-components/react/slider";
+import * as SliderPrimitive from "@base-ui/react/slider";
 import type * as React from "react";
 
 import { cn } from "@/lib/utils";

@@ -1,4 +1,4 @@
-import { ContextMenu } from "@base-ui-components/react/context-menu";
+import { ContextMenu } from "@base-ui/react/context-menu";
 import { api } from "@convex/_generated/api";
 import { CheckIcon, CircleIcon, GitBranchIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery } from "convex/react";

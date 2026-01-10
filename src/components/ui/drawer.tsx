@@ -27,7 +27,7 @@ const DrawerClose = DrawerPrimitive.Close;
 type DrawerOverlayProps = React.ComponentPropsWithoutRef<
   typeof DrawerPrimitive.Overlay
 > & {
-  ref?: React.Ref<React.ElementRef<typeof DrawerPrimitive.Overlay>>;
+  ref?: React.Ref<React.ComponentRef<typeof DrawerPrimitive.Overlay>>;
 };
 
 function DrawerOverlay({ className, ref, ...props }: DrawerOverlayProps) {
@@ -42,7 +42,7 @@ type DrawerContentProps = React.ComponentPropsWithoutRef<
   typeof DrawerPrimitive.Content
 > & {
   scrollContainerClassName?: string;
-  ref?: React.Ref<React.ElementRef<typeof DrawerPrimitive.Content>>;
+  ref?: React.Ref<React.ComponentRef<typeof DrawerPrimitive.Content>>;
 };
 
 function DrawerContent({
@@ -113,7 +113,7 @@ DrawerBody.displayName = "DrawerBody";
 type DrawerTitleProps = React.ComponentPropsWithoutRef<
   typeof DrawerPrimitive.Title
 > & {
-  ref?: React.Ref<React.ElementRef<typeof DrawerPrimitive.Title>>;
+  ref?: React.Ref<React.ComponentRef<typeof DrawerPrimitive.Title>>;
 };
 
 function DrawerTitle({ className, ref, ...props }: DrawerTitleProps) {
@@ -132,7 +132,7 @@ function DrawerTitle({ className, ref, ...props }: DrawerTitleProps) {
 type DrawerDescriptionProps = React.ComponentPropsWithoutRef<
   typeof DrawerPrimitive.Description
 > & {
-  ref?: React.Ref<React.ElementRef<typeof DrawerPrimitive.Description>>;
+  ref?: React.Ref<React.ComponentRef<typeof DrawerPrimitive.Description>>;
 };
 
 function DrawerDescription({

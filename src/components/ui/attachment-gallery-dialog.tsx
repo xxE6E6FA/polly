@@ -1,4 +1,4 @@
-import { Dialog } from "@base-ui-components/react/dialog";
+import { Dialog } from "@base-ui/react/dialog";
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import { CaretLeftIcon, CaretRightIcon, XIcon } from "@phosphor-icons/react";

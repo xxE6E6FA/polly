@@ -6,12 +6,23 @@ import "@/globals.css";
 
 const router = createBrowserRouter(routes);
 
+// Centralized error handler for route errors (React Router 7.12+)
+const handleRouteError = (error: unknown) => {
+  // Log route errors for debugging and monitoring
+  console.error("[Router Error]", error);
+
+  // In production, you could send to an error tracking service:
+  // if (import.meta.env.PROD) {
+  //   errorTrackingService.captureException(error);
+  // }
+};
+
 const container = document.getElementById("root");
 if (container) {
   const root = createRoot(container);
   root.render(
     <StrictMode>
-      <RouterProvider router={router} />
+      <RouterProvider router={router} onError={handleRouteError} />
     </StrictMode>
   );
 }

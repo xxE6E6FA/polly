@@ -75,7 +75,10 @@ export default function GeneralPage() {
     await updateUserSettings({ autoArchiveEnabled: checked });
   };
 
-  const handleAutoArchiveDaysChange = async (value: string) => {
+  const handleAutoArchiveDaysChange = async (value: string | null) => {
+    if (!value) {
+      return;
+    }
     await updateUserSettings({ autoArchiveDays: parseInt(value, 10) });
   };
 
