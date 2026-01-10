@@ -1,4 +1,4 @@
-import * as SelectPrimitive from "@base-ui-components/react/select";
+import * as SelectPrimitive from "@base-ui/react/select";
 import { CaretDownIcon, CaretUpIcon } from "@phosphor-icons/react";
 import type * as React from "react";
 
@@ -16,7 +16,7 @@ type SelectTriggerProps = React.ComponentPropsWithoutRef<
   variant?: "default" | "minimal";
   hideIcon?: boolean;
   asChild?: boolean;
-  ref?: React.Ref<React.ElementRef<typeof SelectPrimitive.Select.Trigger>>;
+  ref?: React.Ref<React.ComponentRef<typeof SelectPrimitive.Select.Trigger>>;
 };
 
 function SelectTrigger({
@@ -64,7 +64,7 @@ type SelectScrollUpButtonProps = React.ComponentPropsWithoutRef<
   typeof SelectPrimitive.Select.ScrollUpArrow
 > & {
   ref?: React.Ref<
-    React.ElementRef<typeof SelectPrimitive.Select.ScrollUpArrow>
+    React.ComponentRef<typeof SelectPrimitive.Select.ScrollUpArrow>
   >;
 };
 
@@ -91,7 +91,7 @@ type SelectScrollDownButtonProps = React.ComponentPropsWithoutRef<
   typeof SelectPrimitive.Select.ScrollDownArrow
 > & {
   ref?: React.Ref<
-    React.ElementRef<typeof SelectPrimitive.Select.ScrollDownArrow>
+    React.ComponentRef<typeof SelectPrimitive.Select.ScrollDownArrow>
   >;
 };
 
@@ -117,7 +117,7 @@ function SelectScrollDownButton({
 type SelectContentProps = React.ComponentPropsWithoutRef<
   typeof SelectPrimitive.Select.Positioner
 > & {
-  ref?: React.Ref<React.ElementRef<typeof SelectPrimitive.Select.Positioner>>;
+  ref?: React.Ref<React.ComponentRef<typeof SelectPrimitive.Select.Positioner>>;
 };
 
 function SelectContent({
@@ -155,7 +155,7 @@ function SelectContent({
 type SelectLabelProps = React.ComponentPropsWithoutRef<
   typeof SelectPrimitive.Select.GroupLabel
 > & {
-  ref?: React.Ref<React.ElementRef<typeof SelectPrimitive.Select.GroupLabel>>;
+  ref?: React.Ref<React.ComponentRef<typeof SelectPrimitive.Select.GroupLabel>>;
 };
 
 function SelectLabel({ className, ref, ...props }: SelectLabelProps) {
@@ -171,7 +171,7 @@ function SelectLabel({ className, ref, ...props }: SelectLabelProps) {
 type SelectItemProps = React.ComponentPropsWithoutRef<
   typeof SelectPrimitive.Select.Item
 > & {
-  ref?: React.Ref<React.ElementRef<typeof SelectPrimitive.Select.Item>>;
+  ref?: React.Ref<React.ComponentRef<typeof SelectPrimitive.Select.Item>>;
 };
 
 function SelectItem({ className, children, ref, ...props }: SelectItemProps) {
@@ -194,7 +194,7 @@ function SelectItem({ className, children, ref, ...props }: SelectItemProps) {
 type SelectSeparatorProps = React.ComponentPropsWithoutRef<
   typeof SelectPrimitive.Select.Separator
 > & {
-  ref?: React.Ref<React.ElementRef<typeof SelectPrimitive.Select.Separator>>;
+  ref?: React.Ref<React.ComponentRef<typeof SelectPrimitive.Select.Separator>>;
 };
 
 function SelectSeparator({ className, ref, ...props }: SelectSeparatorProps) {

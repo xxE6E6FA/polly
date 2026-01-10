@@ -1,4 +1,4 @@
-import { Menu } from "@base-ui-components/react/menu";
+import { Menu } from "@base-ui/react/menu";
 import { CaretRightIcon, CheckIcon } from "@phosphor-icons/react";
 import type * as React from "react";
 
@@ -14,7 +14,7 @@ const DropdownMenuRadioGroup = Menu.RadioGroup;
 type DropdownMenuSubTriggerProps = React.ComponentPropsWithoutRef<
   typeof Menu.SubmenuTrigger
 > & {
-  ref?: React.Ref<React.ElementRef<typeof Menu.SubmenuTrigger>>;
+  ref?: React.Ref<React.ComponentRef<typeof Menu.SubmenuTrigger>>;
 };
 
 // Wrapper for submenu trigger with caret icon
@@ -44,7 +44,7 @@ type DropdownMenuSubContentProps = React.ComponentPropsWithoutRef<
 > & {
   side?: "top" | "bottom" | "left" | "right";
   sideOffset?: number;
-  ref?: React.Ref<React.ElementRef<typeof Menu.Popup>>;
+  ref?: React.Ref<React.ComponentRef<typeof Menu.Popup>>;
 };
 
 // Wrapper for submenu content with Portal/Positioner/Popup structure
@@ -86,7 +86,7 @@ type DropdownMenuContentProps = React.ComponentPropsWithoutRef<
   side?: "top" | "bottom" | "left" | "right";
   align?: "start" | "center" | "end";
   sideOffset?: number;
-  ref?: React.Ref<React.ElementRef<typeof Menu.Popup>>;
+  ref?: React.Ref<React.ComponentRef<typeof Menu.Popup>>;
 };
 
 // Wrapper for main menu content with Portal/Positioner/Popup structure
@@ -127,7 +127,7 @@ function DropdownMenuContent({
 type DropdownMenuItemProps = React.ComponentPropsWithoutRef<
   typeof Menu.Item
 > & {
-  ref?: React.Ref<React.ElementRef<typeof Menu.Item>>;
+  ref?: React.Ref<React.ComponentRef<typeof Menu.Item>>;
 };
 
 // Simple styled menu item
@@ -147,7 +147,7 @@ function DropdownMenuItem({ className, ref, ...props }: DropdownMenuItemProps) {
 type DropdownMenuCheckboxItemProps = React.ComponentPropsWithoutRef<
   typeof Menu.CheckboxItem
 > & {
-  ref?: React.Ref<React.ElementRef<typeof Menu.CheckboxItem>>;
+  ref?: React.Ref<React.ComponentRef<typeof Menu.CheckboxItem>>;
 };
 
 // Checkbox item with indicator
@@ -177,7 +177,7 @@ function DropdownMenuCheckboxItem({
 type DropdownMenuRadioItemProps = React.ComponentPropsWithoutRef<
   typeof Menu.RadioItem
 > & {
-  ref?: React.Ref<React.ElementRef<typeof Menu.RadioItem>>;
+  ref?: React.Ref<React.ComponentRef<typeof Menu.RadioItem>>;
 };
 
 // Radio item with indicator
@@ -207,7 +207,7 @@ function DropdownMenuRadioItem({
 type DropdownMenuLabelProps = React.ComponentPropsWithoutRef<
   typeof Menu.GroupLabel
 > & {
-  ref?: React.Ref<React.ElementRef<typeof Menu.GroupLabel>>;
+  ref?: React.Ref<React.ComponentRef<typeof Menu.GroupLabel>>;
 };
 
 // Label for menu groups
@@ -228,7 +228,7 @@ function DropdownMenuLabel({
 type DropdownMenuSeparatorProps = React.ComponentPropsWithoutRef<
   typeof Menu.Separator
 > & {
-  ref?: React.Ref<React.ElementRef<typeof Menu.Separator>>;
+  ref?: React.Ref<React.ComponentRef<typeof Menu.Separator>>;
 };
 
 // Separator

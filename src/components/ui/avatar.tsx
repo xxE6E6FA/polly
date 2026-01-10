@@ -1,4 +1,4 @@
-import * as AvatarPrimitive from "@base-ui-components/react/avatar";
+import * as AvatarPrimitive from "@base-ui/react/avatar";
 import type * as React from "react";
 
 import { cn } from "@/lib/utils";
@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 type AvatarProps = React.ComponentPropsWithoutRef<
   typeof AvatarPrimitive.Avatar.Root
 > & {
-  ref?: React.Ref<React.ElementRef<typeof AvatarPrimitive.Avatar.Root>>;
+  ref?: React.Ref<React.ComponentRef<typeof AvatarPrimitive.Avatar.Root>>;
 };
 
 function Avatar({ className, ref, ...props }: AvatarProps) {
@@ -25,7 +25,7 @@ function Avatar({ className, ref, ...props }: AvatarProps) {
 type AvatarImageProps = React.ComponentPropsWithoutRef<
   typeof AvatarPrimitive.Avatar.Image
 > & {
-  ref?: React.Ref<React.ElementRef<typeof AvatarPrimitive.Avatar.Image>>;
+  ref?: React.Ref<React.ComponentRef<typeof AvatarPrimitive.Avatar.Image>>;
 };
 
 function AvatarImage({ className, ref, ...props }: AvatarImageProps) {
@@ -41,7 +41,7 @@ function AvatarImage({ className, ref, ...props }: AvatarImageProps) {
 type AvatarFallbackProps = React.ComponentPropsWithoutRef<
   typeof AvatarPrimitive.Avatar.Fallback
 > & {
-  ref?: React.Ref<React.ElementRef<typeof AvatarPrimitive.Avatar.Fallback>>;
+  ref?: React.Ref<React.ComponentRef<typeof AvatarPrimitive.Avatar.Fallback>>;
 };
 
 function AvatarFallback({ className, ref, ...props }: AvatarFallbackProps) {

@@ -79,7 +79,8 @@ Never create hooks, utils, or context files inside component directories.
 
 ## UI Components
 
-- Base UI `TooltipTrigger` does NOT support `asChild` - wrap children directly
+- Base UI uses `render` prop (not `asChild`) to customize element rendering
+- `TooltipTrigger` supports `delayDuration` prop for per-trigger delay override
 - Model types: `Doc<"userModels"> | Doc<"builtInModels">` for selected models
 
 ## Styling

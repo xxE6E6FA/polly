@@ -1,4 +1,4 @@
-import { Meter } from "@base-ui-components/react/meter";
+import { Meter } from "@base-ui/react/meter";
 import { api } from "@convex/_generated/api";
 import type { IconProps } from "@phosphor-icons/react";
 import {

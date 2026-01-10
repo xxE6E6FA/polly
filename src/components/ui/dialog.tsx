@@ -1,4 +1,4 @@
-import { Dialog } from "@base-ui-components/react/dialog";
+import { Dialog } from "@base-ui/react/dialog";
 import { XIcon } from "@phosphor-icons/react";
 import type * as React from "react";
 
@@ -16,7 +16,7 @@ const DialogClose = Dialog.Close;
 type DialogOverlayProps = React.ComponentPropsWithoutRef<
   typeof Dialog.Backdrop
 > & {
-  ref?: React.Ref<React.ElementRef<typeof Dialog.Backdrop>>;
+  ref?: React.Ref<React.ComponentRef<typeof Dialog.Backdrop>>;
 };
 
 function DialogOverlay({ className, ref, ...props }: DialogOverlayProps) {
@@ -27,10 +27,12 @@ function DialogOverlay({ className, ref, ...props }: DialogOverlayProps) {
   );
 }
 
-type DialogContentProps = React.ComponentPropsWithoutRef<
-  typeof Dialog.Popup
+type DialogContentProps = Omit<
+  React.ComponentPropsWithoutRef<typeof Dialog.Popup>,
+  "children"
 > & {
-  ref?: React.Ref<React.ElementRef<typeof Dialog.Popup>>;
+  ref?: React.Ref<React.ComponentRef<typeof Dialog.Popup>>;
+  children?: React.ReactNode;
 };
 
 function DialogContent({
@@ -92,7 +94,7 @@ const DialogFooter = ({
 DialogFooter.displayName = "DialogFooter";
 
 type DialogTitleProps = React.ComponentPropsWithoutRef<typeof Dialog.Title> & {
-  ref?: React.Ref<React.ElementRef<typeof Dialog.Title>>;
+  ref?: React.Ref<React.ComponentRef<typeof Dialog.Title>>;
 };
 
 function DialogTitle({ className, ref, ...props }: DialogTitleProps) {
@@ -111,7 +113,7 @@ function DialogTitle({ className, ref, ...props }: DialogTitleProps) {
 type DialogDescriptionProps = React.ComponentPropsWithoutRef<
   typeof Dialog.Description
 > & {
-  ref?: React.Ref<React.ElementRef<typeof Dialog.Description>>;
+  ref?: React.Ref<React.ComponentRef<typeof Dialog.Description>>;
 };
 
 function DialogDescription({

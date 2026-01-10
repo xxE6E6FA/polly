@@ -1,12 +1,11 @@
 import type { LLMOutputComponent } from "@llm-ui/react";
-import Markdown, { RuleType } from "markdown-to-jsx";
+import Markdown, { RuleType } from "markdown-to-jsx/react";
 import React, { useMemo } from "react";
 import {
   applyHardLineBreaks,
   bufferIncompleteEntities,
   convertCitationsToMarkdownLinks,
   decodeMinimalEntities,
-  isMultiWord,
   normalizeEscapedMarkdown,
   normalizeLatexDelimiters,
   removeParenthesesAroundItalics,

@@ -1,6 +1,6 @@
 "use client";
 
-import * as TooltipPrimitive from "@base-ui-components/react/tooltip";
+import * as TooltipPrimitive from "@base-ui/react/tooltip";
 import type * as React from "react";
 
 import { cn } from "@/lib/utils";
@@ -36,18 +36,30 @@ const Tooltip = TooltipPrimitive.Tooltip.Root;
 type TooltipTriggerProps = React.ComponentPropsWithoutRef<
   typeof TooltipPrimitive.Tooltip.Trigger
 > & {
-  ref?: React.Ref<React.ElementRef<typeof TooltipPrimitive.Tooltip.Trigger>>;
+  ref?: React.Ref<React.ComponentRef<typeof TooltipPrimitive.Tooltip.Trigger>>;
+  /**
+   * Override the provider's delay duration for this specific trigger.
+   * Useful for tooltips that should appear faster (e.g., icon buttons)
+   * or slower (e.g., complex features).
+   */
+  delayDuration?: number;
 };
 
-function TooltipTrigger({ ref, ...props }: TooltipTriggerProps) {
-  return <TooltipPrimitive.Tooltip.Trigger ref={ref} {...props} />;
+function TooltipTrigger({ ref, delayDuration, ...props }: TooltipTriggerProps) {
+  return (
+    <TooltipPrimitive.Tooltip.Trigger
+      ref={ref}
+      delay={delayDuration}
+      {...props}
+    />
+  );
 }
 
 type TooltipContentProps = React.ComponentPropsWithoutRef<
   typeof TooltipPrimitive.Tooltip.Positioner
 > & {
   children?: React.ReactNode;
-  ref?: React.Ref<React.ElementRef<typeof TooltipPrimitive.Tooltip.Popup>>;
+  ref?: React.Ref<React.ComponentRef<typeof TooltipPrimitive.Tooltip.Popup>>;
 };
 
 function TooltipContent({

@@ -1,4 +1,4 @@
-import { PreviewCard } from "@base-ui-components/react/preview-card";
+import { PreviewCard } from "@base-ui/react/preview-card";
 import React, { useMemo } from "react";
 import { useCitations } from "@/providers/citation-context";
 import type { WebSearchCitation } from "@/types";

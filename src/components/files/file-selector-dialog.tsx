@@ -581,7 +581,11 @@ export function FileSelectorDialog({
     <div className="flex items-center justify-between">
       <Select
         value={fileType}
-        onValueChange={(value: FileType) => setFileType(value)}
+        onValueChange={(value: FileType | null) => {
+          if (value) {
+            setFileType(value);
+          }
+        }}
       >
         <SelectTrigger className="w-[160px]">
           <SelectValue>

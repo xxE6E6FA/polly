@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { render, screen } from "@testing-library/react";
-import Markdown from "markdown-to-jsx";
+import Markdown from "markdown-to-jsx/react";
 import type React from "react";
 
 describe("Citation Link Conversion", () => {

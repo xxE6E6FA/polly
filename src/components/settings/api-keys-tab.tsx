@@ -128,7 +128,10 @@ export const ApiKeysTab = () => {
     (key: ApiKeyInfo) => key.provider === "openrouter" && hasStoredKey(key)
   );
 
-  const handleOpenRouterSortingChange = (value: string) => {
+  const handleOpenRouterSortingChange = (value: string | null) => {
+    if (!value) {
+      return;
+    }
     updateUserSettingsMutation({
       openRouterSorting: value as
         | "default"
