@@ -183,7 +183,7 @@ export const SendButton = ({
 
   return (
     <Tooltip>
-      <TooltipTrigger>
+      <TooltipTrigger delayDuration={200}>
         <ChatInputIconButton
           className={className}
           disabled={disabled}

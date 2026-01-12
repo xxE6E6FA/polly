@@ -166,7 +166,7 @@ const CodeBlockComponent = ({
           </span>
           <div className="flex items-center gap-1">
             <Tooltip>
-              <TooltipTrigger>
+              <TooltipTrigger delayDuration={200}>
                 <Button
                   className="code-block-header-btn"
                   size="sm"
@@ -181,7 +181,7 @@ const CodeBlockComponent = ({
               </TooltipContent>
             </Tooltip>
             <Tooltip>
-              <TooltipTrigger>
+              <TooltipTrigger delayDuration={200}>
                 <Button
                   size="sm"
                   variant="ghost"
@@ -213,7 +213,7 @@ const CodeBlockComponent = ({
           <div className="pointer-events-none sticky top-[42px] z-[3] h-0">
             <div className="pointer-events-auto absolute -top-8 right-3 sm:right-6">
               <Tooltip>
-                <TooltipTrigger>
+                <TooltipTrigger delayDuration={200}>
                   <Button
                     className="code-block-header-btn"
                     size="sm"

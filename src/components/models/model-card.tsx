@@ -127,7 +127,7 @@ export const ModelCard = memo(
                 if (isUnavailable && onRemove) {
                   return (
                     <Tooltip>
-                      <TooltipTrigger>
+                      <TooltipTrigger delayDuration={200}>
                         <Button
                           variant="danger-subtle"
                           size="icon-sm"

@@ -94,7 +94,7 @@ export const ActionButton = memo(
   }: ActionButtonProps) => {
     return (
       <Tooltip>
-        <TooltipTrigger>
+        <TooltipTrigger delayDuration={200}>
           <button
             type="button"
             className={cn(baseStyles, variantStyles[variant], className)}
