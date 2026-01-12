@@ -80,7 +80,7 @@ Never create hooks, utils, or context files inside component directories.
 ## UI Components
 
 - Base UI uses `render` prop (not `asChild`) to customize element rendering
-- `TooltipTrigger` supports `delayDuration` prop for per-trigger delay override
+- Tooltip delays: Use `delayDuration={200}` on `TooltipTrigger` for quick actions (icon buttons, copy buttons). Default 600ms is for explanatory tooltips.
 - Model types: `Doc<"userModels"> | Doc<"builtInModels">` for selected models
 
 ## Styling

@@ -65,7 +65,7 @@ export function FileUploadButton({
         onChange={handleFileSelect}
       />
       <Tooltip>
-        <TooltipTrigger>
+        <TooltipTrigger delayDuration={200}>
           <ChatInputIconButton
             aria-label="Upload files"
             disabled={disabled || isSubmitting}

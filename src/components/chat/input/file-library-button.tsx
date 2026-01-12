@@ -63,7 +63,7 @@ export function FileLibraryButton({
   return (
     <>
       <Tooltip>
-        <TooltipTrigger>
+        <TooltipTrigger delayDuration={200}>
           <ChatInputIconButton
             aria-label="Select from library"
             disabled={disabled || isSubmitting}

@@ -239,7 +239,7 @@ export const ImageActions = ({
       )}
 
       <Tooltip>
-        <TooltipTrigger>
+        <TooltipTrigger delayDuration={200}>
           <button
             type="button"
             onClick={handleDownloadImage}

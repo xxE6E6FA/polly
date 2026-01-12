@@ -164,7 +164,7 @@ export const ArchivedConversationsPage = () => {
                 onKeyDown={e => e.stopPropagation()}
               >
                 <Tooltip>
-                  <TooltipTrigger>
+                  <TooltipTrigger delayDuration={200}>
                     <Link
                       to={ROUTES.CHAT_CONVERSATION(conversation._id)}
                       className={buttonVariants({
@@ -181,7 +181,7 @@ export const ArchivedConversationsPage = () => {
                   </TooltipContent>
                 </Tooltip>
                 <Tooltip>
-                  <TooltipTrigger>
+                  <TooltipTrigger delayDuration={200}>
                     <Button
                       size="sm"
                       variant="ghost"
@@ -203,7 +203,7 @@ export const ArchivedConversationsPage = () => {
                   </TooltipContent>
                 </Tooltip>
                 <Tooltip>
-                  <TooltipTrigger>
+                  <TooltipTrigger delayDuration={200}>
                     <Button
                       size="sm"
                       variant="ghost"

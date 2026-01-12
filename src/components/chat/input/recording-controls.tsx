@@ -22,7 +22,7 @@ export const RecordingControls = ({
     <>
       <div className="absolute right-0 top-0 bottom-0 flex items-center gap-0.5 pr-0.5 z-10">
         <Tooltip>
-          <TooltipTrigger>
+          <TooltipTrigger delayDuration={200}>
             <ChatInputIconButton
               className="border-none shadow-none"
               type="button"
@@ -43,7 +43,7 @@ export const RecordingControls = ({
           </TooltipContent>
         </Tooltip>
         <Tooltip>
-          <TooltipTrigger>
+          <TooltipTrigger delayDuration={200}>
             <ChatInputIconButton
               className="border-none shadow-none"
               type="button"

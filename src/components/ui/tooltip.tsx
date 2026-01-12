@@ -39,8 +39,15 @@ type TooltipTriggerProps = React.ComponentPropsWithoutRef<
   ref?: React.Ref<React.ComponentRef<typeof TooltipPrimitive.Tooltip.Trigger>>;
   /**
    * Override the provider's delay duration for this specific trigger.
-   * Useful for tooltips that should appear faster (e.g., icon buttons)
-   * or slower (e.g., complex features).
+   *
+   * Recommended values:
+   * - Quick actions (icon buttons, copy buttons): 200ms
+   * - Explanatory tooltips: 600ms (default)
+   *
+   * @example
+   * <TooltipTrigger delayDuration={200}>
+   *   <IconButton />
+   * </TooltipTrigger>
    */
   delayDuration?: number;
 };
