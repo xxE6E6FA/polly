@@ -257,6 +257,12 @@ export default function ConversationRoute() {
     if (!messages || messages.length === 0) {
       return;
     }
+    // Don't auto-retry during the transition from optimistic to real messages.
+    // This prevents a race condition where the query returns with only the user message
+    // before the startConversation action has created the assistant message.
+    if (hasTransitionedRef.current) {
+      return;
+    }
     if (initialLoadHandledRef.current === resolvedId) {
       return;
     }
