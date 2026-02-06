@@ -618,11 +618,11 @@ async function convertMediaAttachment(
     }
   }
 
-  // Priority 2: Use inline content
+  // Priority 2: Use inline content (base64 string → Uint8Array)
   if (attachment.content) {
     return {
       type: "file",
-      data: attachment.content,
+      data: base64ToUint8Array(attachment.content),
       mediaType: resolvedMediaType,
     };
   }
@@ -635,6 +635,42 @@ async function convertMediaAttachment(
 }
 
 // ==================== Utility Functions ====================
+
+/**
+ * Convert base64 string to Uint8Array
+ * Uses pure JavaScript for Convex compatibility
+ */
+function base64ToUint8Array(base64: string): Uint8Array {
+  const chars =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+  const lookup = new Uint8Array(128);
+  for (let i = 0; i < chars.length; i++) {
+    lookup[chars.charCodeAt(i)] = i;
+  }
+
+  // Strip padding
+  let len = base64.length;
+  while (len > 0 && base64[len - 1] === "=") {
+    len--;
+  }
+
+  const byteLength = (len * 3) >> 2;
+  const bytes = new Uint8Array(byteLength);
+  let p = 0;
+
+  for (let i = 0; i < len; ) {
+    const a = lookup[base64.charCodeAt(i++)] ?? 0;
+    const b = i < len ? (lookup[base64.charCodeAt(i++)] ?? 0) : 0;
+    const c = i < len ? (lookup[base64.charCodeAt(i++)] ?? 0) : 0;
+    const d = i < len ? (lookup[base64.charCodeAt(i++)] ?? 0) : 0;
+
+    bytes[p++] = (a << 2) | (b >> 4);
+    if (p < byteLength) bytes[p++] = ((b & 15) << 4) | (c >> 2);
+    if (p < byteLength) bytes[p++] = ((c & 3) << 6) | d;
+  }
+
+  return bytes;
+}
 
 /**
  * Convert Uint8Array to base64 string
