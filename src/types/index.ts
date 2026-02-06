@@ -206,6 +206,32 @@ export type ChatStatus = "idle" | "loading" | "streaming";
 
 export type MessageRole = "user" | "assistant" | "system" | "context";
 
+/**
+ * A single reasoning segment for interleaved reasoning/tool-call streams.
+ * Each segment corresponds to a continuous block of thinking before a tool call interrupts.
+ */
+export type ReasoningPart = {
+  text: string;
+  startedAt: number;
+};
+
+/**
+ * Tool call tracking for reasoning UI.
+ * Represents a tool invocation during interleaved thinking.
+ */
+export type ToolCall = {
+  id: string;
+  name: string; // "webSearch", "conversationSearch"
+  status: "running" | "completed" | "error";
+  startedAt: number;
+  completedAt?: number;
+  args?: {
+    query?: string;
+    mode?: string;
+  };
+  error?: string;
+};
+
 export type ChatMessage = {
   id: string;
   /**
@@ -233,6 +259,8 @@ export type ChatMessage = {
   useWebSearch?: boolean;
   attachments?: Attachment[];
   citations?: WebSearchCitation[];
+  reasoningParts?: ReasoningPart[]; // Interleaved reasoning segments
+  toolCalls?: ToolCall[]; // Tool calls made during reasoning
   error?: string; // Error message for failed text-to-text requests
   metadata?: {
     tokenCount?: number;

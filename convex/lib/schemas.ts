@@ -261,6 +261,8 @@ export const extendedMessageMetadataSchema = messageMetadataSchema.extend({
   warnings: v.optional(v.array(v.string())),
   timeToFirstTokenMs: v.optional(v.number()),
   tokensPerSecond: v.optional(v.number()),
+  // Tools that were available during generation (for debugging/analytics)
+  toolsAvailable: v.optional(v.array(v.string())),
 });
 
 export const ttsAudioCacheEntrySchema = v.object({
@@ -731,6 +733,28 @@ export const userSettingsUpdateSchema = userSettingsSchema.omit(
   "updatedAt",
 );
 
+// Reasoning part schema for interleaved reasoning segments
+export const reasoningPartSchema = v.object({
+  text: v.string(),
+  startedAt: v.number(),
+});
+
+// Tool call schema for tracking tool calls during reasoning
+export const toolCallSchema = v.object({
+  id: v.string(),
+  name: v.string(), // "webSearch", "conversationSearch"
+  status: v.union(v.literal("running"), v.literal("completed"), v.literal("error")),
+  startedAt: v.number(),
+  completedAt: v.optional(v.number()),
+  args: v.optional(
+    v.object({
+      query: v.optional(v.string()),
+      mode: v.optional(v.string()),
+    })
+  ),
+  error: v.optional(v.string()),
+});
+
 // Image generation schema
 export const imageGenerationSchema = v.object({
   replicateId: v.optional(v.string()),
@@ -765,6 +789,7 @@ export const messageSchema = v.object({
   status: v.optional(messageStatusSchema),
   statusText: v.optional(v.string()), // For custom status messages (e.g., PDF reading progress)
   reasoning: v.optional(v.string()),
+  reasoningParts: v.optional(v.array(reasoningPartSchema)),
   model: v.optional(v.string()),
   provider: v.optional(v.string()),
   reasoningConfig: v.optional(reasoningConfigSchema),
@@ -778,6 +803,7 @@ export const messageSchema = v.object({
   citations: v.optional(v.array(webCitationSchema)),
   metadata: v.optional(extendedMessageMetadataSchema),
   imageGeneration: v.optional(imageGenerationSchema), // Add image generation support
+  toolCalls: v.optional(v.array(toolCallSchema)), // Tool calls made during reasoning
   error: v.optional(v.string()), // Error message for failed text-to-text requests
   ttsAudioCache: v.optional(v.array(ttsAudioCacheEntrySchema)),
   createdAt: v.number(),

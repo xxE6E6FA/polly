@@ -43,6 +43,8 @@ export function convertServerMessage(msg: Doc<"messages">): ChatMessage {
     useWebSearch: msg.useWebSearch,
     attachments: msg.attachments as ChatMessage["attachments"],
     citations: msg.citations as ChatMessage["citations"],
+    reasoningParts: msg.reasoningParts as ChatMessage["reasoningParts"],
+    toolCalls: msg.toolCalls as ChatMessage["toolCalls"],
     error: msg.error,
     metadata: isMessageMetadata(msg.metadata)
       ? (msg.metadata as ChatMessage["metadata"])
