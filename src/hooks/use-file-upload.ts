@@ -19,38 +19,34 @@ import type { AIModel, Attachment, FileUploadProgress } from "@/types";
 // ==================== Extracted helpers ====================
 
 /**
- * Determine the max file size for a given MIME type.
+ * Determine the max file size for a detected file category.
+ * Uses the category (from extension-aware detection) instead of raw MIME type,
+ * so files with empty/octet-stream MIME types still get the correct limit.
  */
-function getMaxFileSize(mimeType: string): number {
-  if (mimeType === "application/pdf") {
-    return FILE_LIMITS.PDF_MAX_SIZE_BYTES;
+function getMaxFileSize(category: FileCategory): number {
+  switch (category) {
+    case "pdf":
+      return FILE_LIMITS.PDF_MAX_SIZE_BYTES;
+    case "audio":
+      return FILE_LIMITS.AUDIO_MAX_SIZE_BYTES;
+    case "video":
+      return FILE_LIMITS.VIDEO_MAX_SIZE_BYTES;
+    default:
+      return FILE_LIMITS.MAX_SIZE_BYTES;
   }
-  if (mimeType.startsWith("audio/")) {
-    return FILE_LIMITS.AUDIO_MAX_SIZE_BYTES;
-  }
-  if (mimeType.startsWith("video/")) {
-    return FILE_LIMITS.VIDEO_MAX_SIZE_BYTES;
-  }
-  return FILE_LIMITS.MAX_SIZE_BYTES;
 }
 
 /**
  * Validate a file against size limits and model support.
- * Returns the file category on success, or an error message on failure.
+ * Detects category first (extension-aware), then checks size against the
+ * category-specific limit so files with unknown MIME types aren't rejected.
  */
 function validateFile(
   file: File,
   model?: ModelForCapabilityCheck
 ): { valid: true; category: FileCategory } | { valid: false; error: string } {
-  const maxSize = getMaxFileSize(file.type);
-
-  if (file.size > maxSize) {
-    return {
-      valid: false,
-      error: `File ${file.name} is too large. Maximum size is ${maxSize / (1024 * 1024)}MB.`,
-    };
-  }
-
+  // Detect category first — isFileTypeSupported uses extension fallback
+  // when file.type is empty/octet-stream, so category is reliable
   const fileSupport = isFileTypeSupported(file.type, model, file.name);
   if (!fileSupport.supported) {
     const supportsImages = model?.supportsImages ?? false;
@@ -69,6 +65,14 @@ function validateFile(
     return {
       valid: false,
       error: `"${file.name}" is not supported. ${supportedDesc}.`,
+    };
+  }
+
+  const maxSize = getMaxFileSize(fileSupport.category);
+  if (file.size > maxSize) {
+    return {
+      valid: false,
+      error: `File ${file.name} is too large. Maximum size is ${maxSize / (1024 * 1024)}MB.`,
     };
   }
 
