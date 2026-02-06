@@ -548,6 +548,32 @@ function providerSupportsMediaFiles(provider: string): boolean {
 }
 
 /**
+ * Derive a media type from the file extension when mimeType is missing.
+ */
+function inferMediaType(
+  name: string,
+  category: "audio" | "video"
+): string {
+  const ext = name.split(".").pop()?.toLowerCase();
+  const extMap: Record<string, string> = {
+    mp3: "audio/mpeg",
+    wav: "audio/wav",
+    ogg: "audio/ogg",
+    flac: "audio/flac",
+    aac: "audio/aac",
+    webm: category === "audio" ? "audio/webm" : "video/webm",
+    mp4: category === "audio" ? "audio/mp4" : "video/mp4",
+    mov: "video/quicktime",
+    avi: "video/x-msvideo",
+    mkv: "video/x-matroska",
+  };
+  if (ext && extMap[ext]) {
+    return extMap[ext];
+  }
+  return category === "audio" ? "audio/mpeg" : "video/mp4";
+}
+
+/**
  * Convert an audio or video attachment to AI SDK FilePart
  *
  * Only sends native file parts to providers that support them (Google/Gemini).
@@ -572,6 +598,9 @@ async function convertMediaAttachment(
     };
   }
 
+  const resolvedMediaType =
+    attachment.mimeType || inferMediaType(attachment.name, category);
+
   // Priority 1: Fetch from storage
   if (attachment.storageId) {
     try {
@@ -579,7 +608,7 @@ async function convertMediaAttachment(
       return {
         type: "file",
         data: new Uint8Array(await blob.arrayBuffer()),
-        mediaType: attachment.mimeType || blob.type,
+        mediaType: blob.type || resolvedMediaType,
       };
     } catch (error) {
       console.warn(
@@ -590,11 +619,11 @@ async function convertMediaAttachment(
   }
 
   // Priority 2: Use inline content
-  if (attachment.content && attachment.mimeType) {
+  if (attachment.content) {
     return {
       type: "file",
       data: attachment.content,
-      mediaType: attachment.mimeType,
+      mediaType: resolvedMediaType,
     };
   }
 

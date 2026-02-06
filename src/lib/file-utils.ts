@@ -205,6 +205,8 @@ export async function generateThumbnail(
   });
 }
 
+const VIDEO_THUMBNAIL_TIMEOUT_MS = 10_000;
+
 export function generateVideoThumbnail(
   file: File,
   maxSize = FILE_LIMITS.THUMBNAIL_SIZE,
@@ -230,7 +232,21 @@ export function generateVideoThumbnail(
     video.muted = true;
     video.playsInline = true;
 
-    video.onloadeddata = () => {
+    // Timeout to ensure the Promise always settles
+    const timeout = setTimeout(() => {
+      cleanup();
+      reject(new Error("Video thumbnail generation timed out"));
+    }, VIDEO_THUMBNAIL_TIMEOUT_MS);
+
+    function cleanup() {
+      clearTimeout(timeout);
+      revokeObjectURL(objectUrl);
+      video.onloadedmetadata = null;
+      video.onseeked = null;
+      video.onerror = null;
+    }
+
+    video.onloadedmetadata = () => {
       // Seek to 0.1s for a representative frame
       video.currentTime = 0.1;
     };
@@ -258,20 +274,21 @@ export function generateVideoThumbnail(
         ctx.drawImage(video, 0, 0, width, height);
 
         const thumbnail = canvas.toDataURL("image/jpeg", 0.9);
-        revokeObjectURL(objectUrl);
+        cleanup();
         resolve(thumbnail);
       } catch (error) {
-        revokeObjectURL(objectUrl);
+        cleanup();
         reject(error);
       }
     };
 
     video.onerror = () => {
-      revokeObjectURL(objectUrl);
+      cleanup();
       reject(new Error("Failed to load video for thumbnail generation"));
     };
 
     video.src = objectUrl;
+    video.load();
   });
 }
 

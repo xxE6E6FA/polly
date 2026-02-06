@@ -271,7 +271,7 @@ export const AttachmentGalleryDialog = ({
             <video
               controls
               src={fileUrl}
-              poster={currentDisplayAttachment.thumbnail}
+              poster={currentDisplayAttachment.thumbnail || undefined}
               className="max-h-full max-w-full rounded-lg"
               preload="metadata"
             >
