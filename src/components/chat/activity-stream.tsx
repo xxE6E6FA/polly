@@ -114,6 +114,10 @@ export function ActivityStream({
     thinkingDurationMs
   );
 
+  // When there's only one reasoning segment and no tool calls, the outer
+  // ActivityStream toggle already shows "Thought for Xs" — skip the inner one.
+  const isSoloReasoning = reasoningCount === 1 && toolCallCount === 0;
+
   const streamContent = (
     <div className="stack-sm">
       {items.map((item, i) => {
@@ -124,6 +128,7 @@ export function ActivityStream({
               key={`reasoning-${item.index}`}
               text={item.part.text}
               isActive={isActive && isLast}
+              bare={isSoloReasoning}
               thinkingDurationMs={
                 !isActive && isLast ? thinkingDurationMs : undefined
               }

@@ -8,6 +8,8 @@ const ICON_SIZE = "h-4 w-4";
 type ReasoningSegmentProps = {
   text: string;
   isActive: boolean;
+  /** Render content only, no toggle — used when a parent already provides one. */
+  bare?: boolean;
   thinkingDurationMs?: number;
 };
 
@@ -21,6 +23,7 @@ type ReasoningSegmentProps = {
 export function ReasoningSegment({
   text,
   isActive,
+  bare = false,
   thinkingDurationMs,
 }: ReasoningSegmentProps) {
   const [expanded, setExpanded] = useState(false);
@@ -71,6 +74,31 @@ export function ReasoningSegment({
 
   const isOpen = expanded || isActive;
 
+  const reasoningContent = (
+    <div className="relative max-w-[74ch]">
+      <div className="py-1 text-[13px] leading-relaxed text-muted-foreground">
+        <Markdown
+          options={{
+            forceBlock: true,
+            overrides: markdownOverrides,
+          }}
+        >
+          {text}
+        </Markdown>
+      </div>
+
+      {/* Bottom gradient fade — hints at more content */}
+      {!isActive && text.length > 600 && !expanded && !bare && (
+        <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-muted/80 to-transparent" />
+      )}
+    </div>
+  );
+
+  // Bare mode: content only, no toggle — parent provides the chrome
+  if (bare) {
+    return reasoningContent;
+  }
+
   return (
     <div>
       {/* Trigger */}
@@ -108,23 +136,8 @@ export function ReasoningSegment({
         style={{ gridTemplateRows: isOpen ? "1fr" : "0fr" }}
       >
         <div className="overflow-hidden">
-          <div className="relative mt-1 ml-1.5 border-l-2 border-muted-foreground/15 pl-4 max-w-[74ch]">
-            {/* Content */}
-            <div className="py-1 text-[13px] leading-relaxed text-muted-foreground">
-              <Markdown
-                options={{
-                  forceBlock: true,
-                  overrides: markdownOverrides,
-                }}
-              >
-                {text}
-              </Markdown>
-            </div>
-
-            {/* Bottom gradient fade — hints at more content */}
-            {!isActive && text.length > 600 && !expanded && (
-              <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-muted/80 to-transparent" />
-            )}
+          <div className="mt-1 ml-1.5 border-l-2 border-muted-foreground/15 pl-4">
+            {reasoningContent}
           </div>
         </div>
       </div>
