@@ -355,7 +355,7 @@ export async function streamLLMToMessage({
               toolStatus: isSuccess ? "completed" : "error",
               ...(isSuccess ? {} : { toolError: "Tool call failed" }),
               ...(hasCitations ? { citations: citationsFromTools } : {}),
-              messageStatus: "thinking",
+              messageStatus: "streaming",
             });
           } catch (e) {
             console.error("[streaming_core] Failed to finalize tool result:", e);
