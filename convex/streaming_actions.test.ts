@@ -33,7 +33,7 @@ describe("isAttachmentPart", () => {
     });
 
     test("returns false for object with unrelated type", () => {
-      expect(isAttachmentPart({ type: "audio" })).toBe(false);
+      expect(isAttachmentPart({ type: "tool_result" })).toBe(false);
     });
   });
 
@@ -73,6 +73,18 @@ describe("isAttachmentPart", () => {
 
     test("returns true for pdf type", () => {
       expect(isAttachmentPart({ type: "pdf", data: "base64data" })).toBe(true);
+    });
+
+    test("returns true for audio type", () => {
+      expect(isAttachmentPart({ type: "audio", data: "base64data" })).toBe(
+        true
+      );
+    });
+
+    test("returns true for video type", () => {
+      expect(isAttachmentPart({ type: "video", data: "base64data" })).toBe(
+        true
+      );
     });
 
     test("returns true for attachment property even without type", () => {

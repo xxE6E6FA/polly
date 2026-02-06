@@ -8,6 +8,7 @@ import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createGroq } from "@ai-sdk/groq";
 import { createOpenAI } from "@ai-sdk/openai";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
+import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import type { LanguageModel } from "ai";
 
 import { api } from "../_generated/api";
@@ -16,7 +17,6 @@ import type { ActionCtx } from "../_generated/server";
 import { getProviderReasoningConfig } from "../../shared/reasoning-config";
 import type { ProviderStreamOptions, ProviderType } from "../types";
 import { isReasoningModel } from "./reasoning_detection";
-import { applyOpenRouterSorting } from "./server_utils";
 
 // Enhanced provider factory with AI SDK optimizations
 const createProviderModel = {
@@ -68,11 +68,8 @@ const createProviderModel = {
     userId?: Id<"users">
   ) => {
     try {
-      // Use OpenAI-compatible provider for OpenRouter (AI SDK v6 compatible)
-      const openrouterProvider = createOpenAICompatible({
-        name: "openrouter",
+      const openrouterProvider = createOpenRouter({
         apiKey,
-        baseURL: "https://openrouter.ai/api/v1",
         headers: {
           "HTTP-Referer": "https://pollyai.chat",
           "X-Title": "Polly Chat",
@@ -95,10 +92,16 @@ const createProviderModel = {
         }
       }
 
-      // Apply OpenRouter sorting shortcuts
-      const modifiedModel = applyOpenRouterSorting(model, sorting);
+      // Map sorting preference to native provider.sort option
+      const sortMap: Record<string, "price" | "throughput" | "latency" | undefined> = {
+        price: "price",
+        throughput: "throughput",
+        latency: "latency",
+      };
 
-      return openrouterProvider.chatModel(modifiedModel);
+      return openrouterProvider.chat(model, {
+        provider: sorting !== "default" ? { sort: sortMap[sorting] } : undefined,
+      });
     } catch (error) {
       console.error("[server_streaming] Error creating OpenRouter model:", {
         error,

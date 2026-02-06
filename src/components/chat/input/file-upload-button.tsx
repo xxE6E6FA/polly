@@ -1,5 +1,9 @@
 import { PaperclipIcon } from "@phosphor-icons/react";
-import { useRef } from "react";
+import {
+  buildAcceptAttribute,
+  describeSupportedTypes,
+} from "@shared/file-constants";
+import { useMemo, useRef } from "react";
 import { ChatInputIconButton } from "@/components/ui/chat-input-icon-button";
 import {
   Tooltip,
@@ -40,6 +44,31 @@ export function FileUploadButton({
     conversationId,
   });
 
+  const supportedTypes = useMemo(() => {
+    const supportsImages = selectedModel?.supportsImages ?? false;
+    const supportsAudio =
+      selectedModel?.inputModalities?.includes("audio") ?? false;
+    const supportsVideo =
+      selectedModel?.inputModalities?.includes("video") ?? false;
+
+    return {
+      accept: buildAcceptAttribute({
+        image: supportsImages,
+        pdf: true,
+        text: true,
+        audio: supportsAudio,
+        video: supportsVideo,
+      }),
+      description: describeSupportedTypes({
+        image: supportsImages,
+        pdf: true,
+        text: true,
+        audio: supportsAudio,
+        video: supportsVideo,
+      }),
+    };
+  }, [selectedModel]);
+
   const handleFileSelect = async () => {
     const input = fileInputRef.current;
     if (!input?.files || input.files.length === 0) {
@@ -58,7 +87,7 @@ export function FileUploadButton({
     <>
       <input
         ref={fileInputRef}
-        accept="image/*,.pdf,.txt,.md,.js,.py,.html,.css,.json,.xml,.yaml,.sql"
+        accept={supportedTypes.accept}
         className="hidden"
         multiple
         type="file"
@@ -76,7 +105,7 @@ export function FileUploadButton({
           </ChatInputIconButton>
         </TooltipTrigger>
         <TooltipContent>
-          <div className="text-xs">Upload files</div>
+          <div className="text-xs">{supportedTypes.description}</div>
         </TooltipContent>
       </Tooltip>
     </>

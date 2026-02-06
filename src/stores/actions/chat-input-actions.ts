@@ -119,7 +119,16 @@ export function updateAttachmentStorageId(
     }
 
     const next = [...prev];
-    next[index] = { ...existingAttachment, storageId };
+    // Clear base64 content for audio/video — it's only needed for immediate display
+    // and would exceed Convex's 1 MiB field limit for larger files
+    const shouldClearContent =
+      existingAttachment.type === "audio" ||
+      existingAttachment.type === "video";
+    next[index] = {
+      ...existingAttachment,
+      storageId,
+      ...(shouldClearContent ? { content: undefined } : {}),
+    };
 
     return {
       ...current,

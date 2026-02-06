@@ -6,10 +6,12 @@ import {
   FileCodeIcon,
   FilePdfIcon,
   FileTextIcon,
+  FilmStripIcon,
   FolderIcon,
   ImageIcon,
   LinkIcon,
   MagicWandIcon,
+  SpeakerHighIcon,
   TrashIcon,
 } from "@phosphor-icons/react";
 import { useMutation } from "convex/react";
@@ -46,7 +48,7 @@ import type { Attachment } from "@/types";
 
 type SortField = "name" | "created";
 
-type FileType = "all" | "image" | "pdf" | "text";
+type FileType = "all" | "image" | "pdf" | "text" | "audio" | "video";
 
 interface UserFile {
   storageId: Id<"_storage"> | null; // null for content-based text attachments
@@ -64,6 +66,8 @@ const FILE_TYPE_OPTIONS = [
   { value: "image", label: "Images", icon: ImageIcon },
   { value: "pdf", label: "PDFs", icon: FilePdfIcon },
   { value: "text", label: "Text Files", icon: FileTextIcon },
+  { value: "audio", label: "Audio", icon: SpeakerHighIcon },
+  { value: "video", label: "Video", icon: FilmStripIcon },
 ] as const;
 
 const TEXT_FILE_EXTENSIONS = [
@@ -89,6 +93,14 @@ function formatDate(timestamp: number): string {
 function getFileAttachmentIcon(attachment: Attachment) {
   if (attachment.type === "pdf") {
     return <FilePdfIcon className="h-4 w-4 text-red-500" />;
+  }
+
+  if (attachment.type === "audio") {
+    return <SpeakerHighIcon className="h-4 w-4 text-orange-500" />;
+  }
+
+  if (attachment.type === "video") {
+    return <FilmStripIcon className="h-4 w-4 text-purple-500" />;
   }
 
   if (attachment.type === "text") {
@@ -471,48 +483,53 @@ export default function AttachmentsPage() {
             }
           />
         }
-        mobileTitleRender={file => (
-          <div className="flex items-center gap-2">
-            <div className="flex-shrink-0">
-              <button
-                onClick={e => {
-                  e.stopPropagation();
-                  setPreviewFile(file);
-                }}
-                className="h-10 w-10 rounded border bg-muted/20 flex items-center justify-center hover:bg-muted/30 transition-colors"
-                type="button"
-              >
-                {file.attachment.type === "image" ? (
-                  <ImageThumbnail
-                    attachment={file.attachment}
-                    className="h-full w-full rounded object-cover"
-                  />
-                ) : (
-                  getFileAttachmentIcon(file.attachment)
-                )}
-              </button>
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 min-w-0">
-                <div
-                  className="truncate font-medium"
-                  title={file.attachment.name}
+        mobileTitleRender={file => {
+          const hasVisualThumb =
+            file.attachment.type === "image" ||
+            (file.attachment.type === "video" && !!file.attachment.thumbnail);
+          return (
+            <div className="flex items-center gap-2">
+              <div className="flex-shrink-0">
+                <button
+                  onClick={e => {
+                    e.stopPropagation();
+                    setPreviewFile(file);
+                  }}
+                  className="h-10 w-10 rounded border bg-muted/20 flex items-center justify-center hover:bg-muted/30 transition-colors"
+                  type="button"
                 >
-                  {file.attachment.name}
-                </div>
-                {(file.attachment.generatedImage?.isGenerated ?? false) && (
-                  <Badge
-                    className="bg-purple-500/90 text-white text-xs flex-shrink-0 px-1"
-                    title="Generated image"
+                  {hasVisualThumb ? (
+                    <ImageThumbnail
+                      attachment={file.attachment}
+                      className="h-full w-full rounded object-cover"
+                    />
+                  ) : (
+                    getFileAttachmentIcon(file.attachment)
+                  )}
+                </button>
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 min-w-0">
+                  <div
+                    className="truncate font-medium"
+                    title={file.attachment.name}
                   >
-                    <MagicWandIcon className="h-3 w-3" />
-                    <span className="ml-1 hidden sm:inline">Generated</span>
-                  </Badge>
-                )}
+                    {file.attachment.name}
+                  </div>
+                  {(file.attachment.generatedImage?.isGenerated ?? false) && (
+                    <Badge
+                      className="bg-purple-500/90 text-white text-xs flex-shrink-0 px-1"
+                      title="Generated image"
+                    >
+                      <MagicWandIcon className="h-3 w-3" />
+                      <span className="ml-1 hidden sm:inline">Generated</span>
+                    </Badge>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          );
+        }}
         mobileDrawerConfig={
           {
             title: file => file.attachment.name,
@@ -572,62 +589,71 @@ export default function AttachmentsPage() {
               sortable: true,
               sortField: "name" as SortField,
               hideOnMobile: true,
-              render: file => (
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="flex-shrink-0">
-                    <div className="h-8 w-8 rounded border bg-muted/20 flex items-center justify-center">
-                      {file.attachment.type === "image" ? (
-                        <button
-                          onClick={e => {
-                            e.stopPropagation();
-                            setPreviewFile(file);
-                          }}
-                          className="flex h-full w-full items-center justify-center hover:bg-muted/30 transition-colors rounded"
-                          type="button"
-                        >
-                          <ImageThumbnail
-                            attachment={file.attachment}
-                            className="h-full w-full rounded object-cover"
-                          />
-                        </button>
-                      ) : (
-                        <button
-                          onClick={e => {
-                            e.stopPropagation();
-                            setPreviewFile(file);
-                          }}
-                          className="flex h-full w-full items-center justify-center hover:bg-muted/30 transition-colors rounded"
-                          type="button"
-                        >
-                          {getFileAttachmentIcon(file.attachment)}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <div
-                        className="truncate font-medium"
-                        title={file.attachment.name}
-                      >
-                        {file.attachment.name}
+              render: file => {
+                const hasVisualThumb =
+                  file.attachment.type === "image" ||
+                  (file.attachment.type === "video" &&
+                    !!file.attachment.thumbnail);
+                return (
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="flex-shrink-0">
+                      <div className="h-8 w-8 rounded border bg-muted/20 flex items-center justify-center">
+                        {hasVisualThumb ? (
+                          <button
+                            onClick={e => {
+                              e.stopPropagation();
+                              setPreviewFile(file);
+                            }}
+                            className="flex h-full w-full items-center justify-center hover:bg-muted/30 transition-colors rounded"
+                            type="button"
+                          >
+                            <ImageThumbnail
+                              attachment={file.attachment}
+                              className="h-full w-full rounded object-cover"
+                            />
+                          </button>
+                        ) : (
+                          <button
+                            onClick={e => {
+                              e.stopPropagation();
+                              setPreviewFile(file);
+                            }}
+                            className="flex h-full w-full items-center justify-center hover:bg-muted/30 transition-colors rounded"
+                            type="button"
+                          >
+                            {getFileAttachmentIcon(file.attachment)}
+                          </button>
+                        )}
                       </div>
-                      {(file.attachment.generatedImage?.isGenerated ??
-                        false) && (
-                        <Badge className="bg-purple-500/90 text-white text-xs flex-shrink-0">
-                          <MagicWandIcon className="h-3 w-3 mr-1" />
-                          Generated
-                        </Badge>
-                      )}
                     </div>
-                    <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground min-w-0">
-                      <span className="truncate" title={file.conversationName}>
-                        {file.conversationName}
-                      </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div
+                          className="truncate font-medium"
+                          title={file.attachment.name}
+                        >
+                          {file.attachment.name}
+                        </div>
+                        {(file.attachment.generatedImage?.isGenerated ??
+                          false) && (
+                          <Badge className="bg-purple-500/90 text-white text-xs flex-shrink-0">
+                            <MagicWandIcon className="h-3 w-3 mr-1" />
+                            Generated
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground min-w-0">
+                        <span
+                          className="truncate"
+                          title={file.conversationName}
+                        >
+                          {file.conversationName}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ),
+                );
+              },
             },
             {
               key: "created",

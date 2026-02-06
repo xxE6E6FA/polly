@@ -1,4 +1,5 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
+import { getAllowedMimeTypes } from "@shared/file-constants";
 import type { PaginationOptions, PaginationResult } from "convex/server";
 import { paginationOptsValidator } from "convex/server";
 import type { Infer } from "convex/values";
@@ -14,33 +15,13 @@ import {
 import { checkConversationAccess } from "./lib/conversation_utils";
 import { attachmentSchema } from "./lib/schemas";
 
-type FileTypeFilter = "image" | "pdf" | "text" | "all";
+type FileTypeFilter = "image" | "pdf" | "text" | "audio" | "video" | "all";
 
 type MessageAttachment = NonNullable<Doc<"messages">["attachments"]>[number];
 
 // File upload security constants
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
-const ALLOWED_MIME_TYPES = new Set([
-  // Images
-  "image/jpeg",
-  "image/png",
-  "image/gif",
-  "image/webp",
-  "image/svg+xml",
-  "image/heic",
-  "image/heif",
-  // Documents
-  "application/pdf",
-  "text/plain",
-  "text/markdown",
-  "text/csv",
-  // Code files
-  "text/javascript",
-  "text/typescript",
-  "application/json",
-  "text/html",
-  "text/css",
-]);
+const ALLOWED_MIME_TYPES = getAllowedMimeTypes();
 
 /**
  * Validate file upload security constraints
@@ -169,6 +150,11 @@ export async function createUserFileEntriesHandler(
 
       // Create a new entry - this allows multiple userFiles entries for the same storageId
       // as long as they point to different messages (necessary for cloned messages)
+      // Audio/video content is stored in Convex file storage (via storageId),
+      // so don't persist the base64 content field — it would exceed the 1 MiB limit.
+      const isMediaFile =
+        attachment.type === "audio" || attachment.type === "video";
+
       const entryId = await ctx.db.insert("userFiles", {
         userId: args.userId,
         storageId,
@@ -182,7 +168,7 @@ export async function createUserFileEntriesHandler(
         createdAt: Date.now(),
         // Include full attachment metadata
         url: attachment.url,
-        content: attachment.content,
+        content: isMediaFile ? undefined : attachment.content,
         thumbnail: attachment.thumbnail,
         textFileId: attachment.textFileId,
         extractedText: attachment.extractedText,
@@ -542,7 +528,7 @@ export async function getUserFilesHandler(
   ctx: QueryCtx,
   args: {
     paginationOpts: PaginationOptions;
-    fileType?: "image" | "pdf" | "text" | "all";
+    fileType?: FileTypeFilter;
     includeGenerated?: boolean;
     searchQuery?: string;
     sortField?: "name" | "created";
@@ -615,8 +601,13 @@ export async function getUserFilesHandler(
       )
       .filter(q => q.eq(q.field("isGenerated"), false))
       .order(sortDirection);
-  } else if (fileType === "pdf" || fileType === "text") {
-    // PDF or text files (these are never generated, so includeGenerated doesn't matter)
+  } else if (
+    fileType === "pdf" ||
+    fileType === "text" ||
+    fileType === "audio" ||
+    fileType === "video"
+  ) {
+    // PDF, text, audio, or video files (these are never generated, so includeGenerated doesn't matter)
     query = ctx.db
       .query("userFiles")
       .withIndex("by_user_type_created", q =>
@@ -735,6 +726,8 @@ export const getUserFiles = query({
         v.literal("image"),
         v.literal("pdf"),
         v.literal("text"),
+        v.literal("audio"),
+        v.literal("video"),
         v.literal("all")
       )
     ),
@@ -869,7 +862,13 @@ export async function getUserFileStatsHandler(ctx: QueryCtx) {
 
   let totalFiles = 0;
   let totalSize = 0;
-  const typeCounts = { image: 0, pdf: 0, text: 0 };
+  const typeCounts: Record<string, number> = {
+    image: 0,
+    pdf: 0,
+    text: 0,
+    audio: 0,
+    video: 0,
+  };
   const generatedImageCount = { count: 0, size: 0 };
 
   for (const file of userFiles) {
@@ -880,7 +879,7 @@ export async function getUserFileStatsHandler(ctx: QueryCtx) {
       generatedImageCount.count++;
       generatedImageCount.size += file.size;
     } else {
-      typeCounts[file.type]++;
+      typeCounts[file.type] = (typeCounts[file.type] ?? 0) + 1;
     }
   }
 

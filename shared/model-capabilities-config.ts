@@ -1,3 +1,10 @@
+import {
+  AUDIO_EXTENSIONS,
+  MIME_TYPES,
+  TEXT_EXTENSIONS,
+  VIDEO_EXTENSIONS,
+} from "./file-constants";
+
 export function isImageType(fileType: string, fileName?: string): boolean {
   if (fileType.startsWith("image/")) {
     return true;
@@ -14,20 +21,47 @@ export function isImageType(fileType: string, fileName?: string): boolean {
   return false;
 }
 
-export function isTextType(fileType: string): boolean {
-  if (!fileType || fileType === "application/octet-stream") {
+export function isTextType(fileType: string, fileName?: string): boolean {
+  if (MIME_TYPES.TEXT.has(fileType) || fileType.startsWith("text/")) {
     return true;
   }
 
-  return (
-    fileType.startsWith("text/") ||
-    fileType === "application/json" ||
-    fileType === "application/xml" ||
-    fileType === "application/javascript" ||
-    fileType === "application/typescript" ||
-    fileType === "application/yaml" ||
-    fileType === "application/x-yaml"
-  );
+  // Unknown MIME: check extension instead of blindly accepting
+  if (!fileType || fileType === "application/octet-stream") {
+    if (fileName) {
+      const ext = fileName.split(".").pop()?.toLowerCase() ?? "";
+      return TEXT_EXTENSIONS.has(ext);
+    }
+    return false;
+  }
+
+  return false;
+}
+
+export function isAudioType(fileType: string, fileName?: string): boolean {
+  if (MIME_TYPES.AUDIO.has(fileType) || fileType.startsWith("audio/")) {
+    return true;
+  }
+
+  if (fileName) {
+    const ext = fileName.split(".").pop()?.toLowerCase() ?? "";
+    return AUDIO_EXTENSIONS.has(ext);
+  }
+
+  return false;
+}
+
+export function isVideoType(fileType: string, fileName?: string): boolean {
+  if (MIME_TYPES.VIDEO.has(fileType) || fileType.startsWith("video/")) {
+    return true;
+  }
+
+  if (fileName) {
+    const ext = fileName.split(".").pop()?.toLowerCase() ?? "";
+    return VIDEO_EXTENSIONS.has(ext);
+  }
+
+  return false;
 }
 
 export interface ModelForCapabilityCheck {
@@ -60,11 +94,19 @@ export function checkModelCapability(
   return false;
 }
 
+export type FileCategory =
+  | "image"
+  | "pdf"
+  | "text"
+  | "audio"
+  | "video"
+  | "unsupported";
+
 export function isFileTypeSupported(
   fileType: string,
   model?: ModelForCapabilityCheck,
   fileName?: string
-): { supported: boolean; category: "image" | "pdf" | "text" | "unsupported" } {
+): { supported: boolean; category: FileCategory } {
   // Check image support (including HEIC by extension)
   if (isImageType(fileType, fileName)) {
     const hasImageCapability = model?.supportsImages ?? false;
@@ -82,8 +124,28 @@ export function isFileTypeSupported(
     return { supported: true, category: "pdf" };
   }
 
-  // Check text file support
-  if (isTextType(fileType)) {
+  // Check audio support (gated on model capabilities)
+  if (isAudioType(fileType, fileName)) {
+    const hasAudioCapability =
+      model?.inputModalities?.includes("audio") ?? false;
+    if (hasAudioCapability) {
+      return { supported: true, category: "audio" };
+    }
+    return { supported: false, category: "unsupported" };
+  }
+
+  // Check video support (gated on model capabilities)
+  if (isVideoType(fileType, fileName)) {
+    const hasVideoCapability =
+      model?.inputModalities?.includes("video") ?? false;
+    if (hasVideoCapability) {
+      return { supported: true, category: "video" };
+    }
+    return { supported: false, category: "unsupported" };
+  }
+
+  // Check text file support (pass fileName for extension-based detection)
+  if (isTextType(fileType, fileName)) {
     return { supported: true, category: "text" };
   }
 

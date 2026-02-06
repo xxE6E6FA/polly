@@ -152,7 +152,13 @@ export const modelForInternalActionsSchema = v.object({
 
 // Common attachment schema used across messages and conversations
 export const attachmentSchema = v.object({
-  type: v.union(v.literal("image"), v.literal("pdf"), v.literal("text")),
+  type: v.union(
+    v.literal("image"),
+    v.literal("pdf"),
+    v.literal("text"),
+    v.literal("audio"),
+    v.literal("video")
+  ),
   url: v.string(),
   name: v.string(),
   size: v.float64(),
@@ -345,11 +351,13 @@ export const messageCreationSchema = v.object({
  * Supports both legacy format (image_url, file) and unified format (image, pdf with attachment).
  */
 export const messagePartSchema = v.object({
-  // Supports both legacy (image_url, file) and new (image, pdf) types
+  // Supports both legacy (image_url, file) and new (image, pdf, audio, video) types
   type: v.union(
     v.literal("text"),
     v.literal("image"),
     v.literal("pdf"),
+    v.literal("audio"),
+    v.literal("video"),
     // Legacy formats - kept for backward compatibility
     v.literal("image_url"),
     v.literal("file"),
@@ -905,7 +913,13 @@ export const userFileSchema = v.object({
   storageId: v.id("_storage"),
   messageId: v.id("messages"),
   conversationId: v.id("conversations"),
-  type: v.union(v.literal("image"), v.literal("pdf"), v.literal("text")),
+  type: v.union(
+    v.literal("image"),
+    v.literal("pdf"),
+    v.literal("text"),
+    v.literal("audio"),
+    v.literal("video")
+  ),
   isGenerated: v.boolean(), // True for AI-generated images
   name: v.string(),
   size: v.number(),

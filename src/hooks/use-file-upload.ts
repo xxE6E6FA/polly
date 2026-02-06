@@ -1,15 +1,122 @@
-import { FILE_LIMITS } from "@shared/file-constants";
-import { isFileTypeSupported } from "@shared/model-capabilities-config";
+import { describeSupportedTypes, FILE_LIMITS } from "@shared/file-constants";
+import {
+  type FileCategory,
+  isFileTypeSupported,
+  type ModelForCapabilityCheck,
+} from "@shared/model-capabilities-config";
 import { useCallback, useState } from "react";
 import { useConvexFileUpload } from "@/hooks/use-convex-file-upload";
 import { useNotificationDialog } from "@/hooks/use-dialog-management";
 import {
   convertImageToWebP,
+  isHeicFile,
   readFileAsBase64,
   readFileAsText,
 } from "@/lib/file-utils";
 import { getUploadProgressStore } from "@/stores/upload-progress-store";
 import type { AIModel, Attachment, FileUploadProgress } from "@/types";
+
+// ==================== Extracted helpers ====================
+
+/**
+ * Determine the max file size for a given MIME type.
+ */
+function getMaxFileSize(mimeType: string): number {
+  if (mimeType === "application/pdf") {
+    return FILE_LIMITS.PDF_MAX_SIZE_BYTES;
+  }
+  if (mimeType.startsWith("audio/")) {
+    return FILE_LIMITS.AUDIO_MAX_SIZE_BYTES;
+  }
+  if (mimeType.startsWith("video/")) {
+    return FILE_LIMITS.VIDEO_MAX_SIZE_BYTES;
+  }
+  return FILE_LIMITS.MAX_SIZE_BYTES;
+}
+
+/**
+ * Validate a file against size limits and model support.
+ * Returns the file category on success, or an error message on failure.
+ */
+function validateFile(
+  file: File,
+  model?: ModelForCapabilityCheck
+): { valid: true; category: FileCategory } | { valid: false; error: string } {
+  const maxSize = getMaxFileSize(file.type);
+
+  if (file.size > maxSize) {
+    return {
+      valid: false,
+      error: `File ${file.name} is too large. Maximum size is ${maxSize / (1024 * 1024)}MB.`,
+    };
+  }
+
+  const fileSupport = isFileTypeSupported(file.type, model, file.name);
+  if (!fileSupport.supported) {
+    const supportsImages = model?.supportsImages ?? false;
+    const supportsAudio = model?.inputModalities?.includes("audio") ?? false;
+    const supportsVideo = model?.inputModalities?.includes("video") ?? false;
+    const supportedDesc = model
+      ? describeSupportedTypes({
+          image: supportsImages,
+          pdf: true,
+          text: true,
+          audio: supportsAudio,
+          video: supportsVideo,
+        })
+      : "Please select a model first";
+
+    return {
+      valid: false,
+      error: `"${file.name}" is not supported. ${supportedDesc}.`,
+    };
+  }
+
+  return { valid: true, category: fileSupport.category };
+}
+
+/**
+ * Process an image file: HEIC conversion + WebP conversion.
+ * Returns the processed file, mimeType, and optional thumbnail.
+ */
+async function processImageFile(file: File): Promise<
+  | {
+      processedFile: File;
+      mimeType: string;
+      thumbnail?: string;
+    }
+  | { error: string }
+> {
+  const isHeic = isHeicFile(file);
+
+  try {
+    const converted = await convertImageToWebP(file);
+    const thumbnail = `data:${converted.mimeType};base64,${converted.base64}`;
+    const byteCharacters = atob(converted.base64);
+    const byteNumbers = new Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteNumbers[i] = byteCharacters.charCodeAt(i);
+    }
+    const byteArray = new Uint8Array(byteNumbers);
+    const processedFile = new File([byteArray], file.name, {
+      type: converted.mimeType,
+    });
+
+    return { processedFile, mimeType: converted.mimeType, thumbnail };
+  } catch (error) {
+    // HEIC files require conversion - can't fall back to original
+    if (isHeic) {
+      console.error("Failed to convert HEIC image:", error);
+      return {
+        error: `Could not convert ${file.name}. Please try converting it to JPEG or PNG first.`,
+      };
+    }
+    console.warn("Failed to convert image to WebP, using original:", error);
+    return { processedFile: file, mimeType: file.type };
+  }
+}
+
+// ==================== Hook ====================
 
 interface UseFileUploadProps {
   currentModel?: AIModel;
@@ -39,43 +146,18 @@ export function useFileUpload({
       const newAttachments: Attachment[] = [];
 
       for (const file of [...files]) {
-        // Validate file size with different limits for PDFs
-        const maxSize =
-          file.type === "application/pdf"
-            ? FILE_LIMITS.PDF_MAX_SIZE_BYTES
-            : FILE_LIMITS.MAX_SIZE_BYTES;
-
-        if (file.size > maxSize) {
+        const validation = validateFile(file, currentModel);
+        if (!validation.valid) {
+          const isSize = validation.error.includes("too large");
           notificationDialog.notify({
-            title: "File Too Large",
-            description: `File ${file.name} is too large. Maximum size is ${
-              maxSize / (1024 * 1024)
-            }MB.`,
+            title: isSize ? "File Too Large" : "Unsupported File Type",
+            description: validation.error,
             type: "error",
           });
           continue;
         }
 
-        // Check file type support (pass filename for HEIC detection by extension)
-        const fileSupport = isFileTypeSupported(
-          file.type,
-          currentModel,
-          file.name
-        );
-        if (!fileSupport.supported) {
-          notificationDialog.notify({
-            title: "Unsupported File Type",
-            description: `File ${
-              file.name
-            } is not supported by the current model. ${
-              currentModel
-                ? "Try selecting a different model that supports this file type."
-                : "Please select a model first."
-            }`,
-            type: "error",
-          });
-          continue;
-        }
+        const { category } = validation;
 
         try {
           const fileKey = file.name + file.size;
@@ -91,78 +173,64 @@ export function useFileUpload({
               )
           );
 
-          if (fileSupport.category === "text") {
+          if (category === "text") {
             const textContent = await readFileAsText(file);
-            const attachment: Attachment = {
+            newAttachments.push({
               type: "text",
               url: "",
               name: file.name,
               size: file.size,
               content: textContent,
-            };
-            newAttachments.push(attachment);
+            });
           } else {
-            // Handle binary files (images, PDFs)
+            // Handle binary files (images, PDFs, audio, video)
             let processedFile = file;
             let mimeType = file.type;
             let thumbnailBase64: string | undefined;
-            const isImage = fileSupport.category === "image";
+            const isImage = category === "image";
 
             // Convert images to WebP for optimization
             if (isImage) {
-              // Check if this is a HEIC file - conversion is required for these
-              const isHeic =
-                file.name.toLowerCase().endsWith(".heic") ||
-                file.name.toLowerCase().endsWith(".heif") ||
-                file.type === "image/heic" ||
-                file.type === "image/heif";
-
-              try {
-                const converted = await convertImageToWebP(file);
-                // Store thumbnail for progress indicator
-                thumbnailBase64 = `data:${converted.mimeType};base64,${converted.base64}`;
-                // Create a new File from the converted data
-                const byteCharacters = atob(converted.base64);
-                const byteNumbers = new Array(byteCharacters.length);
-                for (let i = 0; i < byteCharacters.length; i++) {
-                  byteNumbers[i] = byteCharacters.charCodeAt(i);
-                }
-                const byteArray = new Uint8Array(byteNumbers);
-                processedFile = new File([byteArray], file.name, {
-                  type: converted.mimeType,
+              const result = await processImageFile(file);
+              if ("error" in result) {
+                notificationDialog.notify({
+                  title: "HEIC Conversion Failed",
+                  description: result.error,
+                  type: "error",
                 });
-                mimeType = converted.mimeType;
-              } catch (error) {
-                // HEIC files require conversion - can't fall back to original
-                if (isHeic) {
-                  console.error("Failed to convert HEIC image:", error);
-                  notificationDialog.notify({
-                    title: "HEIC Conversion Failed",
-                    description: `Could not convert ${file.name}. Please try converting it to JPEG or PNG first.`,
-                    type: "error",
-                  });
-                  continue;
-                }
-                console.warn(
-                  "Failed to convert image to WebP, using original:",
-                  error
+                continue;
+              }
+              processedFile = result.processedFile;
+              mimeType = result.mimeType;
+              thumbnailBase64 = result.thumbnail;
+            }
+
+            // Generate thumbnail for videos
+            if (category === "video") {
+              try {
+                const { generateVideoThumbnail } = await import(
+                  "@/lib/file-utils"
                 );
+                thumbnailBase64 = await generateVideoThumbnail(file);
+              } catch (error) {
+                console.warn("Failed to generate video thumbnail:", error);
               }
             }
+
+            const attachmentType = category as Attachment["type"];
 
             // In private mode, store as base64 without uploading to storage
             if (privateMode) {
               const base64Content = await readFileAsBase64(processedFile);
-              const attachment: Attachment = {
-                type: fileSupport.category as "image" | "pdf" | "text",
+              newAttachments.push({
+                type: attachmentType,
                 url: "",
                 name: file.name,
                 size: processedFile.size,
                 content: base64Content,
                 mimeType,
                 storageId: undefined,
-              };
-              newAttachments.push(attachment);
+              });
             } else {
               // Eager upload: Add attachment immediately, upload in background
               const progressStore = getUploadProgressStore().getState();
@@ -170,13 +238,14 @@ export function useFileUpload({
               // Create attachment with base64 content for immediate display
               const base64Content = await readFileAsBase64(processedFile);
               const pendingAttachment: Attachment = {
-                type: isImage ? "image" : (fileSupport.category as "pdf"),
+                type: attachmentType,
                 url: "",
                 name: file.name,
                 size: processedFile.size,
                 content: base64Content,
                 mimeType,
                 storageId: undefined,
+                thumbnail: thumbnailBase64,
               };
 
               // Add to store immediately so user sees the attachment

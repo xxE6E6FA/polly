@@ -1,9 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import {
   checkModelCapability,
+  isAudioType,
   isFileTypeSupported,
   isImageType,
   isTextType,
+  isVideoType,
   type ModelForCapabilityCheck,
 } from "./model-capabilities-config";
 
@@ -41,12 +43,25 @@ describe("isTextType", () => {
     expect(isTextType("application/x-yaml")).toBe(true);
   });
 
-  test("returns true for octet-stream (unknown)", () => {
-    expect(isTextType("application/octet-stream")).toBe(true);
+  test("returns false for octet-stream without filename", () => {
+    expect(isTextType("application/octet-stream")).toBe(false);
   });
 
-  test("returns true for empty string", () => {
-    expect(isTextType("")).toBe(true);
+  test("returns true for octet-stream with text extension", () => {
+    expect(isTextType("application/octet-stream", "script.py")).toBe(true);
+    expect(isTextType("application/octet-stream", "data.json")).toBe(true);
+  });
+
+  test("returns false for octet-stream with non-text extension", () => {
+    expect(isTextType("application/octet-stream", "app.exe")).toBe(false);
+  });
+
+  test("returns false for empty string without filename", () => {
+    expect(isTextType("")).toBe(false);
+  });
+
+  test("returns true for empty string with text extension", () => {
+    expect(isTextType("", "readme.md")).toBe(true);
   });
 
   test("returns false for non-text types", () => {
@@ -149,7 +164,7 @@ describe("isFileTypeSupported", () => {
     expect(result.category).toBe("text");
   });
 
-  test("does not support unsupported types", () => {
+  test("does not support video without video modality", () => {
     const result = isFileTypeSupported("video/mp4");
     expect(result.supported).toBe(false);
     expect(result.category).toBe("unsupported");
@@ -159,5 +174,97 @@ describe("isFileTypeSupported", () => {
     const result = isFileTypeSupported("image/png");
     expect(result.supported).toBe(false);
     expect(result.category).toBe("unsupported");
+  });
+
+  test("supports audio when model has audio modality", () => {
+    const model: ModelForCapabilityCheck = {
+      provider: "google",
+      modelId: "gemini-2.0-flash",
+      inputModalities: ["text", "image", "audio"],
+    };
+
+    const result = isFileTypeSupported("audio/mpeg", model);
+    expect(result.supported).toBe(true);
+    expect(result.category).toBe("audio");
+  });
+
+  test("does not support audio without audio modality", () => {
+    const model: ModelForCapabilityCheck = {
+      provider: "openai",
+      modelId: "gpt-4o",
+      inputModalities: ["text", "image"],
+    };
+
+    const result = isFileTypeSupported("audio/mpeg", model);
+    expect(result.supported).toBe(false);
+    expect(result.category).toBe("unsupported");
+  });
+
+  test("supports video when model has video modality", () => {
+    const model: ModelForCapabilityCheck = {
+      provider: "google",
+      modelId: "gemini-2.0-flash",
+      inputModalities: ["text", "image", "audio", "video"],
+    };
+
+    const result = isFileTypeSupported("video/mp4", model);
+    expect(result.supported).toBe(true);
+    expect(result.category).toBe("video");
+  });
+
+  test("supports text files with octet-stream MIME and code extension", () => {
+    const result = isFileTypeSupported(
+      "application/octet-stream",
+      undefined,
+      "script.py"
+    );
+    expect(result.supported).toBe(true);
+    expect(result.category).toBe("text");
+  });
+
+  test("rejects unknown binary files", () => {
+    const result = isFileTypeSupported(
+      "application/octet-stream",
+      undefined,
+      "app.exe"
+    );
+    expect(result.supported).toBe(false);
+    expect(result.category).toBe("unsupported");
+  });
+});
+
+describe("isAudioType", () => {
+  test("returns true for audio MIME types", () => {
+    expect(isAudioType("audio/mpeg")).toBe(true);
+    expect(isAudioType("audio/wav")).toBe(true);
+    expect(isAudioType("audio/ogg")).toBe(true);
+  });
+
+  test("returns true for audio file extensions", () => {
+    expect(isAudioType("", "song.mp3")).toBe(true);
+    expect(isAudioType("", "voice.m4a")).toBe(true);
+  });
+
+  test("returns false for non-audio types", () => {
+    expect(isAudioType("video/mp4")).toBe(false);
+    expect(isAudioType("image/png")).toBe(false);
+  });
+});
+
+describe("isVideoType", () => {
+  test("returns true for video MIME types", () => {
+    expect(isVideoType("video/mp4")).toBe(true);
+    expect(isVideoType("video/webm")).toBe(true);
+    expect(isVideoType("video/quicktime")).toBe(true);
+  });
+
+  test("returns true for video file extensions", () => {
+    expect(isVideoType("", "clip.mov")).toBe(true);
+    expect(isVideoType("", "video.mp4")).toBe(true);
+  });
+
+  test("returns false for non-video types", () => {
+    expect(isVideoType("audio/mpeg")).toBe(false);
+    expect(isVideoType("image/png")).toBe(false);
   });
 });

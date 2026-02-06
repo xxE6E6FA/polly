@@ -11,7 +11,7 @@ import {
 
 // Export conversation type definition
 export type ExportAttachment = {
-  type: "image" | "pdf" | "text";
+  type: "image" | "pdf" | "text" | "audio" | "video";
   url: string;
   name: string;
   size: number;

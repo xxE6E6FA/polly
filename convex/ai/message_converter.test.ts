@@ -1046,6 +1046,198 @@ describe("convertStoredMessagesToAISDK", () => {
   });
 });
 
+describe("audio/video media attachments", () => {
+  test("sends audio file part for Google provider", async () => {
+    const audioBlob = new Blob(["audio-data"], { type: "audio/mpeg" });
+    const ctx = makeConvexCtx({
+      storage: {
+        get: mock(() => Promise.resolve(audioBlob)),
+      },
+    });
+
+    const attachment = makeAttachment({
+      type: "audio",
+      name: "recording.mp3",
+      mimeType: "audio/mpeg",
+      storageId: "audio-storage" as Id<"_storage">,
+    });
+
+    const result = await convertAttachmentToAISDK(
+      ctx as unknown as ActionCtx,
+      attachment,
+      { provider: "google", modelId: "gemini-2.0-flash", supportsFiles: true }
+    );
+
+    expect(result.type).toBe("file");
+  });
+
+  test("sends video file part for Google provider", async () => {
+    const videoBlob = new Blob(["video-data"], { type: "video/mp4" });
+    const ctx = makeConvexCtx({
+      storage: {
+        get: mock(() => Promise.resolve(videoBlob)),
+      },
+    });
+
+    const attachment = makeAttachment({
+      type: "video",
+      name: "clip.mp4",
+      mimeType: "video/mp4",
+      storageId: "video-storage" as Id<"_storage">,
+    });
+
+    const result = await convertAttachmentToAISDK(
+      ctx as unknown as ActionCtx,
+      attachment,
+      { provider: "google", modelId: "gemini-2.0-flash", supportsFiles: true }
+    );
+
+    expect(result.type).toBe("file");
+  });
+
+  test("returns text fallback for OpenAI provider with audio", async () => {
+    const ctx = makeConvexCtx();
+
+    const attachment = makeAttachment({
+      type: "audio",
+      name: "recording.mp3",
+      mimeType: "audio/mpeg",
+      storageId: "audio-storage" as Id<"_storage">,
+    });
+
+    const result = await convertAttachmentToAISDK(
+      ctx as unknown as ActionCtx,
+      attachment,
+      { provider: "openai", modelId: "gpt-4o", supportsFiles: true }
+    );
+
+    expect(result.type).toBe("text");
+    expect((result as { text: string }).text).toContain("recording.mp3");
+    expect((result as { text: string }).text).toContain(
+      "does not support audio input"
+    );
+  });
+
+  test("sends audio file part for OpenRouter provider", async () => {
+    const audioBlob = new Blob(["audio-data"], { type: "audio/mpeg" });
+    const ctx = makeConvexCtx({
+      storage: {
+        get: mock(() => Promise.resolve(audioBlob)),
+      },
+    });
+
+    const attachment = makeAttachment({
+      type: "audio",
+      name: "recording.mp3",
+      mimeType: "audio/mpeg",
+      storageId: "audio-storage" as Id<"_storage">,
+    });
+
+    const result = await convertAttachmentToAISDK(
+      ctx as unknown as ActionCtx,
+      attachment,
+      {
+        provider: "openrouter",
+        modelId: "google/gemini-2.0-flash",
+        supportsFiles: true,
+      }
+    );
+
+    expect(result.type).toBe("file");
+  });
+
+  test("sends video file part for OpenRouter provider", async () => {
+    const videoBlob = new Blob(["video-data"], { type: "video/mp4" });
+    const ctx = makeConvexCtx({
+      storage: {
+        get: mock(() => Promise.resolve(videoBlob)),
+      },
+    });
+
+    const attachment = makeAttachment({
+      type: "video",
+      name: "clip.mp4",
+      mimeType: "video/mp4",
+      storageId: "video-storage" as Id<"_storage">,
+    });
+
+    const result = await convertAttachmentToAISDK(
+      ctx as unknown as ActionCtx,
+      attachment,
+      {
+        provider: "openrouter",
+        modelId: "google/gemini-2.0-flash",
+        supportsFiles: true,
+      }
+    );
+
+    expect(result.type).toBe("file");
+  });
+
+  test("returns text fallback for Anthropic provider with audio", async () => {
+    const ctx = makeConvexCtx();
+
+    const attachment = makeAttachment({
+      type: "audio",
+      name: "voice.wav",
+      mimeType: "audio/wav",
+      storageId: "audio-storage" as Id<"_storage">,
+    });
+
+    const result = await convertAttachmentToAISDK(
+      ctx as unknown as ActionCtx,
+      attachment,
+      {
+        provider: "anthropic",
+        modelId: "claude-3-opus",
+        supportsFiles: true,
+      }
+    );
+
+    expect(result.type).toBe("text");
+    expect((result as { text: string }).text).toContain("voice.wav");
+  });
+
+  test("Google audio with inline content falls back when no storageId", async () => {
+    const ctx = makeConvexCtx();
+
+    const attachment = makeAttachment({
+      type: "audio",
+      name: "recording.mp3",
+      mimeType: "audio/mpeg",
+      content: "base64-audio-data",
+    });
+
+    const result = await convertAttachmentToAISDK(
+      ctx as unknown as ActionCtx,
+      attachment,
+      { provider: "google", modelId: "gemini-2.0-flash", supportsFiles: true }
+    );
+
+    expect(result.type).toBe("file");
+  });
+
+  test("Google video graceful degradation when unavailable", async () => {
+    const ctx = makeConvexCtx();
+
+    const attachment = makeAttachment({
+      type: "video",
+      name: "clip.mp4",
+      mimeType: "video/mp4",
+      // No storageId, no content
+    });
+
+    const result = await convertAttachmentToAISDK(
+      ctx as unknown as ActionCtx,
+      attachment,
+      { provider: "google", modelId: "gemini-2.0-flash", supportsFiles: true }
+    );
+
+    expect(result.type).toBe("text");
+    expect((result as { text: string }).text).toContain("no longer available");
+  });
+});
+
 describe("text formatting", () => {
   test("formats PDF text with filename header", async () => {
     const ctx = makeConvexCtx();

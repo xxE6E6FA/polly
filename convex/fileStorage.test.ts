@@ -239,6 +239,63 @@ describe("fileStorage: createUserFileEntries", () => {
     // Insert should be called twice, not reused
     expect(ctx.db.insert).toHaveBeenCalledTimes(2);
   });
+
+  test("strips content from audio/video attachments to avoid exceeding document size limit", async () => {
+    const userId = "user-123" as Id<"users">;
+    const messageId = "msg-123" as Id<"messages">;
+    const conversationId = "conv-123" as Id<"conversations">;
+    const storageId = "storage-123" as Id<"_storage">;
+
+    const filterChain = {
+      unique: mock(() => Promise.resolve(null)),
+    };
+
+    const queryChain = {
+      withIndex: mock(() => queryChain),
+      filter: mock(() => filterChain),
+    };
+
+    const ctx = makeConvexCtx({
+      db: {
+        query: mock(() => queryChain),
+        insert: mock(() => Promise.resolve("uf-123" as Id<"userFiles">)),
+      } as any,
+    });
+
+    await createUserFileEntriesHandler(ctx as unknown as MutationCtx, {
+      userId,
+      messageId,
+      conversationId,
+      attachments: [
+        {
+          type: "audio",
+          url: "",
+          name: "recording.mp3",
+          size: 2_000_000,
+          storageId,
+          mimeType: "audio/mpeg",
+          content: "huge-base64-audio-data",
+        },
+        {
+          type: "video",
+          url: "",
+          name: "clip.mp4",
+          size: 5_000_000,
+          storageId,
+          mimeType: "video/mp4",
+          content: "huge-base64-video-data",
+        },
+      ],
+    });
+
+    // Both inserts should have content: undefined (stripped for audio/video)
+    const insertCalls = (ctx.db.insert as ReturnType<typeof mock>).mock.calls;
+    expect(insertCalls).toHaveLength(2);
+    expect(insertCalls[0]![1].content).toBeUndefined();
+    expect(insertCalls[0]![1].type).toBe("audio");
+    expect(insertCalls[1]![1].content).toBeUndefined();
+    expect(insertCalls[1]![1].type).toBe("video");
+  });
 });
 
 describe("fileStorage: generateUploadUrl", () => {
@@ -1268,6 +1325,8 @@ describe("fileStorage: getUserFileStats", () => {
       image: 1,
       pdf: 1,
       text: 1,
+      audio: 0,
+      video: 0,
     });
     expect(result.generatedImages).toEqual({
       count: 0,

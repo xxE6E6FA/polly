@@ -4,7 +4,7 @@ import { FILE_LIMITS } from "@shared/file-constants";
 /**
  * Check if a file is HEIC/HEIF format
  */
-function isHeicFile(file: File): boolean {
+export function isHeicFile(file: File): boolean {
   const type = file.type.toLowerCase();
   const name = file.name.toLowerCase();
   return (
@@ -202,6 +202,76 @@ export async function generateThumbnail(
     };
     const objectUrl = toObjectURL(processedFile);
     img.src = objectUrl;
+  });
+}
+
+export function generateVideoThumbnail(
+  file: File,
+  maxSize = FILE_LIMITS.THUMBNAIL_SIZE,
+  deps: ThumbnailDeps = {}
+): Promise<string> {
+  const createCanvas =
+    deps.createCanvas ?? (() => document.createElement("canvas"));
+  const toObjectURL =
+    deps.createObjectURL ?? ((f: File) => URL.createObjectURL(f));
+  const revokeObjectURL =
+    deps.revokeObjectURL ??
+    ((url: string) => {
+      if (typeof URL.revokeObjectURL === "function") {
+        URL.revokeObjectURL(url);
+      }
+    });
+
+  const objectUrl = toObjectURL(file);
+
+  return new Promise((resolve, reject) => {
+    const video = document.createElement("video");
+    video.preload = "auto";
+    video.muted = true;
+    video.playsInline = true;
+
+    video.onloadeddata = () => {
+      // Seek to 0.1s for a representative frame
+      video.currentTime = 0.1;
+    };
+
+    video.onseeked = () => {
+      try {
+        let { videoWidth: width, videoHeight: height } = video;
+
+        if (width > height && width > maxSize) {
+          height = Math.round((height * maxSize) / width);
+          width = maxSize;
+        } else if (height > width && height > maxSize) {
+          width = Math.round((width * maxSize) / height);
+          height = maxSize;
+        } else if (width > maxSize) {
+          width = maxSize;
+          height = maxSize;
+        }
+
+        const canvas = createCanvas();
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = getCanvas2DContext(canvas, objectUrl, revokeObjectURL);
+        ctx.drawImage(video, 0, 0, width, height);
+
+        const thumbnail = canvas.toDataURL("image/jpeg", 0.9);
+        revokeObjectURL(objectUrl);
+        resolve(thumbnail);
+      } catch (error) {
+        revokeObjectURL(objectUrl);
+        reject(error);
+      }
+    };
+
+    video.onerror = () => {
+      revokeObjectURL(objectUrl);
+      reject(new Error("Failed to load video for thumbnail generation"));
+    };
+
+    video.src = objectUrl;
   });
 }
 

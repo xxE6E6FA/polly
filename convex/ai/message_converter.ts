@@ -57,7 +57,7 @@ export function resetRetryConfig(): void {
  * This is the canonical format stored in the database
  */
 export type StoredAttachment = {
-  type: "image" | "pdf" | "text";
+  type: "image" | "pdf" | "text" | "audio" | "video";
   url: string;
   name: string;
   size: number;
@@ -81,7 +81,10 @@ export type LegacyMessagePart =
       attachment?: StoredAttachment;
     }
   | { type: "file"; file: { filename: string }; attachment?: StoredAttachment }
-  | { type: "image" | "pdf" | "text"; attachment?: StoredAttachment };
+  | {
+      type: "image" | "pdf" | "text" | "audio" | "video";
+      attachment?: StoredAttachment;
+    };
 
 /**
  * Options for conversion
@@ -127,6 +130,10 @@ export async function convertAttachmentToAISDK(
     case "text":
       return convertTextAttachment(ctx, attachment);
 
+    case "audio":
+    case "video":
+      return convertMediaAttachment(ctx, attachment, attachment.type, options);
+
     default: {
       const exhaustiveCheck: never = attachment.type;
       throw new Error(`Unsupported attachment type: ${exhaustiveCheck}`);
@@ -164,7 +171,11 @@ export async function convertLegacyPartToAISDK(
 
   // New unified format - attachment passed directly with type marker
   if (
-    (part.type === "image" || part.type === "pdf" || part.type === "text") &&
+    (part.type === "image" ||
+      part.type === "pdf" ||
+      part.type === "text" ||
+      part.type === "audio" ||
+      part.type === "video") &&
     part.attachment
   ) {
     return convertAttachmentToAISDK(ctx, part.attachment, options);
@@ -524,6 +535,74 @@ function formatTextContent(text: string, filename?: string): string {
     return `--- Content from ${filename} ---\n${text}`;
   }
   return text;
+}
+
+/**
+ * Check if a provider supports audio/video file parts.
+ * Google (Gemini) supports both natively via the AI SDK.
+ * OpenRouter's dedicated provider converts audio FilePart → input_audio format,
+ * and passes video as a generic file part (works when the underlying model supports it).
+ */
+function providerSupportsMediaFiles(provider: string): boolean {
+  return provider === "google" || provider === "openrouter";
+}
+
+/**
+ * Convert an audio or video attachment to AI SDK FilePart
+ *
+ * Only sends native file parts to providers that support them (Google/Gemini).
+ * Other providers get a text fallback explaining the limitation.
+ *
+ * Priority (for supported providers):
+ * 1. storageId -> fetch blob and send as file
+ * 2. content + mimeType -> send as file data
+ * 3. Graceful fallback to TextPart if media is unavailable
+ */
+async function convertMediaAttachment(
+  ctx: ActionCtx,
+  attachment: StoredAttachment,
+  category: "audio" | "video",
+  options: ConversionOptions
+): Promise<FilePart | TextPart> {
+  if (!providerSupportsMediaFiles(options.provider)) {
+    const label = category === "audio" ? "Audio" : "Video";
+    return {
+      type: "text",
+      text: `[${label} file "${attachment.name}" was attached but cannot be processed — this model's provider does not support ${category} input]`,
+    };
+  }
+
+  // Priority 1: Fetch from storage
+  if (attachment.storageId) {
+    try {
+      const blob = await fetchStorageWithRetry(ctx, attachment.storageId);
+      return {
+        type: "file",
+        data: new Uint8Array(await blob.arrayBuffer()),
+        mediaType: attachment.mimeType || blob.type,
+      };
+    } catch (error) {
+      console.warn(
+        `[message-converter] Failed to fetch ${category} from storage:`,
+        error
+      );
+    }
+  }
+
+  // Priority 2: Use inline content
+  if (attachment.content && attachment.mimeType) {
+    return {
+      type: "file",
+      data: attachment.content,
+      mediaType: attachment.mimeType,
+    };
+  }
+
+  // Graceful degradation
+  return {
+    type: "text",
+    text: `[${category === "audio" ? "Audio" : "Video"} "${attachment.name}" is no longer available]`,
+  };
 }
 
 // ==================== Utility Functions ====================

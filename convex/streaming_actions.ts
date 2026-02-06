@@ -47,7 +47,12 @@ export function isAttachmentPart(part: unknown): boolean {
   }
 
   // Check for direct attachment types
-  if (p.type === "image" || p.type === "pdf") {
+  if (
+    p.type === "image" ||
+    p.type === "pdf" ||
+    p.type === "audio" ||
+    p.type === "video"
+  ) {
     return true;
   }
 

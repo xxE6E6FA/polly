@@ -1,7 +1,12 @@
 import { Dialog } from "@base-ui/react/dialog";
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
-import { CaretLeftIcon, CaretRightIcon, XIcon } from "@phosphor-icons/react";
+import {
+  CaretLeftIcon,
+  CaretRightIcon,
+  SpeakerHighIcon,
+  XIcon,
+} from "@phosphor-icons/react";
 import { useQuery } from "convex/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -231,6 +236,47 @@ export const AttachmentGalleryDialog = ({
               filename={currentDisplayAttachment.name}
               className="max-h-full max-w-4xl"
             />
+          </div>
+        );
+      }
+
+      case "audio": {
+        if (!fileUrl) {
+          return null;
+        }
+        return (
+          <div className="flex h-full w-full flex-col items-center justify-center gap-6">
+            <SpeakerHighIcon className="h-16 w-16 text-muted-foreground" />
+            <p className="text-sm text-muted-foreground">
+              {currentDisplayAttachment.name}
+            </p>
+            <audio
+              controls
+              src={fileUrl}
+              className="w-full max-w-lg"
+              preload="metadata"
+            >
+              <track kind="captions" />
+            </audio>
+          </div>
+        );
+      }
+
+      case "video": {
+        if (!fileUrl) {
+          return null;
+        }
+        return (
+          <div className="flex h-full w-full items-center justify-center">
+            <video
+              controls
+              src={fileUrl}
+              poster={currentDisplayAttachment.thumbnail}
+              className="max-h-full max-w-full rounded-lg"
+              preload="metadata"
+            >
+              <track kind="captions" />
+            </video>
           </div>
         );
       }

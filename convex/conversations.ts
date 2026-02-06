@@ -83,7 +83,7 @@ export async function createConversationHandler(
     sourceConversationId?: Id<"conversations">;
     firstMessage: string;
     attachments?: Array<{
-      type: "image" | "pdf" | "text";
+      type: "image" | "pdf" | "text" | "audio" | "video";
       url: string;
       name: string;
       size: number;
@@ -611,7 +611,7 @@ export async function savePrivateConversationHandler(
       provider?: string;
       reasoning?: string;
       attachments?: Array<{
-        type: "image" | "pdf" | "text";
+        type: "image" | "pdf" | "text" | "audio" | "video";
         url: string;
         name: string;
         size: number;
@@ -682,7 +682,7 @@ export async function savePrivateConversationHandler(
     provider?: string;
     reasoning?: string;
     attachments?: Array<{
-      type: "image" | "pdf" | "text";
+      type: "image" | "pdf" | "text" | "audio" | "video";
       url: string;
       name: string;
       size: number;

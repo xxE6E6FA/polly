@@ -299,7 +299,7 @@ export type ChatMessage = {
 };
 
 export type Attachment = {
-  type: "image" | "pdf" | "text";
+  type: "image" | "pdf" | "text" | "audio" | "video";
   url: string;
   name: string;
   size: number;
@@ -595,7 +595,7 @@ export type CreateConversationArgs = {
   personaId?: Id<"personas">;
   personaPrompt?: string;
   attachments?: Array<{
-    type: "image" | "pdf" | "text";
+    type: "image" | "pdf" | "text" | "audio" | "video";
     url: string;
     name: string;
     size: number;
