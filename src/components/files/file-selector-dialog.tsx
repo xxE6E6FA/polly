@@ -130,13 +130,15 @@ const FileCard = memo(
       file.attachment.type === "image" ||
       (file.attachment.type === "video" && !!file.attachment.thumbnail);
 
+    const isImage = file.attachment.type === "image";
+
     const handleClick = useCallback(() => {
-      if (isVisual && onPreview) {
+      if (isImage && onPreview) {
         onPreview(file);
       } else {
         onToggle(file);
       }
-    }, [file, isVisual, onToggle, onPreview]);
+    }, [file, isImage, onToggle, onPreview]);
 
     const handleSelectionClick = useCallback(
       (e: React.MouseEvent) => {
@@ -528,7 +530,9 @@ export function FileSelectorDialog({
           <button
             type="button"
             onClick={() =>
-              isVisual ? handlePreview(file) : toggleSelection(file)
+              file.attachment.type === "image"
+                ? handlePreview(file)
+                : toggleSelection(file)
             }
             className="h-12 w-12 shrink-0 rounded overflow-hidden bg-muted/20"
           >
