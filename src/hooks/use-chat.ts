@@ -35,6 +35,7 @@ export function mapServerMessageToChatMessage(
     status: msg.status,
     statusText: msg.statusText ?? undefined,
     reasoning: msg.reasoning,
+    reasoningParts: msg.reasoningParts as ChatMessage["reasoningParts"],
     model: msg.model,
     provider: msg.provider,
     parentId: msg.parentId,
@@ -43,6 +44,7 @@ export function mapServerMessageToChatMessage(
     useWebSearch: msg.useWebSearch,
     attachments: msg.attachments,
     citations: msg.citations,
+    toolCalls: msg.toolCalls as ChatMessage["toolCalls"],
     error: msg.error,
     metadata: msg.metadata,
     imageGeneration: msg.imageGeneration

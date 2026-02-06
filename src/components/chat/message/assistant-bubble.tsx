@@ -145,7 +145,7 @@ const TextMessageBubble = ({
   } = useHoverLinger({ delay: 700 });
 
   // Derive display phase from message status
-  const { phase, statusLabel, isActive } = useAssistantDisplayPhase({
+  const { phase, isActive } = useAssistantDisplayPhase({
     messageStatus: message.status,
     hasContent: hasTextContent,
     hasReasoning: hasReasoningText,
@@ -162,14 +162,14 @@ const TextMessageBubble = ({
         onMouseEnter={onMouseEnter}
         onMouseLeave={onMouseLeave}
       >
-        {/* Extracted loading state: status indicator, reasoning, skeleton */}
+        {/* Extracted loading state: activity stream + skeleton */}
         <AssistantLoadingState
-          messageId={message.id}
           phase={phase}
           isActive={isActive}
-          statusLabel={statusLabel}
           reasoning={message.reasoning}
+          reasoningParts={message.reasoningParts}
           thinkingDurationMs={message.metadata?.thinkingDurationMs}
+          toolCalls={message.toolCalls}
         />
 
         {/* Content area */}

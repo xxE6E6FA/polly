@@ -18,13 +18,14 @@
  * import { ChatHeader, VirtualizedChatMessages } from "@/components/chat";
  */
 
+// Supporting components
+export { ActivityStream } from "./activity-stream";
 // Main chat components
 export { ChatHeader } from "./chat-header";
 export { ChatMessage } from "./chat-message";
 export { ChatOutline } from "./chat-outline";
 export { ChatZeroState } from "./chat-zero-state";
 export { CitationAvatarStack } from "./citation-avatar-stack";
-
 // Citations
 export { Citations } from "./citations";
 export { CitationsGallery } from "./citations-gallery";
@@ -35,8 +36,6 @@ export { ChatInput } from "./input";
 export { PrivateModeHeader } from "./private-mode-header";
 export { PrivateToggle } from "./private-toggle";
 export { SimplePrompts } from "./prompts-ticker";
-// Supporting components
-export { Reasoning } from "./reasoning";
 export { SearchQuery } from "./search-query";
 export { UnifiedChatView } from "./unified-chat-view";
 export { VirtualizedChatMessages } from "./virtualized-chat-messages";

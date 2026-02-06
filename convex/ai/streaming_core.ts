@@ -89,6 +89,10 @@ export async function streamLLMToMessage({
   let userStopped = false; // Track if stopped by user request
   let isFlushing = false; // Prevent concurrent flushes causing OCC conflicts
 
+  // Segment tracking for interleaved reasoning/tool-call streams
+  let reasoningSegmentIndex = 0;
+  let reasoningSegmentStartedAt = 0;
+
   // Internal flush functions - should only be called via flushAll to avoid OCC conflicts
   const _flushContentInternal = async () => {
     if (!contentBuf || stopped) return;
@@ -118,10 +122,12 @@ export async function streamLLMToMessage({
     reasoningBuf = "";
     try {
       const result = await ctx.runMutation(
-        internal.messages.internalAtomicUpdate,
+        internal.messages.appendReasoningSegment,
         {
-          id: messageId,
-          appendReasoning: toSend,
+          messageId,
+          segmentIndex: reasoningSegmentIndex,
+          text: toSend,
+          startedAt: reasoningSegmentStartedAt || Date.now(),
         }
       );
       // Check stop signal from mutation - interrupt at the source
@@ -197,6 +203,12 @@ export async function streamLLMToMessage({
 
   // Determine if tools will be used (affects experimental_transform)
   const useTools = supportsTools && !!exaApiKey;
+  console.log("[streaming_core] Tool configuration:", {
+    supportsTools,
+    hasExaApiKey: !!exaApiKey,
+    useTools,
+    messageId,
+  });
 
   try {
     // Build streamText options - base required fields with optional additions
@@ -272,33 +284,83 @@ export async function streamLLMToMessage({
           });
         }
 
-        // Handle tool call - set status to searching
+        // Handle tool call - set status to searching and track tool call
+        // AI SDK v6 uses 'input' for tool parameters (not 'args')
         if (chunk.type === "tool-call" && !isSearching) {
           isSearching = true;
+          const toolCallChunk = chunk as {
+            toolCallId: string;
+            toolName: string;
+            input?: { query?: string; searchMode?: string };
+          };
+          console.log("[streaming_core] Tool call chunk received:", {
+            toolCallId: toolCallChunk.toolCallId,
+            toolName: toolCallChunk.toolName,
+            input: toolCallChunk.input,
+          });
+
+          // Flush pending reasoning before starting new segment
+          await flushReasoning();
+          reasoningSegmentIndex++;
+          reasoningSegmentStartedAt = 0; // Will be set on next reasoning delta
+
+          // Add tool call to message for UI tracking
+          try {
+            await ctx.runMutation(internal.messages.addToolCall, {
+              messageId,
+              toolCall: {
+                id: toolCallChunk.toolCallId,
+                name: toolCallChunk.toolName,
+                status: "running",
+                startedAt: Date.now(),
+                ...(toolCallChunk.input && {
+                  args: {
+                    query: toolCallChunk.input.query,
+                    mode: toolCallChunk.input.searchMode,
+                  },
+                }),
+              },
+            });
+            console.log("[streaming_core] Tool call added successfully");
+          } catch (e) {
+            console.error("[streaming_core] Failed to add tool call:", e);
+          }
           await ctx.runMutation(internal.messages.updateMessageStatus, {
             messageId,
             status: "searching",
           });
         }
 
-        // Handle tool result - extract citations and write immediately
+        // Handle tool result - single mutation for tool status + citations + message status
         if (chunk.type === "tool-result") {
           const toolResult = chunk as {
+            toolCallId: string;
             output?: { success?: boolean; citations?: Citation[] };
           };
-          if (toolResult.output?.success && toolResult.output?.citations) {
-            citationsFromTools = toolResult.output.citations;
-            // Write citations immediately so frontend can render them during streaming
-            await ctx.runMutation(internal.messages.internalUpdate, {
-              id: messageId,
-              citations: citationsFromTools,
+          console.log("[streaming_core] Tool result chunk received:", {
+            toolCallId: toolResult.toolCallId,
+            success: toolResult.output?.success,
+            citationsCount: toolResult.output?.citations?.length,
+          });
+          const isSuccess = toolResult.output?.success;
+          const hasCitations =
+            isSuccess && toolResult.output?.citations?.length;
+          if (hasCitations) {
+            citationsFromTools = toolResult.output!.citations!;
+          }
+          try {
+            await ctx.runMutation(internal.messages.finalizeToolResult, {
+              messageId,
+              toolCallId: toolResult.toolCallId,
+              toolStatus: isSuccess ? "completed" : "error",
+              ...(isSuccess ? {} : { toolError: "Tool call failed" }),
+              ...(hasCitations ? { citations: citationsFromTools } : {}),
+              messageStatus: "thinking",
             });
+          } catch (e) {
+            console.error("[streaming_core] Failed to finalize tool result:", e);
           }
           isSearching = false;
-          await ctx.runMutation(internal.messages.updateMessageStatus, {
-            messageId,
-            status: "streaming",
-          });
         }
 
         // Reasoning chunks
@@ -306,6 +368,10 @@ export async function streamLLMToMessage({
           // Track when reasoning starts
           if (!reasoningStartTime) {
             reasoningStartTime = Date.now();
+          }
+          // Track segment start time for interleaved reasoning parts
+          if (!reasoningSegmentStartedAt) {
+            reasoningSegmentStartedAt = Date.now();
           }
           reasoningBuf += humanizeReasoningText(chunk.text);
           if (reasoningBuf.length >= DEFAULT_STREAM_CONFIG.BATCH_SIZE) {
@@ -337,8 +403,8 @@ export async function streamLLMToMessage({
         usage,
         response,
         warnings,
-        text,
-        reasoning,
+        text: _text,
+        reasoning: _reasoning,
       }) => {
         if (stopped) return;
         await flushReasoning();

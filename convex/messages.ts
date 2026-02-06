@@ -37,6 +37,8 @@ import {
   messageStatusSchema,
   providerSchema,
   reasoningConfigSchema,
+  reasoningPartSchema,
+  toolCallSchema,
   ttsAudioCacheEntrySchema,
   webCitationSchema,
 } from "./lib/schemas";
@@ -1447,6 +1449,145 @@ export const internalGetById = internalMutation({
   args: { id: v.id("messages") },
   handler: async (ctx, args) => {
     return await ctx.db.get("messages", args.id);
+  },
+});
+
+/**
+ * Append reasoning text to a specific segment of the message's reasoningParts.
+ * Used by the streaming core to build interleaved reasoning/tool-call streams.
+ *
+ * When a tool call interrupts reasoning, the streaming core bumps the segment index
+ * so the next reasoning flush creates a new segment. This produces a structured
+ * timeline: [reasoning1, toolCall, reasoning2, toolCall, reasoning3, ...]
+ */
+export const appendReasoningSegment = internalMutation({
+  args: {
+    messageId: v.id("messages"),
+    segmentIndex: v.number(),
+    text: v.string(),
+    startedAt: v.number(),
+  },
+  handler: async (ctx, { messageId, segmentIndex, text, startedAt }) => {
+    return await withRetry(
+      async () => {
+        const message = await ctx.db.get("messages", messageId);
+        if (!message) {
+          return { shouldStop: false };
+        }
+
+        const parts = message.reasoningParts ?? [];
+
+        if (segmentIndex < parts.length) {
+          // Append to existing segment
+          const existing = parts[segmentIndex];
+          if (existing) {
+            parts[segmentIndex] = {
+              text: existing.text + text,
+              startedAt: existing.startedAt,
+            };
+          }
+        } else {
+          // Create new segment
+          parts.push({ text, startedAt });
+        }
+
+        // Keep the flat `reasoning` string in sync for backward compat (search, export)
+        const reasoning = parts.map(p => p.text).join("\n\n");
+
+        await ctx.db.patch("messages", messageId, {
+          reasoningParts: parts,
+          reasoning,
+        });
+
+        const conversation = await ctx.db.get(
+          "conversations",
+          message.conversationId
+        );
+        return { shouldStop: !!conversation?.stopRequested };
+      },
+      5,
+      25
+    );
+  },
+});
+
+/**
+ * Add a new tool call to a message during streaming.
+ * Called when a tool-call chunk is received from the AI SDK.
+ */
+export const addToolCall = internalMutation({
+  args: {
+    messageId: v.id("messages"),
+    toolCall: toolCallSchema,
+  },
+  handler: async (ctx, { messageId, toolCall }) => {
+    const message = await ctx.db.get("messages", messageId);
+    if (!message) {
+      console.warn(`addToolCall: Message ${messageId} not found`);
+      return;
+    }
+
+    const existingCalls = message.toolCalls ?? [];
+    // Check if tool call with same ID already exists
+    if (existingCalls.some(tc => tc.id === toolCall.id)) {
+      return; // Already added, skip
+    }
+
+    await ctx.db.patch("messages", messageId, {
+      toolCalls: [...existingCalls, toolCall],
+    });
+  },
+});
+
+/**
+ * Combined mutation: finalize a tool call result in a single DB write.
+ * Updates tool call status, optionally writes citations, and sets message status.
+ * This avoids 3 sequential round-trips that block the streaming onChunk handler.
+ */
+export const finalizeToolResult = internalMutation({
+  args: {
+    messageId: v.id("messages"),
+    toolCallId: v.string(),
+    toolStatus: v.union(v.literal("completed"), v.literal("error")),
+    toolError: v.optional(v.string()),
+    citations: v.optional(v.array(webCitationSchema)),
+    messageStatus: messageStatusSchema,
+  },
+  handler: async (
+    ctx,
+    { messageId, toolCallId, toolStatus, toolError, citations, messageStatus }
+  ) => {
+    return await withRetry(
+      async () => {
+        const message = await ctx.db.get("messages", messageId);
+        if (!message) {
+          return;
+        }
+
+        // Update tool call status
+        const toolCalls = message.toolCalls ?? [];
+        const updatedCalls = toolCalls.map(tc => {
+          if (tc.id === toolCallId) {
+            return {
+              ...tc,
+              status: toolStatus,
+              completedAt: Date.now(),
+              ...(toolError && { error: toolError }),
+            };
+          }
+          return tc;
+        });
+
+        // Single patch: tool calls + optional citations + message status
+        await ctx.db.patch("messages", messageId, {
+          toolCalls: updatedCalls,
+          status: messageStatus,
+          ...(citations && { citations }),
+        });
+      },
+      5,
+      25
+    );
   },
 });
 
