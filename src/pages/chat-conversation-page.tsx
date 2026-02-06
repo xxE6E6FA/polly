@@ -140,8 +140,17 @@ export default function ConversationRoute() {
     initialMessageRef.current = null;
   }
 
-  // Clear transition flag once streaming is complete
-  if (hasTransitionedRef.current && !messageIsStreaming) {
+  // Clear transition flag once the initial assistant message exists and streaming is complete.
+  // We must wait for the assistant message before clearing — otherwise, in the intermediate
+  // state where only the user message has arrived (assistant not yet created by startConversation),
+  // the flag clears immediately (messageIsStreaming is false) and auto-retry fires, creating
+  // a duplicate assistant response.
+  const hasAssistantMessage = realMessages.some(m => m.role === "assistant");
+  if (
+    hasTransitionedRef.current &&
+    !messageIsStreaming &&
+    hasAssistantMessage
+  ) {
     hasTransitionedRef.current = false;
   }
 
