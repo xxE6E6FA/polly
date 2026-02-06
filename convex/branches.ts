@@ -54,7 +54,7 @@ export async function internalCloneMessagesHandler(
       sourceConversationId?: Id<"conversations">;
       useWebSearch?: boolean;
       attachments?: Array<{
-        type: "image" | "pdf" | "text";
+        type: "image" | "pdf" | "text" | "audio" | "video";
         url: string;
         name: string;
         size: number;

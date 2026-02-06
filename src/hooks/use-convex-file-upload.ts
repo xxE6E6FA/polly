@@ -2,7 +2,7 @@ import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import { useMutation } from "convex/react";
 import { useCallback } from "react";
-import { generateThumbnail } from "@/lib/file-utils";
+import { generateThumbnail, generateVideoThumbnail } from "@/lib/file-utils";
 
 import type { Attachment, FileUploadProgress } from "@/types";
 
@@ -53,7 +53,7 @@ export function useConvexFileUpload() {
         onProgress?.(fileProgress);
 
         // Determine attachment type based on file type and extension
-        let attachmentType: "image" | "pdf" | "text";
+        let attachmentType: "image" | "pdf" | "text" | "audio" | "video";
         const isImage =
           file.type.startsWith("image/") ||
           file.name.toLowerCase().endsWith(".heic") ||
@@ -63,6 +63,10 @@ export function useConvexFileUpload() {
           attachmentType = "image";
         } else if (file.type === "application/pdf") {
           attachmentType = "pdf";
+        } else if (file.type.startsWith("audio/")) {
+          attachmentType = "audio";
+        } else if (file.type.startsWith("video/")) {
+          attachmentType = "video";
         } else {
           attachmentType = "text";
         }
@@ -83,6 +87,15 @@ export function useConvexFileUpload() {
             attachment.thumbnail = await generateThumbnail(file);
           } catch (error) {
             console.warn("Failed to generate thumbnail:", error);
+          }
+        }
+
+        // Generate thumbnail for videos
+        if (attachmentType === "video") {
+          try {
+            attachment.thumbnail = await generateVideoThumbnail(file);
+          } catch (error) {
+            console.warn("Failed to generate video thumbnail:", error);
           }
         }
 

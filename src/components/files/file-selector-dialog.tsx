@@ -5,9 +5,12 @@ import {
   FileCodeIcon,
   FilePdfIcon,
   FileTextIcon,
+  FilmStripIcon,
   FolderIcon,
   ImageIcon,
   MagicWandIcon,
+  PlayIcon,
+  SpeakerHighIcon,
 } from "@phosphor-icons/react";
 import { usePaginatedQuery } from "convex/react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -45,7 +48,7 @@ import { useMediaQuery } from "@/hooks/use-media-query";
 import { cn } from "@/lib/utils";
 import type { Attachment } from "@/types";
 
-type FileType = "all" | "image" | "pdf" | "text";
+type FileType = "all" | "image" | "pdf" | "text" | "audio" | "video";
 
 const FILES_PER_PAGE = 50;
 
@@ -65,6 +68,8 @@ const FILE_TYPE_OPTIONS = [
   { value: "image", label: "Images", icon: ImageIcon },
   { value: "pdf", label: "PDFs", icon: FilePdfIcon },
   { value: "text", label: "Text & Code", icon: FileTextIcon },
+  { value: "audio", label: "Audio", icon: SpeakerHighIcon },
+  { value: "video", label: "Video", icon: FilmStripIcon },
 ] as const;
 
 const TEXT_FILE_EXTENSIONS = [
@@ -87,6 +92,14 @@ function getFileAttachmentIcon(
 
   if (attachment.type === "pdf") {
     return <FilePdfIcon className={cn(sizeClass, "text-red-500")} />;
+  }
+
+  if (attachment.type === "audio") {
+    return <SpeakerHighIcon className={cn(sizeClass, "text-orange-500")} />;
+  }
+
+  if (attachment.type === "video") {
+    return <FilmStripIcon className={cn(sizeClass, "text-purple-500")} />;
   }
 
   if (attachment.type === "text") {
@@ -113,15 +126,17 @@ interface FileCardProps {
 
 const FileCard = memo(
   ({ file, selected, onToggle, onPreview }: FileCardProps) => {
-    const isImage = file.attachment.type === "image";
+    const isVisual =
+      file.attachment.type === "image" ||
+      (file.attachment.type === "video" && !!file.attachment.thumbnail);
 
     const handleClick = useCallback(() => {
-      if (isImage && onPreview) {
+      if (isVisual && onPreview) {
         onPreview(file);
       } else {
         onToggle(file);
       }
-    }, [file, isImage, onToggle, onPreview]);
+    }, [file, isVisual, onToggle, onPreview]);
 
     const handleSelectionClick = useCallback(
       (e: React.MouseEvent) => {
@@ -136,18 +151,27 @@ const FileCard = memo(
         type="button"
         className={cn(
           "relative group rounded-lg border-2 transition-all overflow-hidden bg-muted/20 text-left w-full aspect-square",
-          isImage ? "flex items-center justify-center" : "flex flex-col",
+          isVisual ? "flex items-center justify-center" : "flex flex-col",
           selected
             ? "border-primary bg-primary/10 ring-1 ring-primary shadow-sm"
             : "border-border hover:border-primary/50 hover:shadow-sm"
         )}
         onClick={handleClick}
       >
-        {isImage ? (
-          <ImageThumbnail
-            attachment={file.attachment}
-            className="h-full w-full object-cover pointer-events-none"
-          />
+        {isVisual ? (
+          <div className="relative h-full w-full pointer-events-none">
+            <ImageThumbnail
+              attachment={file.attachment}
+              className="h-full w-full object-cover"
+            />
+            {file.attachment.type === "video" && (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white">
+                  <PlayIcon className="h-4 w-4" />
+                </div>
+              </div>
+            )}
+          </div>
         ) : (
           <div className="flex flex-col h-full p-3 pointer-events-none">
             <div className="flex items-start gap-2">
@@ -168,7 +192,7 @@ const FileCard = memo(
           </div>
         )}
 
-        {isImage && (
+        {isVisual && (
           <button
             type="button"
             className={cn(
@@ -178,7 +202,7 @@ const FileCard = memo(
                 : "bg-background/80 border-border hover:border-primary/50"
             )}
             onClick={handleSelectionClick}
-            aria-label={selected ? "Deselect image" : "Select image"}
+            aria-label={selected ? "Deselect file" : "Select file"}
           >
             {selected && (
               <CheckIcon className="h-4 w-4 text-primary-foreground" />
@@ -186,7 +210,7 @@ const FileCard = memo(
           </button>
         )}
 
-        {!isImage && selected && (
+        {!isVisual && selected && (
           <div className="absolute inset-0 bg-primary/20 flex items-center justify-center pointer-events-none">
             <div className="h-7 w-7 rounded-full bg-primary flex items-center justify-center shadow-md">
               <CheckIcon className="h-4 w-4 text-primary-foreground" />
@@ -198,7 +222,7 @@ const FileCard = memo(
           <Badge
             className={cn(
               "absolute bg-purple-500/90 text-white text-[10px] px-1 py-0 h-5",
-              isImage ? "top-2 right-2" : "top-1.5 right-1.5"
+              isVisual ? "top-2 right-2" : "top-1.5 right-1.5"
             )}
           >
             <MagicWandIcon className="h-3 w-3" />
@@ -490,8 +514,10 @@ export function FileSelectorDialog({
 
   // Mobile list item renderer for Virtuoso
   const renderMobileListItem = useCallback(
-    (index: number, file: UserFile) => {
-      const isImage = file.attachment.type === "image";
+    (_index: number, file: UserFile) => {
+      const isVisual =
+        file.attachment.type === "image" ||
+        (file.attachment.type === "video" && !!file.attachment.thumbnail);
       return (
         <div
           className={cn(
@@ -502,15 +528,24 @@ export function FileSelectorDialog({
           <button
             type="button"
             onClick={() =>
-              isImage ? handlePreview(file) : toggleSelection(file)
+              isVisual ? handlePreview(file) : toggleSelection(file)
             }
             className="h-12 w-12 shrink-0 rounded overflow-hidden bg-muted/20"
           >
-            {isImage ? (
-              <ImageThumbnail
-                attachment={file.attachment}
-                className="h-full w-full object-cover"
-              />
+            {isVisual ? (
+              <div className="relative h-full w-full">
+                <ImageThumbnail
+                  attachment={file.attachment}
+                  className="h-full w-full object-cover"
+                />
+                {file.attachment.type === "video" && (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-white">
+                      <PlayIcon className="h-2.5 w-2.5" />
+                    </div>
+                  </div>
+                )}
+              </div>
             ) : (
               <div className="h-full w-full flex items-center justify-center">
                 {getFileAttachmentIcon(file.attachment, "sm")}

@@ -31,7 +31,7 @@ export const processAttachmentsForStorage = async (
     storageId?: Id<"_storage">;
     url?: string;
     name: string;
-    type: "image" | "pdf" | "text";
+    type: "image" | "pdf" | "text" | "audio" | "video";
     size: number;
     content?: string;
     thumbnail?: string;
@@ -41,7 +41,7 @@ export const processAttachmentsForStorage = async (
     storageId?: Id<"_storage">;
     url: string;
     name: string;
-    type: "image" | "pdf" | "text";
+    type: "image" | "pdf" | "text" | "audio" | "video";
     size: number;
     content?: string;
     thumbnail?: string;

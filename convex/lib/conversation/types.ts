@@ -34,7 +34,7 @@ export type MessageDoc = {
   model?: string;
   provider?: string;
   attachments?: Array<{
-    type: "image" | "pdf" | "text";
+    type: "image" | "pdf" | "text" | "audio" | "video";
     url: string;
     name: string;
     size: number;
@@ -61,7 +61,7 @@ export type ApiMessageDoc = {
   model?: string;
   provider?: string;
   attachments?: Array<{
-    type: "image" | "pdf" | "text";
+    type: "image" | "pdf" | "text" | "audio" | "video";
     url: string;
     name: string;
     size: number;

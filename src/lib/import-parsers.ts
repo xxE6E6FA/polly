@@ -8,7 +8,7 @@ export interface ParsedConversation {
     provider?: string;
     reasoning?: string;
     attachments?: Array<{
-      type: "image" | "pdf" | "text";
+      type: "image" | "pdf" | "text" | "audio" | "video";
       name: string;
       size: number;
     }>;

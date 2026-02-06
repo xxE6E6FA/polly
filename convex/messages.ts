@@ -262,8 +262,12 @@ export async function createHandler(
   // thumbnail: Base64 preview (can be >1MB on iOS), regenerate from storageId when needed
   // content: Text file content, fetch from storageId when needed
   // These fields are only needed for UI during upload, not for storage
+  // Exception: video thumbnails must be preserved (can't regenerate from video URL at display time)
   const attachmentsForStorage = args.attachments?.map(
-    ({ thumbnail, content, ...attachment }) => attachment
+    ({ thumbnail, content, ...attachment }) => ({
+      ...attachment,
+      ...(thumbnail && attachment.type === "video" ? { thumbnail } : {}),
+    })
   );
 
   const messageId = await ctx.db.insert("messages", {

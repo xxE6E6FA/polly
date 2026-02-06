@@ -83,7 +83,9 @@ const AttachmentStripComponent = ({
   return (
     <div className={cn("mt-2 flex flex-wrap gap-2", className)}>
       {attachments.map((attachment, index) => {
-        const isImage = attachment.type === "image";
+        const isVisual =
+          attachment.type === "image" ||
+          (attachment.type === "video" && !!attachment.thumbnail);
         return (
           <div
             key={attachment.name || attachment.url || `attachment-${index}`}
@@ -93,7 +95,7 @@ const AttachmentStripComponent = ({
               className={cn(
                 "flex h-full items-center overflow-hidden rounded-md transition-colors cursor-pointer",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-                isImage ? "p-0" : "gap-2 pl-2 pr-1 bg-muted/50 hover:bg-muted"
+                isVisual ? "p-0" : "gap-2 pl-2 pr-1 bg-muted/50 hover:bg-muted"
               )}
               onClick={() => handleFileClick(attachment)}
               type="button"
@@ -102,14 +104,14 @@ const AttachmentStripComponent = ({
                 <ImageThumbnail
                   attachment={attachment}
                   className={cn(
-                    isImage ? "h-14 w-14" : "h-5 w-5",
+                    isVisual ? "h-14 w-14" : "h-5 w-5",
                     renderOverlay?.(attachment, index) && "opacity-60"
                   )}
                 />
                 {renderOverlay?.(attachment, index)}
               </div>
-              {/* Only show name for non-image attachments */}
-              {!isImage && (
+              {/* Only show name for non-visual attachments */}
+              {!isVisual && (
                 <>
                   <span
                     className="text-xs text-foreground/80"
@@ -137,8 +139,8 @@ const AttachmentStripComponent = ({
                 </>
               )}
             </button>
-            {/* Overlay close button for images only */}
-            {isImage && onRemove && (
+            {/* Overlay close button for visual media only */}
+            {isVisual && onRemove && (
               <button
                 type="button"
                 className={cn(

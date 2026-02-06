@@ -31,6 +31,7 @@
     "@llm-ui/code": "^0.13.3",
     "@llm-ui/markdown": "^0.13.3",
     "@llm-ui/react": "^0.13.3",
+    "@openrouter/ai-sdk-provider": "^2.1.1",
     "@phosphor-icons/react": "^2.1.10",
     "@tailwindcss/typography": "^0.5.16",
     "@types/katex": "^0.16.7",

@@ -4,7 +4,7 @@ import type { Id } from "../_generated/dataModel";
 
 // Define Attachment type based on attachmentSchema
 type Attachment = {
-  type: "image" | "pdf" | "text";
+  type: "image" | "pdf" | "text" | "audio" | "video";
   url: string;
   name: string;
   size: number;
