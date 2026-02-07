@@ -58,12 +58,12 @@ function DrawerContent({
       <DrawerPrimitive.Content
         ref={ref}
         className={cn(
-          "fixed inset-x-0 bottom-0 z-drawer mt-24 flex h-auto max-h-[90dvh] flex-col overflow-hidden rounded-t-[10px] bg-card shadow-lg",
+          "fixed inset-x-0 bottom-0 z-drawer mt-24 flex h-auto max-h-[90dvh] flex-col overflow-hidden rounded-t-[10px] bg-card shadow-xl dark:ring-1 dark:ring-white/[0.06]",
           className
         )}
         {...props}
       >
-        <div className="mx-auto drawer-handle rounded-full bg-muted flex-none" />
+        <div className="mx-auto drawer-handle rounded-full bg-muted-foreground/30 flex-none" />
         <div
           className={cn(
             "min-h-0 flex-1 flex flex-col",
