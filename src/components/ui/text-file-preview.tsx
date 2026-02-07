@@ -48,13 +48,13 @@ const TextFilePreviewComponent = ({
   return (
     <div
       className={cn(
-        "group/preview relative flex h-full w-full flex-col overflow-hidden rounded-lg",
-        "bg-card/80 backdrop-blur-sm border border-border/50",
+        "group/preview relative flex h-full w-full flex-col overflow-hidden rounded-xl",
+        "bg-card/80 backdrop-blur-md dark:ring-1 dark:ring-white/[0.06]",
         className
       )}
     >
       {/* Minimal header with filename */}
-      <div className="flex items-center justify-between border-b border-border/30 px-4 py-2">
+      <div className="flex items-center justify-between border-b border-border/20 px-4 py-2">
         <span className="truncate text-sm font-medium text-foreground/80">
           {filename}
         </span>

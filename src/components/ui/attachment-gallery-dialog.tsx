@@ -214,7 +214,7 @@ export const AttachmentGalleryDialog = ({
             <img
               src={fileUrl}
               alt={currentDisplayAttachment.name}
-              className="max-h-full max-w-full object-contain pointer-events-auto"
+              className="max-h-full max-w-full object-contain pointer-events-auto rounded-lg drop-shadow-2xl"
               draggable={false}
               onClick={e => e.stopPropagation()}
               onKeyDown={e => e.stopPropagation()}
@@ -291,7 +291,7 @@ export const AttachmentGalleryDialog = ({
       <Dialog.Portal>
         {/* Backdrop */}
         <Dialog.Backdrop
-          className="fixed inset-0 z-modal bg-background/95 backdrop-blur-md
+          className="fixed inset-0 z-modal bg-background/95 backdrop-blur-lg
                      data-[state=open]:animate-in data-[state=closed]:animate-out
                      data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0
                      data-[open]:animate-in data-[closed]:animate-out
@@ -312,7 +312,7 @@ export const AttachmentGalleryDialog = ({
               e.stopPropagation();
               onOpenChange(false);
             }}
-            className="absolute right-4 top-4 z-20 h-10 w-10 rounded-full bg-foreground/50 text-background backdrop-blur-sm hover:bg-foreground/70 transition-all duration-200 hover:scale-110"
+            className="absolute right-4 top-4 z-20 h-10 w-10 rounded-full bg-card/90 text-foreground shadow-lg dark:ring-1 dark:ring-white/[0.06] backdrop-blur-md hover:bg-card transition-colors duration-200"
             aria-label="Close"
           >
             <XIcon className="h-5 w-5" />
@@ -328,7 +328,7 @@ export const AttachmentGalleryDialog = ({
                   e.stopPropagation();
                   goToPrevious();
                 }}
-                className="absolute left-4 top-1/2 -translate-y-1/2 z-10 h-12 w-12 rounded-full bg-foreground/50 text-background backdrop-blur-sm hover:bg-foreground/70 transition-all duration-200 hover:scale-110"
+                className="absolute left-4 top-1/2 -translate-y-1/2 z-10 h-12 w-12 rounded-full bg-card/90 text-foreground shadow-lg dark:ring-1 dark:ring-white/[0.06] backdrop-blur-md hover:bg-card transition-colors duration-200"
                 aria-label="Previous attachment"
               >
                 <CaretLeftIcon className="h-6 w-6" />
@@ -341,12 +341,19 @@ export const AttachmentGalleryDialog = ({
                   e.stopPropagation();
                   goToNext();
                 }}
-                className="absolute right-4 top-1/2 -translate-y-1/2 z-10 h-12 w-12 rounded-full bg-foreground/50 text-background backdrop-blur-sm hover:bg-foreground/70 transition-all duration-200 hover:scale-110"
+                className="absolute right-4 top-1/2 -translate-y-1/2 z-10 h-12 w-12 rounded-full bg-card/90 text-foreground shadow-lg dark:ring-1 dark:ring-white/[0.06] backdrop-blur-md hover:bg-card transition-colors duration-200"
                 aria-label="Next attachment"
               >
                 <CaretRightIcon className="h-6 w-6" />
               </Button>
             </>
+          )}
+
+          {/* Counter pill */}
+          {attachments.length > 1 && (
+            <div className="absolute bottom-4 left-1/2 z-10 -translate-x-1/2 rounded-full bg-card/90 px-3 py-1.5 text-xs font-medium text-muted-foreground shadow-lg backdrop-blur-md dark:ring-1 dark:ring-white/[0.06]">
+              {currentIndex + 1} / {attachments.length}
+            </div>
           )}
 
           {/* Attachment content + clickable backdrop area */}
@@ -377,8 +384,10 @@ export const AttachmentGalleryDialog = ({
               key={
                 currentDisplayAttachment.url || currentDisplayAttachment.name
               }
-              className={`h-full w-full max-w-7xl transition-all duration-300 ease-out animate-in fade-in-0 ${
-                isImage ? "pointer-events-none" : ""
+              className={`h-full w-full max-w-7xl transition-all duration-300 ease-out animate-in fade-in-0 zoom-in-95 ${
+                isImage
+                  ? "pointer-events-none"
+                  : "bg-card/80 backdrop-blur-md rounded-2xl shadow-xl dark:ring-1 dark:ring-white/[0.06] overflow-hidden"
               }`}
             >
               {renderAttachmentContent()}
