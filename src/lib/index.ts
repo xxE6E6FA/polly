@@ -32,6 +32,7 @@ export {
   cleanAttachmentsForConvex,
   cn,
   formatDate,
+  formatFileSize,
   generateHeadingId,
   resizeGoogleImageUrl,
   stripCitations,
