@@ -12,12 +12,11 @@ import {
   PlayIcon,
   SpeakerHighIcon,
 } from "@phosphor-icons/react";
-import { usePaginatedQuery } from "convex/react";
+import { usePaginatedQuery, useQuery } from "convex/react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Virtuoso, VirtuosoGrid } from "react-virtuoso";
+import { Virtuoso } from "react-virtuoso";
 import { ListEmptyState } from "@/components/data-list";
 import { ImageThumbnail } from "@/components/files/file-display";
-import { AttachmentGalleryDialog } from "@/components/ui/attachment-gallery-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -36,16 +35,12 @@ import {
   DrawerHeader,
   DrawerTitle,
 } from "@/components/ui/drawer";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { SearchInput } from "@/components/ui/search-input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { TextFilePreview } from "@/components/ui/text-file-preview";
+import { useDebounce } from "@/hooks";
 import { useMediaQuery } from "@/hooks/use-media-query";
-import { cn } from "@/lib/utils";
+import { cn, formatDate, formatFileSize } from "@/lib/utils";
 import type { Attachment } from "@/types";
 
 type FileType = "all" | "image" | "pdf" | "text" | "audio" | "video";
@@ -64,7 +59,7 @@ interface UserFile {
 }
 
 const FILE_TYPE_OPTIONS = [
-  { value: "all", label: "All Files", icon: FolderIcon },
+  { value: "all", label: "All", icon: FolderIcon },
   { value: "image", label: "Images", icon: ImageIcon },
   { value: "pdf", label: "PDFs", icon: FilePdfIcon },
   { value: "text", label: "Text & Code", icon: FileTextIcon },
@@ -117,30 +112,31 @@ function getFileAttachmentIcon(
   return <FileTextIcon className={cn(sizeClass, "text-muted-foreground")} />;
 }
 
-interface FileCardProps {
+// --- FileListRow ---
+
+interface FileListRowProps {
   file: UserFile;
   selected: boolean;
+  previewing: boolean;
   onToggle: (file: UserFile) => void;
   onPreview?: (file: UserFile) => void;
 }
 
-const FileCard = memo(
-  ({ file, selected, onToggle, onPreview }: FileCardProps) => {
+const FileListRow = memo(
+  ({ file, selected, previewing, onToggle, onPreview }: FileListRowProps) => {
     const isVisual =
       file.attachment.type === "image" ||
       (file.attachment.type === "video" && !!file.attachment.thumbnail);
 
-    const isImage = file.attachment.type === "image";
-
-    const handleClick = useCallback(() => {
-      if (isImage && onPreview) {
+    const handleRowClick = useCallback(() => {
+      if (onPreview) {
         onPreview(file);
       } else {
         onToggle(file);
       }
-    }, [file, isImage, onToggle, onPreview]);
+    }, [file, onToggle, onPreview]);
 
-    const handleSelectionClick = useCallback(
+    const handleCheckboxClick = useCallback(
       (e: React.MouseEvent) => {
         e.stopPropagation();
         onToggle(file);
@@ -149,137 +145,265 @@ const FileCard = memo(
     );
 
     return (
-      <button
-        type="button"
+      <div
+        onClick={handleRowClick}
+        onKeyDown={e => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            handleRowClick();
+          }
+        }}
+        role="option"
+        tabIndex={0}
         className={cn(
-          "relative group rounded-lg border-2 transition-all overflow-hidden bg-muted/20 text-left w-full aspect-square",
-          isVisual ? "flex items-center justify-center" : "flex flex-col",
-          selected
-            ? "border-primary bg-primary/10 ring-1 ring-primary shadow-sm"
-            : "border-border hover:border-primary/50 hover:shadow-sm"
+          "flex items-center gap-3 w-full px-6 py-3 text-left transition-colors border-b border-border/40 cursor-pointer",
+          previewing && "bg-muted/60",
+          selected && !previewing && "bg-primary/5",
+          !(previewing || selected) && "hover:bg-muted/50"
         )}
-        onClick={handleClick}
       >
-        {isVisual ? (
-          <div className="relative h-full w-full pointer-events-none">
-            <ImageThumbnail
-              attachment={file.attachment}
-              className="h-full w-full object-cover"
-            />
-            {file.attachment.type === "video" && (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white">
-                  <PlayIcon className="h-4 w-4" />
+        {/* Checkbox — click toggles selection */}
+        <button
+          type="button"
+          onClick={handleCheckboxClick}
+          className={cn(
+            "h-5 w-5 shrink-0 rounded border-2 flex items-center justify-center transition-all",
+            selected
+              ? "bg-primary border-primary"
+              : "border-border hover:border-primary/50"
+          )}
+          aria-label={selected ? "Deselect file" : "Select file"}
+        >
+          {selected && (
+            <CheckIcon className="h-3.5 w-3.5 text-primary-foreground" />
+          )}
+        </button>
+
+        {/* Thumbnail / Icon */}
+        <div className="h-10 w-10 shrink-0 rounded-md overflow-hidden bg-muted/30 flex items-center justify-center">
+          {isVisual ? (
+            <div className="relative h-full w-full">
+              <ImageThumbnail
+                attachment={file.attachment}
+                className="h-full w-full object-cover"
+              />
+              {file.attachment.type === "video" && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="flex h-4 w-4 items-center justify-center rounded-full bg-black/60 text-white">
+                    <PlayIcon className="h-2 w-2" />
+                  </div>
                 </div>
-              </div>
+              )}
+            </div>
+          ) : (
+            getFileAttachmentIcon(file.attachment, "sm")
+          )}
+        </div>
+
+        {/* Name + metadata */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="truncate text-sm font-medium text-foreground">
+              {file.attachment.name}
+            </span>
+            {(file.attachment.generatedImage?.isGenerated ?? false) && (
+              <Badge className="bg-purple-500/90 text-white text-[10px] px-1 py-0 h-5 shrink-0">
+                <MagicWandIcon className="h-3 w-3" />
+              </Badge>
             )}
           </div>
-        ) : (
-          <div className="flex flex-col h-full p-3 pointer-events-none">
-            <div className="flex items-start gap-2">
-              {getFileAttachmentIcon(file.attachment, "sm")}
-              <span
-                className="text-sm font-semibold text-foreground line-clamp-2 break-all"
-                title={file.attachment.name}
-              >
-                {file.attachment.name}
-              </span>
-            </div>
-            <div
-              className="text-xs text-muted-foreground truncate mt-auto"
-              title={file.conversationName}
-            >
-              {file.conversationName}
-            </div>
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <span className="truncate">{file.conversationName}</span>
+            <span className="shrink-0">&middot;</span>
+            <span className="shrink-0">{formatDate(file.createdAt)}</span>
+            {file.attachment.size > 0 && (
+              <>
+                <span className="shrink-0">&middot;</span>
+                <span className="shrink-0">
+                  {formatFileSize(file.attachment.size)}
+                </span>
+              </>
+            )}
           </div>
-        )}
-
-        {isVisual && (
-          <button
-            type="button"
-            className={cn(
-              "absolute top-2 left-2 h-6 w-6 rounded border-2 flex items-center justify-center transition-all",
-              selected
-                ? "bg-primary border-primary"
-                : "bg-background/80 border-border hover:border-primary/50"
-            )}
-            onClick={handleSelectionClick}
-            aria-label={selected ? "Deselect file" : "Select file"}
-          >
-            {selected && (
-              <CheckIcon className="h-4 w-4 text-primary-foreground" />
-            )}
-          </button>
-        )}
-
-        {!isVisual && selected && (
-          <div className="absolute inset-0 bg-primary/20 flex items-center justify-center pointer-events-none">
-            <div className="h-7 w-7 rounded-full bg-primary flex items-center justify-center shadow-md">
-              <CheckIcon className="h-4 w-4 text-primary-foreground" />
-            </div>
-          </div>
-        )}
-
-        {(file.attachment.generatedImage?.isGenerated ?? false) && (
-          <Badge
-            className={cn(
-              "absolute bg-purple-500/90 text-white text-[10px] px-1 py-0 h-5",
-              isVisual ? "top-2 right-2" : "top-1.5 right-1.5"
-            )}
-          >
-            <MagicWandIcon className="h-3 w-3" />
-          </Badge>
-        )}
-      </button>
+        </div>
+      </div>
     );
   }
 );
 
-FileCard.displayName = "FileCard";
+FileListRow.displayName = "FileListRow";
 
-// Skeleton components for loading states
-const FileCardSkeleton = memo(() => (
-  <div className="rounded-lg border-2 border-border bg-muted/20 aspect-square">
-    <Skeleton className="h-full w-full rounded-lg" />
-  </div>
-));
-FileCardSkeleton.displayName = "FileCardSkeleton";
+// --- PreviewPanel ---
+
+interface PreviewPanelProps {
+  file: UserFile | null;
+}
+
+const PreviewPanel = memo(({ file }: PreviewPanelProps) => {
+  const storageId = file?.attachment?.storageId as Id<"_storage"> | undefined;
+  const fileUrl = useQuery(
+    api.fileStorage.getFileUrl,
+    storageId ? { storageId } : "skip"
+  );
+
+  if (!file) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-3 text-muted-foreground p-6">
+        <ImageIcon className="h-10 w-10 opacity-40" />
+        <p className="text-sm">Click a file to preview</p>
+      </div>
+    );
+  }
+
+  const resolvedUrl = (() => {
+    if (file.attachment.storageId) {
+      return fileUrl ?? undefined;
+    }
+    if (file.attachment.url) {
+      return file.attachment.url;
+    }
+    if (file.attachment.content && file.attachment.mimeType) {
+      return `data:${file.attachment.mimeType};base64,${file.attachment.content}`;
+    }
+    return undefined;
+  })();
+
+  const renderContent = () => {
+    switch (file.attachment.type) {
+      case "image": {
+        if (!resolvedUrl) {
+          return (
+            <div className="flex h-full w-full items-center justify-center">
+              <div className="text-xs text-muted-foreground">
+                Loading image...
+              </div>
+            </div>
+          );
+        }
+        return (
+          <div className="flex h-full w-full items-center justify-center p-4">
+            <img
+              src={resolvedUrl}
+              alt={file.attachment.name}
+              className="max-h-full max-w-full object-contain rounded-md"
+              draggable={false}
+            />
+          </div>
+        );
+      }
+
+      case "video": {
+        if (!resolvedUrl) {
+          return null;
+        }
+        return (
+          <div className="flex h-full w-full items-center justify-center p-4">
+            <video
+              controls
+              src={resolvedUrl}
+              poster={file.attachment.thumbnail || undefined}
+              className="max-h-full max-w-full rounded-md"
+              preload="metadata"
+            >
+              <track kind="captions" />
+            </video>
+          </div>
+        );
+      }
+
+      case "audio": {
+        if (!resolvedUrl) {
+          return null;
+        }
+        return (
+          <div className="flex h-full w-full flex-col items-center justify-center gap-4 p-6">
+            <SpeakerHighIcon className="h-12 w-12 text-muted-foreground" />
+            <audio
+              controls
+              src={resolvedUrl}
+              className="w-full max-w-xs"
+              preload="metadata"
+            >
+              <track kind="captions" />
+            </audio>
+          </div>
+        );
+      }
+
+      case "pdf": {
+        if (!resolvedUrl) {
+          return null;
+        }
+        return (
+          <iframe
+            src={resolvedUrl}
+            className="h-full w-full border-0"
+            title={`PDF preview: ${file.attachment.name}`}
+          />
+        );
+      }
+
+      case "text": {
+        if (!file.attachment.content) {
+          return (
+            <div className="flex h-full w-full items-center justify-center text-sm text-muted-foreground">
+              No preview available
+            </div>
+          );
+        }
+        return (
+          <div className="flex h-full w-full items-start justify-center p-4 overflow-auto">
+            <TextFilePreview
+              content={file.attachment.content}
+              filename={file.attachment.name}
+              className="max-h-full w-full"
+            />
+          </div>
+        );
+      }
+
+      default:
+        return (
+          <div className="flex h-full w-full items-center justify-center text-sm text-muted-foreground">
+            No preview available
+          </div>
+        );
+    }
+  };
+
+  return (
+    <div className="flex h-full flex-col">
+      <div className="shrink-0 border-b border-border px-4 py-3">
+        <p className="text-sm font-medium truncate">{file.attachment.name}</p>
+        <p className="text-xs text-muted-foreground">
+          {file.attachment.size > 0 && formatFileSize(file.attachment.size)}
+        </p>
+      </div>
+      <div className="flex-1 min-h-0">{renderContent()}</div>
+    </div>
+  );
+});
+
+PreviewPanel.displayName = "PreviewPanel";
+
+// --- Skeletons ---
 
 const FileListItemSkeleton = memo(() => (
-  <div className="flex items-center gap-3 w-full p-3 border-b border-border">
-    <Skeleton className="h-12 w-12 shrink-0 rounded" />
-    <div className="flex-1 min-w-0 space-y-2">
+  <div className="flex items-center gap-3 w-full px-6 py-3 border-b border-border/40">
+    <Skeleton className="h-5 w-5 shrink-0 rounded" />
+    <Skeleton className="h-10 w-10 shrink-0 rounded-md" />
+    <div className="flex-1 min-w-0 space-y-1.5">
       <Skeleton className="h-4 w-3/4" />
       <Skeleton className="h-3 w-1/2" />
     </div>
-    <Skeleton className="h-6 w-6 shrink-0 rounded" />
   </div>
 ));
 FileListItemSkeleton.displayName = "FileListItemSkeleton";
 
-// Wrapper components to avoid array index key warnings
-const GridSkeletons = memo(({ count }: { count: number }) => (
-  <>
-    <FileCardSkeleton />
-    {count > 1 && <FileCardSkeleton />}
-    {count > 2 && <FileCardSkeleton />}
-    {count > 3 && <FileCardSkeleton />}
-    {count > 4 && <FileCardSkeleton />}
-    {count > 5 && <FileCardSkeleton />}
-  </>
-));
-GridSkeletons.displayName = "GridSkeletons";
-
-const GridSkeletonsDouble = memo(({ count }: { count: number }) => (
-  <>
-    <GridSkeletons count={count} />
-    <GridSkeletons count={count} />
-  </>
-));
-GridSkeletonsDouble.displayName = "GridSkeletonsDouble";
-
 const ListSkeletons = memo(() => (
   <>
+    <FileListItemSkeleton />
+    <FileListItemSkeleton />
     <FileListItemSkeleton />
     <FileListItemSkeleton />
     <FileListItemSkeleton />
@@ -288,79 +412,17 @@ const ListSkeletons = memo(() => (
 ));
 ListSkeletons.displayName = "ListSkeletons";
 
-const ListSkeletonsDouble = memo(() => (
-  <>
-    <ListSkeletons />
-    <ListSkeletons />
-  </>
-));
-ListSkeletonsDouble.displayName = "ListSkeletonsDouble";
-
-// VirtuosoGrid Item component
-const GridItemContainer = memo(
-  ({
-    children,
-    ...props
-  }: React.ComponentProps<"div"> & { "data-index"?: number }) => (
-    <div {...props}>{children}</div>
-  )
-);
-GridItemContainer.displayName = "GridItemContainer";
-
-// Context type for virtuoso components
+// Context type for virtuoso footer
 interface VirtuosoContext {
   isLoadingMore: boolean;
-  columnsPerRow: number;
 }
 
-// Grid footer for loading state - uses context from Virtuoso
-const GridFooter = memo(({ context }: { context?: VirtuosoContext }) =>
-  context?.isLoadingMore ? (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: `repeat(${context.columnsPerRow}, minmax(0, 1fr))`,
-        gap: "16px",
-        marginTop: "16px",
-      }}
-    >
-      <GridSkeletons count={context.columnsPerRow} />
-    </div>
-  ) : null
-);
-GridFooter.displayName = "GridFooter";
-
-// Grid list container - uses context from Virtuoso
-const GridList = memo(
-  ({
-    style,
-    children,
-    context,
-    ...props
-  }: React.ComponentProps<"div"> & {
-    style?: React.CSSProperties;
-    context?: VirtuosoContext;
-  }) => (
-    <div
-      {...props}
-      style={{
-        display: "grid",
-        gridTemplateColumns: `repeat(${context?.columnsPerRow ?? 4}, minmax(0, 1fr))`,
-        gap: "16px",
-        ...style,
-      }}
-    >
-      {children}
-    </div>
-  )
-);
-GridList.displayName = "GridList";
-
-// List footer for loading state - uses context from Virtuoso
 const VirtuosoListFooter = memo(({ context }: { context?: VirtuosoContext }) =>
   context?.isLoadingMore ? <ListSkeletons /> : null
 );
 VirtuosoListFooter.displayName = "VirtuosoListFooter";
+
+// --- Main Component ---
 
 interface FileSelectorDialogProps {
   open: boolean;
@@ -377,44 +439,14 @@ export function FileSelectorDialog({
 }: FileSelectorDialogProps) {
   const [fileType, setFileType] = useState<FileType>("all");
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
-  const [columnsPerRow, setColumnsPerRow] = useState(4);
   const [previewFile, setPreviewFile] = useState<UserFile | null>(null);
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [scrollContainer, setScrollContainer] = useState<HTMLDivElement | null>(
+    null
+  );
 
   const isDesktop = useMediaQuery("(min-width: 1024px)");
-
-  // Calculate columns based on screen size
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-
-    const updateLayout = () => {
-      if (window.innerWidth >= 1536) {
-        setColumnsPerRow(6);
-      } else if (window.innerWidth >= 1024) {
-        setColumnsPerRow(4);
-      } else if (window.innerWidth >= 768) {
-        setColumnsPerRow(3);
-      } else {
-        setColumnsPerRow(2);
-      }
-    };
-
-    updateLayout();
-
-    let timeoutId: NodeJS.Timeout;
-    const debouncedUpdate = () => {
-      clearTimeout(timeoutId);
-      timeoutId = setTimeout(updateLayout, 150);
-    };
-
-    window.addEventListener("resize", debouncedUpdate);
-    return () => {
-      window.removeEventListener("resize", debouncedUpdate);
-      clearTimeout(timeoutId);
-    };
-  }, [open]);
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
 
   // Query user files with pagination
   const {
@@ -427,6 +459,7 @@ export function FileSelectorDialog({
       ? {
           fileType: fileType === "all" ? undefined : fileType,
           includeGenerated: true,
+          searchQuery: debouncedSearchQuery || undefined,
         }
       : "skip",
     { initialNumItems: FILES_PER_PAGE }
@@ -483,17 +516,20 @@ export function FileSelectorDialog({
 
   const handleClearFilters = useCallback(() => {
     setFileType("all");
+    setSearchQuery("");
   }, []);
 
-  const hasActiveFilters = fileType !== "all";
+  const hasActiveFilters = fileType !== "all" || searchQuery.length > 0;
 
   const handleOpenChange = useCallback(
-    (open: boolean) => {
-      if (!open) {
+    (nextOpen: boolean) => {
+      if (!nextOpen) {
         setSelectedFiles(new Set());
         setFileType("all");
+        setPreviewFile(null);
+        setSearchQuery("");
       }
-      onOpenChange(open);
+      onOpenChange(nextOpen);
     },
     [onOpenChange]
   );
@@ -514,88 +550,23 @@ export function FileSelectorDialog({
     }
   }, [status, loadMore]);
 
-  // Mobile list item renderer for Virtuoso
-  const renderMobileListItem = useCallback(
-    (_index: number, file: UserFile) => {
-      const isVisual =
-        file.attachment.type === "image" ||
-        (file.attachment.type === "video" && !!file.attachment.thumbnail);
-      return (
-        <div
-          className={cn(
-            "flex items-center gap-3 w-full p-3 border-b border-border transition-colors",
-            isSelected(file) && "bg-primary/10"
-          )}
-        >
-          <button
-            type="button"
-            onClick={() =>
-              file.attachment.type === "image"
-                ? handlePreview(file)
-                : toggleSelection(file)
-            }
-            className="h-12 w-12 shrink-0 rounded overflow-hidden bg-muted/20"
-          >
-            {isVisual ? (
-              <div className="relative h-full w-full">
-                <ImageThumbnail
-                  attachment={file.attachment}
-                  className="h-full w-full object-cover"
-                />
-                {file.attachment.type === "video" && (
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-white">
-                      <PlayIcon className="h-2.5 w-2.5" />
-                    </div>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="h-full w-full flex items-center justify-center">
-                {getFileAttachmentIcon(file.attachment, "sm")}
-              </div>
-            )}
-          </button>
+  // Loading states
+  const isLoadingMore = status === "LoadingMore";
+  const isLoadingFirstPage = status === "LoadingFirstPage";
 
-          <button
-            type="button"
-            onClick={() => toggleSelection(file)}
-            className="flex-1 min-w-0 text-left"
-          >
-            <div className="flex items-center gap-2">
-              <span className="truncate font-medium text-sm">
-                {file.attachment.name}
-              </span>
-              {(file.attachment.generatedImage?.isGenerated ?? false) && (
-                <Badge className="bg-purple-500/90 text-white text-[10px] px-1 py-0 h-5 shrink-0">
-                  <MagicWandIcon className="h-3 w-3" />
-                </Badge>
-              )}
-            </div>
-            <span className="text-xs text-muted-foreground truncate block">
-              {file.conversationName}
-            </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => toggleSelection(file)}
-            className={cn(
-              "h-6 w-6 shrink-0 rounded border-2 flex items-center justify-center transition-all",
-              isSelected(file) ? "bg-primary border-primary" : "border-border"
-            )}
-          >
-            {isSelected(file) && (
-              <CheckIcon className="h-4 w-4 text-primary-foreground" />
-            )}
-          </button>
-        </div>
-      );
-    },
-    [isSelected, toggleSelection, handlePreview]
+  const virtuosoContext = useMemo<VirtuosoContext>(
+    () => ({ isLoadingMore }),
+    [isLoadingMore]
   );
 
-  // Empty state component
+  const listComponents = useMemo(
+    () => ({
+      Footer: VirtuosoListFooter,
+    }),
+    []
+  );
+
+  // Empty state
   const emptyState = (
     <ListEmptyState
       icon={<FolderIcon className="h-12 w-12" />}
@@ -615,140 +586,77 @@ export function FileSelectorDialog({
     />
   );
 
-  // Controls component
-  const controlsContent = (
-    <div className="flex items-center justify-between">
-      <Select
-        value={fileType}
-        onValueChange={(value: FileType | null) => {
-          if (value) {
-            setFileType(value);
-          }
-        }}
-      >
-        <SelectTrigger className="w-[160px]">
-          <SelectValue>
-            {() => {
-              const selected = FILE_TYPE_OPTIONS.find(
-                opt => opt.value === fileType
-              );
-              if (!selected) {
-                return null;
-              }
-              const Icon = selected.icon;
-              return (
-                <span className="flex items-center gap-2">
-                  <Icon className="h-4 w-4" />
-                  {selected.label}
-                </span>
-              );
-            }}
-          </SelectValue>
-        </SelectTrigger>
-        <SelectContent>
-          {FILE_TYPE_OPTIONS.map(option => {
-            const Icon = option.icon;
-            return (
-              <SelectItem key={option.value} value={option.value}>
-                <div className="flex items-center gap-2">
-                  <Icon className="h-4 w-4" />
-                  {option.label}
-                </div>
-              </SelectItem>
-            );
-          })}
-        </SelectContent>
-      </Select>
+  // Search bar
+  const searchBar = (
+    <div className="rounded-lg bg-muted/50">
+      <SearchInput
+        value={searchQuery}
+        onChange={setSearchQuery}
+        placeholder="Search files..."
+        className="w-full"
+      />
+    </div>
+  );
 
-      <div className="text-sm text-muted-foreground">
+  // Chip filter bar
+  const chipBar = (
+    <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5 flex-1 overflow-x-auto hide-scrollbar">
+        {FILE_TYPE_OPTIONS.map(option => {
+          const Icon = option.icon;
+          const isActive = fileType === option.value;
+          return (
+            <Button
+              key={option.value}
+              variant={isActive ? "default" : "secondary"}
+              size="sm"
+              className={cn(
+                "shrink-0 rounded-full h-7 text-xs lg:px-3 px-2",
+                !isActive && "bg-muted/50"
+              )}
+              onClick={() => setFileType(option.value as FileType)}
+              title={option.label}
+            >
+              <Icon className="h-3.5 w-3.5 lg:mr-1" />
+              <span className="hidden lg:inline">{option.label}</span>
+            </Button>
+          );
+        })}
+      </div>
+      <div className="text-xs text-muted-foreground shrink-0 hidden lg:block">
         {selectedFiles.size > 0 ? `${selectedFiles.size} selected` : "\u00A0"}
       </div>
     </div>
   );
 
-  // Footer buttons
-  const footerButtons = (
-    <>
-      <Button variant="outline" onClick={() => handleOpenChange(false)}>
-        Cancel
-      </Button>
-      <Button onClick={handleConfirm} disabled={selectedFiles.size === 0}>
-        Add {selectedFiles.size > 0 ? `(${selectedFiles.size})` : ""}
-      </Button>
-    </>
+  const isPreviewing = useCallback(
+    (file: UserFile) => {
+      if (!previewFile) {
+        return false;
+      }
+      return getFileKey(file) === getFileKey(previewFile);
+    },
+    [previewFile, getFileKey]
   );
 
-  // Loading states
-  const isLoadingMore = status === "LoadingMore";
-  const isLoadingFirstPage = status === "LoadingFirstPage";
-
-  // Context for virtuoso components
-  const virtuosoContext = useMemo<VirtuosoContext>(
-    () => ({ isLoadingMore, columnsPerRow }),
-    [isLoadingMore, columnsPerRow]
-  );
-
-  // Static component references for react-virtuoso
-  const gridComponents = useMemo(
-    () => ({
-      List: GridList,
-      Item: GridItemContainer,
-      Footer: GridFooter,
-    }),
-    []
-  );
-
-  const listComponents = useMemo(
-    () => ({
-      Footer: VirtuosoListFooter,
-    }),
-    []
-  );
-
-  // Helper to render grid content based on state
-  const renderGridContent = () => {
-    if (isLoadingFirstPage) {
-      return (
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: `repeat(${columnsPerRow}, minmax(0, 1fr))`,
-            gap: "16px",
-          }}
-        >
-          <GridSkeletonsDouble count={columnsPerRow} />
-        </div>
-      );
-    }
-
-    if (validFiles.length === 0) {
-      return emptyState;
-    }
-
-    return (
-      <VirtuosoGrid
-        data={validFiles}
-        endReached={handleEndReached}
-        overscan={200}
-        context={virtuosoContext}
-        components={gridComponents}
-        itemContent={(index, file) => (
-          <FileCard
-            file={file}
-            selected={isSelected(file)}
-            onToggle={toggleSelection}
-            onPreview={handlePreview}
-          />
-        )}
-        customScrollParent={scrollContainerRef.current ?? undefined}
+  // Render list item — desktop: click row = preview, mobile: click row = select
+  const renderListItem = useCallback(
+    (_index: number, file: UserFile) => (
+      <FileListRow
+        file={file}
+        selected={isSelected(file)}
+        previewing={isPreviewing(file)}
+        onToggle={toggleSelection}
+        onPreview={isDesktop ? handlePreview : undefined}
       />
-    );
-  };
+    ),
+    [isSelected, isPreviewing, toggleSelection, handlePreview, isDesktop]
+  );
 
-  // Helper to render list content based on state
-  const renderListContent = () => {
-    if (isLoadingFirstPage) {
-      return <ListSkeletonsDouble />;
+  // Render desktop list (uses customScrollParent)
+  const renderDesktopList = () => {
+    if (isLoadingFirstPage || !scrollContainer) {
+      return <ListSkeletons />;
     }
 
     if (validFiles.length === 0) {
@@ -762,41 +670,74 @@ export function FileSelectorDialog({
         overscan={200}
         context={virtuosoContext}
         components={listComponents}
-        itemContent={renderMobileListItem}
-        customScrollParent={scrollContainerRef.current ?? undefined}
+        itemContent={renderListItem}
+        customScrollParent={scrollContainer}
       />
     );
   };
 
-  // Desktop grid content using VirtuosoGrid
-  const desktopGridContent = (
-    <div ref={scrollContainerRef} className="flex-1 overflow-y-auto -mx-6 px-6">
-      {renderGridContent()}
-    </div>
+  // Mobile: plain list with IntersectionObserver for load-more
+  const loadMoreSentinelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!loadMoreSentinelRef.current || status !== "CanLoadMore") {
+      return;
+    }
+    const observer = new IntersectionObserver(
+      entries => {
+        if (entries[0]?.isIntersecting) {
+          loadMore(FILES_PER_PAGE);
+        }
+      },
+      { rootMargin: "200px" }
+    );
+    observer.observe(loadMoreSentinelRef.current);
+    return () => observer.disconnect();
+  }, [status, loadMore]);
+
+  const renderMobileList = () => {
+    if (isLoadingFirstPage) {
+      return <ListSkeletons />;
+    }
+
+    if (validFiles.length === 0) {
+      return emptyState;
+    }
+
+    return (
+      <>
+        {validFiles.map(file => (
+          <FileListRow
+            key={getFileKey(file)}
+            file={file}
+            selected={isSelected(file)}
+            previewing={false}
+            onToggle={toggleSelection}
+          />
+        ))}
+        {isLoadingMore && <ListSkeletons />}
+        <div ref={loadMoreSentinelRef} className="h-1" />
+      </>
+    );
+  };
+
+  // Footer buttons
+  const footerButtons = (
+    <>
+      <Button variant="outline" onClick={() => handleOpenChange(false)}>
+        Cancel
+      </Button>
+      <Button onClick={handleConfirm} disabled={selectedFiles.size === 0}>
+        Add {selectedFiles.size > 0 ? `(${selectedFiles.size})` : ""}
+      </Button>
+    </>
   );
 
-  // Mobile list content using Virtuoso
-  const mobileListContent = (
-    <div ref={scrollContainerRef} className="flex-1 overflow-y-auto">
-      {renderListContent()}
-    </div>
-  );
-
-  // Image preview dialog
-  const imagePreviewDialog = previewFile && (
-    <AttachmentGalleryDialog
-      attachments={[previewFile.attachment]}
-      currentAttachment={previewFile.attachment}
-      open={!!previewFile}
-      onOpenChange={o => !o && setPreviewFile(null)}
-    />
-  );
-
-  // Desktop: Dialog
+  // Desktop: Dialog with split layout
   if (isDesktop) {
     return (
       <Dialog open={open} onOpenChange={handleOpenChange}>
-        <DialogContent className="sm:max-w-7xl max-h-[90vh] flex flex-col">
+        <DialogContent className="sm:max-w-5xl !grid-rows-[auto_1fr_auto] h-[85vh]">
           <DialogHeader>
             <DialogTitle>Select Files from Library</DialogTitle>
             <DialogDescription>
@@ -804,13 +745,33 @@ export function FileSelectorDialog({
             </DialogDescription>
           </DialogHeader>
 
-          {controlsContent}
-          {desktopGridContent}
+          {/* Browser area — search, chips, and split list+preview */}
+          <div className="flex flex-col min-h-0 -mx-6">
+            {/* Toolbar: search + chips */}
+            <div className="px-6 py-4 stack-sm bg-muted/30">
+              {searchBar}
+              {chipBar}
+            </div>
+
+            {/* Split content area */}
+            <div className="flex flex-row flex-1 min-h-0">
+              {/* File list panel */}
+              <div
+                ref={setScrollContainer}
+                className="w-[60%] overflow-y-auto h-full"
+              >
+                {renderDesktopList()}
+              </div>
+
+              {/* Preview panel — always visible on desktop */}
+              <div className="w-[40%] border-l border-border/40 h-full overflow-hidden">
+                <PreviewPanel file={previewFile} />
+              </div>
+            </div>
+          </div>
 
           <DialogFooter>{footerButtons}</DialogFooter>
         </DialogContent>
-
-        {imagePreviewDialog}
       </Dialog>
     );
   }
@@ -823,15 +784,21 @@ export function FileSelectorDialog({
           <DrawerTitle>Select Files</DrawerTitle>
         </DrawerHeader>
 
-        <DrawerBody className="flex flex-col stack-sm px-4">
-          {controlsContent}
-          {mobileListContent}
+        <DrawerBody className="flex flex-col !p-0">
+          {/* Toolbar: search + chips */}
+          <div className="px-4 py-3 stack-sm bg-muted/30 shrink-0">
+            {searchBar}
+            {chipBar}
+          </div>
+
+          {/* File list */}
+          <div className="flex-1 min-h-0 overflow-y-auto">
+            {renderMobileList()}
+          </div>
         </DrawerBody>
 
         <DrawerFooter className="flex-row gap-2">{footerButtons}</DrawerFooter>
       </DrawerContent>
-
-      {imagePreviewDialog}
     </Drawer>
   );
 }
