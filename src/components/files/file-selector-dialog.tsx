@@ -83,7 +83,7 @@ function getFileAttachmentIcon(
   attachment: Attachment,
   size: "sm" | "lg" = "lg"
 ) {
-  const sizeClass = size === "sm" ? "h-5 w-5" : "h-10 w-10";
+  const sizeClass = size === "sm" ? "size-5" : "size-10";
 
   if (attachment.type === "pdf") {
     return <FilePdfIcon className={cn(sizeClass, "text-red-500")} />;
@@ -106,7 +106,7 @@ function getFileAttachmentIcon(
     if (isTextFile) {
       return <FileTextIcon className={cn(sizeClass, "text-blue-500")} />;
     }
-    return <FileCodeIcon className={cn(sizeClass, "text-green-500")} />;
+    return <FileCodeIcon className={cn(sizeClass, "text-success")} />;
   }
 
   return <FileTextIcon className={cn(sizeClass, "text-muted-foreground")} />;
@@ -175,7 +175,7 @@ const FileListRow = memo(
           aria-label={selected ? "Deselect file" : "Select file"}
         >
           {selected && (
-            <CheckIcon className="h-3.5 w-3.5 text-primary-foreground" />
+            <CheckIcon className="size-3.5 text-primary-foreground" />
           )}
         </button>
 
@@ -190,7 +190,7 @@ const FileListRow = memo(
               {file.attachment.type === "video" && (
                 <div className="absolute inset-0 flex items-center justify-center">
                   <div className="flex h-4 w-4 items-center justify-center rounded-full bg-black/60 text-white">
-                    <PlayIcon className="h-2 w-2" />
+                    <PlayIcon className="size-2" />
                   </div>
                 </div>
               )}
@@ -207,8 +207,8 @@ const FileListRow = memo(
               {file.attachment.name}
             </span>
             {(file.attachment.generatedImage?.isGenerated ?? false) && (
-              <Badge className="bg-purple-500/90 text-white text-[10px] px-1 py-0 h-5 shrink-0">
-                <MagicWandIcon className="h-3 w-3" />
+              <Badge className="bg-purple-500/90 text-white text-overline px-1 py-0 h-5 shrink-0">
+                <MagicWandIcon className="size-3" />
               </Badge>
             )}
           </div>
@@ -249,7 +249,7 @@ const PreviewPanel = memo(({ file }: PreviewPanelProps) => {
   if (!file) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 text-muted-foreground p-6">
-        <ImageIcon className="h-10 w-10 opacity-40" />
+        <ImageIcon className="size-10 opacity-40" />
         <p className="text-sm">Click a file to preview</p>
       </div>
     );
@@ -317,7 +317,7 @@ const PreviewPanel = memo(({ file }: PreviewPanelProps) => {
         }
         return (
           <div className="flex h-full w-full flex-col items-center justify-center gap-4 p-6">
-            <SpeakerHighIcon className="h-12 w-12 text-muted-foreground" />
+            <SpeakerHighIcon className="size-12 text-muted-foreground" />
             <audio
               controls
               src={resolvedUrl}
@@ -392,7 +392,7 @@ const FileListItemSkeleton = memo(() => (
   <div className="flex items-center gap-3 w-full px-6 py-3 border-b border-border/40">
     <Skeleton className="h-5 w-5 shrink-0 rounded" />
     <Skeleton className="h-10 w-10 shrink-0 rounded-md" />
-    <div className="flex-1 min-w-0 space-y-1.5">
+    <div className="flex-1 min-w-0 stack-xs">
       <Skeleton className="h-4 w-3/4" />
       <Skeleton className="h-3 w-1/2" />
     </div>
@@ -569,7 +569,7 @@ export function FileSelectorDialog({
   // Empty state
   const emptyState = (
     <ListEmptyState
-      icon={<FolderIcon className="h-12 w-12" />}
+      icon={<FolderIcon className="size-12" />}
       title="No files found"
       description={
         hasActiveFilters
@@ -617,7 +617,7 @@ export function FileSelectorDialog({
               onClick={() => setFileType(option.value as FileType)}
               title={option.label}
             >
-              <Icon className="h-3.5 w-3.5 lg:mr-1" />
+              <Icon className="size-3.5 lg:mr-1" />
               <span className="hidden lg:inline">{option.label}</span>
             </Button>
           );

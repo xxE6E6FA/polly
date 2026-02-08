@@ -32,7 +32,7 @@ export const RecordingControls = ({
               aria-label="Use transcript"
             >
               <CheckIcon
-                className="h-3.5 w-3.5"
+                className="size-3.5"
                 weight="bold"
                 aria-hidden="true"
               />
@@ -52,7 +52,7 @@ export const RecordingControls = ({
               onClick={() => onCancel?.()}
               aria-label="Discard recording"
             >
-              <XIcon className="h-3.5 w-3.5" weight="bold" aria-hidden="true" />
+              <XIcon className="size-3.5" weight="bold" aria-hidden="true" />
             </ChatInputIconButton>
           </TooltipTrigger>
           <TooltipContent>

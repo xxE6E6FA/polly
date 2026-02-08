@@ -119,7 +119,7 @@ function renderTextModelsContent(
   }
   return (
     <SettingsZeroState
-      icon={<MagnifyingGlassIcon className="h-12 w-12" />}
+      icon={<MagnifyingGlassIcon className="size-12" />}
       title="No models found"
       description={
         hasActiveFilters
@@ -381,7 +381,7 @@ export const TextModelsTab = () => {
         />
 
         <SettingsZeroState
-          icon={<KeyIcon className="h-12 w-12" />}
+          icon={<KeyIcon className="size-12" />}
           title="No API keys configured"
           description="Add your API keys to see available models."
         />

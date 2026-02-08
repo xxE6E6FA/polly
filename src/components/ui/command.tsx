@@ -38,12 +38,12 @@ function CommandDialog({ children, ...props }: CommandDialogProps) {
             "max-h-[520px] min-w-[540px] overflow-hidden",
             "[&_[cmdk-list]]:max-h-[360px]",
             "[&_[cmdk-input-wrapper]]:px-4 [&_[cmdk-input-wrapper]]:py-3",
-            "[&_[cmdk-input-wrapper]_svg]:h-4 [&_[cmdk-input-wrapper]_svg]:w-4 [&_[cmdk-input-wrapper]_svg]:text-muted-foreground",
-            "[&_[cmdk-group-heading]]:px-4 [&_[cmdk-group-heading]]:py-2 [&_[cmdk-group-heading]]:text-[11px] [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-[0.08em] [&_[cmdk-group-heading]]:text-muted-foreground/70",
+            "[&_[cmdk-input-wrapper]_svg]:size-4 [&_[cmdk-input-wrapper]_svg]:text-muted-foreground",
+            "[&_[cmdk-group-heading]]:px-4 [&_[cmdk-group-heading]]:py-2 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-[0.08em] [&_[cmdk-group-heading]]:text-muted-foreground/70",
             "[&_[cmdk-group]:not([hidden])_~[cmdk-group]]:mt-3",
             "[&_[cmdk-group]]:px-0",
             "[&_[cmdk-item]]:px-4 [&_[cmdk-item]]:py-2.5 [&_[cmdk-item]]:text-sm",
-            "[&_[cmdk-item]_svg]:h-4 [&_[cmdk-item]_svg]:w-4"
+            "[&_[cmdk-item]_svg]:size-4"
           )}
         >
           {children}
@@ -65,7 +65,7 @@ function CommandInput({ className, ref, ...props }: CommandInputProps) {
       className="flex items-center gap-2 border-b border-border/40 bg-popover px-4 py-3"
       cmdk-input-wrapper=""
     >
-      <MagnifyingGlassIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
+      <MagnifyingGlassIcon className="size-4 shrink-0 text-muted-foreground" />
       <CommandPrimitive.Input
         ref={ref}
         className={cn(

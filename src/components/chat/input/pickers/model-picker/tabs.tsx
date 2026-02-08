@@ -37,7 +37,7 @@ type Size = "sm" | "md";
 function ImageTabEmptyState() {
   return (
     <div className="flex-1 min-h-0 overflow-hidden flex flex-col items-center justify-center p-6 text-center">
-      <ImageIcon className="h-10 w-10 text-muted-foreground/50 mb-3" />
+      <ImageIcon className="size-10 text-muted-foreground/50 mb-3" />
       <p className="text-sm font-medium text-foreground mb-1">
         No Image Models Available
       </p>
@@ -48,7 +48,7 @@ function ImageTabEmptyState() {
         to={ROUTES.SETTINGS.IMAGE_MODELS}
         className={buttonVariants({ variant: "secondary", size: "sm" })}
       >
-        <GearIcon className="h-3.5 w-3.5 mr-1.5" />
+        <GearIcon className="size-3.5 mr-1.5" />
         Open Settings
       </Link>
     </div>
@@ -239,7 +239,7 @@ export function ModelPickerTabs({
           {/* API Keys Prompt Banner */}
           {showApiKeysPrompt && (
             <div className="flex items-center gap-2 px-3 py-2 bg-muted/50 border-b border-border/40">
-              <KeyIcon className="h-4 w-4 text-muted-foreground shrink-0" />
+              <KeyIcon className="size-4 text-muted-foreground shrink-0" />
               <p className="flex-1 text-xs text-muted-foreground">
                 <Link
                   to={ROUTES.SETTINGS.API_KEYS}
@@ -256,7 +256,7 @@ export function ModelPickerTabs({
                   className="p-0.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
                   aria-label="Dismiss"
                 >
-                  <XIcon className="h-3.5 w-3.5" />
+                  <XIcon className="size-3.5" />
                 </button>
               )}
             </div>
@@ -278,7 +278,7 @@ export function ModelPickerTabs({
             <CommandList className="max-h-[min(calc(100dvh-14rem),260px)] overflow-y-auto">
               <CommandEmpty>
                 <div className="p-4 text-center">
-                  <MagnifyingGlass className="mx-auto mb-3 h-8 w-8 text-muted-foreground/50" />
+                  <MagnifyingGlass className="mx-auto mb-3 size-8 text-muted-foreground/50" />
                   <p className="mb-1 text-sm text-muted-foreground">
                     No models found
                   </p>
@@ -330,7 +330,7 @@ export function ModelPickerTabs({
             <CommandList className="max-h-[min(calc(100dvh-14rem),260px)] overflow-y-auto">
               <CommandEmpty>
                 <div className="p-4 text-center">
-                  <MagnifyingGlass className="mx-auto mb-3 h-8 w-8 text-muted-foreground/50" />
+                  <MagnifyingGlass className="mx-auto mb-3 size-8 text-muted-foreground/50" />
                   <p className="mb-1 text-sm text-muted-foreground">
                     No models found
                   </p>
@@ -374,7 +374,7 @@ export function ModelPickerTabs({
                                 </Badge>
                               )}
                               {m.description && (
-                                <div className="text-[10px] text-muted-foreground truncate">
+                                <div className="text-overline text-muted-foreground truncate">
                                   {m.description}
                                 </div>
                               )}
@@ -384,7 +384,7 @@ export function ModelPickerTabs({
                         {generationMode === "image" &&
                           selectedImageModelId === m.modelId && (
                             <CheckCircle
-                              className="h-5 w-5 shrink-0 fill-primary text-primary-foreground"
+                              className="size-5 shrink-0 fill-primary text-primary-foreground"
                               weight="fill"
                             />
                           )}
@@ -406,7 +406,7 @@ export function ModelPickerTabs({
             className="flex items-center justify-between gap-2 group"
           >
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <SignInIcon className="h-4 w-4" />
+              <SignInIcon className="size-4" />
               <span>
                 <span className="font-medium text-foreground group-hover:underline">
                   Sign in

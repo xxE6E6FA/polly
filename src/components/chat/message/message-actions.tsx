@@ -261,7 +261,7 @@ const RetryDropdown = memo(
                     <div className="flex min-w-0 flex-1 items-center gap-2">
                       <span className="truncate">{model.name}</span>
                       {model.free && (
-                        <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">
+                        <span className="text-xs bg-success-bg text-success px-2 py-0.5 rounded">
                           Free
                         </span>
                       )}
@@ -276,7 +276,7 @@ const RetryDropdown = memo(
                             >
                               <TooltipTrigger>
                                 <div className="flex h-5 w-5 cursor-help items-center justify-center rounded-md bg-muted/70 transition-all duration-200 hover:bg-muted/90 dark:bg-muted/50 dark:hover:bg-muted/70">
-                                  <IconComponent className="h-3 w-3" />
+                                  <IconComponent className="size-3" />
                                 </div>
                               </TooltipTrigger>
                               <TooltipContent>
@@ -340,7 +340,7 @@ const RetryDropdown = memo(
                         <div className="flex min-w-0 flex-1 items-center gap-2">
                           <span className="truncate">{model.name}</span>
                           {model.free && (
-                            <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">
+                            <span className="text-xs bg-success-bg text-success px-2 py-0.5 rounded">
                               Free
                             </span>
                           )}
@@ -357,7 +357,7 @@ const RetryDropdown = memo(
                                   >
                                     <TooltipTrigger>
                                       <div className="flex h-5 w-5 cursor-help items-center justify-center rounded-md bg-muted/70 transition-all duration-200 hover:bg-muted/90 dark:bg-muted/50 dark:hover:bg-muted/70">
-                                        <IconComponent className="h-3 w-3" />
+                                        <IconComponent className="size-3" />
                                       </div>
                                     </TooltipTrigger>
                                     <TooltipContent>
@@ -418,7 +418,7 @@ const RetryDropdown = memo(
             {tags.map(tag => (
               <span
                 key={`${model.modelId}-${tag}`}
-                className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground"
+                className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground"
               >
                 {tag}
               </span>
@@ -513,7 +513,7 @@ const RetryDropdown = memo(
                     <div className="flex min-w-0 flex-1 items-center gap-2">
                       <span className="truncate">{model.name}</span>
                       {model.free && (
-                        <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">
+                        <span className="text-xs bg-success-bg text-success px-2 py-0.5 rounded">
                           Free
                         </span>
                       )}
@@ -528,7 +528,7 @@ const RetryDropdown = memo(
                               className="flex h-5 w-5 items-center justify-center rounded-md bg-muted/70"
                               title={capability.label}
                             >
-                              <IconComponent className="h-3 w-3" />
+                              <IconComponent className="size-3" />
                             </div>
                           );
                         })}
@@ -580,7 +580,7 @@ const RetryDropdown = memo(
                         <div className="flex min-w-0 flex-1 items-center gap-2">
                           <span className="truncate">{model.name}</span>
                           {model.free && (
-                            <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">
+                            <span className="text-xs bg-success-bg text-success px-2 py-0.5 rounded">
                               Free
                             </span>
                           )}
@@ -597,7 +597,7 @@ const RetryDropdown = memo(
                                     className="flex h-5 w-5 items-center justify-center rounded-md bg-muted/70"
                                     title={capability.label}
                                   >
-                                    <IconComponent className="h-3 w-3" />
+                                    <IconComponent className="size-3" />
                                   </div>
                                 );
                               })}
@@ -648,7 +648,7 @@ const RetryDropdown = memo(
             {tags.map(tag => (
               <span
                 key={`${model.modelId}-${tag}`}
-                className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground"
+                className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground"
               >
                 {tag}
               </span>
@@ -756,7 +756,7 @@ const RetryDropdown = memo(
                   >
                     <ArrowCounterClockwiseIcon
                       className={cn(
-                        "h-3.5 w-3.5",
+                        "size-3.5",
                         isRetrying && "motion-safe:animate-spin-reverse",
                         "@media (prefers-reduced-motion: reduce) { animation: none }"
                       )}
@@ -824,7 +824,7 @@ const RetryDropdown = memo(
                             onDropdownOpenChange?.(false);
                           }}
                         >
-                          <ArrowUpIcon className="h-2 w-2" />
+                          <ArrowUpIcon className="size-2" />
                         </Button>
                       </div>
                     </DropdownMenuLabel>
@@ -843,14 +843,14 @@ const RetryDropdown = memo(
                     }}
                     className="flex items-center gap-2"
                   >
-                    <ArrowsOutSimpleIcon className="h-4 w-4" />
+                    <ArrowsOutSimpleIcon className="size-4" />
                     Add more detail
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => handleRefine("more_concise")}
                     className="flex items-center gap-2"
                   >
-                    <ArrowsInSimpleIcon className="h-4 w-4" />
+                    <ArrowsInSimpleIcon className="size-4" />
                     Make more concise
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
@@ -865,7 +865,7 @@ const RetryDropdown = memo(
                 onClick={handleRetrySame}
                 className="flex items-center gap-2"
               >
-                <ArrowCounterClockwiseIcon className="h-4 w-4" />
+                <ArrowCounterClockwiseIcon className="size-4" />
                 Retry with current model
               </DropdownMenuItem>
               <DropdownMenuSeparator />
@@ -902,7 +902,7 @@ const RetryDropdown = memo(
                   >
                     <ArrowCounterClockwiseIcon
                       className={cn(
-                        "h-3.5 w-3.5",
+                        "size-3.5",
                         isRetrying && "motion-safe:animate-spin-reverse",
                         "@media (prefers-reduced-motion: reduce) { animation: none }"
                       )}
@@ -1041,7 +1041,7 @@ function getTTSIconForDrawer(ttsState: TtsState): React.ReactNode {
   if (ttsState === "playing") {
     return (
       <SquareIcon
-        className={cn(DRAWER_ICON_SIZE, "text-red-500")}
+        className={cn(DRAWER_ICON_SIZE, "text-destructive")}
         weight="fill"
       />
     );
@@ -1054,9 +1054,9 @@ function getTTSIconForButton(ttsState: TtsState): React.ReactNode {
     return <Spinner size="sm" className="h-3.5 w-3.5" />;
   }
   if (ttsState === "playing") {
-    return <SquareIcon className="h-3.5 w-3.5 text-red-500" weight="fill" />;
+    return <SquareIcon className="size-3.5 text-destructive" weight="fill" />;
   }
-  return <SpeakerHighIcon className="h-3.5 w-3.5" />;
+  return <SpeakerHighIcon className="size-3.5" />;
 }
 
 type MessageActionsProps = {
@@ -1413,7 +1413,7 @@ export const MessageActions = memo(
                         aria-label="More actions"
                       >
                         <DotsThreeIcon
-                          className="h-3.5 w-3.5"
+                          className="size-3.5"
                           aria-hidden="true"
                         />
                       </button>
@@ -1546,7 +1546,7 @@ export const MessageActions = memo(
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-6 gap-1.5 px-2 text-[10px] font-medium text-primary sm:text-muted-foreground/60 hover:text-foreground/80 hover:bg-muted/50"
+                  className="h-6 gap-1.5 px-2 text-overline font-medium text-primary sm:text-muted-foreground hover:text-foreground/80 hover:bg-muted/50"
                 >
                   {/* Desktop: Show full text */}
                   <span className="hidden sm:inline">
@@ -1560,7 +1560,7 @@ export const MessageActions = memo(
                   )}
                   {/* Mobile: Show only icon */}
                   <ChartBarIcon
-                    className="h-3.5 w-3.5 sm:hidden"
+                    className="size-3.5 sm:hidden"
                     aria-hidden="true"
                   />
                 </Button>
@@ -1571,7 +1571,7 @@ export const MessageActions = memo(
                     <span className="text-xs font-semibold">
                       Generation Stats
                     </span>
-                    <span className="text-[10px] text-muted-foreground font-mono">
+                    <span className="text-overline text-muted-foreground font-mono">
                       {metadata?.providerMessageId?.slice(0, 8)}
                     </span>
                   </div>

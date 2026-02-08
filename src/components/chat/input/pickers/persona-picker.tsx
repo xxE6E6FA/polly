@@ -74,7 +74,7 @@ function PersonaPickerComponent({
         {currentPersona?.icon ? (
           <span className="text-xs">{currentPersona.icon}</span>
         ) : (
-          <UserIcon className="h-3.5 w-3.5" />
+          <UserIcon className="size-3.5" />
         )}
         {isDesktop && (
           <span className="max-w-[120px] truncate font-medium">
@@ -151,7 +151,7 @@ function PersonaPickerComponent({
           </div>
           {!selectedPersonaId && (
             <CheckCircle
-              className="h-5 w-5 fill-primary text-primary-foreground"
+              className="size-5 fill-primary text-primary-foreground"
               weight="fill"
             />
           )}

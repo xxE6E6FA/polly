@@ -565,7 +565,7 @@ export const UnifiedChatView = memo(
                           : "pointer-events-none translate-y-2 opacity-0"
                       )}
                     >
-                      <CaretDownIcon className="h-4 w-4 transition-transform duration-200 group-hover:translate-y-0.5" />
+                      <CaretDownIcon className="size-4 transition-transform duration-200 group-hover:translate-y-0.5" />
                       <span className="sr-only">Scroll to latest messages</span>
                     </button>
                     <ChatInput

@@ -26,7 +26,7 @@ const UserSectionContent = ({
             className="flex h-auto w-full items-center rounded-none justify-start gap-3 px-4 py-3 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/60"
             variant="ghost"
           >
-            <SignInIcon className="h-4 w-4" />
+            <SignInIcon className="size-4" />
             <span className="font-medium">Sign In</span>
           </Button>
         </Link>
@@ -66,7 +66,7 @@ const UserSectionContent = ({
                 shouldAnonymize && "blur-sm"
               )}
             >
-              <UserIcon className="h-3.5 w-3.5 text-white" />
+              <UserIcon className="size-3.5 text-white" />
             </div>
           )}
           <span
@@ -78,7 +78,7 @@ const UserSectionContent = ({
             {user?.name || user?.email || "User"}
           </span>
         </div>
-        <CaretRightIcon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+        <CaretRightIcon className="size-4 text-muted-foreground flex-shrink-0" />
       </Link>
     </div>
   );

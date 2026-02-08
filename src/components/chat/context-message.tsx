@@ -51,7 +51,7 @@ export const ContextMessage = ({ message, className }: ContextMessageProps) => {
                   size="sm"
                   variant="ghost"
                 >
-                  <ArrowSquareOutIcon className="mr-1 h-3 w-3" />
+                  <ArrowSquareOutIcon className="mr-1 size-3" />
                   View original
                 </Button>
               </Link>

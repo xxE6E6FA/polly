@@ -563,7 +563,7 @@ export const ImageGenerationBubble = ({
                       isDeleting && "pointer-events-none opacity-50"
                     )}
                   >
-                    <TrashIcon className="h-3.5 w-3.5" />
+                    <TrashIcon className="size-3.5" />
                   </button>
                 </TooltipTrigger>
                 <TooltipContent>Delete message</TooltipContent>
@@ -613,7 +613,7 @@ export const ImageGenerationBubble = ({
                       isDeleting && "pointer-events-none opacity-50"
                     )}
                   >
-                    <TrashIcon className="h-3.5 w-3.5" />
+                    <TrashIcon className="size-3.5" />
                   </button>
                 </TooltipTrigger>
                 <TooltipContent>Delete message</TooltipContent>

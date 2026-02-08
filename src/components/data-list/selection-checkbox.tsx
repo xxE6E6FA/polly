@@ -28,7 +28,7 @@ export function SelectionCheckbox({
         aria-checked={checked}
         aria-label={label || (checked ? "Deselect item" : "Select item")}
       >
-        {checked && <CheckIcon className="h-3 w-3" />}
+        {checked && <CheckIcon className="size-3" />}
       </button>
     </div>
   );

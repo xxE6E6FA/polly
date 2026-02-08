@@ -111,16 +111,16 @@ const AlertIcon = ({
 }) => {
   switch (variant) {
     case "success":
-      return <CheckCircleIcon className="h-4 w-4" />;
+      return <CheckCircleIcon className="size-4" />;
     case "warning":
-      return <WarningIcon className="h-4 w-4" />;
+      return <WarningIcon className="size-4" />;
     case "info":
-      return <InfoIcon className="h-4 w-4" />;
+      return <InfoIcon className="size-4" />;
     case "danger":
     case "destructive":
-      return <XCircleIcon className="h-4 w-4" />;
+      return <XCircleIcon className="size-4" />;
     default:
-      return <InfoIcon className="h-4 w-4" />;
+      return <InfoIcon className="size-4" />;
   }
 };
 

@@ -146,10 +146,10 @@ export const EditableConversationTitle = memo(
           <Button
             size="icon-sm"
             variant="ghost"
-            className="h-7 w-7 text-green-500 hover:bg-green-500/10 hover:text-green-600"
+            className="h-7 w-7 text-success hover:bg-success/10 hover:text-success-hover"
             onClick={handleSave}
           >
-            <CheckIcon className="h-4 w-4" />
+            <CheckIcon className="size-4" />
           </Button>
           <Button
             size="icon-sm"
@@ -157,7 +157,7 @@ export const EditableConversationTitle = memo(
             className="h-7 w-7 text-destructive hover:bg-destructive/10 hover:text-destructive"
             onClick={handleCancel}
           >
-            <XIcon className="h-4 w-4" />
+            <XIcon className="size-4" />
           </Button>
         </div>
       );

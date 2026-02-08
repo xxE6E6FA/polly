@@ -42,7 +42,7 @@ export const SendOptionsMenu = ({
         }
       >
         <div className="mt-0.5 flex-shrink-0">
-          <ChatCircleIcon className="h-4 w-4 text-primary" />
+          <ChatCircleIcon className="size-4 text-primary" />
         </div>
         <div className="flex-1 stack-sm">
           <p className="text-sm font-medium leading-none">
@@ -68,7 +68,7 @@ export const SendOptionsMenu = ({
         }
       >
         <div className="mt-0.5 flex-shrink-0">
-          <GitBranchIcon className="h-4 w-4 text-primary" />
+          <GitBranchIcon className="size-4 text-primary" />
         </div>
         <div className="flex-1 stack-sm">
           <p className="text-sm font-medium leading-none">

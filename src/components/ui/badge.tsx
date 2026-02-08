@@ -35,7 +35,7 @@ import { cn } from "@/lib/utils";
  * @size lg - Large badge
  */
 const badgeVariants = cva(
-  "flex items-center align-middle rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+  "flex items-center align-middle rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
   {
     variants: {
       variant: {
@@ -77,21 +77,20 @@ const badgeVariants = cva(
         "danger-subtle": "border-transparent bg-danger/10 text-danger",
         /** Status: Free/available - green */
         "status-free":
-          "border-green-200 bg-green-100 text-green-700 dark:border-green-800 dark:bg-green-950 dark:text-green-300",
+          "border-success-border bg-success-bg text-success dark:border-success-border dark:bg-success-bg dark:text-success",
         /** Status: Limit reached - orange */
         "status-limit":
-          "border-orange-200 bg-orange-50 text-orange-600 dark:border-orange-900 dark:bg-orange-950/50 dark:text-orange-400",
+          "border-warning-border bg-warning-bg text-warning-foreground",
         /** Status: Unavailable/error - red */
-        "status-unavailable":
-          "border-red-200 bg-red-100 text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300",
+        "status-unavailable": "border-danger-border bg-danger-bg text-danger",
       },
       size: {
         /** Standard badge size */
         default: "px-2.5 py-0.5 gap-2 text-xs",
         /** Extra compact badge for status indicators */
-        xs: "h-5 shrink-0 px-1.5 py-0 text-[10px]",
+        xs: "h-5 shrink-0 px-1.5 py-0 text-overline",
         /** Compact badge */
-        sm: "py-0.25 px-2 gap-1 text-[10px]",
+        sm: "py-0.25 px-2 gap-1 text-overline",
         /** Large badge */
         lg: "px-3 py-1 gap-3 text-sm",
       },

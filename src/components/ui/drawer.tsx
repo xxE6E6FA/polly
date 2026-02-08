@@ -121,7 +121,7 @@ function DrawerTitle({ className, ref, ...props }: DrawerTitleProps) {
     <DrawerPrimitive.Title
       ref={ref}
       className={cn(
-        "text-lg font-semibold leading-none tracking-tight",
+        "text-lg sm:text-xl font-semibold leading-tight",
         className
       )}
       {...props}

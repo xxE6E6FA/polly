@@ -29,11 +29,11 @@ function Progress({
   const getProgressColor = () => {
     switch (variant) {
       case "success":
-        return "bg-gradient-to-r from-green-500 to-green-600 shadow-sm shadow-green-500/20";
+        return "bg-gradient-to-r from-success to-success-hover shadow-sm shadow-success/20";
       case "error":
-        return "bg-gradient-to-r from-red-500 to-red-600 shadow-sm shadow-red-500/20";
+        return "bg-gradient-to-r from-danger to-danger-hover shadow-sm shadow-danger/20";
       case "warning":
-        return "bg-gradient-to-r from-yellow-500 to-yellow-600 shadow-sm shadow-yellow-500/20";
+        return "bg-gradient-to-r from-warning to-warning-hover shadow-sm shadow-warning/20";
       default:
         return "bg-gradient-to-r from-blue-500 via-purple-500 to-blue-600 shadow-sm shadow-blue-500/20";
     }
@@ -71,29 +71,29 @@ function JobProgressCard({ job, onRemove, ref }: JobProgressCardProps) {
   const getStatusIcon = () => {
     switch (job.status) {
       case "scheduled":
-        return <ClockIcon className="h-3.5 w-3.5 text-muted-foreground" />;
+        return <ClockIcon className="size-3.5 text-muted-foreground" />;
       case "processing":
-        return <Spinner className="h-3.5 w-3.5 text-blue-500" />;
+        return <Spinner className="size-3.5 text-info" />;
       case "completed":
-        return <CheckCircleIcon className="h-3.5 w-3.5 text-green-500" />;
+        return <CheckCircleIcon className="size-3.5 text-success" />;
       case "failed":
-        return <XCircleIcon className="h-3.5 w-3.5 text-red-500" />;
+        return <XCircleIcon className="size-3.5 text-danger" />;
       default:
-        return <ClockIcon className="h-3.5 w-3.5 text-muted-foreground" />;
+        return <ClockIcon className="size-3.5 text-muted-foreground" />;
     }
   };
 
   const getTypeIcon = () => {
     if (job.type === "export") {
-      return <DownloadIcon className="h-3.5 w-3.5" />;
+      return <DownloadIcon className="size-3.5" />;
     }
     if (job.type === "import") {
-      return <UploadIcon className="h-3.5 w-3.5" />;
+      return <UploadIcon className="size-3.5" />;
     }
     if (job.type === "bulk_delete") {
-      return <TrashIcon className="h-3.5 w-3.5" />;
+      return <TrashIcon className="size-3.5" />;
     }
-    return <UploadIcon className="h-3.5 w-3.5" />;
+    return <UploadIcon className="size-3.5" />;
   };
 
   const getStatusText = () => {
@@ -149,11 +149,11 @@ function JobProgressCard({ job, onRemove, ref }: JobProgressCardProps) {
         "group relative rounded-lg border bg-card px-3 py-2.5 transition-all duration-200",
         "hover:shadow-sm",
         job.status === "completed" &&
-          "border-green-200 bg-green-50/50 dark:border-green-800 dark:bg-green-950/20",
+          "border-success-border bg-success-bg/50 dark:border-success-border dark:bg-success-bg/20",
         job.status === "failed" &&
-          "border-red-200 bg-red-50/50 dark:border-red-800 dark:bg-red-950/20",
+          "border-danger-border bg-danger-bg/50 dark:border-danger-border dark:bg-danger-bg/20",
         job.status === "processing" &&
-          "border-blue-200 bg-blue-50/30 dark:border-blue-800 dark:bg-blue-950/10"
+          "border-info-border bg-info-bg/30 dark:border-info-border dark:bg-info-bg/10"
       )}
     >
       <div className="flex items-center justify-between">
@@ -193,14 +193,14 @@ function JobProgressCard({ job, onRemove, ref }: JobProgressCardProps) {
               className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-muted rounded ml-2"
               title="Dismiss"
             >
-              <XIcon className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
+              <XIcon className="size-3.5 text-muted-foreground hover:text-foreground" />
             </button>
           )}
       </div>
 
       {job.error && (
-        <div className="mt-2 p-2 rounded-md bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800">
-          <div className="text-xs text-red-600 dark:text-red-400">
+        <div className="mt-2 p-2 rounded-md bg-danger-bg dark:bg-danger-bg/20 border border-danger-border dark:border-danger-border">
+          <div className="text-xs text-danger">
             <strong>Error:</strong> {job.error}
           </div>
         </div>

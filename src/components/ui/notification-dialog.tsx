@@ -69,7 +69,7 @@ export const NotificationDialog = ({
       <AlertDialogContent className="sm:max-w-md">
         <AlertDialogHeader>
           <div className="flex items-center gap-3">
-            <IconComponent className={`h-5 w-5 ${typeConfig[type].color}`} />
+            <IconComponent className={`size-5 ${typeConfig[type].color}`} />
             <AlertDialogTitle>{title}</AlertDialogTitle>
           </div>
           <AlertDialogDescription className="ml-8 selectable-text">

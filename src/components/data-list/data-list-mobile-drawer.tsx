@@ -102,7 +102,7 @@ export function DataListMobileDrawer<TItem>({
                     )}
                   >
                     <div className="flex items-center gap-2">
-                      <action.icon className="h-4 w-4" />
+                      <action.icon className="size-4" />
                       <span className="text-sm">{label}</span>
                     </div>
                     <Switch
@@ -132,7 +132,7 @@ export function DataListMobileDrawer<TItem>({
                     onOpenChange(false);
                   }}
                 >
-                  <action.icon className="h-4 w-4" />
+                  <action.icon className="size-4" />
                   {label}
                 </Button>
               );

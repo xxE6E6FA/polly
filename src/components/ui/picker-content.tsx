@@ -53,7 +53,7 @@ export function PickerSection({
       )}
     >
       {label && (
-        <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+        <div className="px-3 py-1.5 text-overline font-semibold uppercase tracking-wider text-muted-foreground">
           {label}
         </div>
       )}
@@ -102,7 +102,7 @@ export function PickerOption({
       disabled={disabled}
       className={cn(
         // Base styles
-        "flex items-center gap-2.5 w-full px-3 py-2 text-left",
+        "flex items-center gap-2 w-full px-3 py-1.5 text-left",
         "transition-all duration-150 ease-out",
         // Interactive states
         "hover:bg-muted/60 active:bg-muted",
@@ -118,7 +118,7 @@ export function PickerOption({
       {icon && (
         <div
           className={cn(
-            "flex h-7 w-7 shrink-0 items-center justify-center rounded-md",
+            "flex size-6 shrink-0 items-center justify-center rounded-md",
             "bg-muted/80 text-muted-foreground",
             selected && "bg-primary/15 text-primary"
           )}
@@ -131,14 +131,14 @@ export function PickerOption({
       <div className="flex-1 min-w-0">
         <div
           className={cn(
-            "text-xs font-medium text-foreground truncate",
+            "text-[0.6875rem] leading-tight font-medium text-foreground truncate",
             selected && "text-primary"
           )}
         >
           {label}
         </div>
         {description && (
-          <div className="text-[10px] text-muted-foreground truncate mt-0.5">
+          <div className="text-[0.625rem] leading-tight text-muted-foreground truncate mt-0.5">
             {description}
           </div>
         )}
@@ -150,7 +150,7 @@ export function PickerOption({
       )}
       {selected && (
         <CheckCircle
-          className="h-5 w-5 shrink-0 fill-primary text-primary-foreground"
+          className="size-4 shrink-0 fill-primary text-primary-foreground"
           weight="fill"
           aria-hidden="true"
         />
@@ -219,13 +219,13 @@ export function PickerOptionCompact({
 
       <div className="flex items-center gap-1.5 shrink-0">
         {suffix && (
-          <span className="text-[10px] font-mono text-muted-foreground">
+          <span className="text-overline font-mono text-muted-foreground">
             {suffix}
           </span>
         )}
         {selected && (
           <CheckCircle
-            className="h-4 w-4 fill-primary text-primary-foreground"
+            className="size-4 fill-primary text-primary-foreground"
             weight="fill"
             aria-hidden="true"
           />
@@ -309,7 +309,7 @@ export function PickerDescription({
   className,
 }: PickerDescriptionProps) {
   return (
-    <p className={cn("text-[10px] text-muted-foreground px-3", className)}>
+    <p className={cn("text-overline text-muted-foreground px-3", className)}>
       {children}
     </p>
   );

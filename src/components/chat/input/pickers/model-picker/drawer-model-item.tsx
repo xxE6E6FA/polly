@@ -98,26 +98,17 @@ const DrawerModelItemComponent = ({
   const badges = (
     <>
       {model.free && !isPollyDisabled && (
-        <Badge
-          className="h-5 shrink-0 border-green-200 bg-green-100 px-1.5 py-0 text-[10px] text-green-700 dark:border-green-800 dark:bg-green-950 dark:text-green-300"
-          variant="secondary"
-        >
+        <Badge variant="status-free" size="xs">
           Free
         </Badge>
       )}
       {isPollyDisabled && (
-        <Badge
-          className="h-5 shrink-0 border-orange-200 bg-orange-50 px-1.5 py-0 text-[10px] text-orange-600 dark:border-orange-900 dark:bg-orange-950/50 dark:text-orange-400"
-          variant="secondary"
-        >
+        <Badge variant="status-limit" size="xs">
           Limit Reached
         </Badge>
       )}
       {isUnavailable && (
-        <Badge
-          className="h-5 shrink-0 border-red-200 bg-red-100 px-1.5 py-0 text-[10px] text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300"
-          variant="secondary"
-        >
+        <Badge variant="status-unavailable" size="xs">
           Unavailable
         </Badge>
       )}
@@ -125,7 +116,7 @@ const DrawerModelItemComponent = ({
       {capabilities.map((capability, index) => (
         <Tooltip key={capability.label || `capability-${index}`}>
           <TooltipTrigger>
-            <div className="flex h-5 items-center justify-center rounded px-1.5 text-[10px] font-medium bg-muted text-muted-foreground">
+            <div className="flex h-5 items-center justify-center rounded px-1.5 text-overline font-medium bg-muted text-muted-foreground">
               {capability.label}
             </div>
           </TooltipTrigger>
@@ -143,7 +134,7 @@ const DrawerModelItemComponent = ({
       {contextDisplay && (
         <Tooltip>
           <TooltipTrigger>
-            <div className="flex h-5 items-center justify-center rounded px-1.5 text-[10px] font-medium bg-muted text-muted-foreground">
+            <div className="flex h-5 items-center justify-center rounded px-1.5 text-overline font-medium bg-muted text-muted-foreground">
               {contextDisplay.short}
             </div>
           </TooltipTrigger>

@@ -95,7 +95,7 @@ export const ModelFilters = memo(
     return (
       <div className="flex flex-col gap-3 sm:flex-row">
         <div className="relative min-w-0 flex-1">
-          <MagnifyingGlassIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-muted-foreground" />
+          <MagnifyingGlassIcon className="absolute left-3 top-1/2 size-4 -translate-y-1/2 transform text-muted-foreground" />
           <Input
             className="pl-10 h-9"
             placeholder="Search models by name, ID, or provider..."
@@ -136,7 +136,7 @@ export const ModelFilters = memo(
                     {filterState.selectedProviders.length}
                   </Badge>
                 )}
-                <CaretDownIcon className="ml-auto h-4 w-4 opacity-50 sm:ml-1" />
+                <CaretDownIcon className="ml-auto size-4 opacity-50 sm:ml-1" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
@@ -175,14 +175,14 @@ export const ModelFilters = memo(
                 size="sm"
                 variant="secondary"
               >
-                <FunnelIcon className="h-4 w-4 shrink-0" />
+                <FunnelIcon className="size-4 shrink-0" />
                 <span className="hidden text-xs sm:inline">Capabilities</span>
                 {filterState.selectedCapabilities.length > 0 && (
                   <Badge className="ml-0.5 h-5 px-1.5" variant="default">
                     {filterState.selectedCapabilities.length}
                   </Badge>
                 )}
-                <CaretDownIcon className="ml-auto h-4 w-4 opacity-50 sm:ml-1" />
+                <CaretDownIcon className="ml-auto size-4 opacity-50 sm:ml-1" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-64">

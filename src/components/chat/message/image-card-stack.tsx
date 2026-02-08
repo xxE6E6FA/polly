@@ -120,7 +120,7 @@ export const ImageCardStack = memo<ImageCardStackProps>(
             >
               {interrupted ? (
                 <>
-                  <StopCircleIcon className="h-5 w-5" />
+                  <StopCircleIcon className="size-5" />
                   <span className="text-xs font-medium">Stopped</span>
                 </>
               ) : (

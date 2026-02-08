@@ -54,7 +54,7 @@ const TemperaturePickerComponent = ({
 
   const triggerContent = (
     <>
-      <ThermometerIcon className="h-3 w-3" />
+      <ThermometerIcon className="size-3" />
       {isDesktop && <span className="hidden sm:inline">{displayValue}</span>}
     </>
   );
@@ -142,7 +142,7 @@ const TemperatureControlDesktop = ({
           onClick={onReset}
           className="text-xs h-7 text-muted-foreground hover:text-foreground"
         >
-          <ArrowClockwiseIcon className="h-3 w-3 mr-1.5" />
+          <ArrowClockwiseIcon className="size-3 mr-1.5" />
           Reset to Default
         </Button>
       </PickerFooter>
@@ -237,7 +237,7 @@ const TemperatureControlMobile = ({
           disabled={disabled}
           className="gap-2"
         >
-          <ArrowClockwiseIcon className="h-3.5 w-3.5" />
+          <ArrowClockwiseIcon className="size-3.5" />
           Reset to Default
         </Button>
       </div>

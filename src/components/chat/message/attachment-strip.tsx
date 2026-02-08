@@ -105,7 +105,7 @@ const AttachmentStripComponent = ({
                   attachment={attachment}
                   className={cn(
                     isVisual ? "h-14 w-14" : "h-5 w-5",
-                    renderOverlay?.(attachment, index) && "opacity-60"
+                    renderOverlay?.(attachment, index) && "opacity-50"
                   )}
                 />
                 {renderOverlay?.(attachment, index)}
@@ -133,7 +133,7 @@ const AttachmentStripComponent = ({
                       }}
                       aria-label={`Remove ${attachment.name}`}
                     >
-                      <XIcon className="h-3 w-3" />
+                      <XIcon className="size-3" />
                     </button>
                   )}
                 </>
@@ -154,7 +154,7 @@ const AttachmentStripComponent = ({
                 }}
                 aria-label={`Remove ${attachment.name}`}
               >
-                <XIcon className="h-3 w-3" />
+                <XIcon className="size-3" />
               </button>
             )}
           </div>

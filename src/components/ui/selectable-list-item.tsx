@@ -29,7 +29,7 @@ export function SelectableListItem({
       <div className="min-w-0 flex-1">{children}</div>
       {selected
         ? (rightAdornment ?? (
-            <CheckCircle className="h-4 w-4 text-primary shrink-0" />
+            <CheckCircle className="size-4 text-primary shrink-0" />
           ))
         : null}
     </button>

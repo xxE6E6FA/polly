@@ -78,9 +78,9 @@ const TextFilePreviewComponent = ({
           aria-label="Copy content"
         >
           {copied ? (
-            <CheckIcon className="h-4 w-4 text-primary" />
+            <CheckIcon className="size-4 text-primary" />
           ) : (
-            <CopyIcon className="h-4 w-4" />
+            <CopyIcon className="size-4" />
           )}
         </Button>
         <Button
@@ -90,7 +90,7 @@ const TextFilePreviewComponent = ({
           className="h-8 w-8 p-0 shadow-md"
           aria-label="Download file"
         >
-          <DownloadSimpleIcon className="h-4 w-4" />
+          <DownloadSimpleIcon className="size-4" />
         </Button>
       </div>
 

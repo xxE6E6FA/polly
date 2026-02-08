@@ -70,7 +70,7 @@ export function FileLibraryButton({
             type="button"
             onClick={handleClick}
           >
-            <FolderOpenIcon className="h-3.5 w-3.5" />
+            <FolderOpenIcon className="size-3.5" />
           </ChatInputIconButton>
         </TooltipTrigger>
         <TooltipContent>

@@ -153,7 +153,7 @@ export const ImageActions = ({
                 (isCopying || !prompt) && "pointer-events-none opacity-50"
               )}
             >
-              <CopyIcon className="h-3.5 w-3.5" />
+              <CopyIcon className="size-3.5" />
             </button>
           </TooltipTrigger>
           <TooltipContent>
@@ -191,8 +191,8 @@ export const ImageActions = ({
                       "pointer-events-none opacity-50"
                   )}
                 >
-                  <CopyIcon className="h-3.5 w-3.5" />
-                  <CaretDownIcon className="h-3 w-3" />
+                  <CopyIcon className="size-3.5" />
+                  <CaretDownIcon className="size-3" />
                 </button>
               </DropdownMenuTrigger>
             </TooltipTrigger>
@@ -204,7 +204,7 @@ export const ImageActions = ({
               disabled={!prompt}
               className="gap-2"
             >
-              <CopyIcon className="h-4 w-4" />
+              <CopyIcon className="size-4" />
               <span>Copy prompt</span>
             </DropdownMenuItem>
             <DropdownMenuItem
@@ -212,7 +212,7 @@ export const ImageActions = ({
               disabled={seed === undefined}
               className="gap-2"
             >
-              <CopyIcon className="h-4 w-4" />
+              <CopyIcon className="size-4" />
               <span>Copy seed</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
@@ -229,7 +229,7 @@ export const ImageActions = ({
                 (isCopying || !prompt) && "pointer-events-none opacity-50"
               )}
             >
-              <CopyIcon className="h-3.5 w-3.5" />
+              <CopyIcon className="size-3.5" />
             </button>
           </TooltipTrigger>
           <TooltipContent>
@@ -249,7 +249,7 @@ export const ImageActions = ({
               isDownloading && "pointer-events-none opacity-50"
             )}
           >
-            <DownloadIcon className="h-3.5 w-3.5" />
+            <DownloadIcon className="size-3.5" />
           </button>
         </TooltipTrigger>
         <TooltipContent>Download image</TooltipContent>

@@ -438,7 +438,7 @@ export function EmojiPickerDrawer({
             className="h-9 w-9 p-0 rounded-full sm:hidden bg-muted/60 hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             disabled={disabled}
           >
-            <Smiley className="h-4 w-4" />
+            <Smiley className="size-4" />
           </Button>
         )}
       </DrawerTrigger>
@@ -446,7 +446,7 @@ export function EmojiPickerDrawer({
         {/* Non-scrollable search bar */}
         <div className="bg-background border-b p-4">
           <div className="relative">
-            <MagnifyingGlass className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <MagnifyingGlass className="absolute left-3 top-1/2 transform -translate-y-1/2 size-4 text-muted-foreground" />
             <Input
               placeholder="Search emojis..."
               value={searchQuery}

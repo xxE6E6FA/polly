@@ -49,7 +49,7 @@ const FavoriteItemSkeleton = memo(() => (
   <div className="mb-3">
     <Card className="p-3">
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1 space-y-2">
+        <div className="min-w-0 flex-1 stack-sm">
           <Skeleton className="h-3 w-48" />
           <Skeleton className="h-4 w-full" />
           <Skeleton className="h-4 w-3/4" />
@@ -68,7 +68,7 @@ FavoriteItemSkeleton.displayName = "FavoriteItemSkeleton";
 // Footer component for loading more
 const ListFooter = memo(({ context }: { context?: VirtuosoContext }) =>
   context?.isLoadingMore ? (
-    <div className="space-y-3">
+    <div className="stack-sm">
       <FavoriteItemSkeleton />
       <FavoriteItemSkeleton />
       <FavoriteItemSkeleton />
@@ -216,7 +216,7 @@ export default function FavoritesPage() {
                       }
                       className={actionButtonStyles.defaultButton}
                     >
-                      <ArrowSquareOutIcon className="h-3.5 w-3.5" />
+                      <ArrowSquareOutIcon className="size-3.5" />
                     </button>
                   </TooltipTrigger>
                   <TooltipContent>Open conversation</TooltipContent>
@@ -228,7 +228,7 @@ export default function FavoritesPage() {
                       onClick={() => handleCopy(item.message.content)}
                       className={actionButtonStyles.defaultButton}
                     >
-                      <CopyIcon className="h-3.5 w-3.5" />
+                      <CopyIcon className="size-3.5" />
                     </button>
                   </TooltipTrigger>
                   <TooltipContent>Copy message</TooltipContent>
@@ -240,11 +240,11 @@ export default function FavoritesPage() {
                       onClick={() => handleUnfavorite(item.message._id)}
                       className={cn(
                         actionButtonStyles.destructiveButton,
-                        "text-red-500"
+                        "text-destructive"
                       )}
                       title="Remove favorite"
                     >
-                      <HeartIcon className="h-3.5 w-3.5" weight="fill" />
+                      <HeartIcon className="size-3.5" weight="fill" />
                     </button>
                   </TooltipTrigger>
                   <TooltipContent>Remove favorite</TooltipContent>
@@ -296,7 +296,7 @@ export default function FavoritesPage() {
   const emptyState = (
     <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
       <div className="mb-4 rounded-full bg-muted/40 p-4">
-        <HeartIcon className="h-8 w-8 text-muted-foreground" weight="regular" />
+        <HeartIcon className="size-8 text-muted-foreground" weight="regular" />
       </div>
       <h2 className="text-base font-medium mb-2">No favorites yet</h2>
       <p className="text-sm text-muted-foreground max-w-sm">

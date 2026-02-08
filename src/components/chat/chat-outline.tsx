@@ -238,7 +238,7 @@ const ChatOutlineComponent = ({
               <p className="text-xs font-medium text-muted-foreground">
                 Conversation Outline
               </p>
-              <p className="text-[10px] uppercase tracking-wide text-muted-foreground/60">
+              <p className="text-overline uppercase tracking-wide text-muted-foreground/60">
                 {outlineItems.length} items
               </p>
             </div>
@@ -350,7 +350,7 @@ const ChatOutlineComponent = ({
               ))}
             </div>
             {collapsedConfig.remainingCount > 0 && (
-              <div className="mt-2 text-[10px] font-medium text-muted-foreground/60">
+              <div className="mt-2 text-overline font-medium text-muted-foreground/60">
                 +{collapsedConfig.remainingCount}
               </div>
             )}

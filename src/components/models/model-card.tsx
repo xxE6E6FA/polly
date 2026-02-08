@@ -112,10 +112,10 @@ export const ModelCard = memo(
             >
               <ProviderIcon
                 provider={model.free ? "polly" : model.provider}
-                className={`h-3 w-3 ${isUnavailable ? "text-danger" : ""}`}
+                className={`size-3 ${isUnavailable ? "text-danger" : ""}`}
               />
               <span
-                className={`text-[10px] font-medium capitalize ${
+                className={`text-overline font-medium capitalize ${
                   isUnavailable ? "text-danger" : "text-muted-foreground"
                 }`}
               >
@@ -135,7 +135,7 @@ export const ModelCard = memo(
                           title="Remove model"
                           aria-label="Remove unavailable model"
                         >
-                          <TrashIcon className="h-4 w-4" />
+                          <TrashIcon className="size-4" />
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>
@@ -172,18 +172,12 @@ export const ModelCard = memo(
           </div>
           <div className="flex items-center gap-1.5">
             {model.free && !isUnavailable && (
-              <Badge
-                className="h-5 shrink-0 border-green-200 bg-green-100 px-1.5 py-0 text-[10px] text-green-700 dark:border-green-800 dark:bg-green-950 dark:text-green-300"
-                variant="secondary"
-              >
+              <Badge variant="status-free" size="xs">
                 Free
               </Badge>
             )}
             {isUnavailable && (
-              <Badge
-                className="h-5 shrink-0 border-danger-border bg-danger-bg px-1.5 py-0 text-[10px] text-danger"
-                variant="secondary"
-              >
+              <Badge variant="danger" size="xs">
                 Unavailable
               </Badge>
             )}
@@ -203,7 +197,7 @@ export const ModelCard = memo(
                     )}`}
                   >
                     <IconComponent
-                      className={`h-3 w-3 ${isUnavailable ? "text-danger" : ""}`}
+                      className={`size-3 ${isUnavailable ? "text-danger" : ""}`}
                     />
                   </div>
                 </TooltipTrigger>

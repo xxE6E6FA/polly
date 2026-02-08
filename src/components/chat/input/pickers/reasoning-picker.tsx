@@ -83,9 +83,9 @@ function getProviderTheme(provider?: string) {
     case "openai":
       return {
         icon: SparkleIcon,
-        color: "text-green-500",
-        bgColor: "bg-green-500/10",
-        hoverBgColor: "hover:bg-green-500/20",
+        color: "text-success",
+        bgColor: "bg-success/10",
+        hoverBgColor: "hover:bg-success/20",
       };
     case "google":
       return {
@@ -306,11 +306,11 @@ const ReasoningPickerComponent = ({
     <div className="flex items-center gap-1">
       {selectedOption?.icon ? (
         <selectedOption.icon
-          className={cn("h-3 w-3 text-current")}
+          className={cn("size-3 text-current")}
           weight="bold"
         />
       ) : (
-        <Icon className={cn("h-3 w-3 text-current")} weight="regular" />
+        <Icon className={cn("size-3 text-current")} weight="regular" />
       )}
       {isDesktop && (
         <span className="hidden sm:inline">
@@ -382,9 +382,9 @@ const ReasoningControlDesktop = ({
             description={option.description}
             icon={
               OptionIcon ? (
-                <OptionIcon className="h-3.5 w-3.5" weight="bold" />
+                <OptionIcon className="size-3.5" weight="bold" />
               ) : (
-                <SparkleIcon className="h-3.5 w-3.5 opacity-40" />
+                <SparkleIcon className="size-3.5 opacity-40" />
               )
             }
             selected={isSelected}
@@ -509,12 +509,12 @@ const ReasoningControlMobile = ({
                     selected={isSelected}
                     className="p-2"
                     rightAdornment={
-                      <BrainIcon className="h-4 w-4 text-primary" />
+                      <BrainIcon className="size-4 text-primary" />
                     }
                   >
                     <div className="flex items-center gap-2">
                       <SelectableListItemIcon>
-                        {Icon && <Icon className="h-4 w-4" />}
+                        {Icon && <Icon className="size-4" />}
                       </SelectableListItemIcon>
                       <div className="flex-1 text-left">
                         <div className="font-medium text-sm">

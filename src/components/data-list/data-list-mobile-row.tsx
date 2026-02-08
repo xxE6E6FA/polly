@@ -95,7 +95,7 @@ export function DataListMobileRow<TItem, TField extends string>({
         className="h-8 w-8"
         onClick={handleTriggerClick}
       >
-        <Icon className="h-4 w-4" />
+        <Icon className="size-4" />
       </Button>
     );
   };
@@ -141,7 +141,7 @@ export function DataListMobileRow<TItem, TField extends string>({
         className="h-8 w-8"
         onClick={handleTriggerClick}
       >
-        <DotsThreeVerticalIcon className="h-4 w-4" weight="bold" />
+        <DotsThreeVerticalIcon className="size-4" weight="bold" />
       </Button>
     );
   };

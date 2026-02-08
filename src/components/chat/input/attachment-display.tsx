@@ -43,7 +43,7 @@ function AttachmentDisplayInner({
 
       return (
         <div className="absolute inset-0 flex items-center justify-center">
-          <SpinnerGapIcon className="h-4 w-4 animate-spin text-blue-500" />
+          <SpinnerGapIcon className="size-4 animate-spin text-info" />
         </div>
       );
     },

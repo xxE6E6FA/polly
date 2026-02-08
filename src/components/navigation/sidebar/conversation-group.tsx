@@ -49,18 +49,16 @@ export const ConversationGroup = ({
         {isCollapsible && (
           <CaretRightIcon
             className={cn(
-              "h-3 w-3 flex-shrink-0 transition-transform duration-200",
+              "size-3 flex-shrink-0 transition-transform duration-200",
               isExpanded && "rotate-90"
             )}
             aria-hidden="true"
           />
         )}
-        {isPinned && (
-          <PushPinIcon className="h-3.5 w-3.5 mr-0.5" weight="fill" />
-        )}
+        {isPinned && <PushPinIcon className="size-3.5 mr-0.5" weight="fill" />}
         <span>{title}</span>
         {isCollapsible && count !== undefined && !isExpanded && (
-          <span className="ml-auto inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-sidebar-accent text-[10px] font-medium text-sidebar-foreground tabular-nums">
+          <span className="ml-auto inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-sidebar-accent text-overline font-medium text-sidebar-foreground tabular-nums">
             {count}
           </span>
         )}

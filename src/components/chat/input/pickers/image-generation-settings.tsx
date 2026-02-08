@@ -143,7 +143,7 @@ const ImageGenerationControlsDesktop = ({
               variant="ghost"
               size="sm"
               onClick={onReset}
-              className="h-6 px-2 text-[10px] text-muted-foreground hover:text-foreground"
+              className="h-6 px-2 text-overline text-muted-foreground hover:text-foreground"
             >
               <ArrowCounterClockwise size={10} className="mr-1" />
               Reset
@@ -155,7 +155,7 @@ const ImageGenerationControlsDesktop = ({
       <PickerBody className="stack-lg">
         {capabilities.supportsMultipleImages && (
           <div className="stack-sm">
-            <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+            <div className="text-overline font-semibold text-muted-foreground uppercase tracking-wider">
               Output
             </div>
 
@@ -203,7 +203,7 @@ const ImageGenerationControlsDesktop = ({
 
         {(capabilities.supportsSteps || capabilities.supportsGuidance) && (
           <div className="stack-sm">
-            <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+            <div className="text-overline font-semibold text-muted-foreground uppercase tracking-wider">
               Quality
             </div>
 
@@ -251,7 +251,7 @@ const ImageGenerationControlsDesktop = ({
 
         {capabilities.supportsSeed && (
           <div className="stack-sm">
-            <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+            <div className="text-overline font-semibold text-muted-foreground uppercase tracking-wider">
               Control
             </div>
 
@@ -267,7 +267,7 @@ const ImageGenerationControlsDesktop = ({
                     disabled={
                       disabled || params.seed === lastGeneratedImageSeed
                     }
-                    className="h-5 px-1.5 text-[10px] text-muted-foreground hover:text-foreground"
+                    className="h-5 px-1.5 text-overline text-muted-foreground hover:text-foreground"
                   >
                     Reuse last
                   </Button>
@@ -558,7 +558,7 @@ export const ImageGenerationSettings = memo<ImageGenerationSettingsProps>(
 
     const triggerContent = (
       <>
-        <Gear className="h-4 w-4 text-current" />
+        <Gear className="size-4 text-current" />
         {isDesktop && <span className="hidden sm:inline">Settings</span>}
       </>
     );

@@ -245,7 +245,7 @@ export const ApiKeysTab = () => {
                       </Label>
                       {isConnected && (
                         <Badge variant="secondary" size="sm">
-                          <CheckCircleIcon className="mr-1 h-3 w-3" /> Connected
+                          <CheckCircleIcon className="mr-1 size-3" /> Connected
                         </Badge>
                       )}
                     </div>
@@ -260,7 +260,7 @@ export const ApiKeysTab = () => {
                     target="_blank"
                     rel="noopener noreferrer"
                   >
-                    Get key <ArrowSquareOutIcon className="ml-1 h-3 w-3" />
+                    Get key <ArrowSquareOutIcon className="ml-1 size-3" />
                   </Button>
                 )}
               </div>

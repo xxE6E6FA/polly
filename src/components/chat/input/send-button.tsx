@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
-const ICON_CLASS = "h-4 w-4 shrink-0";
+const ICON_CLASS = "size-4 shrink-0";
 
 type SendButtonProps = {
   className?: string;
@@ -58,7 +58,7 @@ const getButtonContent = ({
           <Spinner className="h-full w-full [&_svg]:h-full [&_svg]:w-full" />
         </div>
         <SquareIcon
-          className="w-3 h-3 text-primary"
+          className="size-3 text-primary"
           weight="fill"
           aria-hidden="true"
         />

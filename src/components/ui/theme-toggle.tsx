@@ -55,7 +55,7 @@ export const ThemeToggle = ({
 }: ThemeToggleProps) => {
   const { theme, setTheme } = useTheme();
 
-  const iconSize = className?.includes("h-10") ? "h-5 w-5" : "h-4 w-4";
+  const iconSize = className?.includes("h-10") ? "size-5" : "size-4";
 
   const handleThemeChange = (value: string) => {
     if (value === "light" || value === "dark" || value === "system") {
@@ -85,7 +85,7 @@ export const ThemeToggle = ({
                 "bg-muted font-medium [&>span:first-child]:hidden"
             )}
           >
-            <SunIcon className="mr-2 h-4 w-4" />
+            <SunIcon className="mr-2 size-4" />
             <span>Light</span>
           </DropdownMenuRadioItem>
           <DropdownMenuRadioItem
@@ -96,7 +96,7 @@ export const ThemeToggle = ({
                 "bg-muted font-medium [&>span:first-child]:hidden"
             )}
           >
-            <MoonIcon className="mr-2 h-4 w-4" />
+            <MoonIcon className="mr-2 size-4" />
             <span>Dark</span>
           </DropdownMenuRadioItem>
           <DropdownMenuRadioItem
@@ -107,7 +107,7 @@ export const ThemeToggle = ({
                 "bg-muted font-medium [&>span:first-child]:hidden"
             )}
           >
-            <MonitorIcon className="mr-2 h-4 w-4" />
+            <MonitorIcon className="mr-2 size-4" />
             <span>System</span>
           </DropdownMenuRadioItem>
         </DropdownMenuRadioGroup>

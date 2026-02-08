@@ -318,7 +318,7 @@ export const Sidebar = ({ forceHidden = false }: { forceHidden?: boolean }) => {
       {/* Touch target for gestures - only when mobile and closed */}
       {isMobile && !isSidebarVisible && !forceHidden && !isPrivateMode && (
         <div
-          className="fixed bottom-40 left-0 top-14 z-[15] w-12 touch-pan-y"
+          className="fixed bottom-40 left-0 top-14 z-chat-input w-12 touch-pan-y"
           onPointerDown={e => {
             dragControls.start(e);
           }}
@@ -449,7 +449,7 @@ export const Sidebar = ({ forceHidden = false }: { forceHidden?: boolean }) => {
                         className="text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-hover h-8 w-8"
                       >
                         <HeartIcon
-                          className="h-4.5 w-4.5"
+                          className="size-4.5"
                           weight={
                             location.pathname === ROUTES.FAVORITES
                               ? "fill"
@@ -467,7 +467,7 @@ export const Sidebar = ({ forceHidden = false }: { forceHidden?: boolean }) => {
                       variant="ghost"
                       className="text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-hover h-8 w-8"
                     >
-                      <NotePencilIcon className="h-4.5 w-4.5" />
+                      <NotePencilIcon className="size-4.5" />
                     </Button>
                   </Link>
                   {!isPrivateMode && (
@@ -478,7 +478,7 @@ export const Sidebar = ({ forceHidden = false }: { forceHidden?: boolean }) => {
                       className="text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-hover h-8 w-8"
                       onClick={() => setSidebarVisible(false)}
                     >
-                      <SidebarSimpleIcon className="h-4.5 w-4.5" />
+                      <SidebarSimpleIcon className="size-4.5" />
                     </Button>
                   )}
                 </div>

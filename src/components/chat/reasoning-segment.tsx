@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 
-const ICON_SIZE = "h-4 w-4";
+const ICON_SIZE = "size-4";
 
 type ReasoningSegmentProps = {
   text: string;
@@ -76,7 +76,7 @@ export function ReasoningSegment({
 
   const reasoningContent = (
     <div className="relative max-w-[74ch]">
-      <div className="py-1 text-[13px] leading-relaxed text-muted-foreground">
+      <div className="py-1 text-sm leading-relaxed text-muted-foreground">
         <Markdown
           options={{
             forceBlock: true,
@@ -170,7 +170,7 @@ const markdownOverrides = {
   },
   strong: {
     component: "strong" as const,
-    props: { className: "font-medium text-foreground/70" },
+    props: { className: "font-medium text-muted-foreground" },
   },
   em: {
     component: "em" as const,
@@ -188,19 +188,19 @@ const markdownOverrides = {
   code: {
     component: "code" as const,
     props: {
-      className: "rounded bg-muted/40 px-1 py-0.5 text-[12px] font-medium",
+      className: "rounded bg-muted/40 px-1 py-0.5 text-xs font-medium",
     },
   },
   h1: {
     component: "h1" as const,
-    props: { className: "mb-2 text-sm font-semibold text-foreground/70" },
+    props: { className: "mb-2 text-sm font-semibold text-muted-foreground" },
   },
   h2: {
     component: "h2" as const,
-    props: { className: "mb-2 text-sm font-semibold text-foreground/70" },
+    props: { className: "mb-2 text-sm font-semibold text-muted-foreground" },
   },
   h3: {
     component: "h3" as const,
-    props: { className: "mb-1.5 text-sm font-medium text-foreground/70" },
+    props: { className: "mb-1.5 text-sm font-medium text-muted-foreground" },
   },
 };

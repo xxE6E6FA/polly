@@ -142,7 +142,7 @@ export function ProfileImageCropper({
         </div>
 
         <div className="flex items-center gap-3 px-2">
-          <MagnifyingGlassMinusIcon className="h-4 w-4 text-muted-foreground" />
+          <MagnifyingGlassMinusIcon className="size-4 text-muted-foreground" />
           <Slider
             value={zoom}
             onValueChange={value => {
@@ -154,7 +154,7 @@ export function ProfileImageCropper({
             step={0.01}
             aria-label="Zoom"
           />
-          <MagnifyingGlassPlusIcon className="h-4 w-4 text-muted-foreground" />
+          <MagnifyingGlassPlusIcon className="size-4 text-muted-foreground" />
         </div>
 
         <DialogFooter>

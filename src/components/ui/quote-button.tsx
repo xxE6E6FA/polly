@@ -64,11 +64,12 @@ export const QuoteButton = ({
         >
           <div className="flex gap-2">
             <Button
-              className="h-8 border-0 bg-primary px-3 text-primary-foreground shadow-lg transition-all duration-200 hover:bg-primary-hover hover:shadow-xl"
+              variant="default"
               size="sm"
+              className="shadow-lg hover:shadow-xl"
               onClick={handleQuote}
             >
-              <QuotesIcon className="mr-1.5 h-3.5 w-3.5" />
+              <QuotesIcon className="mr-1.5 size-3.5" />
               Quote
             </Button>
 
@@ -84,11 +85,12 @@ export const QuoteButton = ({
               }}
             >
               <Button
-                className="h-8 border-0 bg-secondary px-3 text-secondary-foreground shadow-lg transition-all duration-200 hover:bg-secondary-hover hover:shadow-xl"
+                variant="secondary"
                 size="sm"
+                className="shadow-lg hover:shadow-xl"
                 onClick={handleShowConversationStarters}
               >
-                <ChatCircleIcon className="mr-1.5 h-3.5 w-3.5" />
+                <ChatCircleIcon className="mr-1.5 size-3.5" />
                 Explore
               </Button>
             </ConversationStarterPopover>

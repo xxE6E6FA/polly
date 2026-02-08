@@ -66,7 +66,7 @@ export const SearchQuery = ({
         {isDone ? (
           <>
             <svg
-              className="h-3 w-3 text-green-600 dark:text-green-400 flex-shrink-0"
+              className="h-3 w-3 text-success flex-shrink-0"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -81,7 +81,7 @@ export const SearchQuery = ({
             <span>
               Found {citations.length} {sourceType}
             </span>
-            <span className="inline-flex items-center rounded-full bg-green-100 dark:bg-green-900/30 px-2 py-0.5 text-xs font-medium text-green-800 dark:text-green-300">
+            <span className="inline-flex items-center rounded-full bg-success-bg px-2 py-0.5 text-xs font-medium text-success">
               {citations.length}
             </span>
           </>

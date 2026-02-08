@@ -355,7 +355,7 @@ export default function GeneralPage() {
                         </>
                       ) : (
                         <>
-                          <DownloadSimpleIcon className="mr-2 h-4 w-4" />
+                          <DownloadSimpleIcon className="mr-2 size-4" />
                           Export data
                         </>
                       )}
@@ -390,7 +390,7 @@ export default function GeneralPage() {
                     rel="noopener noreferrer"
                     target="_blank"
                   >
-                    <GithubLogoIcon className="h-4 w-4" />
+                    <GithubLogoIcon className="size-4" />
                     View on GitHub
                   </a>
                 </Button>
@@ -410,7 +410,7 @@ export default function GeneralPage() {
                   variant="destructive"
                   onClick={() => setShowDeleteDialog(true)}
                 >
-                  <TrashIcon className="mr-2 h-4 w-4" />
+                  <TrashIcon className="mr-2 size-4" />
                   Delete Account
                 </Button>
               </div>
@@ -462,7 +462,7 @@ export default function GeneralPage() {
                 </>
               ) : (
                 <>
-                  <TrashIcon className="mr-2 h-4 w-4" />
+                  <TrashIcon className="mr-2 size-4" />
                   Delete account
                 </>
               )}

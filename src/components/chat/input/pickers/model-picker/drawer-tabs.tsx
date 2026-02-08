@@ -139,7 +139,7 @@ export function ModelDrawerTabs({
         {isSearching ? (
           <div className="flex w-full items-center gap-2 animate-in fade-in slide-in-from-top-1 duration-200">
             <div className="relative flex-1">
-              <MagnifyingGlass className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <MagnifyingGlass className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 ref={inputRef}
                 value={searchQuery}
@@ -154,7 +154,7 @@ export function ModelDrawerTabs({
               className="h-9 w-9 shrink-0"
               onClick={() => setIsSearching(false)}
             >
-              <X className="h-4 w-4" />
+              <X className="size-4" />
             </Button>
           </div>
         ) : (
@@ -170,7 +170,7 @@ export function ModelDrawerTabs({
                       : "text-muted-foreground hover:text-foreground"
                   )}
                 >
-                  <ChatCircle className="h-4 w-4" />
+                  <ChatCircle className="size-4" />
                   Text
                 </button>
                 <button
@@ -182,7 +182,7 @@ export function ModelDrawerTabs({
                       : "text-muted-foreground hover:text-foreground"
                   )}
                 >
-                  <ImageIcon className="h-4 w-4" />
+                  <ImageIcon className="size-4" />
                   Image
                 </button>
               </div>
@@ -197,7 +197,7 @@ export function ModelDrawerTabs({
                 className="h-9 w-9 text-muted-foreground hover:text-foreground shrink-0"
                 onClick={() => setIsSearching(true)}
               >
-                <MagnifyingGlass className="h-4 w-4" />
+                <MagnifyingGlass className="size-4" />
               </Button>
             )}
           </>
@@ -258,7 +258,7 @@ export function ModelDrawerTabs({
           {/* API Keys Prompt Banner */}
           {showApiKeysPrompt && (
             <div className="flex items-center gap-3 px-4 py-3 bg-muted/50 border-b border-border/40">
-              <KeyIcon className="h-5 w-5 text-muted-foreground shrink-0" />
+              <KeyIcon className="size-5 text-muted-foreground shrink-0" />
               <p className="flex-1 text-sm text-muted-foreground">
                 <Link
                   to={ROUTES.SETTINGS.API_KEYS}
@@ -275,7 +275,7 @@ export function ModelDrawerTabs({
                   className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
                   aria-label="Dismiss"
                 >
-                  <X className="h-4 w-4" />
+                  <X className="size-4" />
                 </button>
               )}
             </div>
@@ -296,7 +296,7 @@ export function ModelDrawerTabs({
         <div className="flex w-full flex-1 flex-col overflow-y-auto">
           {imageTabEmptyState ? (
             <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
-              <ImageIcon className="h-12 w-12 text-muted-foreground/50 mb-4" />
+              <ImageIcon className="size-12 text-muted-foreground/50 mb-4" />
               <p className="text-base font-medium text-foreground mb-1">
                 No Image Models Available
               </p>
@@ -310,7 +310,7 @@ export function ModelDrawerTabs({
                   size: "default",
                 })}
               >
-                <GearIcon className="h-4 w-4 mr-2" />
+                <GearIcon className="size-4 mr-2" />
                 Open Settings
               </Link>
             </div>
@@ -349,7 +349,7 @@ export function ModelDrawerTabs({
             className="flex items-center justify-between gap-2 group"
           >
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <SignInIcon className="h-4 w-4" />
+              <SignInIcon className="size-4" />
               <span>
                 <span className="font-medium text-foreground group-hover:underline">
                   Sign in

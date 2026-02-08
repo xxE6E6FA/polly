@@ -59,7 +59,7 @@ const SetupChecklist = () => {
           variant="ghost"
           onClick={handleDismiss}
         >
-          <XIcon className="h-2.5 w-2.5" />
+          <XIcon className="size-2.5" />
         </Button>
         <div className="pr-6">
           <h3 className="mb-3 flex items-center gap-1.5 text-sm font-semibold">
@@ -68,14 +68,14 @@ const SetupChecklist = () => {
           <div className="stack-sm">
             <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-xs text-left">
               {hasUserApiKeys ? (
-                <CheckCircleIcon className="h-3 w-3 shrink-0 text-success" />
+                <CheckCircleIcon className="size-3 shrink-0 text-success" />
               ) : (
-                <CircleIcon className="h-3 w-3 shrink-0 text-muted-foreground/40" />
+                <CircleIcon className="size-3 shrink-0 text-muted-foreground/40" />
               )}
               <span
                 className={cn(
                   "flex-1 text-muted-foreground transition-colors text-left",
-                  hasUserApiKeys && "opacity-60"
+                  hasUserApiKeys && "opacity-50"
                 )}
               >
                 Add your API keys
@@ -87,7 +87,7 @@ const SetupChecklist = () => {
                     size="sm"
                     variant="outline"
                   >
-                    <KeyIcon className="h-3 w-3" />
+                    <KeyIcon className="size-3" />
                     Go to API Keys
                   </Button>
                 </Link>
@@ -95,14 +95,14 @@ const SetupChecklist = () => {
             </div>
             <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-xs text-left">
               {hasUserModels ? (
-                <CheckCircleIcon className="h-3 w-3 shrink-0 text-success" />
+                <CheckCircleIcon className="size-3 shrink-0 text-success" />
               ) : (
-                <CircleIcon className="h-3 w-3 shrink-0 text-muted-foreground/40" />
+                <CircleIcon className="size-3 shrink-0 text-muted-foreground/40" />
               )}
               <span
                 className={cn(
                   "flex-1 text-muted-foreground transition-colors text-left",
-                  hasUserModels && "opacity-60"
+                  hasUserModels && "opacity-50"
                 )}
               >
                 Enable AI models
@@ -114,7 +114,7 @@ const SetupChecklist = () => {
                     size="sm"
                     variant="outline"
                   >
-                    <LightningIcon className="h-3 w-3" />
+                    <LightningIcon className="size-3" />
                     View Models
                   </Button>
                 </Link>
@@ -264,7 +264,7 @@ export const ChatZeroState = () => {
               variant="ghost"
               onClick={() => setSidebarVisible(true)}
             >
-              <SidebarSimpleIcon className="h-5 w-5" />
+              <SidebarSimpleIcon className="size-5" />
             </Button>
           )}
         </div>

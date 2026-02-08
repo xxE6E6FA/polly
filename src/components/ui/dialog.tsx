@@ -58,8 +58,8 @@ function DialogContent({
           {...props}
         >
           {children}
-          <Dialog.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground data-[open]:bg-accent data-[open]:text-muted-foreground">
-            <XIcon className="h-4 w-4" />
+          <Dialog.Close className="absolute right-4 top-4 rounded-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none">
+            <XIcon className="size-4" />
             <span className="sr-only">Close</span>
           </Dialog.Close>
         </Dialog.Popup>
@@ -102,7 +102,7 @@ function DialogTitle({ className, ref, ...props }: DialogTitleProps) {
     <Dialog.Title
       ref={ref}
       className={cn(
-        "text-lg sm:text-xl font-heading leading-tight text-balance",
+        "text-lg sm:text-xl font-semibold leading-tight text-balance",
         className
       )}
       {...props}

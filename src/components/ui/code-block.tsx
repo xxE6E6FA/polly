@@ -160,7 +160,7 @@ const CodeBlockComponent = ({
     >
       <div className="rounded-xl border border-border bg-card/95 shadow-sm backdrop-blur-xs dark:bg-card/95">
         {/* Header with language and actions */}
-        <div className="flex h-9 items-center justify-between rounded-t-xl border-b border-border/70 bg-muted/60 px-3 text-[12px] text-muted-foreground sm:px-6">
+        <div className="flex h-9 items-center justify-between rounded-t-xl border-b border-border/70 bg-muted/60 px-3 text-xs text-muted-foreground sm:px-6">
           <span className="font-mono font-medium text-muted-foreground">
             {processedLanguage || "text"}
           </span>
@@ -173,7 +173,7 @@ const CodeBlockComponent = ({
                   variant="ghost"
                   onClick={handleDownload}
                 >
-                  <DownloadIcon className="h-3 w-3" />
+                  <DownloadIcon className="size-3" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
@@ -192,9 +192,9 @@ const CodeBlockComponent = ({
                   onClick={() => setWordWrap(!wordWrap)}
                 >
                   {wordWrap ? (
-                    <TextAlignJustifyIcon className="h-3 w-3" />
+                    <TextAlignJustifyIcon className="size-3" />
                   ) : (
-                    <TextAlignLeftIcon className="h-3 w-3" />
+                    <TextAlignLeftIcon className="size-3" />
                   )}
                 </Button>
               </TooltipTrigger>
@@ -210,7 +210,7 @@ const CodeBlockComponent = ({
         </div>
         <div className="relative">
           {/* Sticky copy button - positioned to align with header buttons */}
-          <div className="pointer-events-none sticky top-[42px] z-[3] h-0">
+          <div className="pointer-events-none sticky top-[42px] z-10 h-0">
             <div className="pointer-events-auto absolute -top-8 right-3 sm:right-6">
               <Tooltip>
                 <TooltipTrigger delayDuration={200}>
@@ -223,9 +223,9 @@ const CodeBlockComponent = ({
                   >
                     <div className="relative h-4 w-4">
                       {copied ? (
-                        <CheckIcon className="absolute inset-0 h-3 w-3 text-primary transition-all duration-200" />
+                        <CheckIcon className="absolute inset-0 size-3 text-primary transition-all duration-200" />
                       ) : (
-                        <CopyIcon className="absolute inset-0 h-3 w-3 transition-all duration-200" />
+                        <CopyIcon className="absolute inset-0 size-3 transition-all duration-200" />
                       )}
                     </div>
                   </Button>

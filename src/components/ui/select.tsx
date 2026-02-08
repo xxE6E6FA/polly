@@ -52,7 +52,7 @@ function SelectTrigger({
       {!hideIcon && (
         <SelectPrimitive.Select.Icon
           render={props => (
-            <CaretDownIcon {...props} className="h-4 w-4 opacity-50" />
+            <CaretDownIcon {...props} className="size-4 opacity-50" />
           )}
         />
       )}
@@ -82,7 +82,7 @@ function SelectScrollUpButton({
       )}
       {...props}
     >
-      <CaretUpIcon className="h-4 w-4" />
+      <CaretUpIcon className="size-4" />
     </SelectPrimitive.Select.ScrollUpArrow>
   );
 }
@@ -109,7 +109,7 @@ function SelectScrollDownButton({
       )}
       {...props}
     >
-      <CaretDownIcon className="h-4 w-4" />
+      <CaretDownIcon className="size-4" />
     </SelectPrimitive.Select.ScrollDownArrow>
   );
 }
@@ -135,7 +135,7 @@ function SelectContent({
         side={side}
         sideOffset={sideOffset}
         className={cn(
-          "absolute z-select max-h-96 min-w-[8rem] overflow-hidden rounded-lg border-0 bg-popover text-foreground shadow-md transition-[background-color,color,box-shadow,transform] duration-200 data-[open]:animate-in data-[closed]:animate-out data-[closed]:fade-out-0 data-[open]:fade-in-0 data-[closed]:zoom-out-95 data-[open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 origin-[var(--transform-origin)]",
+          "absolute z-select max-h-96 min-w-[8rem] overflow-hidden rounded-lg border border-border bg-popover text-foreground shadow-md transition-[background-color,color,box-shadow,transform] duration-200 data-[open]:animate-in data-[closed]:animate-out data-[closed]:fade-out-0 data-[open]:fade-in-0 data-[closed]:zoom-out-95 data-[open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 origin-[var(--transform-origin)]",
           className
         )}
         {...props}

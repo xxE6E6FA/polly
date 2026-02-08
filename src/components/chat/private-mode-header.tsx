@@ -35,7 +35,7 @@ export const PrivateModeHeader = () => {
       )}
     >
       <div className="ml-2 flex items-center gap-2 text-background">
-        <GhostIcon weight="fill" className="h-5 w-5" />
+        <GhostIcon weight="fill" className="size-5" />
         <span className="text-sm font-medium">Private Mode</span>
       </div>
       <Tooltip>
@@ -47,7 +47,7 @@ export const PrivateModeHeader = () => {
             className="h-8 w-8 text-background/80 hover:text-background hover:bg-background/20"
             aria-label={`Exit private mode (${shortcutHint})`}
           >
-            <X className="h-4 w-4" />
+            <X className="size-4" />
           </Button>
         </TooltipTrigger>
         <TooltipContent side="bottom">

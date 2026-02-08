@@ -20,10 +20,10 @@ const Toaster = ({ ...props }: ToasterProps) => {
       richColors={false}
       theme={theme as ToasterProps["theme"]}
       icons={{
-        success: <CheckCircleIcon weight="fill" className="h-4 w-4 shrink-0" />,
-        error: <XCircleIcon weight="fill" className="h-4 w-4 shrink-0" />,
-        warning: <WarningIcon weight="fill" className="h-4 w-4 shrink-0" />,
-        info: <InfoIcon weight="fill" className="h-4 w-4 shrink-0" />,
+        success: <CheckCircleIcon weight="fill" className="size-4 shrink-0" />,
+        error: <XCircleIcon weight="fill" className="size-4 shrink-0" />,
+        warning: <WarningIcon weight="fill" className="size-4 shrink-0" />,
+        info: <InfoIcon weight="fill" className="size-4 shrink-0" />,
         loading: null,
       }}
       toastOptions={{

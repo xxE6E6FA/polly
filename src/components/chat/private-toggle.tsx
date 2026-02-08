@@ -38,7 +38,7 @@ export const PrivateToggle = () => {
             size="sm"
             aria-label="Enable private mode"
           >
-            <GhostIcon className="h-3.5 w-3.5" weight="regular" />
+            <GhostIcon className="size-3.5" weight="regular" />
             Private
           </Button>
         </TooltipTrigger>

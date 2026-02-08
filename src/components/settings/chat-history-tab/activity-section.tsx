@@ -69,15 +69,15 @@ function DetailedJobCard({
 
   const getStatusIcon = () => {
     if (isCompleted) {
-      return <CheckCircleIcon className="h-5 w-5 text-success" />;
+      return <CheckCircleIcon className="size-5 text-success" />;
     }
     if (isFailed) {
-      return <Warning className="h-5 w-5 text-danger" />;
+      return <Warning className="size-5 text-danger" />;
     }
     if (isActive) {
-      return <Spinner className="h-5 w-5 text-primary" />;
+      return <Spinner className="size-5 text-primary" />;
     }
-    return <ClockIcon className="h-5 w-5 text-muted-foreground" />;
+    return <ClockIcon className="size-5 text-muted-foreground" />;
   };
 
   const getDescription = () => {
@@ -182,9 +182,9 @@ function DetailedJobCard({
                 aria-label="Download export file"
               >
                 {isDownloading && downloadingJobId === job.id ? (
-                  <Spinner className="h-4 w-4" />
+                  <Spinner className="size-4" />
                 ) : (
-                  <DownloadIcon className="h-4 w-4" />
+                  <DownloadIcon className="size-4" />
                 )}
               </Button>
             )}
@@ -196,7 +196,7 @@ function DetailedJobCard({
               title="Remove job from history"
               aria-label="Remove job from history"
             >
-              <TrashIcon className="h-4 w-4" />
+              <TrashIcon className="size-4" />
             </Button>
           </div>
         </div>

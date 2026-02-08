@@ -225,9 +225,9 @@ export const ControlledShareConversationDialog = ({
                           onClick={handleCopyUrl}
                         >
                           {isCopied ? (
-                            <CheckIcon className="h-4 w-4" />
+                            <CheckIcon className="size-4" />
                           ) : (
-                            <CopyIcon className="h-4 w-4" />
+                            <CopyIcon className="size-4" />
                           )}
                         </Button>
                       </TooltipTrigger>
@@ -242,7 +242,7 @@ export const ControlledShareConversationDialog = ({
                           variant="ghost"
                           onClick={handleOpenInNewTab}
                         >
-                          <ArrowSquareOutIcon className="h-4 w-4" />
+                          <ArrowSquareOutIcon className="size-4" />
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent side="bottom">
@@ -273,9 +273,9 @@ export const ControlledShareConversationDialog = ({
                   onClick={handleUpdate}
                 >
                   {isUpdating ? (
-                    <Spinner size="sm" className="mr-2 h-4 w-4" />
+                    <Spinner size="sm" className="mr-2 size-4" />
                   ) : (
-                    <ArrowCounterClockwiseIcon className="mr-2 h-4 w-4" />
+                    <ArrowCounterClockwiseIcon className="mr-2 size-4" />
                   )}
                   Update share
                 </Button>
@@ -287,9 +287,9 @@ export const ControlledShareConversationDialog = ({
                   onClick={handleUnshare}
                 >
                   {isUnsharing ? (
-                    <Spinner size="sm" className="mr-2 h-4 w-4" />
+                    <Spinner size="sm" className="mr-2 size-4" />
                   ) : (
-                    <XIcon className="mr-2 h-4 w-4" />
+                    <XIcon className="mr-2 size-4" />
                   )}
                   Stop sharing
                 </Button>
@@ -300,12 +300,12 @@ export const ControlledShareConversationDialog = ({
               <Button size="full-lg" disabled={isSharing} onClick={handleShare}>
                 {isSharing ? (
                   <>
-                    <Spinner size="sm" className="mr-2 h-4 w-4" />
+                    <Spinner size="sm" className="mr-2 size-4" />
                     Creating share link...
                   </>
                 ) : (
                   <>
-                    <ShareNetworkIcon className="mr-2 h-4 w-4" />
+                    <ShareNetworkIcon className="mr-2 size-4" />
                     Create share link
                   </>
                 )}

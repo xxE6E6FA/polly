@@ -246,7 +246,7 @@ export const AttachmentGalleryDialog = ({
         }
         return (
           <div className="flex h-full w-full flex-col items-center justify-center gap-6">
-            <SpeakerHighIcon className="h-16 w-16 text-muted-foreground" />
+            <SpeakerHighIcon className="size-16 text-muted-foreground" />
             <p className="text-sm text-muted-foreground">
               {currentDisplayAttachment.name}
             </p>
@@ -315,7 +315,7 @@ export const AttachmentGalleryDialog = ({
             className="absolute right-4 top-4 z-20 h-10 w-10 rounded-full bg-card/90 text-foreground shadow-lg dark:ring-1 dark:ring-white/[0.06] backdrop-blur-md hover:bg-card transition-colors duration-200"
             aria-label="Close"
           >
-            <XIcon className="h-5 w-5" />
+            <XIcon className="size-5" />
           </Button>
 
           {/* Navigation buttons - only show when there are multiple attachments */}
@@ -331,7 +331,7 @@ export const AttachmentGalleryDialog = ({
                 className="absolute left-4 top-1/2 -translate-y-1/2 z-10 h-12 w-12 rounded-full bg-card/90 text-foreground shadow-lg dark:ring-1 dark:ring-white/[0.06] backdrop-blur-md hover:bg-card transition-colors duration-200"
                 aria-label="Previous attachment"
               >
-                <CaretLeftIcon className="h-6 w-6" />
+                <CaretLeftIcon className="size-6" />
               </Button>
 
               <Button
@@ -344,7 +344,7 @@ export const AttachmentGalleryDialog = ({
                 className="absolute right-4 top-1/2 -translate-y-1/2 z-10 h-12 w-12 rounded-full bg-card/90 text-foreground shadow-lg dark:ring-1 dark:ring-white/[0.06] backdrop-blur-md hover:bg-card transition-colors duration-200"
                 aria-label="Next attachment"
               >
-                <CaretRightIcon className="h-6 w-6" />
+                <CaretRightIcon className="size-6" />
               </Button>
             </>
           )}

@@ -28,7 +28,7 @@ export function QuotePreview({ quote, onClear, className }: QuotePreviewProps) {
       aria-label="Quoted text"
     >
       <div className="mt-0.5 shrink-0 text-muted-foreground">
-        <QuotesIcon className="h-4 w-4" />
+        <QuotesIcon className="size-4" />
       </div>
       <div className="min-w-0 flex-1 whitespace-pre-wrap break-words">
         {displayText}
@@ -39,7 +39,7 @@ export function QuotePreview({ quote, onClear, className }: QuotePreviewProps) {
         aria-label="Remove quoted text"
         onClick={onClear}
       >
-        <XIcon className="h-4 w-4" />
+        <XIcon className="size-4" />
       </button>
     </div>
   );

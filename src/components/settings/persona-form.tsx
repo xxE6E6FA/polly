@@ -340,7 +340,7 @@ export const PersonaForm = ({
                 >
                   <PopoverTrigger>
                     <Button size="default" variant="outline">
-                      <SmileyIcon className="mr-2 h-4 w-4" />
+                      <SmileyIcon className="mr-2 size-4" />
                       Choose Emoji
                     </Button>
                   </PopoverTrigger>
@@ -357,7 +357,7 @@ export const PersonaForm = ({
               <div className="block sm:hidden">
                 <EmojiPickerDrawer onEmojiSelect={handleEmojiClick}>
                   <Button size="default" variant="outline">
-                    <SmileyIcon className="mr-2 h-4 w-4" />
+                    <SmileyIcon className="mr-2 size-4" />
                     Choose Emoji
                   </Button>
                 </EmojiPickerDrawer>
@@ -377,7 +377,7 @@ export const PersonaForm = ({
             variant="outline"
             onClick={() => setIsFullScreenEditor(true)}
           >
-            <ArrowsOutIcon className="h-4 w-4" />
+            <ArrowsOutIcon className="size-4" />
             Fullscreen Editor
           </Button>
         </div>
@@ -421,7 +421,7 @@ export const PersonaForm = ({
                     variant="ghost"
                     onClick={undo}
                   >
-                    <ArrowCounterClockwiseIcon className="h-3.5 w-3.5" />
+                    <ArrowCounterClockwiseIcon className="size-3.5" />
                   </Button>
                   <Button
                     className="h-7 w-7 p-0"
@@ -431,7 +431,7 @@ export const PersonaForm = ({
                     variant="ghost"
                     onClick={redo}
                   >
-                    <ArrowClockwiseIcon className="h-3.5 w-3.5" />
+                    <ArrowClockwiseIcon className="size-3.5" />
                   </Button>
                 </div>
               </div>
@@ -450,7 +450,7 @@ export const PersonaForm = ({
                   </>
                 ) : (
                   <>
-                    <SparkleIcon className="h-3.5 w-3.5" />
+                    <SparkleIcon className="size-3.5" />
                     Improve prompt
                   </>
                 )}
@@ -626,14 +626,14 @@ export const PersonaForm = ({
       )}
 
       {showAdvanced && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950/20">
+        <div className="rounded-lg border border-warning-border bg-warning-bg p-3">
           <div className="flex items-start gap-2">
-            <div className="text-amber-600 dark:text-amber-400">⚠️</div>
+            <div className="text-warning-foreground">⚠️</div>
             <div className="text-sm">
-              <p className="font-medium text-amber-800 dark:text-amber-200">
+              <p className="font-medium text-warning-foreground">
                 Provider Compatibility Note
               </p>
-              <p className="text-amber-700 dark:text-amber-300">
+              <p className="text-warning-foreground">
                 Not all AI providers support every parameter. Unsupported
                 parameters will be automatically filtered out to prevent errors.
               </p>
@@ -684,7 +684,7 @@ export const PersonaForm = ({
                 variant="ghost"
                 onClick={() => setIsFullScreenEditor(false)}
               >
-                <XIcon className="h-4 w-4" />
+                <XIcon className="size-4" />
               </Button>
             </div>
 
@@ -699,7 +699,7 @@ export const PersonaForm = ({
                     variant="ghost"
                     onClick={undo}
                   >
-                    <ArrowCounterClockwiseIcon className="h-4 w-4" />
+                    <ArrowCounterClockwiseIcon className="size-4" />
                   </Button>
                   <Button
                     className="h-8 w-8 p-0"
@@ -709,7 +709,7 @@ export const PersonaForm = ({
                     variant="ghost"
                     onClick={redo}
                   >
-                    <ArrowClockwiseIcon className="h-4 w-4" />
+                    <ArrowClockwiseIcon className="size-4" />
                   </Button>
                 </div>
               </div>
@@ -731,7 +731,7 @@ export const PersonaForm = ({
                     </>
                   ) : (
                     <>
-                      <SparkleIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                      <SparkleIcon className="size-3.5 sm:size-4" />
                       <span className="xs:inline hidden">Improve prompt</span>
                       <span className="xs:hidden">Improve</span>
                     </>
@@ -744,7 +744,7 @@ export const PersonaForm = ({
                   variant="ghost"
                   onClick={() => setIsFullScreenEditor(false)}
                 >
-                  <XIcon className="h-4 w-4" />
+                  <XIcon className="size-4" />
                 </Button>
               </div>
             </div>

@@ -71,7 +71,7 @@ export const ImageGalleryCarousel: React.FC<ImageGalleryCarouselProps> = ({
           onClick={scrollPrev}
           aria-label="Previous image"
         >
-          <CaretLeft className="h-4 w-4" />
+          <CaretLeft className="size-4" />
         </Button>
       )}
       {canScrollNext && (
@@ -82,7 +82,7 @@ export const ImageGalleryCarousel: React.FC<ImageGalleryCarouselProps> = ({
           onClick={scrollNext}
           aria-label="Next image"
         >
-          <CaretRight className="h-4 w-4" />
+          <CaretRight className="size-4" />
         </Button>
       )}
     </div>

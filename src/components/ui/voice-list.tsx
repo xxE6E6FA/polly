@@ -100,9 +100,9 @@ const VoiceRow = ({
               }}
             >
               {isPlaying ? (
-                <PauseIcon className="h-4 w-4" />
+                <PauseIcon className="size-4" />
               ) : (
-                <PlayIcon className="h-4 w-4" />
+                <PlayIcon className="size-4" />
               )}
             </Button>
           </div>
