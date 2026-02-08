@@ -66,7 +66,7 @@ const ImageModelCard = memo(
               <div className="flex items-center gap-1.5">
                 <div className="flex items-center gap-1.5 rounded-md bg-muted px-2 py-0.5">
                   <ProviderIcon provider={model.provider} className="h-3 w-3" />
-                  <span className="text-[10px] font-medium capitalize text-muted-foreground">
+                  <span className="text-overline font-medium capitalize text-muted-foreground">
                     {model.provider}
                   </span>
                 </div>
@@ -98,7 +98,7 @@ const ImageModelCard = memo(
                 variant="secondary"
                 className="h-5 text-xs flex items-center gap-1"
               >
-                <TagIcon className="h-3 w-3" />
+                <TagIcon className="size-3" />
                 {tag}
               </Badge>
             ))}

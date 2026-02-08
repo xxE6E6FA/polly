@@ -152,7 +152,7 @@ const ModelPickerComponent = ({
           {triggerLabel}
         </span>
       </div>
-      <CaretDown className="h-3.5 w-3.5 opacity-70" />
+      <CaretDown className="size-3.5 opacity-70" />
     </>
   );
 

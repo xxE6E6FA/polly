@@ -173,7 +173,7 @@ export const ArchivedConversationsPage = () => {
                         className: "h-8 px-2",
                       })}
                     >
-                      <EyeIcon className="h-4 w-4" />
+                      <EyeIcon className="size-4" />
                     </Link>
                   </TooltipTrigger>
                   <TooltipContent>
@@ -190,9 +190,9 @@ export const ArchivedConversationsPage = () => {
                       disabled={isRestoring}
                     >
                       {isRestoring ? (
-                        <Spinner size="sm" className="h-4 w-4" />
+                        <Spinner size="sm" className="size-4" />
                       ) : (
-                        <ArrowsClockwiseIcon className="h-4 w-4" />
+                        <ArrowsClockwiseIcon className="size-4" />
                       )}
                     </Button>
                   </TooltipTrigger>
@@ -217,9 +217,9 @@ export const ArchivedConversationsPage = () => {
                       disabled={isDeletingConversation}
                     >
                       {isDeletingConversation ? (
-                        <Spinner size="sm" className="h-4 w-4" />
+                        <Spinner size="sm" className="size-4" />
                       ) : (
-                        <TrashIcon className="h-4 w-4" />
+                        <TrashIcon className="size-4" />
                       )}
                     </Button>
                   </TooltipTrigger>
@@ -282,7 +282,7 @@ export const ArchivedConversationsPage = () => {
 
   const emptyState = (
     <SettingsZeroState
-      icon={<ArchiveIcon className="h-12 w-12" />}
+      icon={<ArchiveIcon className="size-12" />}
       title="No archived conversations"
       description="Conversations you archive will appear here"
     />

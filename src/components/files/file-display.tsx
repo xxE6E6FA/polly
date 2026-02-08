@@ -18,7 +18,7 @@ function getFileIcon(
   size: "sm" | "md" = "md",
   className?: string
 ) {
-  const defaultSizeClasses = size === "sm" ? "h-2.5 w-2.5" : "h-3 w-3";
+  const defaultSizeClasses = size === "sm" ? "size-2.5" : "size-3";
   const sizeClasses = className
     ? `${className} flex-shrink-0`
     : defaultSizeClasses;
@@ -99,7 +99,7 @@ export const FileDisplay = ({
       <div
         className={`flex items-center justify-center bg-muted/20 ${className}`}
       >
-        <Spinner size="sm" className="opacity-60" />
+        <Spinner size="sm" className="opacity-50" />
       </div>
     );
   }
@@ -171,12 +171,12 @@ export const FileDisplay = ({
           />
         ) : (
           <div className="flex h-40 w-64 items-center justify-center bg-muted/30">
-            <FilmStripIcon className="h-8 w-8 text-muted-foreground" />
+            <FilmStripIcon className="size-8 text-muted-foreground" />
           </div>
         )}
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="flex h-12 w-12 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-sm">
-            <PlayIcon className="h-5 w-5" />
+            <PlayIcon className="size-5" />
           </div>
         </div>
       </button>
@@ -241,7 +241,7 @@ export const ImageThumbnail = ({
       <div
         className={`flex flex-shrink-0 items-center justify-center rounded bg-muted ${className}`}
       >
-        <Spinner size="sm" className="h-3 w-3 opacity-60" />
+        <Spinner size="sm" className="size-3 opacity-50" />
       </div>
     );
   }
@@ -276,7 +276,7 @@ export const ImageThumbnail = ({
         />
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-white">
-            <PlayIcon className="h-2.5 w-2.5" />
+            <PlayIcon className="size-2.5" />
           </div>
         </div>
       </div>

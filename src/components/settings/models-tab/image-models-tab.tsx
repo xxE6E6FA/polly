@@ -128,7 +128,7 @@ function renderImageModelsContent(
   }
   return (
     <SettingsZeroState
-      icon={<MagnifyingGlassIcon className="h-12 w-12" />}
+      icon={<MagnifyingGlassIcon className="size-12" />}
       title="No image models found"
       description={
         hasActiveFilters
@@ -598,7 +598,7 @@ export const ImageModelsTab = () => {
         />
 
         <SettingsZeroState
-          icon={<KeyIcon className="h-12 w-12" />}
+          icon={<KeyIcon className="size-12" />}
           title="No Replicate API key configured"
           description="Add your Replicate API key to see available image generation models."
         />
@@ -644,7 +644,7 @@ export const ImageModelsTab = () => {
           >
             {isAddingCustomModel ? (
               <>
-                <Spinner className="h-3 w-3 mr-1" />
+                <Spinner className="size-3 mr-1" />
                 Adding...
               </>
             ) : (
@@ -710,7 +710,7 @@ export const ImageModelsTab = () => {
                     onClick={handleRefreshCapabilities}
                   >
                     <ArrowCounterClockwiseIcon
-                      className={`h-4 w-4 ${isRefreshing ? "animate-[spin_1s_linear_infinite_reverse]" : ""}`}
+                      className={`size-4 ${isRefreshing ? "animate-[spin_1s_linear_infinite_reverse]" : ""}`}
                     />
                   </Button>
                 </TooltipTrigger>

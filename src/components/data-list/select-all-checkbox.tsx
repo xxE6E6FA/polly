@@ -35,7 +35,7 @@ export function SelectAllCheckbox({
         aria-disabled={disabled}
         disabled={disabled}
       >
-        {checked && <CheckIcon className="h-3 w-3" />}
+        {checked && <CheckIcon className="size-3" />}
       </button>
     </div>
   );

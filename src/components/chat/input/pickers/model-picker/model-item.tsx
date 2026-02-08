@@ -108,7 +108,7 @@ const ModelItemComponent = ({
         size === "sm"
           ? "px-3 py-2.5 text-xs"
           : "px-4 py-3 text-sm border-b border-border/40 last:border-0",
-        isDisabled && "cursor-not-allowed opacity-60",
+        isDisabled && "cursor-not-allowed opacity-50",
         isSelected && "bg-muted/50"
       )}
     >
@@ -169,7 +169,7 @@ const ModelItemComponent = ({
                   <Tooltip key={capability.label || `capability-${index}`}>
                     <TooltipTrigger>
                       <div className="flex h-5 w-5 items-center justify-center rounded bg-muted">
-                        <IconComponent className="h-3 w-3" />
+                        <IconComponent className="size-3" />
                       </div>
                     </TooltipTrigger>
                     <TooltipContent>
@@ -190,7 +190,7 @@ const ModelItemComponent = ({
               {contextDisplay && (
                 <Tooltip>
                   <TooltipTrigger>
-                    <div className="flex h-5 items-center justify-center rounded px-1.5 text-[10px] font-medium bg-muted text-muted-foreground">
+                    <div className="flex h-5 items-center justify-center rounded px-1.5 text-overline font-medium bg-muted text-muted-foreground">
                       {contextDisplay.short}
                     </div>
                   </TooltipTrigger>
@@ -211,7 +211,7 @@ const ModelItemComponent = ({
         {isSelected && (
           <div className="flex shrink-0 items-center justify-center h-10 w-6">
             <CheckCircle
-              className="h-5 w-5 fill-primary text-primary-foreground"
+              className="size-5 fill-primary text-primary-foreground"
               weight="fill"
             />
           </div>

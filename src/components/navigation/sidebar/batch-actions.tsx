@@ -30,7 +30,7 @@ export const BatchActions = () => {
       <div className="h-9 w-full rounded-md border-0 bg-muted/50 dark:bg-background/80 flex items-center justify-between px-2">
         <div className="flex items-center gap-2 min-w-0">
           <div className="flex h-6 items-center gap-1 rounded-full bg-primary/10 px-2">
-            <CheckIcon className="h-3.5 w-3.5 text-primary" weight="bold" />
+            <CheckIcon className="size-3.5 text-primary" weight="bold" />
             <span className="text-xs font-semibold text-primary">
               {selectionCount}
             </span>
@@ -47,7 +47,7 @@ export const BatchActions = () => {
                 className="h-8 w-8 text-muted-foreground hover:text-foreground"
                 disabled={selectionCount === 0}
               >
-                <FileCodeIcon className="h-4 w-4" />
+                <FileCodeIcon className="size-4" />
               </Button>
             </TooltipTrigger>
             <TooltipContent>
@@ -64,7 +64,7 @@ export const BatchActions = () => {
                 className="h-8 w-8 text-muted-foreground hover:text-foreground"
                 disabled={selectionCount === 0}
               >
-                <ArchiveIcon className="h-4 w-4" />
+                <ArchiveIcon className="size-4" />
               </Button>
             </TooltipTrigger>
             <TooltipContent>
@@ -81,7 +81,7 @@ export const BatchActions = () => {
                 className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
                 disabled={selectionCount === 0}
               >
-                <TrashIcon className="h-4 w-4" />
+                <TrashIcon className="size-4" />
               </Button>
             </TooltipTrigger>
             <TooltipContent>
@@ -99,7 +99,7 @@ export const BatchActions = () => {
                 onClick={clearSelection}
                 className="h-8 w-8 text-muted-foreground hover:text-foreground"
               >
-                <XIcon className="h-4 w-4" />
+                <XIcon className="size-4" />
               </Button>
             </TooltipTrigger>
             <TooltipContent>

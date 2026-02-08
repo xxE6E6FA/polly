@@ -42,8 +42,8 @@ export function SortableHeader<TField extends string>({
         {children}
         {isActive && (
           <>
-            {sortDirection === "asc" && <AscIcon className="h-3 w-3" />}
-            {sortDirection === "desc" && <DescIcon className="h-3 w-3" />}
+            {sortDirection === "asc" && <AscIcon className="size-3" />}
+            {sortDirection === "desc" && <DescIcon className="size-3" />}
           </>
         )}
       </button>

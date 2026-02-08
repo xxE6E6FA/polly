@@ -37,7 +37,7 @@ const NavigationHeader = ({
         <div className="flex items-center justify-between gap-2 sm:gap-4">
           <Link to={backLink}>
             <Button className="h-8 px-2 sm:h-9" size="sm" variant="ghost">
-              <ArrowLeftIcon className="mr-1 h-4 w-4 sm:mr-2" />
+              <ArrowLeftIcon className="mr-1 size-4 sm:mr-2" />
               <span className="hidden sm:inline">{backText}</span>
               <span className="sm:hidden">Back</span>
             </Button>
@@ -51,7 +51,7 @@ const NavigationHeader = ({
               variant="ghost"
               onClick={handleSignOut}
             >
-              <SignOutIcon className="h-4 w-4 sm:mr-2" />
+              <SignOutIcon className="size-4 sm:mr-2" />
               <span className="hidden sm:inline">Sign Out</span>
             </Button>
           </div>

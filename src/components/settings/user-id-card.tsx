@@ -68,7 +68,7 @@ const StatCard = ({
       )}
     >
       <div className="flex items-center gap-2 text-muted-foreground">
-        <Icon className="h-4 w-4" style={{ color }} weight="duotone" />
+        <Icon className="size-4" style={{ color }} weight="duotone" />
         <span className="text-foreground">{label}</span>
       </div>
       <span className="font-mono text-sm text-foreground">{value}</span>
@@ -302,13 +302,13 @@ export const UserIdCard = () => {
             <div className="flex items-center justify-between">
               <Badge
                 variant="secondary"
-                className="flex items-center gap-1 rounded-full px-3 py-1 text-[11px] font-medium uppercase tracking-wide"
+                className="flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium uppercase tracking-wide"
               >
-                <CrownIcon className="h-3.5 w-3.5 text-primary" weight="fill" />
+                <CrownIcon className="size-3.5 text-primary" weight="fill" />
                 Member
               </Badge>
               <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                <HashIcon className="h-3 w-3" />
+                <HashIcon className="size-3" />
                 <span className="font-mono">
                   {user._id?.slice(-6).toUpperCase() ?? "------"}
                 </span>
@@ -337,7 +337,7 @@ export const UserIdCard = () => {
                   className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                   aria-label="Change profile photo"
                 >
-                  <CameraIcon className="h-6 w-6 text-white" weight="fill" />
+                  <CameraIcon className="size-6 text-white" weight="fill" />
                 </button>
                 <input
                   ref={fileInputRef}
@@ -368,7 +368,7 @@ export const UserIdCard = () => {
                       aria-label="Save name"
                       className="h-7 w-7"
                     >
-                      <CheckIcon className="h-3.5 w-3.5" />
+                      <CheckIcon className="size-3.5" />
                     </Button>
                     <Button
                       variant="ghost"
@@ -378,7 +378,7 @@ export const UserIdCard = () => {
                       aria-label="Cancel editing"
                       className="h-7 w-7"
                     >
-                      <XIcon className="h-3.5 w-3.5" />
+                      <XIcon className="size-3.5" />
                     </Button>
                   </div>
                 ) : (
@@ -394,11 +394,11 @@ export const UserIdCard = () => {
                     <span className="text-lg font-semibold">
                       {user.name || "Unnamed User"}
                     </span>
-                    <PencilSimpleIcon className="absolute -right-5 h-3.5 w-3.5 text-muted-foreground opacity-0 transition-opacity group-hover/name:opacity-100" />
+                    <PencilSimpleIcon className="absolute -right-5 size-3.5 text-muted-foreground opacity-0 transition-opacity group-hover/name:opacity-100" />
                   </button>
                 )}
                 <div className="mt-1 flex items-center justify-center gap-1 text-xs text-muted-foreground">
-                  <CalendarBlankIcon className="h-3.5 w-3.5" />
+                  <CalendarBlankIcon className="size-3.5" />
                   <span>
                     {user.createdAt
                       ? new Date(user.createdAt).toLocaleDateString("en-US", {
@@ -476,7 +476,7 @@ export const UserIdCard = () => {
               className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50 opacity-0 transition-opacity group-hover:opacity-100 group-active:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               aria-label="Change profile photo"
             >
-              <CameraIcon className="h-5 w-5 text-white" weight="fill" />
+              <CameraIcon className="size-5 text-white" weight="fill" />
             </button>
           </div>
           <div className="flex-1 min-w-0">
@@ -499,7 +499,7 @@ export const UserIdCard = () => {
                   aria-label="Save name"
                   className="h-8 w-8 shrink-0"
                 >
-                  <CheckIcon className="h-4 w-4" />
+                  <CheckIcon className="size-4" />
                 </Button>
                 <Button
                   variant="ghost"
@@ -509,7 +509,7 @@ export const UserIdCard = () => {
                   aria-label="Cancel editing"
                   className="h-8 w-8 shrink-0"
                 >
-                  <XIcon className="h-4 w-4" />
+                  <XIcon className="size-4" />
                 </Button>
               </div>
             ) : (
@@ -525,11 +525,11 @@ export const UserIdCard = () => {
                 <span className="text-base font-semibold truncate">
                   {user.name || "Unnamed User"}
                 </span>
-                <PencilSimpleIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
+                <PencilSimpleIcon className="size-4 shrink-0 text-muted-foreground" />
               </button>
             )}
             <div className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
-              <CalendarBlankIcon className="h-3.5 w-3.5 shrink-0" />
+              <CalendarBlankIcon className="size-3.5 shrink-0" />
               <span>
                 {user.createdAt
                   ? new Date(user.createdAt).toLocaleDateString("en-US", {

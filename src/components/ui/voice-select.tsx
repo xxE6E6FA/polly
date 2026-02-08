@@ -130,9 +130,9 @@ export function VoiceSelect({
                     }}
                   >
                     {playingId === opt.id ? (
-                      <PauseIcon className="h-3.5 w-3.5" />
+                      <PauseIcon className="size-3.5" />
                     ) : (
-                      <PlayIcon className="h-3.5 w-3.5" />
+                      <PlayIcon className="size-3.5" />
                     )}
                   </Button>
                 )}

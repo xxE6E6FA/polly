@@ -1,4 +1,4 @@
-import { forwardRef, useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
@@ -18,140 +18,133 @@ interface EnhancedSliderProps {
   showSpinners?: boolean;
   formatValue?: (value: number) => string;
   unit?: string;
+  ref?: React.Ref<HTMLDivElement>;
 }
 
-export const EnhancedSlider = forwardRef<HTMLDivElement, EnhancedSliderProps>(
-  (
-    {
-      value,
-      defaultValue = 0,
-      min = 0,
-      max = 100,
-      step = 1,
-      disabled = false,
-      onValueChange,
-      label,
-      className,
-      showInput = true,
-      showSpinners = true,
-      formatValue,
-      unit,
-      ...props
+export const EnhancedSlider = ({
+  value,
+  defaultValue = 0,
+  min = 0,
+  max = 100,
+  step = 1,
+  disabled = false,
+  onValueChange,
+  label,
+  className,
+  showInput = true,
+  showSpinners = true,
+  formatValue,
+  unit,
+  ref,
+  ...props
+}: EnhancedSliderProps) => {
+  const isControlled = value !== undefined;
+  const [internalValue, setInternalValue] = useState(
+    value ?? defaultValue ?? min
+  );
+  const [inputValue, setInputValue] = useState(
+    String(value ?? defaultValue ?? min)
+  );
+
+  const currentValue = isControlled ? value : internalValue;
+
+  // Sync internal state when controlled value changes
+  useEffect(() => {
+    if (isControlled && value !== internalValue) {
+      setInternalValue(value);
+      setInputValue(String(value));
+    }
+  }, [value, isControlled, internalValue]);
+
+  const handleSliderChange = useCallback(
+    (newValue: number | readonly number[]) => {
+      const val = Array.isArray(newValue) ? newValue[0] : newValue;
+      if (val === undefined) {
+        return;
+      }
+      if (!isControlled) {
+        setInternalValue(val);
+        setInputValue(String(val));
+      }
+      onValueChange?.(val);
     },
-    ref
-  ) => {
-    const isControlled = value !== undefined;
-    const [internalValue, setInternalValue] = useState(
-      value ?? defaultValue ?? min
-    );
-    const [inputValue, setInputValue] = useState(
-      String(value ?? defaultValue ?? min)
-    );
+    [onValueChange, isControlled]
+  );
 
-    const currentValue = isControlled ? value : internalValue;
+  const handleInputChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const inputVal = e.target.value;
+      setInputValue(inputVal);
 
-    // Sync internal state when controlled value changes
-    useEffect(() => {
-      if (isControlled && value !== internalValue) {
-        setInternalValue(value);
-        setInputValue(String(value));
-      }
-    }, [value, isControlled, internalValue]);
-
-    const handleSliderChange = useCallback(
-      (newValue: number | readonly number[]) => {
-        const val = Array.isArray(newValue) ? newValue[0] : newValue;
-        if (val === undefined) {
-          return;
-        }
+      const numVal = parseFloat(inputVal);
+      if (!isNaN(numVal) && numVal >= min && numVal <= max) {
         if (!isControlled) {
-          setInternalValue(val);
-          setInputValue(String(val));
+          setInternalValue(numVal);
         }
-        onValueChange?.(val);
-      },
-      [onValueChange, isControlled]
-    );
-
-    const handleInputChange = useCallback(
-      (e: React.ChangeEvent<HTMLInputElement>) => {
-        const inputVal = e.target.value;
-        setInputValue(inputVal);
-
-        const numVal = parseFloat(inputVal);
-        if (!isNaN(numVal) && numVal >= min && numVal <= max) {
-          if (!isControlled) {
-            setInternalValue(numVal);
-          }
-          onValueChange?.(numVal);
-        }
-      },
-      [min, max, onValueChange, isControlled]
-    );
-
-    const handleInputBlur = useCallback(() => {
-      const numVal = parseFloat(inputValue);
-      if (isNaN(numVal) || numVal < min || numVal > max) {
-        setInputValue(String(currentValue));
+        onValueChange?.(numVal);
       }
-    }, [inputValue, min, max, currentValue]);
+    },
+    [min, max, onValueChange, isControlled]
+  );
 
-    const displayValue = formatValue
-      ? formatValue(currentValue)
-      : `${currentValue}${unit ? ` ${unit}` : ""}`;
+  const handleInputBlur = useCallback(() => {
+    const numVal = parseFloat(inputValue);
+    if (isNaN(numVal) || numVal < min || numVal > max) {
+      setInputValue(String(currentValue));
+    }
+  }, [inputValue, min, max, currentValue]);
 
-    return (
-      <div ref={ref} className={cn("stack-md", className)} {...props}>
-        {label && (
-          <div className="flex items-center justify-between">
-            <Label className="text-sm font-medium">{label}</Label>
-            <span className="text-xs text-muted-foreground">
-              {displayValue}
-            </span>
-          </div>
-        )}
+  const displayValue = formatValue
+    ? formatValue(currentValue)
+    : `${currentValue}${unit ? ` ${unit}` : ""}`;
 
-        <div className="stack-md">
-          {/* Slider */}
-          <Slider
-            value={[currentValue]}
-            onValueChange={handleSliderChange}
+  return (
+    <div ref={ref} className={cn("stack-md", className)} {...props}>
+      {label && (
+        <div className="flex items-center justify-between">
+          <Label className="text-sm font-medium">{label}</Label>
+          <span className="text-xs text-muted-foreground">{displayValue}</span>
+        </div>
+      )}
+
+      <div className="stack-md">
+        {/* Slider */}
+        <Slider
+          value={[currentValue]}
+          onValueChange={handleSliderChange}
+          min={min}
+          max={max}
+          step={step}
+          disabled={disabled}
+          className="w-full"
+        />
+
+        {/* Direct Input */}
+        {showInput && (
+          <Input
+            type="number"
+            value={inputValue}
+            onChange={handleInputChange}
+            onBlur={handleInputBlur}
             min={min}
             max={max}
             step={step}
             disabled={disabled}
-            className="w-full"
+            className={cn(
+              "h-8 text-center text-sm",
+              showSpinners
+                ? "number-input-with-spinners"
+                : "number-input-no-spinners"
+            )}
           />
+        )}
 
-          {/* Direct Input */}
-          {showInput && (
-            <Input
-              type="number"
-              value={inputValue}
-              onChange={handleInputChange}
-              onBlur={handleInputBlur}
-              min={min}
-              max={max}
-              step={step}
-              disabled={disabled}
-              className={cn(
-                "h-8 text-center text-sm",
-                showSpinners
-                  ? "number-input-with-spinners"
-                  : "number-input-no-spinners"
-              )}
-            />
-          )}
-
-          {/* Min/Max Labels */}
-          <div className="flex justify-between text-xs text-muted-foreground">
-            <span>{formatValue ? formatValue(min) : min}</span>
-            <span>{formatValue ? formatValue(max) : max}</span>
-          </div>
+        {/* Min/Max Labels */}
+        <div className="flex justify-between text-xs text-muted-foreground">
+          <span>{formatValue ? formatValue(min) : min}</span>
+          <span>{formatValue ? formatValue(max) : max}</span>
         </div>
       </div>
-    );
-  }
-);
-
-EnhancedSlider.displayName = "EnhancedSlider";
+    </div>
+  );
+};

@@ -56,7 +56,7 @@ export const ZenModeDisplaySettings = ({
           className={triggerClassName}
           aria-label="Display options"
         >
-          <TextAaIcon className="h-4 w-4" aria-hidden="true" />
+          <TextAaIcon className="size-4" aria-hidden="true" />
         </Button>
       </PopoverTrigger>
       <PopoverContent

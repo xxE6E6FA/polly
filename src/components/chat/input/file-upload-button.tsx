@@ -101,7 +101,7 @@ export function FileUploadButton({
             type="button"
             onClick={handleClick}
           >
-            <PaperclipIcon className="h-3.5 w-3.5" />
+            <PaperclipIcon className="size-3.5" />
           </ChatInputIconButton>
         </TooltipTrigger>
         <TooltipContent>

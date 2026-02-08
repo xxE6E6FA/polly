@@ -143,7 +143,7 @@ export const ConversationStarterPopover = ({
                   key={index}
                   className={cn(
                     "w-full rounded-lg border bg-background p-3 text-left text-sm transition-colors",
-                    "hover:bg-muted/70 focus:bg-muted/70 focus:outline-none focus:ring-2 focus:ring-ring"
+                    "hover:bg-muted/70 focus-visible:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   )}
                   onClick={() => handleStartConversation(prompt)}
                 >

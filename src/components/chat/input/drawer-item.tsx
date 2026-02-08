@@ -41,7 +41,7 @@ export function DrawerItem({
       disabled={disabled}
       className={cn(
         "w-full cursor-pointer text-sm transition-colors hover:bg-muted/50 border-b border-border/40 last:border-0 text-left",
-        disabled && "cursor-not-allowed opacity-60 hover:bg-transparent",
+        disabled && "cursor-not-allowed opacity-50 hover:bg-transparent",
         selected && "bg-muted/50",
         className
       )}
@@ -79,7 +79,7 @@ export function DrawerItem({
         {selected && (
           <div className="flex shrink-0 items-center justify-center h-10 w-6">
             <CheckCircle
-              className="h-5 w-5 fill-primary text-primary-foreground"
+              className="size-5 fill-primary text-primary-foreground"
               weight="fill"
             />
           </div>

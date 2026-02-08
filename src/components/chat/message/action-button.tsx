@@ -124,16 +124,16 @@ type ActionIconProps = {
   className?: string;
 };
 
-const iconClass = "h-3.5 w-3.5";
+const iconClass = "size-3.5";
 
 // ============================================================================
 // Icon size constants for consistent sizing across components
 // ============================================================================
 
-/** Icon size for desktop action buttons (h-3.5 w-3.5) */
-export const ACTION_ICON_SIZE = "h-3.5 w-3.5";
-/** Icon size for mobile drawer items (h-4 w-4) */
-export const DRAWER_ICON_SIZE = "h-4 w-4";
+/** Icon size for desktop action buttons (size-3.5) */
+export const ACTION_ICON_SIZE = "size-3.5";
+/** Icon size for mobile drawer items (size-4) */
+export const DRAWER_ICON_SIZE = "size-4";
 
 /**
  * Pre-styled icons for use with ActionButton.

@@ -20,7 +20,7 @@ export function OfflinePlaceholder({
     <div className="flex min-h-[100dvh] items-center justify-center p-6">
       <div className="w-full max-w-2xl">
         <div className="flex flex-col items-center stack-xl bg-background/50 p-8 text-center animate-in fade-in-0 zoom-in-95">
-          <CloudSlashIcon className="h-12 w-12 text-muted-foreground" />
+          <CloudSlashIcon className="size-12 text-muted-foreground" />
           <div className="stack-sm">
             <h2 className="text-2xl font-bold text-foreground">{title}</h2>
             <p className="mx-auto max-w-md text-base text-muted-foreground leading-relaxed">

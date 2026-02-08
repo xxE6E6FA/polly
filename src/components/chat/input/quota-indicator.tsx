@@ -85,7 +85,7 @@ export function QuotaIndicator({
           "flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full cursor-default",
           isExhausted
             ? "text-destructive bg-destructive/10"
-            : "text-amber-600 bg-amber-50 dark:text-amber-400 dark:bg-amber-950/30",
+            : "text-warning-foreground bg-warning-bg",
           className
         )}
       >

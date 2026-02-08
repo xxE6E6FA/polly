@@ -252,12 +252,12 @@ export const Citations = ({
       >
         <CaretRightIcon
           className={cn(
-            "h-3 w-3 transition-transform duration-200",
+            "size-3 transition-transform duration-200",
             isExpanded && "rotate-90"
           )}
           aria-hidden="true"
         />
-        <LinkIcon className="h-3.5 w-3.5" aria-hidden="true" />
+        <LinkIcon className="size-3.5" aria-hidden="true" />
         <span className="font-medium">
           {citedCount > 0 && citedCount < totalCount ? (
             <>
@@ -307,7 +307,7 @@ export const Citations = ({
                       }}
                     />
                   ) : (
-                    <span className="inline-flex items-center justify-center h-5 w-5 text-[10px] font-bold uppercase text-muted-foreground bg-muted rounded-sm flex-shrink-0 mt-0.5">
+                    <span className="inline-flex items-center justify-center h-5 w-5 text-overline font-bold uppercase text-muted-foreground bg-muted rounded-sm flex-shrink-0 mt-0.5">
                       {getDomain(citation.url).slice(0, 2)}
                     </span>
                   )}

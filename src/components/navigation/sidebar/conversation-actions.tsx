@@ -100,7 +100,7 @@ export const ConversationActions = memo(
                   size="icon-sm"
                   variant="ghost"
                 >
-                  <DotsThreeVerticalIcon className="h-4 w-4" weight="bold" />
+                  <DotsThreeVerticalIcon className="size-4" weight="bold" />
                 </Button>
               </DrawerTrigger>
               <DrawerContent>
@@ -116,7 +116,7 @@ export const ConversationActions = memo(
                       onClick={() => onPinToggle()}
                     >
                       <PushPinIcon
-                        className="h-4 w-4"
+                        className="size-4"
                         weight={conversation.isPinned ? "fill" : "regular"}
                       />
                       {conversation.isPinned ? "Unpin" : "Pin"}
@@ -127,7 +127,7 @@ export const ConversationActions = memo(
                       variant="ghost"
                       onClick={onStartEdit}
                     >
-                      <PencilSimpleIcon className="h-4 w-4" />
+                      <PencilSimpleIcon className="size-4" />
                       Edit title
                     </Button>
                     <Button
@@ -136,7 +136,7 @@ export const ConversationActions = memo(
                       variant="ghost"
                       onClick={() => onArchive()}
                     >
-                      <ArchiveIcon className="h-4 w-4" />
+                      <ArchiveIcon className="size-4" />
                       Archive
                     </Button>
                     <Button
@@ -145,7 +145,7 @@ export const ConversationActions = memo(
                       variant="ghost"
                       onClick={() => onDelete()}
                     >
-                      <TrashIcon className="h-4 w-4" />
+                      <TrashIcon className="size-4" />
                       Delete
                     </Button>
                   </div>
@@ -171,7 +171,7 @@ export const ConversationActions = memo(
                   onClick={onPinToggle}
                 >
                   <PushPinIcon
-                    className="h-3.5 w-3.5"
+                    className="size-3.5"
                     weight={conversation.isPinned ? "fill" : "regular"}
                   />
                 </Button>
@@ -186,21 +186,21 @@ export const ConversationActions = memo(
               onOpenChange={onDesktopPopoverChange}
             >
               <DropdownMenuTrigger className="h-7 w-7 text-foreground/70 transition-opacity hover:text-foreground rounded-md hover:bg-accent hover:text-accent-foreground inline-flex items-center justify-center whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 cursor-pointer">
-                <DotsThreeVerticalIcon className="h-3.5 w-3.5" weight="bold" />
+                <DotsThreeVerticalIcon className="size-3.5" weight="bold" />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" sideOffset={5} className="w-40">
                 <DropdownMenuItem
                   className="h-8 gap-2 px-2 text-xs"
                   onClick={() => onArchive()}
                 >
-                  <ArchiveIcon className="h-3.5 w-3.5" />
+                  <ArchiveIcon className="size-3.5" />
                   Archive
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   className="h-8 gap-2 px-2 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive dark:hover:bg-destructive/20"
                   onClick={() => onDelete()}
                 >
-                  <TrashIcon className="h-3.5 w-3.5" />
+                  <TrashIcon className="size-3.5" />
                   Delete
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -273,7 +273,7 @@ export const ConversationContextMenu = memo(
                     "data-[highlighted]:bg-muted data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
                   )}
                 >
-                  <FileCodeIcon className="h-4 w-4" />
+                  <FileCodeIcon className="size-4" />
                   Export selected as JSON
                 </ContextMenu.Item>
 
@@ -286,7 +286,7 @@ export const ConversationContextMenu = memo(
                     "data-[highlighted]:bg-muted data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
                   )}
                 >
-                  <ArchiveIcon className="h-4 w-4" />
+                  <ArchiveIcon className="size-4" />
                   Archive selected
                 </ContextMenu.Item>
 
@@ -298,7 +298,7 @@ export const ConversationContextMenu = memo(
                     "text-destructive focus:text-destructive"
                   )}
                 >
-                  <TrashIcon className="h-4 w-4" />
+                  <TrashIcon className="size-4" />
                   Delete selected
                 </ContextMenu.Item>
               </>
@@ -313,7 +313,7 @@ export const ConversationContextMenu = memo(
                   )}
                 >
                   <PushPinIcon
-                    className="h-4 w-4"
+                    className="size-4"
                     weight={conversation.isPinned ? "fill" : "regular"}
                   />
                   {conversation.isPinned ? "Unpin" : "Pin"}
@@ -326,7 +326,7 @@ export const ConversationContextMenu = memo(
                     "data-[highlighted]:bg-muted data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
                   )}
                 >
-                  <PencilSimpleIcon className="h-4 w-4" />
+                  <PencilSimpleIcon className="size-4" />
                   Edit title
                 </ContextMenu.Item>
 
@@ -339,7 +339,7 @@ export const ConversationContextMenu = memo(
                     "data-[highlighted]:bg-muted data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
                   )}
                 >
-                  <ShareNetworkIcon className="h-4 w-4" />
+                  <ShareNetworkIcon className="size-4" />
                   Share
                 </ContextMenu.Item>
 
@@ -351,7 +351,7 @@ export const ConversationContextMenu = memo(
                     "data-[highlighted]:bg-muted data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
                   )}
                 >
-                  <FileTextIcon className="h-4 w-4" />
+                  <FileTextIcon className="size-4" />
                   {exportingFormat === "md"
                     ? "Exporting..."
                     : "Export as Markdown"}
@@ -365,7 +365,7 @@ export const ConversationContextMenu = memo(
                     "data-[highlighted]:bg-muted data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
                   )}
                 >
-                  <FileCodeIcon className="h-4 w-4" />
+                  <FileCodeIcon className="size-4" />
                   {exportingFormat === "json"
                     ? "Exporting..."
                     : "Export as JSON"}
@@ -380,7 +380,7 @@ export const ConversationContextMenu = memo(
                     "data-[highlighted]:bg-muted data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
                   )}
                 >
-                  <ArchiveIcon className="h-4 w-4" />
+                  <ArchiveIcon className="size-4" />
                   Archive
                 </ContextMenu.Item>
 
@@ -392,7 +392,7 @@ export const ConversationContextMenu = memo(
                     "text-destructive focus:text-destructive"
                   )}
                 >
-                  <TrashIcon className="h-4 w-4" />
+                  <TrashIcon className="size-4" />
                   Delete
                 </ContextMenu.Item>
               </>

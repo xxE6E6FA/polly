@@ -51,7 +51,7 @@ const createSyntaxTheme = (mode: ThemeMode) => ({
     {
       types: ["property", "attr-name", "class-name"],
       style: {
-        color: "hsl(var(--accent-orange))",
+        color: "hsl(var(--accent-coral))",
       },
     },
     {

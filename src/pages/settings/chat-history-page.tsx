@@ -328,7 +328,7 @@ export default function ChatHistoryPage() {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 min-w-0">
                     {conv.isPinned && (
-                      <PushPinIcon className="h-3.5 w-3.5 text-primary flex-shrink-0" />
+                      <PushPinIcon className="size-3.5 text-primary flex-shrink-0" />
                     )}
                     <span className="font-medium truncate">{conv.title}</span>
                     {isRecentlyImported && (
@@ -340,7 +340,7 @@ export default function ChatHistoryPage() {
                       </Badge>
                     )}
                     {conv.isArchived && (
-                      <ArchiveIcon className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                      <ArchiveIcon className="size-3.5 text-muted-foreground flex-shrink-0" />
                     )}
                   </div>
                   <div className="text-sm text-muted-foreground">
@@ -379,7 +379,7 @@ export default function ChatHistoryPage() {
                 }}
                 title="Open conversation"
               >
-                <ChatCircleIcon className="h-3.5 w-3.5" />
+                <ChatCircleIcon className="size-3.5" />
               </Button>
               <Button
                 size="sm"
@@ -391,7 +391,7 @@ export default function ChatHistoryPage() {
                 disabled={isExporting}
                 title="Export conversation"
               >
-                <DownloadIcon className="h-3.5 w-3.5" />
+                <DownloadIcon className="size-3.5" />
               </Button>
               <Button
                 size="sm"
@@ -404,7 +404,7 @@ export default function ChatHistoryPage() {
                 }}
                 title="Delete conversation"
               >
-                <TrashIcon className="h-3.5 w-3.5" />
+                <TrashIcon className="size-3.5" />
               </Button>
             </div>
           ),
@@ -461,7 +461,7 @@ export default function ChatHistoryPage() {
       return (
         <div className="flex items-center gap-2 min-w-0">
           {conv.isPinned && (
-            <PushPinIcon className="h-4 w-4 text-primary flex-shrink-0" />
+            <PushPinIcon className="size-4 text-primary flex-shrink-0" />
           )}
           <span className="font-medium truncate flex-1">{conv.title}</span>
           {isRecentlyImported && (
@@ -483,7 +483,7 @@ export default function ChatHistoryPage() {
           <>
             <span>•</span>
             <span className="flex items-center gap-1">
-              <ArchiveIcon className="h-3 w-3" />
+              <ArchiveIcon className="size-3" />
               Archived
             </span>
           </>
@@ -538,7 +538,7 @@ export default function ChatHistoryPage() {
                     "Exporting..."
                   ) : (
                     <>
-                      <DownloadIcon className="mr-1.5 h-4 w-4" />
+                      <DownloadIcon className="mr-1.5 size-4" />
                       Export ({selectedCount})
                     </>
                   )}
@@ -551,7 +551,7 @@ export default function ChatHistoryPage() {
                     setShowDeleteDialog(true);
                   }}
                 >
-                  <TrashIcon className="mr-1.5 h-4 w-4" />
+                  <TrashIcon className="mr-1.5 size-4" />
                   Delete ({selectedCount})
                 </Button>
                 <Button size="sm" variant="ghost" onClick={clearSelection}>
@@ -580,7 +580,7 @@ export default function ChatHistoryPage() {
           mobileDrawerConfig={mobileDrawerConfig}
           emptyState={
             <ListEmptyState
-              icon={<ChatCircleIcon className="h-12 w-12" />}
+              icon={<ChatCircleIcon className="size-12" />}
               title="No Conversations"
               description="Start a new conversation to see it here"
             />

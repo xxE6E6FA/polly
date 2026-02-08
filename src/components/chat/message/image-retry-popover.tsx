@@ -181,7 +181,7 @@ function DesktopContent({
       {/* Search input */}
       <div className="px-3 pt-3 pb-2">
         <div className="relative">
-          <MagnifyingGlassIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+          <MagnifyingGlassIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
           <Input
             type="text"
             placeholder="Search models..."
@@ -267,7 +267,7 @@ function MobileContent({
     <div className="stack-lg">
       {/* Search input */}
       <div className="relative">
-        <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
         <Input
           type="text"
           placeholder="Search models..."
@@ -357,7 +357,7 @@ function MobileContent({
           Cancel
         </Button>
         <Button className="flex-1" onClick={onRetry} disabled={!selectedModel}>
-          <ActionIcon.Retry className="mr-1.5 h-4 w-4" />
+          <ActionIcon.Retry className="mr-1.5 size-4" />
           Retry
         </Button>
       </div>

@@ -219,7 +219,7 @@ export default function SharedConversationsPage() {
                       onClick={() => handleCopyUrl(conversation.shareId)}
                     >
                       <CopyIcon
-                        className={`h-4 w-4 ${isCopied ? "text-primary" : ""}`}
+                        className={`size-4 ${isCopied ? "text-primary" : ""}`}
                       />
                     </Button>
                   </TooltipTrigger>
@@ -239,7 +239,7 @@ export default function SharedConversationsPage() {
                         className: "h-8 px-2",
                       })}
                     >
-                      <ArrowSquareOutIcon className="h-4 w-4" />
+                      <ArrowSquareOutIcon className="size-4" />
                     </a>
                   </TooltipTrigger>
                   <TooltipContent>
@@ -258,7 +258,7 @@ export default function SharedConversationsPage() {
                         className: "h-8 px-2",
                       })}
                     >
-                      <EyeIcon className="h-4 w-4" />
+                      <EyeIcon className="size-4" />
                     </Link>
                   </TooltipTrigger>
                   <TooltipContent>
@@ -280,9 +280,9 @@ export default function SharedConversationsPage() {
                       disabled={isDeletingConversation}
                     >
                       {isDeletingConversation ? (
-                        <Spinner size="sm" className="h-4 w-4" />
+                        <Spinner size="sm" className="size-4" />
                       ) : (
-                        <TrashIcon className="h-4 w-4" />
+                        <TrashIcon className="size-4" />
                       )}
                     </Button>
                   </TooltipTrigger>
@@ -360,7 +360,7 @@ export default function SharedConversationsPage() {
 
   const emptyState = (
     <SettingsZeroState
-      icon={<ShareNetworkIcon className="h-12 w-12" />}
+      icon={<ShareNetworkIcon className="size-12" />}
       title="No shared conversations"
       description="Share a conversation to make it publicly accessible via a link"
       cta={

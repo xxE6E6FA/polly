@@ -78,7 +78,7 @@ export function OnlineStatus({
           variant === "floating" && "h-2 w-2",
           variant === "inline" && "h-1.5 w-1.5",
           variant === "sidebar" && "h-1.5 w-1.5",
-          online ? "bg-green-500" : "bg-red-500"
+          online ? "bg-success" : "bg-danger"
         )}
       />
       {variant === "floating" && (

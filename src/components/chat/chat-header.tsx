@@ -464,12 +464,12 @@ const ChatHeaderComponent = ({
                         <div className="w-4 flex items-center justify-center flex-shrink-0">
                           {isRoot ? (
                             <GitCommitIcon
-                              className="h-3.5 w-3.5 text-muted-foreground"
+                              className="size-3.5 text-muted-foreground"
                               aria-label="Root conversation"
                             />
                           ) : (
                             <GitBranchIcon
-                              className="h-3.5 w-3.5 text-muted-foreground"
+                              className="size-3.5 text-muted-foreground"
                               aria-label="Branch"
                             />
                           )}
@@ -499,7 +499,7 @@ const ChatHeaderComponent = ({
                   className="h-6 mt-0 p-1"
                   onClick={() => setIsShareDialogOpen(true)}
                 >
-                  <ShareNetworkIcon className="h-4 w-4" />
+                  <ShareNetworkIcon className="size-4" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
@@ -532,7 +532,7 @@ const ChatHeaderComponent = ({
                         disabled={!online}
                       >
                         <PushPinIcon
-                          className="mr-2 h-4 w-4"
+                          className="mr-2 size-4"
                           weight={conversation.isPinned ? "fill" : "regular"}
                         />
                         {conversation.isPinned ? "Unpin" : "Pin"}
@@ -541,7 +541,7 @@ const ChatHeaderComponent = ({
                         onClick={handleEditTitle}
                         disabled={!online}
                       >
-                        <PencilSimpleIcon className="mr-2 h-4 w-4" />
+                        <PencilSimpleIcon className="mr-2 size-4" />
                         Edit Title
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
@@ -554,7 +554,7 @@ const ChatHeaderComponent = ({
                         onClick={onSavePrivateChat}
                         disabled={!(online && canSavePrivateChat)}
                       >
-                        <FloppyDiskIcon className="mr-2 h-4 w-4" />
+                        <FloppyDiskIcon className="mr-2 size-4" />
                         Save Private Chat
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
@@ -566,7 +566,7 @@ const ChatHeaderComponent = ({
                       onClick={() => setIsShareDialogOpen(true)}
                       disabled={!online}
                     >
-                      <ShareNetworkIcon className="mr-2 h-4 w-4" />
+                      <ShareNetworkIcon className="mr-2 size-4" />
                       Share Conversation
                     </DropdownMenuItem>
                   )}
@@ -575,14 +575,14 @@ const ChatHeaderComponent = ({
                     onClick={() => handleExport("json")}
                     disabled={!online || exportingFormat !== null}
                   >
-                    <FileCodeIcon className="mr-2 h-4 w-4" />
+                    <FileCodeIcon className="mr-2 size-4" />
                     Export as JSON
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => handleExport("md")}
                     disabled={!online || exportingFormat !== null}
                   >
-                    <DownloadIcon className="mr-2 h-4 w-4" />
+                    <DownloadIcon className="mr-2 size-4" />
                     Export as Markdown
                   </DropdownMenuItem>
 
@@ -593,7 +593,7 @@ const ChatHeaderComponent = ({
                         onClick={() => setIsArchiveDialogOpen(true)}
                         disabled={!online}
                       >
-                        <ArchiveIcon className="mr-2 h-4 w-4" />
+                        <ArchiveIcon className="mr-2 size-4" />
                         Archive Conversation
                       </DropdownMenuItem>
                     </>
@@ -605,7 +605,7 @@ const ChatHeaderComponent = ({
                       disabled={!online}
                       className="text-destructive focus:text-destructive"
                     >
-                      <TrashIcon className="mr-2 h-4 w-4" />
+                      <TrashIcon className="mr-2 size-4" />
                       Delete
                     </DropdownMenuItem>
                   )}
@@ -640,7 +640,7 @@ const ChatHeaderComponent = ({
                             disabled={!online}
                           >
                             <PushPinIcon
-                              className="h-4 w-4"
+                              className="size-4"
                               weight={
                                 conversation.isPinned ? "fill" : "regular"
                               }
@@ -653,7 +653,7 @@ const ChatHeaderComponent = ({
                             onClick={handleEditTitle}
                             disabled={!online}
                           >
-                            <PencilSimpleIcon className="h-4 w-4" />
+                            <PencilSimpleIcon className="size-4" />
                             Edit Title
                           </Button>
                         </>
@@ -666,7 +666,7 @@ const ChatHeaderComponent = ({
                           onClick={onSavePrivateChat}
                           disabled={!(online && canSavePrivateChat)}
                         >
-                          <FloppyDiskIcon className="h-4 w-4" />
+                          <FloppyDiskIcon className="size-4" />
                           Save Private Chat
                         </Button>
                       )}
@@ -678,7 +678,7 @@ const ChatHeaderComponent = ({
                           onClick={() => setIsShareDialogOpen(true)}
                           disabled={!online}
                         >
-                          <ShareNetworkIcon className="h-4 w-4" />
+                          <ShareNetworkIcon className="size-4" />
                           Share Conversation
                         </Button>
                       )}
@@ -689,7 +689,7 @@ const ChatHeaderComponent = ({
                         onClick={() => handleExport("json")}
                         disabled={!online || exportingFormat !== null}
                       >
-                        <FileCodeIcon className="h-4 w-4" />
+                        <FileCodeIcon className="size-4" />
                         Export as JSON
                       </Button>
                       <Button
@@ -698,7 +698,7 @@ const ChatHeaderComponent = ({
                         onClick={() => handleExport("md")}
                         disabled={!online || exportingFormat !== null}
                       >
-                        <DownloadIcon className="h-4 w-4" />
+                        <DownloadIcon className="size-4" />
                         Export as Markdown
                       </Button>
 
@@ -709,7 +709,7 @@ const ChatHeaderComponent = ({
                           onClick={() => setIsArchiveDialogOpen(true)}
                           disabled={!online}
                         >
-                          <ArchiveIcon className="h-4 w-4" />
+                          <ArchiveIcon className="size-4" />
                           Archive Conversation
                         </Button>
                       )}
@@ -722,7 +722,7 @@ const ChatHeaderComponent = ({
                           onClick={() => setIsDeleteDialogOpen(true)}
                           disabled={!online}
                         >
-                          <TrashIcon className="h-4 w-4" />
+                          <TrashIcon className="size-4" />
                           Delete
                         </Button>
                       )}

@@ -187,7 +187,7 @@ export const ConversationListContent = ({
       <div className="pt-3 pb-3">
         <div className="flex h-32 items-center justify-start pl-2">
           <div className="stack-sm">
-            <ChatCircleIcon className="mb-2 h-8 w-8 text-muted-foreground/40" />
+            <ChatCircleIcon className="mb-2 size-8 text-muted-foreground/40" />
             <p className="text-sm text-muted-foreground">No results found</p>
           </div>
         </div>

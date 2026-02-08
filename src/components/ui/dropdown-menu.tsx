@@ -34,7 +34,7 @@ function DropdownMenuSubTrigger({
       {...props}
     >
       {children}
-      <CaretRightIcon className="ml-auto h-4 w-4" />
+      <CaretRightIcon className="ml-auto size-4" />
     </Menu.SubmenuTrigger>
   );
 }
@@ -168,7 +168,7 @@ function DropdownMenuCheckboxItem({
     >
       {children}
       <Menu.CheckboxItemIndicator className="ml-auto">
-        <CheckIcon className="h-4 w-4" />
+        <CheckIcon className="size-4" />
       </Menu.CheckboxItemIndicator>
     </Menu.CheckboxItem>
   );
@@ -198,7 +198,7 @@ function DropdownMenuRadioItem({
     >
       {children}
       <Menu.RadioItemIndicator className="ml-auto">
-        <CheckIcon className="h-4 w-4" />
+        <CheckIcon className="size-4" />
       </Menu.RadioItemIndicator>
     </Menu.RadioItem>
   );

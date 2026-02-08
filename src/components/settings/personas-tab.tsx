@@ -218,7 +218,7 @@ export const PersonasTab = () => {
                           setViewingPersona(persona);
                         }}
                       >
-                        <FileTextIcon className="h-3.5 w-3.5" />
+                        <FileTextIcon className="size-3.5" />
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent>View system prompt</TooltipContent>
@@ -230,7 +230,7 @@ export const PersonasTab = () => {
                         onClick={e => e.stopPropagation()}
                       >
                         <Button size="sm" variant="ghost">
-                          <PencilSimpleLineIcon className="h-3.5 w-3.5" />
+                          <PencilSimpleLineIcon className="size-3.5" />
                         </Button>
                       </Link>
                     </TooltipTrigger>
@@ -247,7 +247,7 @@ export const PersonasTab = () => {
                           setDeletingPersona(persona._id);
                         }}
                       >
-                        <TrashIcon className="h-3.5 w-3.5" />
+                        <TrashIcon className="size-3.5" />
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent>Delete persona</TooltipContent>
@@ -392,7 +392,7 @@ export const PersonasTab = () => {
             </div>
             <Link to={ROUTES.SETTINGS.PERSONAS_NEW}>
               <Button size="sm" variant="default">
-                <PlusIcon className="h-4 w-4" />
+                <PlusIcon className="size-4" />
                 <span className="hidden sm:inline">Create Persona</span>
               </Button>
             </Link>
@@ -418,13 +418,13 @@ export const PersonasTab = () => {
             mobileDrawerConfig={mobileDrawerConfig}
             emptyState={
               <ListEmptyState
-                icon={<UserIcon className="h-12 w-12" />}
+                icon={<UserIcon className="size-12" />}
                 title="No Personas"
                 description="Create your first custom persona to define specialized AI behavior"
                 action={
                   <Link to={ROUTES.SETTINGS.PERSONAS_NEW}>
                     <Button variant="default">
-                      <PlusIcon className="mr-2 h-4 w-4" />
+                      <PlusIcon className="mr-2 size-4" />
                       Create Persona
                     </Button>
                   </Link>

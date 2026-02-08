@@ -110,7 +110,7 @@ export const NegativePrompt = memo<NegativePromptProps>(
             className={cn(
               "w-full bg-transparent border-0 outline-none leading-relaxed",
               "placeholder:text-muted-foreground/60",
-              disabled && "cursor-not-allowed opacity-60"
+              disabled && "cursor-not-allowed opacity-50"
             )}
             rows={1}
             disabled={disabled}

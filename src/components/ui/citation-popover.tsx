@@ -205,7 +205,7 @@ export const CitationPreviewPopup: React.FC<CitationPreviewPopupProps> = ({
             </Button>
           </div>
           <span
-            className="text-[10px] font-medium text-muted-foreground/70"
+            className="text-overline font-medium text-muted-foreground/70"
             aria-live="polite"
           >
             {formatIndexLabel

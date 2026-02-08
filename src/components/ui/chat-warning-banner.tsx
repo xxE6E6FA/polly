@@ -34,15 +34,15 @@ export const ChatWarningBanner = ({
   const contentClasses = cn(
     WARNING_CONTENT_CLASSES,
     isWarning
-      ? "bg-amber-50 text-amber-900 border border-amber-200 dark:bg-amber-950/50 dark:text-amber-200 dark:border-amber-800/50"
-      : "bg-red-50 text-red-900 border border-red-200 dark:bg-red-950/50 dark:text-red-200 dark:border-red-800/50"
+      ? "bg-warning-bg text-warning-foreground border border-warning-border dark:bg-warning-bg dark:text-warning-foreground dark:border-warning-border"
+      : "bg-danger-bg text-danger border border-danger-border dark:bg-danger-bg dark:text-danger dark:border-danger-border"
   );
 
   const buttonClasses = cn(
     WARNING_BUTTON_CLASSES,
     isWarning
-      ? "hover:bg-amber-100 text-amber-700 dark:hover:bg-amber-900/50 dark:text-amber-300"
-      : "hover:bg-red-100 text-red-700 dark:hover:bg-red-900/50 dark:text-red-300"
+      ? "hover:bg-warning-bg text-warning-foreground"
+      : "hover:bg-danger-bg text-danger"
   );
 
   const containerClasses = isStable
@@ -62,8 +62,8 @@ export const ChatWarningBanner = ({
                 className={cn(
                   "underline underline-offset-2 transition-all duration-150",
                   isWarning
-                    ? "hover:text-amber-800 dark:hover:text-amber-100"
-                    : "hover:text-red-800 dark:hover:text-red-100"
+                    ? "hover:text-warning-foreground"
+                    : "hover:text-danger"
                 )}
               >
                 {message.link.text}
@@ -84,7 +84,7 @@ export const ChatWarningBanner = ({
             className={buttonClasses}
             aria-label="Dismiss warning"
           >
-            <XIcon className="h-3 w-3" />
+            <XIcon className="size-3" />
           </button>
         )}
       </div>

@@ -124,7 +124,7 @@ export function SettingsTabs({
                     transition={{ type: "spring", bounce: 0.2, duration: 0.5 }}
                   />
                 )}
-                <Icon className="relative z-10 h-4 w-4 shrink-0" />
+                <Icon className="relative z-10 size-4 shrink-0" />
                 <span className="relative z-10">{tab.label}</span>
               </>
             );

@@ -87,11 +87,11 @@ export const AspectRatioPicker = memo<AspectRatioPickerProps>(
 
     let iconElement;
     if (selectedRatio) {
-      iconElement = <selectedRatio.icon className="h-4 w-4 text-current" />;
+      iconElement = <selectedRatio.icon className="size-4 text-current" />;
     } else if (isDesktop) {
-      iconElement = <Square className="h-4 w-4 text-current" />;
+      iconElement = <Square className="size-4 text-current" />;
     } else {
-      iconElement = <Crop className="h-4 w-4" />;
+      iconElement = <Crop className="size-4" />;
     }
 
     const triggerContent = (
@@ -179,7 +179,7 @@ const AspectRatioListMobile = ({
           return (
             <DrawerItem
               key={ratio.value}
-              icon={<Icon className="h-4 w-4" />}
+              icon={<Icon className="size-4" />}
               name={ratio.label}
               description={ratio.description}
               badges={

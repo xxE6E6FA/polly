@@ -96,11 +96,11 @@ function getFileAttachmentIcon(attachment: Attachment) {
   }
 
   if (attachment.type === "audio") {
-    return <SpeakerHighIcon className="h-4 w-4 text-orange-500" />;
+    return <SpeakerHighIcon className="size-4 text-orange-500" />;
   }
 
   if (attachment.type === "video") {
-    return <FilmStripIcon className="h-4 w-4 text-purple-500" />;
+    return <FilmStripIcon className="size-4 text-purple-500" />;
   }
 
   if (attachment.type === "text") {
@@ -110,12 +110,12 @@ function getFileAttachmentIcon(attachment: Attachment) {
       (TEXT_FILE_EXTENSIONS as readonly string[]).includes(extension);
 
     if (isTextFile) {
-      return <FileTextIcon className="h-4 w-4 text-blue-500" />;
+      return <FileTextIcon className="size-4 text-blue-500" />;
     }
-    return <FileCodeIcon className="h-4 w-4 text-green-500" />;
+    return <FileCodeIcon className="size-4 text-success" />;
   }
 
-  return <FileTextIcon className="h-4 w-4 text-gray-500" />;
+  return <FileTextIcon className="size-4 text-gray-500" />;
 }
 
 export default function AttachmentsPage() {
@@ -401,7 +401,7 @@ export default function AttachmentsPage() {
                   const Icon = selected.icon;
                   return (
                     <span className="flex items-center gap-2">
-                      <Icon className="h-4 w-4" />
+                      <Icon className="size-4" />
                       {selected.label}
                     </span>
                   );
@@ -414,7 +414,7 @@ export default function AttachmentsPage() {
                 return (
                   <SelectItem key={option.value} value={option.value}>
                     <div className="flex items-center gap-2">
-                      <Icon className="h-4 w-4" />
+                      <Icon className="size-4" />
                       {option.label}
                     </div>
                   </SelectItem>
@@ -451,7 +451,7 @@ export default function AttachmentsPage() {
                 setShowDeleteDialog(true);
               }}
             >
-              <TrashIcon className="h-4 w-4 mr-2" />
+              <TrashIcon className="size-4 mr-2" />
               Delete ({selection.selectedCount})
             </Button>
           )}
@@ -474,7 +474,7 @@ export default function AttachmentsPage() {
         loadingState={<ListLoadingState count={6} height="h-16" />}
         emptyState={
           <ListEmptyState
-            icon={<FolderIcon className="h-12 w-12" />}
+            icon={<FolderIcon className="size-12" />}
             title="No files found"
             description={
               searchQuery
@@ -521,7 +521,7 @@ export default function AttachmentsPage() {
                       className="bg-purple-500/90 text-white text-xs flex-shrink-0 px-1"
                       title="Generated image"
                     >
-                      <MagicWandIcon className="h-3 w-3" />
+                      <MagicWandIcon className="size-3" />
                       <span className="ml-1 hidden sm:inline">Generated</span>
                     </Badge>
                   )}
@@ -637,7 +637,7 @@ export default function AttachmentsPage() {
                         {(file.attachment.generatedImage?.isGenerated ??
                           false) && (
                           <Badge className="bg-purple-500/90 text-white text-xs flex-shrink-0">
-                            <MagicWandIcon className="h-3 w-3 mr-1" />
+                            <MagicWandIcon className="size-3 mr-1" />
                             Generated
                           </Badge>
                         )}
@@ -683,7 +683,7 @@ export default function AttachmentsPage() {
                     className="h-8 px-2"
                     title="Preview file"
                   >
-                    <EyeIcon className="h-4 w-4" />
+                    <EyeIcon className="size-4" />
                   </Button>
                   <Button
                     size="sm"
@@ -695,7 +695,7 @@ export default function AttachmentsPage() {
                     className="h-8 px-2"
                     title="Go to conversation"
                   >
-                    <LinkIcon className="h-4 w-4" />
+                    <LinkIcon className="size-4" />
                   </Button>
                   {file.url && (
                     <Button
@@ -708,7 +708,7 @@ export default function AttachmentsPage() {
                       className="h-8 px-2"
                       title="Download file"
                     >
-                      <DownloadIcon className="h-4 w-4" />
+                      <DownloadIcon className="size-4" />
                     </Button>
                   )}
                   <Button
@@ -728,7 +728,7 @@ export default function AttachmentsPage() {
                         : "Remove text attachment from message"
                     }
                   >
-                    <TrashIcon className="h-4 w-4" />
+                    <TrashIcon className="size-4" />
                   </Button>
                 </div>
               ),

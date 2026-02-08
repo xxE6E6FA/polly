@@ -1175,7 +1175,7 @@ export function CommandPalette({
                   onSelect={navigateBack}
                   className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground cursor-pointer -mx-2 px-2"
                 >
-                  <ArrowLeftIcon className="h-4 w-4" />
+                  <ArrowLeftIcon className="size-4" />
                   <span>Back</span>
                 </CommandItem>
                 {navigation.breadcrumb && (
@@ -1194,7 +1194,7 @@ export function CommandPalette({
             />
             {isSearching && (
               <div className="absolute right-4 top-1/2 -translate-y-1/2">
-                <Spinner size="sm" className="h-4 w-4" />
+                <Spinner size="sm" className="size-4" />
               </div>
             )}
           </div>
@@ -1212,7 +1212,7 @@ export function CommandPalette({
                 searchResults !== undefined) && (
                 <CommandEmpty>
                   <div className="flex flex-col items-center gap-2 py-6">
-                    <MagnifyingGlassIcon className="h-8 w-8 text-muted-foreground" />
+                    <MagnifyingGlassIcon className="size-8 text-muted-foreground" />
                     <p className="text-sm text-muted-foreground">
                       No results found
                     </p>
@@ -1250,7 +1250,7 @@ export function CommandPalette({
                             }
                           >
                             <IconComponent
-                              className={`h-4 w-4 flex-shrink-0 ${isDeleteAction ? "text-red-500" : "text-muted-foreground"}`}
+                              className={`size-4 flex-shrink-0 ${isDeleteAction ? "text-destructive" : "text-muted-foreground"}`}
                               weight={
                                 isPinAction &&
                                 currentConversation?.conversation?.isPinned
@@ -1259,7 +1259,7 @@ export function CommandPalette({
                               }
                             />
                             <span
-                              className={`flex-1 ${isDeleteAction ? "text-red-500" : ""}`}
+                              className={`flex-1 ${isDeleteAction ? "text-destructive" : ""}`}
                             >
                               {isExportAction &&
                               exportingFormat === action.id.split("-")[1]
@@ -1295,7 +1295,7 @@ export function CommandPalette({
                             className="flex items-center gap-3 px-4 py-3 text-sm transition-colors rounded-md mx-2"
                             disabled={action.disabled}
                           >
-                            <IconComponent className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                            <IconComponent className="size-4 flex-shrink-0 text-muted-foreground" />
                             <span className="flex-1">{action.label}</span>
                           </CommandItem>
                         );
@@ -1327,7 +1327,7 @@ export function CommandPalette({
                             className="flex items-center gap-3 px-4 py-3 text-sm transition-colors rounded-md mx-2"
                             disabled={action.disabled}
                           >
-                            <IconComponent className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                            <IconComponent className="size-4 flex-shrink-0 text-muted-foreground" />
                             <span className="flex-1">{action.label}</span>
                           </CommandItem>
                         );
@@ -1373,7 +1373,7 @@ export function CommandPalette({
                             className="flex items-center gap-3 px-4 py-3 text-sm transition-colors rounded-md mx-2"
                             disabled={!online}
                           >
-                            <ChatCircleIcon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                            <ChatCircleIcon className="size-4 text-muted-foreground flex-shrink-0" />
                             <div className="flex-1 min-w-0">
                               <div className="truncate font-medium">
                                 {conversation.title}
@@ -1382,12 +1382,12 @@ export function CommandPalette({
                             <div className="flex items-center gap-2">
                               {conversation.isPinned && (
                                 <PushPinIcon
-                                  className="h-3 w-3 text-muted-foreground flex-shrink-0"
+                                  className="size-3 text-muted-foreground flex-shrink-0"
                                   weight="fill"
                                 />
                               )}
                               {conversation.isArchived && (
-                                <ArchiveIcon className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                                <ArchiveIcon className="size-3 text-muted-foreground flex-shrink-0" />
                               )}
                             </div>
                           </CommandItem>
@@ -1448,12 +1448,12 @@ export function CommandPalette({
                                       className="flex h-4 w-4 items-center justify-center rounded-sm bg-muted/50"
                                       title={capability.label}
                                     >
-                                      <IconComponent className="h-2.5 w-2.5 text-muted-foreground" />
+                                      <IconComponent className="size-2.5 text-muted-foreground" />
                                     </div>
                                   );
                                 })}
                               {isSelected && (
-                                <div className="h-2 w-2 rounded-full bg-green-500 flex-shrink-0 ml-1" />
+                                <div className="h-2 w-2 rounded-full bg-success flex-shrink-0 ml-1" />
                               )}
                             </div>
                           </CommandItem>
@@ -1491,7 +1491,7 @@ export function CommandPalette({
                       }
                     >
                       <IconComponent
-                        className={`h-4 w-4 flex-shrink-0 ${isDeleteAction ? "text-red-500" : "text-muted-foreground"}`}
+                        className={`size-4 flex-shrink-0 ${isDeleteAction ? "text-destructive" : "text-muted-foreground"}`}
                         weight={
                           isPinAction && targetConversation?.isPinned
                             ? "fill"
@@ -1499,7 +1499,7 @@ export function CommandPalette({
                         }
                       />
                       <span
-                        className={`flex-1 ${isDeleteAction ? "text-red-500" : ""}`}
+                        className={`flex-1 ${isDeleteAction ? "text-destructive" : ""}`}
                       >
                         {isExportAction &&
                         exportingFormat === action.id.split("-")[1]
@@ -1568,12 +1568,12 @@ export function CommandPalette({
                                         className="flex h-4 w-4 items-center justify-center rounded-sm bg-muted/50"
                                         title={capability.label}
                                       >
-                                        <IconComponent className="h-2.5 w-2.5 text-muted-foreground" />
+                                        <IconComponent className="size-2.5 text-muted-foreground" />
                                       </div>
                                     );
                                   })}
                                 {isSelected && (
-                                  <div className="h-2 w-2 rounded-full bg-green-500 flex-shrink-0 ml-1" />
+                                  <div className="h-2 w-2 rounded-full bg-success flex-shrink-0 ml-1" />
                                 )}
                               </div>
                             </CommandItem>
@@ -1585,7 +1585,7 @@ export function CommandPalette({
                 )}
                 {Object.keys(modelsByProvider).length === 0 && (
                   <div className="flex flex-col items-center gap-2 py-6">
-                    <MagnifyingGlassIcon className="h-8 w-8 text-muted-foreground" />
+                    <MagnifyingGlassIcon className="size-8 text-muted-foreground" />
                     <p className="text-sm text-muted-foreground">
                       No models found
                     </p>
@@ -1626,7 +1626,7 @@ export function CommandPalette({
                             className="flex items-center gap-3 px-4 py-3 text-sm transition-colors rounded-md mx-2"
                             disabled={!online}
                           >
-                            <ChatCircleIcon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                            <ChatCircleIcon className="size-4 text-muted-foreground flex-shrink-0" />
                             <div className="flex-1 min-w-0">
                               <div className="truncate font-medium">
                                 {conversation.title}
@@ -1640,12 +1640,12 @@ export function CommandPalette({
                             <div className="flex items-center gap-2">
                               {conversation.isPinned && (
                                 <PushPinIcon
-                                  className="h-3 w-3 text-muted-foreground flex-shrink-0"
+                                  className="size-3 text-muted-foreground flex-shrink-0"
                                   weight="fill"
                                 />
                               )}
                               {conversation.isArchived && (
-                                <ArchiveIcon className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                                <ArchiveIcon className="size-3 text-muted-foreground flex-shrink-0" />
                               )}
                             </div>
                           </CommandItem>
@@ -1657,7 +1657,7 @@ export function CommandPalette({
                 {Object.keys(conversationsByCategory).length === 0 &&
                   allConversations !== undefined && (
                     <div className="flex flex-col items-center gap-2 py-6">
-                      <ChatCircleIcon className="h-8 w-8 text-muted-foreground" />
+                      <ChatCircleIcon className="size-8 text-muted-foreground" />
                       <p className="text-sm text-muted-foreground">
                         No conversations found
                       </p>
@@ -1666,14 +1666,14 @@ export function CommandPalette({
               </>
             )}
           </CommandList>
-          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/40 bg-card/95 px-4 py-2 text-[11px] uppercase tracking-wide text-muted-foreground/80">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/40 bg-card/95 px-4 py-2 text-xs uppercase tracking-wide text-muted-foreground/80">
             <div className="flex flex-wrap items-center gap-3">
               {footerHints.map(hint => (
                 <span
                   key={`${hint.key}-${hint.label}`}
                   className={`flex items-center gap-1 ${hint.desktopOnly ? "hidden md:flex" : ""}`}
                 >
-                  <kbd className="rounded border border-border/60 bg-background px-1.5 py-0.5 text-[10px] font-medium">
+                  <kbd className="rounded border border-border/60 bg-background px-1.5 py-0.5 text-overline font-medium">
                     {hint.key}
                   </kbd>
                   {hint.label}

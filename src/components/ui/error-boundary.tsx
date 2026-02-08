@@ -130,7 +130,7 @@ export class ErrorBoundary extends React.Component<
                 size="lg"
                 onClick={() => window.location.reload()}
               >
-                <ArrowCounterClockwiseIcon className="h-4 w-4" />
+                <ArrowCounterClockwiseIcon className="size-4" />
                 Reload page
               </Button>
 
@@ -147,9 +147,9 @@ export class ErrorBoundary extends React.Component<
                   >
                     <span>Error details</span>
                     {this.state.showDetails ? (
-                      <CaretUpIcon className="h-4 w-4" />
+                      <CaretUpIcon className="size-4" />
                     ) : (
-                      <CaretDownIcon className="h-4 w-4" />
+                      <CaretDownIcon className="size-4" />
                     )}
                   </button>
 
@@ -164,12 +164,12 @@ export class ErrorBoundary extends React.Component<
                         >
                           {this.state.copied ? (
                             <>
-                              <CheckIcon className="mr-2 h-4 w-4" />
+                              <CheckIcon className="mr-2 size-4" />
                               Copied
                             </>
                           ) : (
                             <>
-                              <CopyIcon className="mr-2 h-4 w-4" />
+                              <CopyIcon className="mr-2 size-4" />
                               Copy
                             </>
                           )}

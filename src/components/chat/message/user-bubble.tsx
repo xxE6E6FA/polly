@@ -125,7 +125,7 @@ export const UserBubble = memo(
               isEditing
                 ? "ring-primary/30 shadow-md w-full"
                 : "ring-border/20 hover:shadow-md hover:ring-primary/30 w-fit ml-auto",
-              isPending && "opacity-60"
+              isPending && "opacity-50"
             )}
           >
             {isEditing ? (

@@ -9,7 +9,7 @@ const pickerTriggerVariants = cva(
     "whitespace-nowrap font-medium transition-all duration-200 ease-in-out",
     "cursor-pointer select-none",
     // Focus states
-    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background",
+    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
     // Disabled state
     "disabled:pointer-events-none disabled:opacity-50",
     // SVG styling

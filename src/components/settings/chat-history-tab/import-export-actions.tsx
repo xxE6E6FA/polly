@@ -176,12 +176,12 @@ export function ImportExportActions() {
         >
           {isValidating ? (
             <>
-              <Spinner className="mr-2 h-4 w-4" />
+              <Spinner className="mr-2 size-4" />
               Validating...
             </>
           ) : (
             <>
-              <UploadIcon className="mr-2 h-4 w-4" />
+              <UploadIcon className="mr-2 size-4" />
               Import JSON
             </>
           )}
