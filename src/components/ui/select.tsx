@@ -1,22 +1,54 @@
-import * as SelectPrimitive from "@base-ui/react/select";
-import { CaretDownIcon, CaretUpIcon } from "@phosphor-icons/react";
+import { Select, type SelectRootProps } from "@base-ui/react/select";
+import { CaretDownIcon, CaretUpIcon, CheckIcon } from "@phosphor-icons/react";
 import type * as React from "react";
+import {
+  createContext,
+  type RefCallback,
+  useCallback,
+  useContext,
+  useState,
+} from "react";
 
 import { cn } from "@/lib/utils";
 
-const SelectRoot = SelectPrimitive.Select.Root;
+// ---------------------------------------------------------------------------
+// Context: share trigger width so popup can match it
+// ---------------------------------------------------------------------------
 
-const SelectGroup = SelectPrimitive.Select.Group;
+type TriggerWidthContextValue = {
+  width: number | null;
+  setWidth: (w: number) => void;
+};
 
-const SelectValue = SelectPrimitive.Select.Value;
+const TriggerWidthCtx = createContext<TriggerWidthContextValue>({
+  width: null,
+  // biome-ignore lint/suspicious/noEmptyBlockStatements: noop default
+  setWidth: () => {},
+});
+
+// ---------------------------------------------------------------------------
+// Root
+// ---------------------------------------------------------------------------
+
+function SelectRoot<V>(props: SelectRootProps<V>) {
+  const [width, setWidth] = useState<number | null>(null);
+  return (
+    <TriggerWidthCtx value={{ width, setWidth }}>
+      <Select.Root<V> {...props} />
+    </TriggerWidthCtx>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Trigger
+// ---------------------------------------------------------------------------
 
 type SelectTriggerProps = React.ComponentPropsWithoutRef<
-  typeof SelectPrimitive.Select.Trigger
+  typeof Select.Trigger
 > & {
   variant?: "default" | "minimal";
   hideIcon?: boolean;
-  asChild?: boolean;
-  ref?: React.Ref<React.ComponentRef<typeof SelectPrimitive.Select.Trigger>>;
+  ref?: React.Ref<HTMLButtonElement>;
 };
 
 function SelectTrigger({
@@ -24,199 +56,185 @@ function SelectTrigger({
   children,
   variant = "default",
   hideIcon = false,
-  render,
   ref,
-  ...props
+  ...rest
 }: SelectTriggerProps) {
-  // If using asChild or render prop, delegate rendering
-  if (props.asChild || render) {
-    return (
-      <SelectPrimitive.Select.Trigger ref={ref} render={render} {...props}>
-        {children}
-      </SelectPrimitive.Select.Trigger>
-    );
-  }
+  const { setWidth } = useContext(TriggerWidthCtx);
+
+  const measure: RefCallback<HTMLElement> = useCallback(
+    node => {
+      if (node) {
+        setWidth(node.getBoundingClientRect().width);
+      }
+    },
+    [setWidth]
+  );
+
+  const mergedRef = useCallback(
+    (node: HTMLElement | null) => {
+      measure(node);
+      if (typeof ref === "function") {
+        ref(node as HTMLButtonElement | null);
+      } else if (ref) {
+        (ref as React.RefObject<HTMLElement | null>).current = node;
+      }
+    },
+    [measure, ref]
+  );
 
   return (
-    <SelectPrimitive.Select.Trigger
-      ref={ref}
+    <Select.Trigger
+      ref={mergedRef}
       className={cn(
-        variant === "default"
-          ? "flex h-9 w-full items-center justify-between whitespace-nowrap rounded-md border border-input-border bg-background/40 backdrop-blur-sm px-3 py-2 text-sm shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 hover:bg-background/60 hover:border-input-border focus-visible:bg-background focus-visible:border-input-border transition-[background-color,border-color,color,box-shadow] duration-200"
-          : "flex items-center whitespace-nowrap rounded-md border-0 bg-transparent px-0 py-0 text-sm shadow-none outline-none focus:outline-none focus:ring-0 focus:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-50",
+        "flex cursor-default items-center justify-between gap-2 rounded-md text-sm select-none",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        "disabled:cursor-not-allowed disabled:opacity-50",
+        variant === "default" &&
+          "h-9 w-full border border-input-border bg-background/40 px-3 py-2 shadow-sm",
+        variant === "minimal" && "border-0 bg-transparent",
         className
       )}
-      {...props}
+      {...rest}
     >
       {children}
       {!hideIcon && (
-        <SelectPrimitive.Select.Icon
-          render={props => (
-            <CaretDownIcon {...props} className="size-4 opacity-50" />
-          )}
-        />
+        <Select.Icon className="flex shrink-0">
+          <CaretDownIcon className="size-4 opacity-50" />
+        </Select.Icon>
       )}
-    </SelectPrimitive.Select.Trigger>
+    </Select.Trigger>
   );
 }
 
-type SelectScrollUpButtonProps = React.ComponentPropsWithoutRef<
-  typeof SelectPrimitive.Select.ScrollUpArrow
-> & {
-  ref?: React.Ref<
-    React.ComponentRef<typeof SelectPrimitive.Select.ScrollUpArrow>
-  >;
-};
-
-function SelectScrollUpButton({
-  className,
-  ref,
-  ...props
-}: SelectScrollUpButtonProps) {
-  return (
-    <SelectPrimitive.Select.ScrollUpArrow
-      ref={ref}
-      className={cn(
-        "flex cursor-default items-center justify-center py-1",
-        className
-      )}
-      {...props}
-    >
-      <CaretUpIcon className="size-4" />
-    </SelectPrimitive.Select.ScrollUpArrow>
-  );
-}
-
-type SelectScrollDownButtonProps = React.ComponentPropsWithoutRef<
-  typeof SelectPrimitive.Select.ScrollDownArrow
-> & {
-  ref?: React.Ref<
-    React.ComponentRef<typeof SelectPrimitive.Select.ScrollDownArrow>
-  >;
-};
-
-function SelectScrollDownButton({
-  className,
-  ref,
-  ...props
-}: SelectScrollDownButtonProps) {
-  return (
-    <SelectPrimitive.Select.ScrollDownArrow
-      ref={ref}
-      className={cn(
-        "flex cursor-default items-center justify-center py-1",
-        className
-      )}
-      {...props}
-    >
-      <CaretDownIcon className="size-4" />
-    </SelectPrimitive.Select.ScrollDownArrow>
-  );
-}
+// ---------------------------------------------------------------------------
+// Content (Portal → Positioner → Popup)
+// ---------------------------------------------------------------------------
 
 type SelectContentProps = React.ComponentPropsWithoutRef<
-  typeof SelectPrimitive.Select.Positioner
+  typeof Select.Positioner
 > & {
-  ref?: React.Ref<React.ComponentRef<typeof SelectPrimitive.Select.Positioner>>;
+  ref?: React.Ref<HTMLDivElement>;
 };
 
 function SelectContent({
   className,
   children,
-  side = "bottom",
   sideOffset = 4,
-  ref,
-  ...props
+  ...rest
 }: SelectContentProps) {
+  const { width } = useContext(TriggerWidthCtx);
+
   return (
-    <SelectPrimitive.Select.Portal>
-      <SelectPrimitive.Select.Positioner
-        ref={ref}
-        side={side}
+    <Select.Portal>
+      <Select.Positioner
         sideOffset={sideOffset}
-        className={cn(
-          "absolute z-select max-h-96 min-w-[8rem] overflow-hidden rounded-lg border border-border bg-popover text-foreground shadow-md transition-[background-color,color,box-shadow,transform] duration-200 data-[open]:animate-in data-[closed]:animate-out data-[closed]:fade-out-0 data-[open]:fade-in-0 data-[closed]:zoom-out-95 data-[open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 origin-[var(--transform-origin)]",
-          className
-        )}
-        {...props}
+        className={cn("z-select outline-none", className)}
+        {...rest}
       >
-        <div className="max-h-96 overflow-y-auto overflow-x-hidden">
-          <SelectScrollUpButton />
-          <SelectPrimitive.Select.Popup className="p-1">
+        <Select.Popup
+          className={cn(
+            "origin-[var(--transform-origin)] rounded-lg bg-popover text-foreground shadow-lg",
+            "outline outline-1 -outline-offset-1 outline-border",
+            "transition-[transform,scale,opacity]",
+            "data-[starting-style]:scale-95 data-[starting-style]:opacity-0",
+            "data-[ending-style]:scale-95 data-[ending-style]:opacity-0",
+            "data-[side=none]:data-[starting-style]:scale-100 data-[side=none]:data-[starting-style]:opacity-100",
+            "data-[side=none]:data-[ending-style]:transition-none"
+          )}
+          style={width ? { minWidth: width } : undefined}
+        >
+          <Select.ScrollUpArrow className="flex h-4 w-full cursor-default items-center justify-center">
+            <CaretUpIcon className="size-3.5" />
+          </Select.ScrollUpArrow>
+          <Select.List className="scroll-py-1 overflow-y-auto py-1 max-h-[var(--available-height)]">
             {children}
-          </SelectPrimitive.Select.Popup>
-          <SelectScrollDownButton />
-        </div>
-      </SelectPrimitive.Select.Positioner>
-    </SelectPrimitive.Select.Portal>
+          </Select.List>
+          <Select.ScrollDownArrow className="flex h-4 w-full cursor-default items-center justify-center">
+            <CaretDownIcon className="size-3.5" />
+          </Select.ScrollDownArrow>
+        </Select.Popup>
+      </Select.Positioner>
+    </Select.Portal>
   );
 }
 
-type SelectLabelProps = React.ComponentPropsWithoutRef<
-  typeof SelectPrimitive.Select.GroupLabel
-> & {
-  ref?: React.Ref<React.ComponentRef<typeof SelectPrimitive.Select.GroupLabel>>;
+// ---------------------------------------------------------------------------
+// Item
+// ---------------------------------------------------------------------------
+
+type SelectItemProps = React.ComponentPropsWithoutRef<typeof Select.Item> & {
+  ref?: React.Ref<HTMLDivElement>;
 };
 
-function SelectLabel({ className, ref, ...props }: SelectLabelProps) {
+function SelectItem({ className, children, ...rest }: SelectItemProps) {
   return (
-    <SelectPrimitive.Select.GroupLabel
-      ref={ref}
-      className={cn("px-2 py-1.5 text-sm font-semibold", className)}
-      {...props}
-    />
-  );
-}
-
-type SelectItemProps = React.ComponentPropsWithoutRef<
-  typeof SelectPrimitive.Select.Item
-> & {
-  ref?: React.Ref<React.ComponentRef<typeof SelectPrimitive.Select.Item>>;
-};
-
-function SelectItem({ className, children, ref, ...props }: SelectItemProps) {
-  return (
-    <SelectPrimitive.Select.Item
-      ref={ref}
+    <Select.Item
       className={cn(
-        "relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 px-2 text-sm outline-none focus:bg-muted data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+        "grid min-h-8 w-full cursor-default items-center text-sm outline-none select-none",
+        "grid-cols-[0.75rem_1fr] gap-x-2 py-1.5 pr-4 pl-2.5",
+        "data-[highlighted]:relative data-[highlighted]:z-0",
+        "data-[highlighted]:before:absolute data-[highlighted]:before:inset-x-1 data-[highlighted]:before:inset-y-0",
+        "data-[highlighted]:before:z-[-1] data-[highlighted]:before:rounded-sm data-[highlighted]:before:bg-muted",
+        "data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
         className
       )}
-      {...props}
+      {...rest}
     >
-      <SelectPrimitive.Select.ItemText>
+      <Select.ItemIndicator className="col-start-1 flex items-center">
+        <CheckIcon className="size-3" weight="bold" />
+      </Select.ItemIndicator>
+      <Select.ItemText className="col-start-2 truncate">
         {children}
-      </SelectPrimitive.Select.ItemText>
-    </SelectPrimitive.Select.Item>
+      </Select.ItemText>
+    </Select.Item>
   );
 }
 
-type SelectSeparatorProps = React.ComponentPropsWithoutRef<
-  typeof SelectPrimitive.Select.Separator
-> & {
-  ref?: React.Ref<React.ComponentRef<typeof SelectPrimitive.Select.Separator>>;
-};
+// ---------------------------------------------------------------------------
+// Thin wrappers
+// ---------------------------------------------------------------------------
 
-function SelectSeparator({ className, ref, ...props }: SelectSeparatorProps) {
+const SelectValue = Select.Value;
+const SelectGroup = Select.Group;
+
+function SelectLabel({
+  className,
+  ...rest
+}: React.ComponentPropsWithoutRef<typeof Select.GroupLabel>) {
   return (
-    <SelectPrimitive.Select.Separator
-      ref={ref}
-      className={cn("-mx-1 my-1 h-px bg-muted", className)}
-      {...props}
+    <Select.GroupLabel
+      className={cn(
+        "px-2.5 py-1.5 text-xs font-medium text-muted-foreground",
+        className
+      )}
+      {...rest}
     />
   );
 }
 
-// Export with original names for backward compatibility
+function SelectSeparator({
+  className,
+  ...rest
+}: React.ComponentPropsWithoutRef<"div">) {
+  return (
+    <Select.Separator
+      className={cn("my-1 h-px bg-border", className)}
+      {...rest}
+    />
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Exports
+// ---------------------------------------------------------------------------
+
 export {
   SelectRoot as Select,
-  SelectGroup,
-  SelectValue,
   SelectTrigger,
+  SelectValue,
   SelectContent,
-  SelectLabel,
   SelectItem,
+  SelectGroup,
+  SelectLabel,
   SelectSeparator,
-  SelectScrollUpButton,
-  SelectScrollDownButton,
 };
