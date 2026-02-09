@@ -581,8 +581,8 @@ export default function ChatHistoryPage() {
           emptyState={
             <ListEmptyState
               icon={<ChatCircleIcon className="size-12" />}
-              title="No Conversations"
-              description="Start a new conversation to see it here"
+              title="No conversations yet"
+              description="Your conversation history will appear here once you start chatting"
             />
           }
         />

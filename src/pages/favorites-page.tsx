@@ -6,7 +6,7 @@ import { memo, useCallback, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Virtuoso } from "react-virtuoso";
 import { actionButtonStyles } from "@/components/chat/message/action-button";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { SearchInput } from "@/components/ui/search-input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -298,12 +298,22 @@ export default function FavoritesPage() {
       <div className="mb-4 rounded-full bg-muted/40 p-4">
         <HeartIcon className="size-8 text-muted-foreground" weight="regular" />
       </div>
-      <h2 className="text-base font-medium mb-2">No favorites yet</h2>
-      <p className="text-sm text-muted-foreground max-w-sm">
+      <h2 className="text-base font-medium mb-2">
+        {search.trim() ? "No matches found" : "No favorites yet"}
+      </h2>
+      <p className="text-sm text-muted-foreground max-w-sm mb-5">
         {search.trim()
           ? "No favorites match your search. Try a different search term."
           : "Save important messages by clicking the heart icon on any message in your conversations."}
       </p>
+      {!search.trim() && (
+        <Link
+          to={ROUTES.HOME}
+          className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+        >
+          Go to conversations
+        </Link>
+      )}
     </div>
   );
 
