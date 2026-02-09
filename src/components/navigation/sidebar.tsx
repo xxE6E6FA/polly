@@ -1,8 +1,10 @@
+import { api } from "@convex/_generated/api";
 import {
   HeartIcon,
   NotePencilIcon,
   SidebarSimpleIcon,
 } from "@phosphor-icons/react";
+import { useQuery } from "convex/react";
 import {
   AnimatePresence,
   motion,
@@ -54,7 +56,15 @@ export const Sidebar = ({ forceHidden = false }: { forceHidden?: boolean }) => {
   const { sidebarWidth, setSidebarWidth, setIsResizing } = useSidebarWidth();
   const setHoveringOverSidebar = useSidebarHoverSetter();
   const params = useParams();
-  const currentConversationId = params.conversationId as ConversationId;
+  // Resolve the URL slug (which may be a clientId UUID) to a Convex ID.
+  // Convex deduplicates this — the same query already runs in the page component.
+  const slugQuery = useQuery(
+    api.conversations.getBySlug,
+    params.conversationId ? { slug: params.conversationId } : "skip"
+  );
+  const currentConversationId = slugQuery?.resolvedId as
+    | ConversationId
+    | undefined;
   const { user } = useUserDataContext();
   const { isSelectionMode, hasSelection } = useBatchSelection();
   const location = useLocation();

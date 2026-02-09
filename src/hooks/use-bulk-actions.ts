@@ -51,6 +51,7 @@ const BACKGROUND_THRESHOLD = 10;
 export function useBulkActions(options?: {
   currentConversationId?: ConversationId;
 }) {
+  const currentConversationId = options?.currentConversationId;
   const batch = useBatchSelection();
   const {
     getSelectedIds,
@@ -196,7 +197,7 @@ export function useBulkActions(options?: {
       switch (actionKey) {
         case "archive": {
           // Navigate away if the current conversation is being archived
-          const currentId = options?.currentConversationId;
+          const currentId = currentConversationId;
           if (
             currentId &&
             ids.some(id => (id as string) === (currentId as string))
@@ -236,6 +237,18 @@ export function useBulkActions(options?: {
         }
 
         case "delete": {
+          // Navigate away if the current conversation is being deleted
+          const currentId = currentConversationId;
+          if (
+            currentId &&
+            ids.some(id => (id as string) === (currentId as string))
+          ) {
+            navigate(ROUTES.HOME);
+            await new Promise<void>(resolve => {
+              setTimeout(resolve, 0);
+            });
+          }
+
           // Mark items as pending deletion for visual feedback
           markForDeletion(ids);
 
@@ -288,7 +301,7 @@ export function useBulkActions(options?: {
       markForDeletion,
       clearPendingDeletion,
       navigate,
-      options?.currentConversationId,
+      currentConversationId,
     ]
   );
 

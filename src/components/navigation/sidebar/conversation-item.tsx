@@ -9,6 +9,7 @@ import { ControlledShareConversationDialog } from "@/components/ui/share-convers
 import { Spinner } from "@/components/ui/spinner";
 import { useArchiveConversation } from "@/hooks/use-archive-conversation";
 import { useBackgroundJobs } from "@/hooks/use-background-jobs";
+import { useDeleteConversation } from "@/hooks/use-delete-conversation";
 import { useConfirmationDialog } from "@/hooks/use-dialog-management";
 import {
   downloadFile,
@@ -97,7 +98,9 @@ const ConversationItemComponent = ({
 
   // Mutations
   const patchConversation = useMutation(api.conversations.patch);
-  const deleteConversation = useMutation(api.conversations.remove);
+  const { deleteConversation: performDelete } = useDeleteConversation({
+    currentConversationId,
+  });
   const { archiveConversation: performArchive } = useArchiveConversation({
     currentConversationId,
   });
@@ -162,8 +165,6 @@ const ConversationItemComponent = ({
             description: "The conversation has been permanently removed.",
             id: `delete-${conversation._id}`,
           });
-          // Invalidate conversations cache to reflect deleted conversation
-          del(CACHE_KEYS.conversations);
           return result;
         } catch (error) {
           managedToast.error("Failed to delete conversation", {
@@ -262,16 +263,8 @@ const ConversationItemComponent = ({
         variant: "destructive",
       },
       async () => {
-        if (isCurrentConversation) {
-          navigate(ROUTES.HOME);
-        }
-
-        if (isCurrentConversation) {
-          await new Promise(resolve => setTimeout(resolve, 100));
-        }
-
         await handleError.delete(async () => {
-          await deleteConversation({ id: conversation._id });
+          await performDelete(conversation._id);
         });
       }
     );
@@ -279,9 +272,7 @@ const ConversationItemComponent = ({
     confirmationDialog,
     conversation.title,
     conversation._id,
-    deleteConversation,
-    isCurrentConversation,
-    navigate,
+    performDelete,
     handleError,
   ]);
 

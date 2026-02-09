@@ -52,6 +52,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useArchiveConversation } from "@/hooks/use-archive-conversation";
+import { useDeleteConversation } from "@/hooks/use-delete-conversation";
 import { useOnline } from "@/hooks/use-online";
 import {
   downloadFile,
@@ -234,7 +235,9 @@ const ChatHeaderComponent = ({
   const persona = useQuery(api.personas.get, personaQueryArg);
 
   const patchConversation = useMutation(api.conversations.patch);
-  const deleteConversation = useMutation(api.conversations.remove);
+  const { deleteConversation: performDelete } = useDeleteConversation({
+    currentConversationId: conversationId,
+  });
   const { archiveConversation: performArchive } = useArchiveConversation({
     currentConversationId: conversationId,
   });
@@ -785,15 +788,7 @@ const ChatHeaderComponent = ({
           variant="destructive"
           onConfirm={async () => {
             try {
-              // Navigate away first if deleting the current conversation view
-              navigate(ROUTES.HOME);
-              await new Promise(resolve => setTimeout(resolve, 100));
-
-              await deleteConversation({
-                id: conversationId as Id<"conversations">,
-              });
-
-              del(CACHE_KEYS.conversations);
+              await performDelete(conversationId as ConversationId);
               managedToast.success("Conversation deleted", {
                 description: "The conversation has been permanently removed.",
                 id: `delete-${conversationId}`,
