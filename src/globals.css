@@ -1811,6 +1811,40 @@ pre {
   animation: spin-reverse 1s linear infinite;
 }
 
+/* Toast countdown progress bar for undo actions */
+.toast-countdown {
+  position: relative;
+  overflow: hidden;
+}
+
+.toast-countdown::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: currentColor;
+  opacity: 0.25;
+  animation: toast-countdown var(--toast-duration, 5000ms) linear forwards;
+}
+
+.toast-countdown[data-expanded="true"]::after,
+.toast-countdown:focus-within::after {
+  animation-play-state: paused;
+}
+
+@keyframes toast-countdown {
+  from {
+    transform: scaleX(1);
+    transform-origin: left;
+  }
+  to {
+    transform: scaleX(0);
+    transform-origin: left;
+  }
+}
+
 /* Legacy citation link styles - kept for fallback */
 .citation-link {
   display: inline-flex;
