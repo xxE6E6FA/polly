@@ -42,5 +42,16 @@ export function useArchiveConversation(
     [options?.currentConversationId, navigate, patchConversation]
   );
 
-  return { archiveConversation };
+  const unarchiveConversation = useCallback(
+    async (id: ConversationId) => {
+      await patchConversation({
+        id: id as Id<"conversations">,
+        updates: { isArchived: false },
+      });
+      del(CACHE_KEYS.conversations);
+    },
+    [patchConversation]
+  );
+
+  return { archiveConversation, unarchiveConversation };
 }

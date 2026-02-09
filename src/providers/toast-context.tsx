@@ -1,5 +1,11 @@
 import type React from "react";
-import { createContext, useCallback, useContext } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+} from "react";
 import { toast } from "sonner";
 
 interface ToastContextValue {
@@ -12,6 +18,8 @@ interface ToastContextValue {
         label: string;
         onClick: () => void;
       };
+      duration?: number;
+      onAutoClose?: (t: { id: string | number }) => void;
     }
   ) => void;
   error: (
@@ -29,7 +37,14 @@ interface ToastProviderProps {
   children: React.ReactNode;
 }
 
+interface UndoAction {
+  toastId: string | number;
+  onClick: () => void;
+}
+
 export function ToastProvider({ children }: ToastProviderProps) {
+  const lastUndoRef = useRef<UndoAction | null>(null);
+
   const success = useCallback(
     (
       message: string,
@@ -40,13 +55,44 @@ export function ToastProvider({ children }: ToastProviderProps) {
           label: string;
           onClick: () => void;
         };
+        duration?: number;
+        onAutoClose?: (t: { id: string | number }) => void;
       } = {}
     ) => {
-      return toast.success(message, {
+      const hasCountdown = !!(options.action && options.duration);
+
+      const toastId = toast.success(message, {
         description: options.description,
         id: options.id,
         action: options.action,
+        duration: options.duration,
+        className: hasCountdown ? "toast-countdown" : undefined,
+        style: hasCountdown
+          ? ({
+              "--toast-duration": `${options.duration}ms`,
+            } as React.CSSProperties)
+          : undefined,
+        onAutoClose: options.onAutoClose,
+        onDismiss: () => {
+          // Clear undo ref when toast is dismissed (by user or programmatically)
+          if (
+            lastUndoRef.current &&
+            lastUndoRef.current.toastId === (options.id ?? toastId)
+          ) {
+            lastUndoRef.current = null;
+          }
+        },
       });
+
+      // Track action as undoable via Cmd+Z
+      if (options.action) {
+        lastUndoRef.current = {
+          toastId: options.id ?? toastId,
+          onClick: options.action.onClick,
+        };
+      }
+
+      return toastId;
     },
     []
   );
@@ -80,6 +126,38 @@ export function ToastProvider({ children }: ToastProviderProps) {
 
   const dismissAll = useCallback(() => {
     toast.dismiss();
+  }, []);
+
+  // Cmd+Z / Ctrl+Z to trigger undo (only when not in a text input)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!((e.metaKey || e.ctrlKey) && e.key === "z" && !e.shiftKey)) {
+        return;
+      }
+
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.isContentEditable)
+      ) {
+        return;
+      }
+
+      const undo = lastUndoRef.current;
+      if (!undo) {
+        return;
+      }
+
+      e.preventDefault();
+      undo.onClick();
+      toast.dismiss(undo.toastId);
+      lastUndoRef.current = null;
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
   }, []);
 
   const value: ToastContextValue = {
