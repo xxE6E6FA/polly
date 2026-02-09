@@ -1,5 +1,5 @@
 import { api } from "@convex/_generated/api";
-import type { Doc, Id } from "@convex/_generated/dataModel";
+import type { Id } from "@convex/_generated/dataModel";
 import type { Icon } from "@phosphor-icons/react";
 import {
   ArchiveIcon,
@@ -50,6 +50,7 @@ import { ControlledShareConversationDialog } from "@/components/ui/share-convers
 import { Spinner } from "@/components/ui/spinner";
 import { TextInputDialog } from "@/components/ui/text-input-dialog";
 import { useDebounce } from "@/hooks/use-debounce";
+import { useDeleteConversation } from "@/hooks/use-delete-conversation";
 import { useModelCatalog } from "@/hooks/use-model-catalog";
 import { useOnline } from "@/hooks/use-online";
 import { useSelectedModel } from "@/hooks/use-selected-model";
@@ -60,11 +61,14 @@ import {
   exportAsMarkdown,
   generateFilename,
 } from "@/lib/export";
-import { CACHE_KEYS, del } from "@/lib/local-storage";
 import { getModelCapabilities } from "@/lib/model-capabilities";
 import { ROUTES } from "@/lib/routes";
 import { useUserIdentity } from "@/providers/user-data-context";
-import type { HydratedModel, ModelForCapabilities } from "@/types";
+import type {
+  ConversationId,
+  HydratedModel,
+  ModelForCapabilities,
+} from "@/types";
 
 type CommandPaletteProps = {
   open: boolean;
@@ -229,12 +233,17 @@ export function CommandPalette({
   });
 
   const patchConversation = useMutation(api.conversations.patch);
-  const deleteConversation = useMutation(api.conversations.remove);
 
   const currentConversation = useQuery(
     api.conversations.getBySlug,
     currentConversationId ? { slug: currentConversationId } : "skip"
   );
+
+  const { deleteConversation: performDelete } = useDeleteConversation({
+    currentConversationId: currentConversation?.resolvedId as
+      | ConversationId
+      | undefined,
+  });
 
   const allModels: ModelType[] = useMemo(() => {
     const combined: AvailableModel[] = [
@@ -393,17 +402,7 @@ export function CommandPalette({
     }
 
     try {
-      // Compare resolved IDs to determine if we're deleting the current conversation
-      const currentResolvedId = currentConversation?.resolvedId;
-      if (conversationId === currentResolvedId) {
-        navigate("/");
-        await new Promise<void>(resolve => {
-          setTimeout(resolve, 0);
-        });
-      }
-
-      await deleteConversation({ id: conversationId as Id<"conversations"> });
-      del(CACHE_KEYS.conversations);
+      await performDelete(conversationId as ConversationId);
 
       if (navigation.currentMenu === "conversation-actions") {
         navigateBack();
@@ -417,9 +416,7 @@ export function CommandPalette({
     actionConversationId,
     resolvedActionContext,
     navigation.currentMenu,
-    currentConversation?.resolvedId,
-    deleteConversation,
-    navigate,
+    performDelete,
     navigateBack,
     handleClose,
   ]);
