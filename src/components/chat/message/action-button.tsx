@@ -196,7 +196,13 @@ type PresetActionButtonProps = Omit<
 export const ActionButtons = {
   Copy: memo(({ copied, tooltip, ...props }: PresetActionButtonProps) => (
     <ActionButton
-      icon={copied ? <ActionIcon.Check /> : <ActionIcon.Copy />}
+      icon={
+        copied ? (
+          <ActionIcon.Check className="text-primary animate-copy-success" />
+        ) : (
+          <ActionIcon.Copy />
+        )
+      }
       tooltip={tooltip || (copied ? "Copied!" : "Copy")}
       {...props}
     />

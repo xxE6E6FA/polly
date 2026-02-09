@@ -223,7 +223,7 @@ const CodeBlockComponent = ({
                   >
                     <div className="relative h-4 w-4">
                       {copied ? (
-                        <CheckIcon className="absolute inset-0 size-3 text-primary transition-all duration-200" />
+                        <CheckIcon className="absolute inset-0 size-3 text-primary animate-copy-success" />
                       ) : (
                         <CopyIcon className="absolute inset-0 size-3 transition-all duration-200" />
                       )}
