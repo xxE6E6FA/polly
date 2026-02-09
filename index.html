@@ -54,22 +54,41 @@
       href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;1,100;1,200;1,300;1,400;1,500;1,600;1,700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="/src/globals.css" />
+    <style>
+      /* Critical theme styles — applied instantly before external CSS loads */
+      html.dark {
+        color-scheme: dark;
+        background-color: hsl(0 0% 8%);
+        color: hsl(0 0% 98%);
+      }
+      html.light,
+      html:not(.dark):not(.light) {
+        color-scheme: light;
+        background-color: hsl(0 0% 99%);
+        color: hsl(0 0% 5%);
+      }
+      /* Available immediately so disable-animations works before globals.css loads */
+      .disable-animations *,
+      .disable-animations *::before,
+      .disable-animations *::after {
+        animation-duration: 0s !important;
+        animation-delay: 0s !important;
+        transition-duration: 0s !important;
+        transition-delay: 0s !important;
+      }
+    </style>
     <script>
-      // Apply theme immediately to prevent flash
+      // Apply theme immediately to prevent flash — runs before external CSS
       (() => {
-        // Disable animations initially
         document.documentElement.classList.add("disable-animations");
 
-        // Apply theme from localStorage
         const themeKey = "polly:theme/v1";
         const storedTheme = localStorage.getItem(themeKey);
-        let resolvedTheme = "system"; // Default to system
+        let resolvedTheme = "system";
 
         if (storedTheme) {
           try {
             const parsed = JSON.parse(storedTheme);
-            // Check if it's the versioned format
             if (
               parsed &&
               typeof parsed === "object" &&
@@ -79,17 +98,14 @@
               resolvedTheme = parsed.data;
             }
           } catch (e) {
-            // If parsing fails, fall back to system
             resolvedTheme = "system";
           }
         }
 
-        // Resolve system theme to actual theme
         let actualTheme;
         if (resolvedTheme === "light" || resolvedTheme === "dark") {
           actualTheme = resolvedTheme;
         } else {
-          // resolvedTheme is 'system' or invalid - use system preference
           const prefersDark = window.matchMedia(
             "(prefers-color-scheme: dark)",
           ).matches;
@@ -98,12 +114,12 @@
 
         document.documentElement.classList.add(actualTheme);
 
-        // Remove disable-animations class after a short delay
         setTimeout(() => {
           document.documentElement.classList.remove("disable-animations");
         }, 100);
       })();
     </script>
+    <link rel="stylesheet" href="/src/globals.css" />
   </head>
   <body>
     <div id="root"></div>
