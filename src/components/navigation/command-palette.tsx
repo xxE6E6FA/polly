@@ -49,6 +49,7 @@ import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { ControlledShareConversationDialog } from "@/components/ui/share-conversation-dialog";
 import { Spinner } from "@/components/ui/spinner";
 import { TextInputDialog } from "@/components/ui/text-input-dialog";
+import { useArchiveConversation } from "@/hooks/use-archive-conversation";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useDeleteConversation } from "@/hooks/use-delete-conversation";
 import { useModelCatalog } from "@/hooks/use-model-catalog";
@@ -63,6 +64,7 @@ import {
 } from "@/lib/export";
 import { getModelCapabilities } from "@/lib/model-capabilities";
 import { ROUTES } from "@/lib/routes";
+import { useToast } from "@/providers/toast-context";
 import { useUserIdentity } from "@/providers/user-data-context";
 import type {
   ConversationId,
@@ -135,7 +137,6 @@ export function CommandPalette({
     null
   );
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-  const [archiveConfirmOpen, setArchiveConfirmOpen] = useState(false);
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
   const [navigation, setNavigation] = useState<NavigationState>({
     currentMenu: "main",
@@ -245,6 +246,15 @@ export function CommandPalette({
       | undefined,
   });
 
+  const { archiveConversation: performArchive, unarchiveConversation } =
+    useArchiveConversation({
+      currentConversationId: currentConversation?.resolvedId as
+        | ConversationId
+        | undefined,
+    });
+
+  const managedToast = useToast();
+
   const allModels: ModelType[] = useMemo(() => {
     const combined: AvailableModel[] = [
       ...(modelGroups?.freeModels ?? []),
@@ -330,7 +340,7 @@ export function CommandPalette({
     handleClose,
   ]);
 
-  const confirmToggleArchive = useCallback(async () => {
+  const handleToggleArchive = useCallback(async () => {
     const conversationId = actionConversationId;
     const conversation = resolvedActionContext;
 
@@ -338,22 +348,28 @@ export function CommandPalette({
       return;
     }
 
-    try {
-      const isArchiving = !conversation.conversation.isArchived;
+    const isArchiving = !conversation.conversation.isArchived;
 
-      // Compare resolved IDs to determine if we're archiving the current conversation
-      const currentResolvedId = currentConversation?.resolvedId;
-      if (isArchiving && conversationId === currentResolvedId) {
-        navigate("/");
-        await new Promise<void>(resolve => {
-          setTimeout(resolve, 0);
+    try {
+      if (isArchiving) {
+        await performArchive(conversationId as ConversationId);
+        managedToast.success("Conversation archived", {
+          id: `archive-${conversationId}`,
+          duration: 5000,
+          action: {
+            label: "Undo",
+            onClick: () => {
+              unarchiveConversation(conversationId as ConversationId);
+            },
+          },
+        });
+      } else {
+        // Unarchiving (from conversation browser)
+        await patchConversation({
+          id: conversationId as Id<"conversations">,
+          updates: { isArchived: false },
         });
       }
-
-      await patchConversation({
-        id: conversationId as Id<"conversations">,
-        updates: { isArchived: isArchiving },
-      });
 
       if (navigation.currentMenu === "conversation-actions") {
         navigateBack();
@@ -367,22 +383,13 @@ export function CommandPalette({
     actionConversationId,
     resolvedActionContext,
     navigation.currentMenu,
-    currentConversation?.resolvedId,
+    performArchive,
+    unarchiveConversation,
     patchConversation,
-    navigate,
+    managedToast,
     navigateBack,
     handleClose,
   ]);
-
-  const handleToggleArchive = useCallback(() => {
-    const conversation = resolvedActionContext;
-
-    if (conversation?.conversation && !conversation.conversation.isArchived) {
-      setArchiveConfirmOpen(true);
-    } else {
-      confirmToggleArchive();
-    }
-  }, [resolvedActionContext, confirmToggleArchive]);
 
   const handleShareConversation = useCallback(() => {
     setIsShareDialogOpen(true);
@@ -401,14 +408,34 @@ export function CommandPalette({
       return;
     }
 
+    let undone = false;
+
     try {
-      await performDelete(conversationId as ConversationId);
+      // Archive first (hides from UI)
+      await performArchive(conversationId as ConversationId);
 
       if (navigation.currentMenu === "conversation-actions") {
         navigateBack();
       } else {
         handleClose();
       }
+
+      managedToast.success("Conversation deleted", {
+        id: `delete-${conversationId}`,
+        duration: 5000,
+        action: {
+          label: "Undo",
+          onClick: () => {
+            undone = true;
+            unarchiveConversation(conversationId as ConversationId);
+          },
+        },
+        onAutoClose: () => {
+          if (!undone) {
+            performDelete(conversationId as ConversationId);
+          }
+        },
+      });
     } catch (error) {
       console.error("Failed to delete conversation:", error);
     }
@@ -416,7 +443,10 @@ export function CommandPalette({
     actionConversationId,
     resolvedActionContext,
     navigation.currentMenu,
+    performArchive,
     performDelete,
+    unarchiveConversation,
+    managedToast,
     navigateBack,
     handleClose,
   ]);
@@ -1724,30 +1754,6 @@ export function CommandPalette({
         cancelText="Cancel"
         variant="destructive"
         onConfirm={confirmDeleteConversation}
-      />
-
-      {/* Archive Confirmation Dialog */}
-      <ConfirmationDialog
-        open={archiveConfirmOpen}
-        onOpenChange={open => {
-          setArchiveConfirmOpen(open);
-          if (!open) {
-            // Refocus command palette when dialog is dismissed
-            setTimeout(() => {
-              inputRef.current?.focus();
-            }, 100);
-          }
-        }}
-        title="Archive Conversation"
-        description={`Are you sure you want to archive "${
-          (navigation.selectedConversationId
-            ? actionConversation
-            : currentConversation
-          )?.conversation?.title || "this conversation"
-        }"?`}
-        confirmText="Archive"
-        cancelText="Cancel"
-        onConfirm={confirmToggleArchive}
       />
 
       {/* Rename Dialog */}

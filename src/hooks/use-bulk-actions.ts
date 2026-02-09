@@ -211,10 +211,12 @@ export function useBulkActions(options?: {
           // For archive, patch each conversation individually (no bulk archive backend yet)
           let successCount = 0;
           let errorCount = 0;
+          const archivedIds: Id<"conversations">[] = [];
 
           for (const id of ids) {
             try {
               await patchConversation({ id, updates: { isArchived: true } });
+              archivedIds.push(id);
               successCount++;
             } catch {
               errorCount++;
@@ -224,7 +226,24 @@ export function useBulkActions(options?: {
           if (successCount > 0) {
             managedToast.success(
               `Archived ${successCount} conversation${successCount !== 1 ? "s" : ""}`,
-              { id: `bulk-archive-success-${Date.now()}` }
+              {
+                id: `bulk-archive-success-${Date.now()}`,
+                action: {
+                  label: "Undo",
+                  onClick: async () => {
+                    for (const id of archivedIds) {
+                      try {
+                        await patchConversation({
+                          id,
+                          updates: { isArchived: false },
+                        });
+                      } catch {
+                        // Best-effort undo
+                      }
+                    }
+                  },
+                },
+              }
             );
           }
           if (errorCount > 0) {

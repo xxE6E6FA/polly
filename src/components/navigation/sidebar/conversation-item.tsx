@@ -17,12 +17,10 @@ import {
   exportAsMarkdown,
   generateFilename,
 } from "@/lib/export";
-import { CACHE_KEYS, del } from "@/lib/local-storage";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import { useBatchSelection } from "@/providers/batch-selection-context";
 import { useToast } from "@/providers/toast-context";
-import { useUI } from "@/providers/ui-provider";
 import type { Conversation, ConversationId } from "@/types";
 import {
   ConversationActions,
@@ -101,9 +99,10 @@ const ConversationItemComponent = ({
   const { deleteConversation: performDelete } = useDeleteConversation({
     currentConversationId,
   });
-  const { archiveConversation: performArchive } = useArchiveConversation({
-    currentConversationId,
-  });
+  const { archiveConversation: performArchive, unarchiveConversation } =
+    useArchiveConversation({
+      currentConversationId,
+    });
 
   // Check if there are any active delete jobs
   const activeDeleteJobs = backgroundJobs
@@ -155,46 +154,6 @@ const ConversationItemComponent = ({
     managedToast,
   ]);
 
-  // Error handlers
-  const handleError = useMemo(
-    () => ({
-      async delete(operation: () => Promise<unknown>) {
-        try {
-          const result = await operation();
-          managedToast.success("Conversation deleted", {
-            description: "The conversation has been permanently removed.",
-            id: `delete-${conversation._id}`,
-          });
-          return result;
-        } catch (error) {
-          managedToast.error("Failed to delete conversation", {
-            description: "Unable to delete conversation. Please try again.",
-            id: `delete-error-${conversation._id}`,
-          });
-          throw error;
-        }
-      },
-
-      async archive(operation: () => Promise<unknown>) {
-        try {
-          const result = await operation();
-          managedToast.success("Conversation archived", {
-            description: "The conversation has been moved to archive.",
-            id: `archive-${conversation._id}`,
-          });
-          return result;
-        } catch (error) {
-          managedToast.error("Failed to archive conversation", {
-            description: "Unable to archive conversation. Please try again.",
-            id: `archive-error-${conversation._id}`,
-          });
-          throw error;
-        }
-      },
-    }),
-    [managedToast, conversation._id]
-  );
-
   const handleStartEdit = useCallback(() => {
     // Always close any open menus before handling edit/navigation
     setIsMobilePopoverOpen(false);
@@ -224,31 +183,29 @@ const ConversationItemComponent = ({
     setIsEditing(false);
   };
 
-  const handleArchiveClick = useCallback(() => {
+  const handleArchiveClick = useCallback(async () => {
     setIsMobilePopoverOpen(false);
     setIsDesktopPopoverOpen(false);
 
-    confirmationDialog.confirm(
-      {
-        title: "Archive Conversation",
-        description: `Are you sure you want to archive "${conversation.title}"? You can restore it later from the archived conversations.`,
-        confirmText: "Archive",
-        cancelText: "Cancel",
-        variant: "default",
-      },
-      async () => {
-        await handleError.archive(async () => {
-          await performArchive(conversation._id);
-        });
-      }
-    );
-  }, [
-    confirmationDialog,
-    conversation.title,
-    conversation._id,
-    performArchive,
-    handleError,
-  ]);
+    try {
+      await performArchive(conversation._id);
+      managedToast.success("Conversation archived", {
+        id: `archive-${conversation._id}`,
+        duration: 5000,
+        action: {
+          label: "Undo",
+          onClick: () => {
+            unarchiveConversation(conversation._id);
+          },
+        },
+      });
+    } catch {
+      managedToast.error("Failed to archive conversation", {
+        description: "Unable to archive conversation. Please try again.",
+        id: `archive-error-${conversation._id}`,
+      });
+    }
+  }, [conversation._id, performArchive, unarchiveConversation, managedToast]);
 
   const handleDeleteClick = useCallback(() => {
     setIsMobilePopoverOpen(false);
@@ -263,17 +220,44 @@ const ConversationItemComponent = ({
         variant: "destructive",
       },
       async () => {
-        await handleError.delete(async () => {
-          await performDelete(conversation._id);
-        });
+        let undone = false;
+
+        try {
+          // Archive first (hides from sidebar)
+          await performArchive(conversation._id);
+
+          managedToast.success("Conversation deleted", {
+            id: `delete-${conversation._id}`,
+            duration: 5000,
+            action: {
+              label: "Undo",
+              onClick: () => {
+                undone = true;
+                unarchiveConversation(conversation._id);
+              },
+            },
+            onAutoClose: () => {
+              if (!undone) {
+                performDelete(conversation._id);
+              }
+            },
+          });
+        } catch {
+          managedToast.error("Failed to delete conversation", {
+            description: "Unable to delete conversation. Please try again.",
+            id: `delete-error-${conversation._id}`,
+          });
+        }
       }
     );
   }, [
     confirmationDialog,
     conversation.title,
     conversation._id,
+    performArchive,
     performDelete,
-    handleError,
+    unarchiveConversation,
+    managedToast,
   ]);
 
   const handlePinToggle = useCallback(
