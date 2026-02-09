@@ -7,6 +7,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { ControlledShareConversationDialog } from "@/components/ui/share-conversation-dialog";
 import { Spinner } from "@/components/ui/spinner";
+import { useArchiveConversation } from "@/hooks/use-archive-conversation";
 import { useBackgroundJobs } from "@/hooks/use-background-jobs";
 import { useConfirmationDialog } from "@/hooks/use-dialog-management";
 import {
@@ -97,6 +98,9 @@ const ConversationItemComponent = ({
   // Mutations
   const patchConversation = useMutation(api.conversations.patch);
   const deleteConversation = useMutation(api.conversations.remove);
+  const { archiveConversation: performArchive } = useArchiveConversation({
+    currentConversationId,
+  });
 
   // Check if there are any active delete jobs
   const activeDeleteJobs = backgroundJobs
@@ -232,21 +236,8 @@ const ConversationItemComponent = ({
         variant: "default",
       },
       async () => {
-        if (isCurrentConversation) {
-          navigate(ROUTES.HOME);
-        }
-
-        if (isCurrentConversation) {
-          await new Promise(resolve => setTimeout(resolve, 100));
-        }
-
         await handleError.archive(async () => {
-          await patchConversation({
-            id: conversation._id,
-            updates: { isArchived: true },
-          });
-          // Invalidate conversations cache to reflect archived conversation
-          del(CACHE_KEYS.conversations);
+          await performArchive(conversation._id);
         });
       }
     );
@@ -254,9 +245,7 @@ const ConversationItemComponent = ({
     confirmationDialog,
     conversation.title,
     conversation._id,
-    patchConversation,
-    isCurrentConversation,
-    navigate,
+    performArchive,
     handleError,
   ]);
 
@@ -505,6 +494,7 @@ const ConversationItemComponent = ({
 
         <ConversationContextMenu
           conversation={optimisticConversation}
+          currentConversationId={currentConversationId}
           exportingFormat={exportingFormat}
           isDeleteJobInProgress={isDeleteJobInProgress}
           onPinToggle={handlePinToggle}

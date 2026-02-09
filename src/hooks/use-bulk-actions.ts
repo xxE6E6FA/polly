@@ -2,6 +2,7 @@ import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import { useMutation, useQuery } from "convex/react";
 import { useCallback, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useBackgroundJobs } from "@/hooks/use-background-jobs";
 import { useConfirmationDialog } from "@/hooks/use-dialog-management";
 import {
@@ -9,6 +10,7 @@ import {
   generateBackgroundExportFilename,
 } from "@/lib/export";
 import { CACHE_KEYS, del } from "@/lib/local-storage";
+import { ROUTES } from "@/lib/routes";
 import { useBatchSelection } from "@/providers/batch-selection-context";
 import { useToast } from "@/providers/toast-context";
 import type { ConversationId } from "@/types";
@@ -46,7 +48,9 @@ const BULK_ACTION_CONFIGS: Record<string, BulkActionConfig> = {
 
 const BACKGROUND_THRESHOLD = 10;
 
-export function useBulkActions() {
+export function useBulkActions(options?: {
+  currentConversationId?: ConversationId;
+}) {
   const batch = useBatchSelection();
   const {
     getSelectedIds,
@@ -54,6 +58,7 @@ export function useBulkActions() {
     markForDeletion,
     clearPendingDeletion,
   } = batch;
+  const navigate = useNavigate();
   const confirmationDialog = useConfirmationDialog();
   const managedToast = useToast();
 
@@ -190,6 +195,18 @@ export function useBulkActions() {
 
       switch (actionKey) {
         case "archive": {
+          // Navigate away if the current conversation is being archived
+          const currentId = options?.currentConversationId;
+          if (
+            currentId &&
+            ids.some(id => (id as string) === (currentId as string))
+          ) {
+            navigate(ROUTES.HOME);
+            await new Promise<void>(resolve => {
+              setTimeout(resolve, 0);
+            });
+          }
+
           // For archive, patch each conversation individually (no bulk archive backend yet)
           let successCount = 0;
           let errorCount = 0;
@@ -270,6 +287,8 @@ export function useBulkActions() {
       managedToast,
       markForDeletion,
       clearPendingDeletion,
+      navigate,
+      options?.currentConversationId,
     ]
   );
 

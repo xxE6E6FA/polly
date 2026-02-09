@@ -329,17 +329,21 @@ export function CommandPalette({
     }
 
     try {
+      const isArchiving = !conversation.conversation.isArchived;
+
+      // Compare resolved IDs to determine if we're archiving the current conversation
+      const currentResolvedId = currentConversation?.resolvedId;
+      if (isArchiving && conversationId === currentResolvedId) {
+        navigate("/");
+        await new Promise<void>(resolve => {
+          setTimeout(resolve, 0);
+        });
+      }
+
       await patchConversation({
         id: conversationId as Id<"conversations">,
-        updates: { isArchived: !conversation.conversation.isArchived },
+        updates: { isArchived: isArchiving },
       });
-
-      if (
-        !conversation.conversation.isArchived &&
-        conversationId === currentConversationId
-      ) {
-        navigate("/");
-      }
 
       if (navigation.currentMenu === "conversation-actions") {
         navigateBack();
@@ -353,7 +357,7 @@ export function CommandPalette({
     actionConversationId,
     resolvedActionContext,
     navigation.currentMenu,
-    currentConversationId,
+    currentConversation?.resolvedId,
     patchConversation,
     navigate,
     navigateBack,
