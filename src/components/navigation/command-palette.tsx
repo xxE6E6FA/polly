@@ -60,6 +60,7 @@ import {
   exportAsMarkdown,
   generateFilename,
 } from "@/lib/export";
+import { CACHE_KEYS, del } from "@/lib/local-storage";
 import { getModelCapabilities } from "@/lib/model-capabilities";
 import { ROUTES } from "@/lib/routes";
 import { useUserIdentity } from "@/providers/user-data-context";
@@ -392,11 +393,17 @@ export function CommandPalette({
     }
 
     try {
-      await deleteConversation({ id: conversationId as Id<"conversations"> });
-
-      if (conversationId === currentConversationId) {
+      // Compare resolved IDs to determine if we're deleting the current conversation
+      const currentResolvedId = currentConversation?.resolvedId;
+      if (conversationId === currentResolvedId) {
         navigate("/");
+        await new Promise<void>(resolve => {
+          setTimeout(resolve, 0);
+        });
       }
+
+      await deleteConversation({ id: conversationId as Id<"conversations"> });
+      del(CACHE_KEYS.conversations);
 
       if (navigation.currentMenu === "conversation-actions") {
         navigateBack();
@@ -410,7 +417,7 @@ export function CommandPalette({
     actionConversationId,
     resolvedActionContext,
     navigation.currentMenu,
-    currentConversationId,
+    currentConversation?.resolvedId,
     deleteConversation,
     navigate,
     navigateBack,

@@ -3,16 +3,15 @@ import type { Id } from "@convex/_generated/dataModel";
 import type { Doc } from "convex/_generated/dataModel";
 import { useMutation, useQuery } from "convex/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import {
   convertServerMessage,
   extractMessagesArray,
   findStreamingMessage,
   isMessageStreaming,
 } from "@/lib/chat/message-utils";
-import { ROUTES } from "@/lib/routes";
 import { useUserDataContext } from "@/providers/user-data-context";
 import type { ChatMessage, ConversationId } from "@/types";
+import { useDeleteConversation } from "./use-delete-conversation";
 
 type UseChatMessagesOptions = {
   conversationId?: ConversationId;
@@ -24,7 +23,6 @@ export function useChatMessages({
   onError,
 }: UseChatMessagesOptions) {
   const { user } = useUserDataContext();
-  const navigate = useNavigate();
 
   const [pendingMessages, setPendingMessages] = useState<
     Map<string, ChatMessage>
@@ -37,7 +35,10 @@ export function useChatMessages({
 
   const updateMessageContentAction = useMutation(api.messages.update);
   const deleteMessagesByIdsAction = useMutation(api.messages.removeMultiple);
-  const deleteConversationAction = useMutation(api.conversations.remove);
+  const { deleteConversation: performDeleteConversation } =
+    useDeleteConversation({
+      currentConversationId: conversationId,
+    });
 
   // Memoize expensive operations separately for better performance
   const messagesArray = useMemo(() => {
@@ -137,9 +138,7 @@ export function useChatMessages({
         const isLastVisibleMessage = remainingVisibleMessages.length === 0;
 
         if (isLastVisibleMessage) {
-          navigate(ROUTES.HOME);
-          await new Promise(resolve => setTimeout(resolve, 100));
-          await deleteConversationAction({ id: conversationId });
+          await performDeleteConversation(conversationId);
         } else {
           await deleteMessagesByIdsAction({
             ids: [messageId as Id<"messages">],
@@ -153,10 +152,9 @@ export function useChatMessages({
       user?._id,
       conversationId,
       messages,
-      navigate,
       onError,
       deleteMessagesByIdsAction,
-      deleteConversationAction,
+      performDeleteConversation,
     ]
   );
 

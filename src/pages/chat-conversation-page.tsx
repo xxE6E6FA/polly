@@ -537,8 +537,15 @@ export default function ConversationRoute() {
     queryComplete && !slugQuery.resolvedId && !slugQuery.hasAccess;
   const isDeleted = queryComplete && slugQuery.isDeleted;
 
+  // Safety net: redirect home when viewing a deleted conversation.
+  // Must be in useEffect — navigating during render is unreliable in React 18+.
+  useEffect(() => {
+    if (!isOptimistic && isDeleted) {
+      navigate(ROUTES.HOME);
+    }
+  }, [isOptimistic, isDeleted, navigate]);
+
   if (!isOptimistic && isDeleted) {
-    navigate(ROUTES.HOME);
     return null;
   }
 

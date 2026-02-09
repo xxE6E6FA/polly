@@ -71,6 +71,7 @@ export { useSelectedModel } from "./use-selected-model";
 // =============================================================================
 
 export { useArchiveConversation } from "./use-archive-conversation";
+export { useDeleteConversation } from "./use-delete-conversation";
 export { usePaginatedConversations } from "./use-paginated-conversations";
 
 // =============================================================================
