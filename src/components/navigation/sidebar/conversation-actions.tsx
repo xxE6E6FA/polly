@@ -35,7 +35,7 @@ import {
 import { useBulkActions } from "@/hooks/use-bulk-actions";
 import { cn } from "@/lib/utils";
 import { useBatchSelection } from "@/providers/batch-selection-context";
-import type { Conversation } from "@/types";
+import type { Conversation, ConversationId } from "@/types";
 
 type ConversationActionsProps = {
   conversation: Conversation;
@@ -215,6 +215,7 @@ export const ConversationActions = memo(
 export const ConversationContextMenu = memo(
   ({
     conversation,
+    currentConversationId,
     exportingFormat,
     isDeleteJobInProgress,
     onPinToggle,
@@ -225,6 +226,7 @@ export const ConversationContextMenu = memo(
     onDelete,
   }: {
     conversation: Conversation;
+    currentConversationId?: ConversationId;
     exportingFormat: "json" | "md" | null;
     isDeleteJobInProgress: boolean;
     onPinToggle: () => void;
@@ -236,7 +238,7 @@ export const ConversationContextMenu = memo(
   }) => {
     const { hasSelection, selectionCount, isSelected, selectConversation } =
       useBatchSelection();
-    const { performBulkAction } = useBulkActions();
+    const { performBulkAction } = useBulkActions({ currentConversationId });
     const isCurrentSelected = isSelected(conversation._id);
     const showBatchActions = hasSelection && selectionCount > 1;
 

@@ -70,6 +70,7 @@ export { useSelectedModel } from "./use-selected-model";
 // Conversation Hooks
 // =============================================================================
 
+export { useArchiveConversation } from "./use-archive-conversation";
 export { usePaginatedConversations } from "./use-paginated-conversations";
 
 // =============================================================================

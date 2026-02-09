@@ -486,7 +486,7 @@ export const Sidebar = ({ forceHidden = false }: { forceHidden?: boolean }) => {
 
               <div>
                 {isSelectionMode || hasSelection ? (
-                  <BatchActions />
+                  <BatchActions currentConversationId={currentConversationId} />
                 ) : (
                   <SidebarSearch
                     searchQuery={searchQuery}

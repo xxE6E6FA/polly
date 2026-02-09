@@ -14,11 +14,18 @@ import {
 } from "@/components/ui/tooltip";
 import { useBulkActions } from "@/hooks/use-bulk-actions";
 import { useBatchSelection } from "@/providers/batch-selection-context";
+import type { ConversationId } from "@/types";
 
-export const BatchActions = () => {
+type BatchActionsProps = {
+  currentConversationId?: ConversationId;
+};
+
+export const BatchActions = ({ currentConversationId }: BatchActionsProps) => {
   const { isSelectionMode, hasSelection, selectionCount, clearSelection } =
     useBatchSelection();
-  const { performBulkAction, confirmationDialog } = useBulkActions();
+  const { performBulkAction, confirmationDialog } = useBulkActions({
+    currentConversationId,
+  });
 
   const shouldShow = isSelectionMode || hasSelection;
   if (!shouldShow) {

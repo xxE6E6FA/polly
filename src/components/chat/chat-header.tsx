@@ -51,6 +51,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useArchiveConversation } from "@/hooks/use-archive-conversation";
 import { useOnline } from "@/hooks/use-online";
 import {
   downloadFile,
@@ -234,6 +235,9 @@ const ChatHeaderComponent = ({
 
   const patchConversation = useMutation(api.conversations.patch);
   const deleteConversation = useMutation(api.conversations.remove);
+  const { archiveConversation: performArchive } = useArchiveConversation({
+    currentConversationId: conversationId,
+  });
 
   const handleExport = (format: "json" | "md") => {
     // Handle private chat export
@@ -754,16 +758,7 @@ const ChatHeaderComponent = ({
           confirmText="Archive"
           onConfirm={async () => {
             try {
-              // Navigate away first if archiving the current conversation view
-              navigate(ROUTES.HOME);
-              await new Promise(resolve => setTimeout(resolve, 100));
-
-              await patchConversation({
-                id: conversationId as Id<"conversations">,
-                updates: { isArchived: true },
-              });
-
-              del(CACHE_KEYS.conversations);
+              await performArchive(conversationId as ConversationId);
               managedToast.success("Conversation archived", {
                 description: "The conversation has been moved to archive.",
                 id: `archive-${conversationId}`,
