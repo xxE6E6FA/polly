@@ -18,18 +18,20 @@ type UseDeleteConversationOptions = {
  * Does NOT include toasts — callers handle their own UX.
  */
 export function useDeleteConversation(options?: UseDeleteConversationOptions) {
+  const currentConversationId = options?.currentConversationId;
   const navigate = useNavigate();
   const removeConversation = useMutation(api.conversations.remove);
   const bulkRemoveConversations = useMutation(api.conversations.bulkRemove);
 
   const navigateAwayIfNeeded = useCallback(
     async (idsBeingDeleted: ConversationId[]) => {
-      const currentId = options?.currentConversationId;
-      if (!currentId) {
+      if (!currentConversationId) {
         return;
       }
 
-      const isCurrentBeingDeleted = idsBeingDeleted.includes(currentId);
+      const isCurrentBeingDeleted = idsBeingDeleted.includes(
+        currentConversationId
+      );
       if (!isCurrentBeingDeleted) {
         return;
       }
@@ -40,7 +42,7 @@ export function useDeleteConversation(options?: UseDeleteConversationOptions) {
         setTimeout(resolve, 0);
       });
     },
-    [options?.currentConversationId, navigate]
+    [currentConversationId, navigate]
   );
 
   const deleteConversation = useCallback(
