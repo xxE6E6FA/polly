@@ -38,6 +38,9 @@ const SCROLL_THRESHOLD = 6;
 const SHADOW_HEIGHT = 6;
 const DRAG_CLOSE_THRESHOLD = 50; // px
 const DRAG_VELOCITY_THRESHOLD = 100; // px/s
+const isMac =
+  typeof navigator !== "undefined" &&
+  navigator.platform.toUpperCase().indexOf("MAC") >= 0;
 
 export const Sidebar = ({ forceHidden = false }: { forceHidden?: boolean }) => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -473,7 +476,7 @@ export const Sidebar = ({ forceHidden = false }: { forceHidden?: boolean }) => {
                   <Link to={ROUTES.HOME}>
                     <Button
                       size="icon-sm"
-                      title="New chat"
+                      title={`New chat (${isMac ? "⌘⇧O" : "Ctrl+Shift+O"})`}
                       variant="ghost"
                       className="text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-hover h-8 w-8"
                     >
@@ -483,7 +486,7 @@ export const Sidebar = ({ forceHidden = false }: { forceHidden?: boolean }) => {
                   {!isPrivateMode && (
                     <Button
                       size="icon-sm"
-                      title="Collapse sidebar"
+                      title={`Collapse sidebar (${isMac ? "⌘B" : "Ctrl+B"})`}
                       variant="ghost"
                       className="text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-hover h-8 w-8"
                       onClick={() => setSidebarVisible(false)}
