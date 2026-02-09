@@ -68,6 +68,10 @@ import { useUI } from "@/providers/ui-provider";
 import { useUserDataContext } from "@/providers/user-data-context";
 import type { ChatMessage, ConversationId } from "@/types";
 
+const isMac =
+  typeof navigator !== "undefined" &&
+  navigator.platform.toUpperCase().indexOf("MAC") >= 0;
+
 type ChatHeaderProps = {
   conversationId?: ConversationId;
   isPrivateMode?: boolean;
@@ -415,7 +419,7 @@ const ChatHeaderComponent = ({
         {!(isSidebarVisible || isPrivateMode) && (
           <Button
             size="icon-sm"
-            title="Expand sidebar"
+            title={`Expand sidebar (${isMac ? "⌘B" : "Ctrl+B"})`}
             variant="ghost"
             onClick={() => setSidebarVisible(true)}
           >
