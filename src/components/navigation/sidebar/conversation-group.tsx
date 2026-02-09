@@ -1,5 +1,5 @@
 import { CaretRightIcon, PushPinIcon } from "@phosphor-icons/react";
-import { type ReactNode, useRef, useState } from "react";
+import { Children, type ReactNode, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
 type ConversationGroupProps = {
@@ -59,20 +59,31 @@ export const ConversationGroup = ({
         )}
         {isPinned && <PushPinIcon className="size-3.5 mr-0.5" weight="fill" />}
         <span>{title}</span>
-        {isCollapsible && count !== undefined && !isExpanded && (
-          <span className="ml-auto inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-sidebar-accent text-overline font-medium text-sidebar-foreground tabular-nums">
+        {isCollapsible && count !== undefined && (
+          <span
+            className={cn(
+              "ml-auto inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-sidebar-accent text-overline font-medium text-sidebar-foreground tabular-nums transition-opacity duration-200",
+              isExpanded ? "opacity-0" : "opacity-100"
+            )}
+          >
             {count}
           </span>
         )}
       </button>
       {isExpanded && (
-        <div
-          className={cn(
-            "stack-xs",
-            hasToggled.current && "animate-in slide-in-from-top-2 duration-200"
-          )}
-        >
-          {children}
+        <div className="stack-xs">
+          {hasToggled.current
+            ? Children.map(children, (child, index) => (
+                <div
+                  className="animate-list-item-in"
+                  style={{
+                    animationDelay: `${Math.min(index * 25, 250)}ms`,
+                  }}
+                >
+                  {child}
+                </div>
+              ))
+            : children}
         </div>
       )}
     </div>

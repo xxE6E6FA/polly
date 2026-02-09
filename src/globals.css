@@ -1184,6 +1184,81 @@ pre {
   animation: fade-in-up 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+/* Message entrance animation - subtle slide up + fade */
+@keyframes message-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-message-in {
+  animation: message-in 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Copy success bounce - plays on the check icon */
+@keyframes copy-success {
+  0% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  50% {
+    transform: scale(1.15);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-copy-success {
+  animation: copy-success 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Page/route entrance animation */
+@keyframes page-enter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-page-enter {
+  animation: page-enter 0.15s ease-out;
+}
+
+/* List item entrance - used for staggered list animations */
+@keyframes list-item-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-list-item-in {
+  animation: list-item-in 0.2s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Respect reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  .animate-message-in,
+  .animate-copy-success,
+  .animate-page-enter,
+  .animate-list-item-in {
+    animation: none;
+  }
+}
+
 /* Custom gradient text */
 .gradient-text {
   background: var(--gradient-accent);

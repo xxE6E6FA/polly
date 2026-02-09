@@ -9,7 +9,9 @@ export default function ChatLayout() {
 
   return (
     <SharedChatLayout>
-      <Outlet key={outletKey} />
+      <div key={outletKey} className="h-full animate-page-enter">
+        <Outlet />
+      </div>
     </SharedChatLayout>
   );
 }
