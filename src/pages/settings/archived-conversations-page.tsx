@@ -284,7 +284,15 @@ export const ArchivedConversationsPage = () => {
     <SettingsZeroState
       icon={<ArchiveIcon className="size-12" />}
       title="No archived conversations"
-      description="Conversations you archive will appear here"
+      description="Conversations you archive will appear here. Archive a conversation from the sidebar to declutter your list."
+      cta={
+        <Link
+          to={ROUTES.HOME}
+          className={buttonVariants({ variant: "outline" })}
+        >
+          Go to conversations
+        </Link>
+      }
     />
   );
 
