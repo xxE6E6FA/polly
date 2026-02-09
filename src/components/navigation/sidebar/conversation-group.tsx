@@ -1,5 +1,5 @@
 import { CaretRightIcon, PushPinIcon } from "@phosphor-icons/react";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
 type ConversationGroupProps = {
@@ -22,12 +22,14 @@ export const ConversationGroup = ({
 }: ConversationGroupProps) => {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   const isPinned = title === "Pinned";
+  const hasToggled = useRef(false);
 
   // Pinned group is never collapsible
   const isCollapsible = collapsible && !isPinned;
 
   const handleToggle = () => {
     if (isCollapsible) {
+      hasToggled.current = true;
       setIsExpanded(prev => !prev);
     }
   };
@@ -64,7 +66,12 @@ export const ConversationGroup = ({
         )}
       </button>
       {isExpanded && (
-        <div className="stack-xs animate-in slide-in-from-top-2 duration-200">
+        <div
+          className={cn(
+            "stack-xs",
+            hasToggled.current && "animate-in slide-in-from-top-2 duration-200"
+          )}
+        >
           {children}
         </div>
       )}
