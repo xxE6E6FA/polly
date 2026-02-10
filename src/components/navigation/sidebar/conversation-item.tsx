@@ -192,6 +192,7 @@ const ConversationItemComponent = ({
       managedToast.success("Conversation archived", {
         id: `archive-${conversation._id}`,
         duration: 5000,
+        isUndo: true,
         action: {
           label: "Undo",
           onClick: () => {
@@ -229,6 +230,7 @@ const ConversationItemComponent = ({
           managedToast.success("Conversation deleted", {
             id: `delete-${conversation._id}`,
             duration: 5000,
+            isUndo: true,
             action: {
               label: "Undo",
               onClick: () => {

@@ -228,6 +228,7 @@ export function useBulkActions(options?: {
               `Archived ${successCount} conversation${successCount !== 1 ? "s" : ""}`,
               {
                 id: `bulk-archive-success-${Date.now()}`,
+                isUndo: true,
                 action: {
                   label: "Undo",
                   onClick: async () => {
@@ -241,6 +242,7 @@ export function useBulkActions(options?: {
                         // Best-effort undo
                       }
                     }
+                    del(CACHE_KEYS.conversations);
                   },
                 },
               }
