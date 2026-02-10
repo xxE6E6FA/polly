@@ -228,6 +228,7 @@ export function useBulkActions(options?: {
               `Archived ${successCount} conversation${successCount !== 1 ? "s" : ""}`,
               {
                 id: `bulk-archive-success-${Date.now()}`,
+                duration: 5000,
                 isUndo: true,
                 action: {
                   label: "Undo",
