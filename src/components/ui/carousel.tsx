@@ -12,7 +12,7 @@ import {
   useEffect,
   useState,
 } from "react";
-import { Button, type ButtonAsButtonProps } from "@/components/ui/button";
+import { Button, type ButtonProps } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 type CarouselApi = UseEmblaCarouselType[1];
@@ -198,7 +198,7 @@ function CarouselItem({ className, ref, ...props }: CarouselItemProps) {
   );
 }
 
-type CarouselButtonProps = Omit<ButtonAsButtonProps, "as">;
+type CarouselButtonProps = ButtonProps;
 
 function CarouselPrevious({
   className,

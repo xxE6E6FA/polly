@@ -1,7 +1,7 @@
 import { api } from "@convex/_generated/api";
 import { ArrowSquareOutIcon, CheckCircleIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery } from "convex/react";
-import { useMemo } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { ProviderIcon } from "@/components/models/provider-icons";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -111,6 +111,13 @@ export const ApiKeysTab = () => {
     api.userSettings.updateUserSettings
   );
   const managedToast = useToast();
+  const [savingProvider, setSavingProvider] = useState<ApiProvider | null>(
+    null
+  );
+  const [removingProvider, setRemovingProvider] = useState<ApiProvider | null>(
+    null
+  );
+  const [, startTransition] = useTransition();
 
   // Apply type guard to ensure proper typing
   const userSettings = isUserSettings(userSettingsRaw) ? userSettingsRaw : null;
@@ -145,10 +152,7 @@ export const ApiKeysTab = () => {
     });
   };
 
-  const handleApiKeySubmit = async (
-    provider: ApiProvider,
-    formData: FormData
-  ) => {
+  const handleApiKeySubmit = (provider: ApiProvider, formData: FormData) => {
     const key = formData.get(`${provider}-key`) as string;
 
     if (!key?.trim()) {
@@ -162,32 +166,42 @@ export const ApiKeysTab = () => {
       return;
     }
 
-    try {
-      await storeKeyMutation({ provider, rawKey: key.trim() });
-      managedToast.success("API Key Saved", {
-        description: `Your ${API_KEY_INFO[provider].name} API key has been securely stored.`,
-      });
-    } catch (error) {
-      managedToast.error("Error", {
-        description:
-          error instanceof Error
-            ? error.message
-            : "Failed to save API key. Please try again.",
-      });
-    }
+    setSavingProvider(provider);
+    startTransition(async () => {
+      try {
+        await storeKeyMutation({ provider, rawKey: key.trim() });
+        managedToast.success("API Key Saved", {
+          description: `Your ${API_KEY_INFO[provider].name} API key has been securely stored.`,
+        });
+      } catch (error) {
+        managedToast.error("Error", {
+          description:
+            error instanceof Error
+              ? error.message
+              : "Failed to save API key. Please try again.",
+        });
+      } finally {
+        setSavingProvider(null);
+      }
+    });
   };
 
-  const handleApiKeyRemove = async (provider: ApiProvider) => {
-    try {
-      await removeKeyMutation({ provider });
-      managedToast.success("API Key Removed", {
-        description: `Your ${API_KEY_INFO[provider].name} API key has been removed.`,
-      });
-    } catch {
-      managedToast.error("Error", {
-        description: "Failed to remove API key. Please try again.",
-      });
-    }
+  const handleApiKeyRemove = (provider: ApiProvider) => {
+    setRemovingProvider(provider);
+    startTransition(async () => {
+      try {
+        await removeKeyMutation({ provider });
+        managedToast.success("API Key Removed", {
+          description: `Your ${API_KEY_INFO[provider].name} API key has been removed.`,
+        });
+      } catch {
+        managedToast.error("Error", {
+          description: "Failed to remove API key. Please try again.",
+        });
+      } finally {
+        setRemovingProvider(null);
+      }
+    });
   };
 
   return (
@@ -253,12 +267,15 @@ export const ApiKeysTab = () => {
                 </div>
                 {!isConnected && (
                   <Button
-                    as="a"
+                    render={
+                      <a
+                        href={info.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      />
+                    }
                     size="sm"
                     variant="ghost"
-                    href={info.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
                   >
                     Get key <ArrowSquareOutIcon className="ml-1 size-3" />
                   </Button>
@@ -278,6 +295,7 @@ export const ApiKeysTab = () => {
                     <Button
                       variant="destructive"
                       className="h-9"
+                      loading={removingProvider === provider}
                       onClick={() =>
                         handleApiKeyRemove(provider as ApiProvider)
                       }
@@ -301,7 +319,11 @@ export const ApiKeysTab = () => {
                       placeholder={info.placeholder}
                       className="h-9 flex-1 font-mono text-sm"
                     />
-                    <Button type="submit" className="h-9">
+                    <Button
+                      type="submit"
+                      className="h-9"
+                      loading={savingProvider === provider}
+                    >
                       Save
                     </Button>
                   </form>

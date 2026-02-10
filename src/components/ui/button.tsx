@@ -1,6 +1,7 @@
+import { Button as BaseButton } from "@base-ui/react/button";
 import { cva, type VariantProps } from "class-variance-authority";
 import type * as React from "react";
-
+import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 
 /**
@@ -52,7 +53,7 @@ export const menuItemStateStyles =
  * @size full-lg - Full width, large
  */
 const buttonVariants = cva(
-  "flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium cursor-pointer transition-colors transition-[background-color,border-color,color,box-shadow,transform] duration-200 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 active:scale-[.98] active:shadow-sm",
+  "flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium cursor-pointer transition-colors transition-[background-color,border-color,color,box-shadow,transform] duration-200 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50 data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 active:scale-[.98] active:shadow-sm",
   {
     variants: {
       variant: {
@@ -117,41 +118,65 @@ const buttonVariants = cva(
   }
 );
 
-type VariantOptions = VariantProps<typeof buttonVariants>;
-
-// Base props shared between button and anchor
-type ButtonBaseProps = VariantOptions & {
-  className?: string;
+// Spinner size mapping based on button size
+const spinnerSizeMap: Record<string, "xs" | "sm" | "md"> = {
+  sm: "xs",
+  default: "sm",
+  lg: "sm",
+  icon: "sm",
+  "icon-sm": "xs",
+  "icon-pill": "xs",
+  pill: "xs",
+  full: "sm",
+  "full-lg": "sm",
+  menu: "sm",
 };
 
-// Button-specific props (default behavior)
-export type ButtonAsButtonProps = ButtonBaseProps &
-  Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, keyof ButtonBaseProps> & {
-    as?: "button";
-    ref?: React.Ref<HTMLButtonElement>;
+// Use native button props as the base (same pattern as Input component)
+// to avoid Base UI's union type causing prop loss in downstream Omit<> usage.
+export type ButtonProps = React.ComponentProps<"button"> &
+  VariantProps<typeof buttonVariants> & {
+    loading?: boolean;
+    ref?: React.Ref<HTMLElement>;
+    render?: React.ComponentProps<typeof BaseButton>["render"];
+    focusableWhenDisabled?: boolean;
   };
 
-// Anchor-specific props
-export type ButtonAsAnchorProps = ButtonBaseProps &
-  Omit<React.AnchorHTMLAttributes<HTMLAnchorElement>, keyof ButtonBaseProps> & {
-    as: "a";
-    ref?: React.Ref<HTMLAnchorElement>;
-  };
-
-// Union type for external use
-export type ButtonProps = ButtonAsButtonProps | ButtonAsAnchorProps;
-
-function Button(props: ButtonProps) {
-  const { className, variant, size, rounded, ...rest } = props;
+function Button({
+  className,
+  variant,
+  size,
+  rounded,
+  loading,
+  disabled,
+  children,
+  ...rest
+}: ButtonProps) {
   const classes = cn(buttonVariants({ variant, size, rounded, className }));
+  const spinnerSize = spinnerSizeMap[size ?? "default"] ?? "sm";
 
-  if (rest.as === "a") {
-    const { as: _as, ref, ...anchorProps } = rest as ButtonAsAnchorProps;
-    return <a ref={ref} className={classes} {...anchorProps} />;
-  }
+  const content = loading ? (
+    <>
+      <span className="inline-flex items-center gap-2 opacity-0">
+        {children}
+      </span>
+      <span className="absolute inset-0 flex items-center justify-center">
+        <Spinner size={spinnerSize} variant="primary" />
+      </span>
+    </>
+  ) : (
+    children
+  );
 
-  const { as: _as, ref, ...buttonProps } = rest as ButtonAsButtonProps;
-  return <button ref={ref} className={classes} {...buttonProps} />;
+  return (
+    <BaseButton
+      className={cn(classes, loading && "relative")}
+      disabled={loading || disabled}
+      {...rest}
+    >
+      {content}
+    </BaseButton>
+  );
 }
 
 export { Button, buttonVariants };

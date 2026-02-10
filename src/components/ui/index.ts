@@ -27,11 +27,7 @@
 // Form Controls
 // =============================================================================
 
-export type {
-  ButtonAsAnchorProps,
-  ButtonAsButtonProps,
-  ButtonProps,
-} from "./button";
+export type { ButtonProps } from "./button";
 export {
   Button,
   buttonVariants,

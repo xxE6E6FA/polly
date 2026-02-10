@@ -21,7 +21,6 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Spinner } from "@/components/ui/spinner";
 import {
   Tooltip,
   TooltipContent,
@@ -268,47 +267,31 @@ export const ControlledShareConversationDialog = ({
                 <Button
                   className="flex-1"
                   size="lg"
-                  disabled={isUpdating || !hasNewMessages}
+                  disabled={!hasNewMessages}
+                  loading={isUpdating}
                   variant="secondary"
                   onClick={handleUpdate}
                 >
-                  {isUpdating ? (
-                    <Spinner size="sm" className="mr-2 size-4" />
-                  ) : (
-                    <ArrowCounterClockwiseIcon className="mr-2 size-4" />
-                  )}
+                  <ArrowCounterClockwiseIcon className="mr-2 size-4" />
                   Update share
                 </Button>
                 <Button
                   className="flex-1"
                   size="lg"
-                  disabled={isUnsharing}
+                  loading={isUnsharing}
                   variant="secondary"
                   onClick={handleUnshare}
                 >
-                  {isUnsharing ? (
-                    <Spinner size="sm" className="mr-2 size-4" />
-                  ) : (
-                    <XIcon className="mr-2 size-4" />
-                  )}
+                  <XIcon className="mr-2 size-4" />
                   Stop sharing
                 </Button>
               </div>
             </div>
           ) : (
             <div className="stack-lg">
-              <Button size="full-lg" disabled={isSharing} onClick={handleShare}>
-                {isSharing ? (
-                  <>
-                    <Spinner size="sm" className="mr-2 size-4" />
-                    Creating share link...
-                  </>
-                ) : (
-                  <>
-                    <ShareNetworkIcon className="mr-2 size-4" />
-                    Create share link
-                  </>
-                )}
+              <Button size="full-lg" loading={isSharing} onClick={handleShare}>
+                <ShareNetworkIcon className="mr-2 size-4" />
+                Create share link
               </Button>
 
               <div className="text-center">
