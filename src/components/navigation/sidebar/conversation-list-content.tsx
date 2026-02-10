@@ -200,6 +200,9 @@ export const ConversationListContent = ({
     return <div />;
   }
 
+  // Track visible group index for stagger animation offset
+  let visibleGroupIndex = 0;
+
   return (
     <div className="pb-3 pt-3">
       {activeGroups.map(groupKey => {
@@ -208,24 +211,33 @@ export const ConversationListContent = ({
           return null;
         }
 
+        const groupIndex = visibleGroupIndex++;
+
         return (
-          <ConversationGroup
+          <div
             key={groupKey}
-            title={GROUP_LABELS[groupKey]}
-            count={groupConversations.length}
-            collapsible={groupKey !== "pinned"}
+            className="animate-list-item-in"
+            style={{
+              animationDelay: `${groupIndex * 50}ms`,
+            }}
           >
-            {groupConversations.map(conversation => (
-              <ConversationItem
-                key={conversation._id}
-                conversation={conversation}
-                currentConversationId={currentConversationId}
-                allVisibleIds={allVisibleIds}
-                isMobile={isMobile}
-                onCloseSidebar={onCloseSidebar}
-              />
-            ))}
-          </ConversationGroup>
+            <ConversationGroup
+              title={GROUP_LABELS[groupKey]}
+              count={groupConversations.length}
+              collapsible={groupKey !== "pinned"}
+            >
+              {groupConversations.map(conversation => (
+                <ConversationItem
+                  key={conversation._id}
+                  conversation={conversation}
+                  currentConversationId={currentConversationId}
+                  allVisibleIds={allVisibleIds}
+                  isMobile={isMobile}
+                  onCloseSidebar={onCloseSidebar}
+                />
+              ))}
+            </ConversationGroup>
+          </div>
         );
       })}
     </div>
