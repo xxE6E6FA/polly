@@ -68,6 +68,7 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          allowed_bots: "greptile-apps[bot]"
           claude_args: '--allowed-tools "Edit,Write,Read,Glob,Grep,Bash(git:*),Bash(gh:*),Bash(bun:*),Bash(sleep:*)"'
           prompt: |
             Greptile has posted a review on this PR (review iteration ${{ steps.iterations.outputs.count }}/5).
