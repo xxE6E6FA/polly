@@ -1,3 +1,4 @@
+import { Progress as ProgressPrimitive } from "@base-ui/react/progress";
 import {
   CheckCircleIcon,
   ClockIcon,
@@ -17,47 +18,43 @@ type ProgressProps = {
   className?: string;
   variant?: "default" | "success" | "error" | "warning";
   ref?: React.Ref<HTMLDivElement>;
-} & React.HTMLAttributes<HTMLDivElement>;
+};
+
+const progressColorMap = {
+  success:
+    "bg-gradient-to-r from-success to-success-hover shadow-sm shadow-success/20",
+  error:
+    "bg-gradient-to-r from-danger to-danger-hover shadow-sm shadow-danger/20",
+  warning:
+    "bg-gradient-to-r from-warning to-warning-hover shadow-sm shadow-warning/20",
+  default:
+    "bg-gradient-to-r from-blue-500 via-purple-500 to-blue-600 shadow-sm shadow-blue-500/20",
+} as const;
 
 function Progress({
   className,
   value = 0,
   variant = "default",
   ref,
-  ...props
 }: ProgressProps) {
-  const getProgressColor = () => {
-    switch (variant) {
-      case "success":
-        return "bg-gradient-to-r from-success to-success-hover shadow-sm shadow-success/20";
-      case "error":
-        return "bg-gradient-to-r from-danger to-danger-hover shadow-sm shadow-danger/20";
-      case "warning":
-        return "bg-gradient-to-r from-warning to-warning-hover shadow-sm shadow-warning/20";
-      default:
-        return "bg-gradient-to-r from-blue-500 via-purple-500 to-blue-600 shadow-sm shadow-blue-500/20";
-    }
-  };
-
   return (
-    <div
+    <ProgressPrimitive.Root
       ref={ref}
+      value={value}
       className={cn(
         "relative h-2 w-full overflow-hidden rounded-full bg-secondary",
         className
       )}
-      {...props}
     >
-      <div
-        className={cn(
-          "h-full rounded-full transition-all duration-500 ease-out",
-          getProgressColor()
-        )}
-        style={{
-          width: `${Math.min(100, Math.max(0, value))}%`,
-        }}
-      />
-    </div>
+      <ProgressPrimitive.Track>
+        <ProgressPrimitive.Indicator
+          className={cn(
+            "h-full rounded-full transition-all duration-500 ease-out",
+            progressColorMap[variant]
+          )}
+        />
+      </ProgressPrimitive.Track>
+    </ProgressPrimitive.Root>
   );
 }
 

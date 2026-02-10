@@ -1,8 +1,9 @@
-import { CheckIcon } from "@phosphor-icons/react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 
 interface SelectAllCheckboxProps {
   checked: boolean;
+  indeterminate?: boolean;
   onToggle: () => void;
   className?: string;
   disabled?: boolean;
@@ -10,33 +11,24 @@ interface SelectAllCheckboxProps {
 
 export function SelectAllCheckbox({
   checked,
+  indeterminate,
   onToggle,
   className,
   disabled,
 }: SelectAllCheckboxProps) {
   return (
-    <div className={cn(className)}>
-      {/* biome-ignore lint/a11y/useSemanticElements: matches shadcn/ui custom checkbox pattern */}
-      <button
-        onClick={e => {
-          e.stopPropagation();
-          if (!disabled) {
-            onToggle();
-          }
-        }}
-        className={cn(
-          "flex h-4 w-4 items-center justify-center rounded border",
-          disabled && "opacity-50 cursor-not-allowed"
-        )}
-        type="button"
-        role="checkbox"
-        aria-checked={checked}
+    <div
+      className={cn(className)}
+      onClick={e => e.stopPropagation()}
+      onKeyDown={e => e.stopPropagation()}
+    >
+      <Checkbox
+        checked={checked}
+        indeterminate={indeterminate}
+        onCheckedChange={() => onToggle()}
         aria-label={checked ? "Deselect all" : "Select all"}
-        aria-disabled={disabled}
         disabled={disabled}
-      >
-        {checked && <CheckIcon className="size-3" />}
-      </button>
+      />
     </div>
   );
 }

@@ -276,6 +276,12 @@ export function VirtualizedDataList<TItem, TField extends string = string>({
               results.length > 0 &&
               selection.isAllSelected(results)
             }
+            indeterminate={
+              !isLoading &&
+              results.length > 0 &&
+              selection.selectedKeys.size > 0 &&
+              !selection.isAllSelected(results)
+            }
             onToggle={() =>
               !isLoading && results.length > 0 && selection.toggleAll(results)
             }
