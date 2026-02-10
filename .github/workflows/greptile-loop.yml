@@ -1,0 +1,134 @@
+name: Greptile Review Loop
+
+on:
+  pull_request_review:
+    types: [submitted]
+
+concurrency:
+  group: greptile-loop-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  handle-greptile-review:
+    # Fires on ANY review from Greptile on a claude-loop PR.
+    # Claude reads the review content and decides: fix issues or merge.
+    if: |
+      github.event.review.user.login == 'greptile-apps[bot]' &&
+      contains(toJSON(github.event.pull_request.labels.*.name), 'claude-loop')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
+      actions: read
+    steps:
+      - name: Guard against infinite loops
+        id: iterations
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          # Count Greptile reviews on this PR (includes the current one).
+          TOTAL=$(gh api "repos/$REPO/pulls/$PR/reviews" \
+            --jq '[.[] | select(.user.login == "greptile-apps[bot]")] | length')
+          COMPLETED=$((TOTAL - 1))  # reviews already processed (excludes current)
+          if [ "$COMPLETED" -ge 5 ]; then
+            gh pr comment "$PR" --body "Hit 5 review iterations — removing \`claude-loop\` label for human review."
+            gh pr edit "$PR" --remove-label claude-loop
+            exit 1
+          fi
+          echo "count=$TOTAL" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.ref }}
+
+      - name: Verify checkout SHA
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [ "$(git rev-parse HEAD)" != "$EXPECTED_SHA" ]; then
+            echo "::error::HEAD SHA mismatch — expected $EXPECTED_SHA, got $(git rev-parse HEAD)"
+            exit 1
+          fi
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+
+      - name: Handle Greptile review
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_args: '--allowed-tools "Edit,Write,Read,Glob,Grep,Bash(git:*),Bash(gh:*),Bash(bun:*),Bash(sleep:*)"'
+          prompt: |
+            Greptile has posted a review on this PR (review iteration ${{ steps.iterations.outputs.count }}/5).
+            Greptile does NOT use GitHub's formal approve/reject — it posts comments.
+            You must read the review content and decide the correct action.
+
+            ## Step 1: Read the review
+
+            ```
+            gh api "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/reviews/${{ github.event.review.id }}/comments"
+            ```
+            Also read the top-level review body:
+            ```
+            gh api "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/reviews/${{ github.event.review.id }}" --jq '.body'
+            ```
+
+            ## Step 2: Decide
+
+            Analyze every comment. Classify the review as one of:
+
+            **A) Has actionable issues** — Greptile flagged bugs, anti-patterns, security issues, or requested specific code changes.
+            **B) Clean review** — Greptile found no issues, only posted a summary, or all comments are informational/praise.
+
+            ---
+
+            ## Path A: Address feedback
+
+            1. For each actionable comment:
+               - Make the code change
+               - Create a fixup commit: `git commit --fixup=<original-commit-hash>`
+               - Reply to the comment:
+                 `gh api "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/comments/{comment_id}/replies" -f body="Fixed in <short-hash>"`
+            2. For non-actionable comments (questions, observations), reply with your reasoning.
+            3. Run `bun run check` — fix any failures before pushing.
+            4. Push: `git push`
+            5. Request re-review:
+               `gh pr comment ${{ github.event.pull_request.number }} --body "@greptileai Please re-review — all feedback has been addressed."`
+
+            **Rules for Path A:**
+            - Address ALL comments, don't skip any
+            - Use `git commit --fixup=<hash>` for every fix (for autosquash later)
+            - Find the right original commit with `git log --oneline`
+
+            ---
+
+            ## Path B: Clean review — finalize and merge
+
+            1. Check if fixup commits exist:
+               `git log --oneline origin/main..HEAD | grep -c '^[a-f0-9]* fixup!'`
+            2. If fixup commits exist, autosquash them:
+               ```
+               git fetch origin main
+               git -c sequence.editor=true rebase -i --autosquash origin/main
+               git push --force-with-lease
+               ```
+               If there are NO fixup commits, skip rebase and force-push entirely.
+            3. Enable auto-merge (respects branch protection rules and required checks):
+               `gh pr merge ${{ github.event.pull_request.number }} --auto --rebase --delete-branch`
+               This queues the PR to merge once all required status checks pass.
+            4. If auto-merge is not enabled on the repo, fall back to:
+               ```
+               gh pr checks ${{ github.event.pull_request.number }} --watch --fail-level all
+               gh pr merge ${{ github.event.pull_request.number }} --rebase --delete-branch
+               ```
