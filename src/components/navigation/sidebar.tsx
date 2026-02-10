@@ -48,6 +48,7 @@ export const Sidebar = ({ forceHidden = false }: { forceHidden?: boolean }) => {
   const [bottomShadow, setBottomShadow] = useState(0);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const resizeRef = useRef<HTMLDivElement>(null);
+  const lastDragEndRef = useRef(0);
   const [isScrollHovered, setIsScrollHovered] = useState(false);
   const {
     isSidebarVisible,
@@ -278,6 +279,7 @@ export const Sidebar = ({ forceHidden = false }: { forceHidden?: boolean }) => {
 
       const handleMouseUp = () => {
         setIsResizing(false);
+        lastDragEndRef.current = Date.now();
         document.removeEventListener("mousemove", handleMouseMove);
         document.removeEventListener("mouseup", handleMouseUp);
       };
@@ -289,6 +291,10 @@ export const Sidebar = ({ forceHidden = false }: { forceHidden?: boolean }) => {
   );
 
   const handleDoubleClick = useCallback(() => {
+    // Ignore double-click if a drag just ended (within 300ms)
+    if (Date.now() - lastDragEndRef.current < 300) {
+      return;
+    }
     setSidebarVisible(false);
   }, [setSidebarVisible]);
 
@@ -551,15 +557,15 @@ export const Sidebar = ({ forceHidden = false }: { forceHidden?: boolean }) => {
         {!isMobile && isSidebarVisible && (
           <div
             ref={resizeRef}
-            className="absolute -right-1 top-0 bottom-0 w-3 cursor-col-resize z-10 group flex items-center justify-center"
+            className="absolute right-0 top-0 bottom-0 w-3 cursor-col-resize z-10 group flex items-center justify-center"
             data-sidebar-interactive="true"
             onMouseDown={handleResizeStart}
             onDoubleClick={handleDoubleClick}
           >
             {/* Visible line indicator */}
-            <div className="absolute right-[5px] top-0 bottom-0 w-[1px] bg-transparent group-hover:bg-border transition-colors" />
+            <div className="absolute right-0 top-0 bottom-0 w-[1px] bg-transparent group-hover:bg-border transition-colors" />
             {/* Grip dots - visible on hover */}
-            <div className="absolute right-[3px] top-1/2 -translate-y-1/2 flex flex-col gap-[3px] opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="absolute right-[2px] top-1/2 -translate-y-1/2 flex flex-col gap-[3px] opacity-0 group-hover:opacity-100 transition-opacity">
               <div className="w-[3px] h-[3px] rounded-full bg-muted-foreground/40" />
               <div className="w-[3px] h-[3px] rounded-full bg-muted-foreground/40" />
               <div className="w-[3px] h-[3px] rounded-full bg-muted-foreground/40" />
