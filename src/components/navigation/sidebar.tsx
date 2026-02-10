@@ -48,6 +48,7 @@ export const Sidebar = ({ forceHidden = false }: { forceHidden?: boolean }) => {
   const [bottomShadow, setBottomShadow] = useState(0);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const resizeRef = useRef<HTMLDivElement>(null);
+  const didDragRef = useRef(false);
   const [isScrollHovered, setIsScrollHovered] = useState(false);
   const {
     isSidebarVisible,
@@ -266,12 +267,17 @@ export const Sidebar = ({ forceHidden = false }: { forceHidden?: boolean }) => {
     (e: React.MouseEvent) => {
       e.preventDefault();
       setIsResizing(true);
+      didDragRef.current = false;
 
       const startX = e.clientX;
       const startWidth = sidebarWidth;
+      const dragThreshold = 3;
 
       const handleMouseMove = (e: MouseEvent) => {
         const deltaX = e.clientX - startX;
+        if (Math.abs(deltaX) > dragThreshold) {
+          didDragRef.current = true;
+        }
         const newWidth = startWidth + deltaX;
         setSidebarWidth(newWidth);
       };
@@ -289,6 +295,10 @@ export const Sidebar = ({ forceHidden = false }: { forceHidden?: boolean }) => {
   );
 
   const handleDoubleClick = useCallback(() => {
+    // Ignore double-click if the pointer moved during the interaction (actual drag)
+    if (didDragRef.current) {
+      return;
+    }
     setSidebarVisible(false);
   }, [setSidebarVisible]);
 
@@ -551,12 +561,19 @@ export const Sidebar = ({ forceHidden = false }: { forceHidden?: boolean }) => {
         {!isMobile && isSidebarVisible && (
           <div
             ref={resizeRef}
-            className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-primary/10 active:bg-primary/20 transition-colors z-10 group"
+            className="absolute right-0 top-0 bottom-0 w-3 cursor-col-resize z-10 group flex items-center justify-center"
             data-sidebar-interactive="true"
             onMouseDown={handleResizeStart}
             onDoubleClick={handleDoubleClick}
           >
-            <div className="absolute right-0 top-0 bottom-0 w-[1px] bg-transparent group-hover:bg-border/50 transition-colors" />
+            {/* Visible line indicator */}
+            <div className="absolute right-0 top-0 bottom-0 w-[1px] bg-transparent group-hover:bg-border transition-colors" />
+            {/* Grip dots - visible on hover */}
+            <div className="absolute right-[2px] top-1/2 -translate-y-1/2 flex flex-col gap-[3px] opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="w-[3px] h-[3px] rounded-full bg-muted-foreground/40" />
+              <div className="w-[3px] h-[3px] rounded-full bg-muted-foreground/40" />
+              <div className="w-[3px] h-[3px] rounded-full bg-muted-foreground/40" />
+            </div>
           </div>
         )}
       </motion.div>
