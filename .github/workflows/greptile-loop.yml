@@ -46,10 +46,10 @@ jobs:
           PR: ${{ github.event.pull_request.number }}
         run: |
           # Count completed loop iterations by counting @greptileai re-review
-          # requests from the bot. These only exist from actual loop iterations,
-          # so pre-existing Greptile reviews don't inflate the count.
+          # requests posted by the Claude bot. These only exist from actual loop
+          # iterations, so pre-existing Greptile reviews don't inflate the count.
           COMPLETED=$(gh api "repos/$REPO/issues/$PR/comments" \
-            --jq '[.[] | select(.user.login == "github-actions[bot]" and (.body | test("@greptileai")))] | length')
+            --jq '[.[] | select((.user.login == "claude[bot]" or .user.login == "github-actions[bot]") and (.body | test("@greptileai.*re-review")))] | length')
           if [ "$COMPLETED" -ge 5 ]; then
             gh pr comment "$PR" --body "Hit 5 review iterations — removing \`claude-loop\` label for human review."
             gh pr edit "$PR" --remove-label claude-loop
