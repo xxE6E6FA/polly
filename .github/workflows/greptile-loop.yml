@@ -24,6 +24,20 @@ jobs:
       id-token: write
       actions: read
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.ref }}
+
+      - name: Verify checkout SHA
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [ "$(git rev-parse HEAD)" != "$EXPECTED_SHA" ]; then
+            echo "::error::HEAD SHA mismatch — expected $EXPECTED_SHA, got $(git rev-parse HEAD)"
+            exit 1
+          fi
+
       - name: Guard against infinite loops
         id: iterations
         env:
@@ -41,20 +55,6 @@ jobs:
             exit 1
           fi
           echo "count=$TOTAL" >> "$GITHUB_OUTPUT"
-
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          ref: ${{ github.event.pull_request.head.ref }}
-
-      - name: Verify checkout SHA
-        env:
-          EXPECTED_SHA: ${{ github.event.pull_request.head.sha }}
-        run: |
-          if [ "$(git rev-parse HEAD)" != "$EXPECTED_SHA" ]; then
-            echo "::error::HEAD SHA mismatch — expected $EXPECTED_SHA, got $(git rev-parse HEAD)"
-            exit 1
-          fi
 
       - name: Configure git
         run: |
