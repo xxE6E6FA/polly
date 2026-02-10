@@ -48,7 +48,7 @@ export const Sidebar = ({ forceHidden = false }: { forceHidden?: boolean }) => {
   const [bottomShadow, setBottomShadow] = useState(0);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const resizeRef = useRef<HTMLDivElement>(null);
-  const lastDragEndRef = useRef(0);
+  const didDragRef = useRef(false);
   const [isScrollHovered, setIsScrollHovered] = useState(false);
   const {
     isSidebarVisible,
@@ -267,19 +267,23 @@ export const Sidebar = ({ forceHidden = false }: { forceHidden?: boolean }) => {
     (e: React.MouseEvent) => {
       e.preventDefault();
       setIsResizing(true);
+      didDragRef.current = false;
 
       const startX = e.clientX;
       const startWidth = sidebarWidth;
+      const dragThreshold = 3;
 
       const handleMouseMove = (e: MouseEvent) => {
         const deltaX = e.clientX - startX;
+        if (Math.abs(deltaX) > dragThreshold) {
+          didDragRef.current = true;
+        }
         const newWidth = startWidth + deltaX;
         setSidebarWidth(newWidth);
       };
 
       const handleMouseUp = () => {
         setIsResizing(false);
-        lastDragEndRef.current = Date.now();
         document.removeEventListener("mousemove", handleMouseMove);
         document.removeEventListener("mouseup", handleMouseUp);
       };
@@ -291,8 +295,8 @@ export const Sidebar = ({ forceHidden = false }: { forceHidden?: boolean }) => {
   );
 
   const handleDoubleClick = useCallback(() => {
-    // Ignore double-click if a drag just ended (within 300ms)
-    if (Date.now() - lastDragEndRef.current < 300) {
+    // Ignore double-click if the pointer moved during the interaction (actual drag)
+    if (didDragRef.current) {
       return;
     }
     setSidebarVisible(false);
