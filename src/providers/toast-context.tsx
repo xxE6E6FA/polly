@@ -64,6 +64,8 @@ export function ToastProvider({ children }: ToastProviderProps) {
     ) => {
       const hasCountdown = !!(options.action && options.duration);
 
+      let toastId: string | number;
+
       const sonnerOptions: Record<string, unknown> = {};
       if (options.description !== undefined) {
         sonnerOptions.description = options.description;
@@ -87,17 +89,19 @@ export function ToastProvider({ children }: ToastProviderProps) {
         sonnerOptions.onAutoClose = options.onAutoClose;
       }
       if (options.isUndo) {
+        // Closure reads toastId lazily at dismiss time (after assignment below)
         sonnerOptions.onDismiss = () => {
+          const resolvedId = options.id ?? toastId;
           if (
             lastUndoRef.current &&
-            lastUndoRef.current.toastId === (options.id ?? toastId)
+            lastUndoRef.current.toastId === resolvedId
           ) {
             lastUndoRef.current = null;
           }
         };
       }
 
-      const toastId = toast.success(message, sonnerOptions);
+      toastId = toast.success(message, sonnerOptions);
 
       // Only track as undoable via Cmd+Z when explicitly marked as undo
       if (options.isUndo && options.action) {
