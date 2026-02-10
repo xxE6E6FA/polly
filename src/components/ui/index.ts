@@ -36,6 +36,7 @@ export {
 } from "./button";
 export type { ChatInputIconButtonProps } from "./chat-input-icon-button";
 export { ChatInputIconButton } from "./chat-input-icon-button";
+export { Checkbox } from "./checkbox";
 export { EnhancedSlider } from "./enhanced-slider";
 export { Input } from "./input";
 export { Label } from "./label";
@@ -73,6 +74,11 @@ export {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "./alert-dialog";
+export {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "./collapsible";
 export {
   Command,
   CommandDialog,
@@ -159,6 +165,7 @@ export type {
   MultiJobProgressProps,
 } from "./progress";
 export { JobProgressCard, MultiJobProgress, Progress } from "./progress";
+export { Separator } from "./separator";
 export { Skeleton } from "./skeleton";
 export { SkeletonText } from "./skeleton-text";
 export { ThemeToggle } from "./theme-toggle";

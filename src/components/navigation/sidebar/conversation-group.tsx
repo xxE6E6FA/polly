@@ -1,5 +1,10 @@
 import { CaretRightIcon, PushPinIcon } from "@phosphor-icons/react";
-import { Children, type ReactNode, useRef, useState } from "react";
+import { Children, type ReactNode, useRef } from "react";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 
 type ConversationGroupProps = {
@@ -20,72 +25,73 @@ export const ConversationGroup = ({
   collapsible = true,
   defaultExpanded = true,
 }: ConversationGroupProps) => {
-  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   const isPinned = title === "Pinned";
   const hasToggled = useRef(false);
 
   // Pinned group is never collapsible
   const isCollapsible = collapsible && !isPinned;
 
-  const handleToggle = () => {
-    if (isCollapsible) {
-      hasToggled.current = true;
-      setIsExpanded(prev => !prev);
-    }
-  };
+  const headingStyles =
+    "px-2.5 pt-2 pb-1.5 text-xs font-bold uppercase tracking-wider text-sidebar-muted flex items-center gap-1 w-full text-left";
+
+  const staggeredChildren = (
+    <div className="stack-xs">
+      {hasToggled.current
+        ? Children.map(children, (child, index) => (
+            <div
+              className="animate-list-item-in"
+              style={{
+                animationDelay: `${Math.min(index * 25, 250)}ms`,
+              }}
+            >
+              {child}
+            </div>
+          ))
+        : children}
+    </div>
+  );
+
+  // Pinned groups render without Collapsible wrapper
+  if (!isCollapsible) {
+    return (
+      <div className="stack-sm mt-4 first:mt-0">
+        <div className={cn(headingStyles, "cursor-default")}>
+          {isPinned && (
+            <PushPinIcon className="size-3.5 mr-0.5" weight="fill" />
+          )}
+          <span>{title}</span>
+        </div>
+        <div className="stack-xs">{children}</div>
+      </div>
+    );
+  }
 
   return (
-    <div className="stack-sm mt-4 first:mt-0">
-      <button
-        type="button"
-        onClick={handleToggle}
-        disabled={!isCollapsible}
-        aria-expanded={isCollapsible ? isExpanded : undefined}
+    <Collapsible
+      defaultOpen={defaultExpanded}
+      onOpenChange={() => {
+        hasToggled.current = true;
+      }}
+      className="group/collapsible stack-sm mt-4 first:mt-0"
+    >
+      <CollapsibleTrigger
         className={cn(
-          "px-2.5 pt-2 pb-1.5 text-xs font-bold uppercase tracking-wider text-sidebar-muted flex items-center gap-1 w-full text-left",
-          isCollapsible &&
-            "hover:text-sidebar-foreground transition-colors cursor-pointer",
-          !isCollapsible && "cursor-default"
+          headingStyles,
+          "hover:text-sidebar-foreground transition-colors cursor-pointer"
         )}
       >
-        {isCollapsible && (
-          <CaretRightIcon
-            className={cn(
-              "size-3 flex-shrink-0 transition-transform duration-200",
-              isExpanded && "rotate-90"
-            )}
-            aria-hidden="true"
-          />
-        )}
-        {isPinned && <PushPinIcon className="size-3.5 mr-0.5" weight="fill" />}
+        <CaretRightIcon
+          className="size-3 flex-shrink-0 transition-transform duration-200 group-data-[open]/collapsible:rotate-90"
+          aria-hidden="true"
+        />
         <span>{title}</span>
-        {isCollapsible && count !== undefined && (
-          <span
-            className={cn(
-              "ml-auto inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-sidebar-accent text-overline font-medium text-sidebar-foreground tabular-nums transition-opacity duration-200",
-              isExpanded ? "opacity-0" : "opacity-100"
-            )}
-          >
+        {count !== undefined && (
+          <span className="ml-auto inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-sidebar-accent text-overline font-medium text-sidebar-foreground tabular-nums transition-opacity duration-200 group-data-[open]/collapsible:opacity-0">
             {count}
           </span>
         )}
-      </button>
-      {isExpanded && (
-        <div className="stack-xs">
-          {hasToggled.current
-            ? Children.map(children, (child, index) => (
-                <div
-                  className="animate-list-item-in"
-                  style={{
-                    animationDelay: `${Math.min(index * 25, 250)}ms`,
-                  }}
-                >
-                  {child}
-                </div>
-              ))
-            : children}
-        </div>
-      )}
-    </div>
+      </CollapsibleTrigger>
+      <CollapsibleContent>{staggeredChildren}</CollapsibleContent>
+    </Collapsible>
   );
 };

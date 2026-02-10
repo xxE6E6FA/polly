@@ -1,7 +1,6 @@
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import {
-  CheckIcon,
   FileCodeIcon,
   FilePdfIcon,
   FileTextIcon,
@@ -16,6 +15,7 @@ import { usePaginatedQuery, useQuery } from "convex/react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Virtuoso } from "react-virtuoso";
 import { ListEmptyState } from "@/components/data-list";
+import { SelectionCheckbox } from "@/components/data-list/selection-checkbox";
 import { ImageThumbnail } from "@/components/files/file-display";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -136,14 +136,6 @@ const FileListRow = memo(
       }
     }, [file, onToggle, onPreview]);
 
-    const handleCheckboxClick = useCallback(
-      (e: React.MouseEvent) => {
-        e.stopPropagation();
-        onToggle(file);
-      },
-      [file, onToggle]
-    );
-
     return (
       <div
         onClick={handleRowClick}
@@ -163,21 +155,11 @@ const FileListRow = memo(
         )}
       >
         {/* Checkbox — click toggles selection */}
-        <button
-          type="button"
-          onClick={handleCheckboxClick}
-          className={cn(
-            "h-5 w-5 shrink-0 rounded border-2 flex items-center justify-center transition-all",
-            selected
-              ? "bg-primary border-primary"
-              : "border-border hover:border-primary/50"
-          )}
-          aria-label={selected ? "Deselect file" : "Select file"}
-        >
-          {selected && (
-            <CheckIcon className="size-3.5 text-primary-foreground" />
-          )}
-        </button>
+        <SelectionCheckbox
+          checked={selected}
+          onToggle={() => onToggle(file)}
+          label={selected ? "Deselect file" : "Select file"}
+        />
 
         {/* Thumbnail / Icon */}
         <div className="h-10 w-10 shrink-0 rounded-md overflow-hidden bg-muted/30 flex items-center justify-center">
