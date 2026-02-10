@@ -20,6 +20,8 @@ interface ToastContextValue {
       };
       duration?: number;
       onAutoClose?: (t: { id: string | number }) => void;
+      /** When true, this toast's action is registered as undoable via Cmd/Ctrl+Z */
+      isUndo?: boolean;
     }
   ) => void;
   error: (
@@ -57,35 +59,48 @@ export function ToastProvider({ children }: ToastProviderProps) {
         };
         duration?: number;
         onAutoClose?: (t: { id: string | number }) => void;
+        isUndo?: boolean;
       } = {}
     ) => {
       const hasCountdown = !!(options.action && options.duration);
 
-      const toastId = toast.success(message, {
-        description: options.description,
-        id: options.id,
-        action: options.action,
-        duration: options.duration,
-        className: hasCountdown ? "toast-countdown" : undefined,
-        style: hasCountdown
-          ? ({
-              "--toast-duration": `${options.duration}ms`,
-            } as React.CSSProperties)
-          : undefined,
-        onAutoClose: options.onAutoClose,
-        onDismiss: () => {
-          // Clear undo ref when toast is dismissed (by user or programmatically)
+      const sonnerOptions: Record<string, unknown> = {};
+      if (options.description !== undefined) {
+        sonnerOptions.description = options.description;
+      }
+      if (options.id !== undefined) {
+        sonnerOptions.id = options.id;
+      }
+      if (options.action !== undefined) {
+        sonnerOptions.action = options.action;
+      }
+      if (options.duration !== undefined) {
+        sonnerOptions.duration = options.duration;
+      }
+      if (hasCountdown) {
+        sonnerOptions.className = "toast-countdown";
+        sonnerOptions.style = {
+          "--toast-duration": `${options.duration}ms`,
+        } as React.CSSProperties;
+      }
+      if (options.onAutoClose !== undefined) {
+        sonnerOptions.onAutoClose = options.onAutoClose;
+      }
+      if (options.isUndo) {
+        sonnerOptions.onDismiss = () => {
           if (
             lastUndoRef.current &&
             lastUndoRef.current.toastId === (options.id ?? toastId)
           ) {
             lastUndoRef.current = null;
           }
-        },
-      });
+        };
+      }
 
-      // Track action as undoable via Cmd+Z
-      if (options.action) {
+      const toastId = toast.success(message, sonnerOptions);
+
+      // Only track as undoable via Cmd+Z when explicitly marked as undo
+      if (options.isUndo && options.action) {
         lastUndoRef.current = {
           toastId: options.id ?? toastId,
           onClick: options.action.onClick,

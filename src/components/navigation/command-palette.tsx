@@ -356,6 +356,7 @@ export function CommandPalette({
         managedToast.success("Conversation archived", {
           id: `archive-${conversationId}`,
           duration: 5000,
+          isUndo: true,
           action: {
             label: "Undo",
             onClick: () => {
@@ -423,6 +424,7 @@ export function CommandPalette({
       managedToast.success("Conversation deleted", {
         id: `delete-${conversationId}`,
         duration: 5000,
+        isUndo: true,
         action: {
           label: "Undo",
           onClick: () => {
