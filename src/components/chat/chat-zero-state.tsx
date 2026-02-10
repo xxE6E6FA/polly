@@ -66,10 +66,7 @@ const SetupChecklist = () => {
             Next Steps
           </h3>
           <div className="stack-sm">
-            <div
-              className="flex flex-col sm:flex-row sm:items-center gap-2 text-xs text-left animate-list-item-in"
-              style={{ animationDelay: "50ms" }}
-            >
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-xs text-left">
               {hasUserApiKeys ? (
                 <CheckCircleIcon className="size-3 shrink-0 text-success" />
               ) : (
@@ -96,10 +93,7 @@ const SetupChecklist = () => {
                 </Link>
               )}
             </div>
-            <div
-              className="flex flex-col sm:flex-row sm:items-center gap-2 text-xs text-left animate-list-item-in"
-              style={{ animationDelay: "100ms" }}
-            >
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-xs text-left">
               {hasUserModels ? (
                 <CheckCircleIcon className="size-3 shrink-0 text-success" />
               ) : (
