@@ -366,10 +366,7 @@ export function CommandPalette({
         });
       } else {
         // Unarchiving (from conversation browser)
-        await patchConversation({
-          id: conversationId as Id<"conversations">,
-          updates: { isArchived: false },
-        });
+        await unarchiveConversation(conversationId as ConversationId);
       }
 
       if (navigation.currentMenu === "conversation-actions") {
@@ -386,7 +383,6 @@ export function CommandPalette({
     navigation.currentMenu,
     performArchive,
     unarchiveConversation,
-    patchConversation,
     managedToast,
     navigateBack,
     handleClose,
@@ -432,9 +428,15 @@ export function CommandPalette({
             unarchiveConversation(conversationId as ConversationId);
           },
         },
-        onAutoClose: () => {
+        onAutoClose: async () => {
           if (!undone) {
-            performDelete(conversationId as ConversationId);
+            try {
+              await performDelete(conversationId as ConversationId);
+            } catch {
+              managedToast.error("Failed to delete conversation", {
+                id: `delete-error-${conversationId}`,
+              });
+            }
           }
         },
       });

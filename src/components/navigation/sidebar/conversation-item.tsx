@@ -238,9 +238,15 @@ const ConversationItemComponent = ({
                 unarchiveConversation(conversation._id);
               },
             },
-            onAutoClose: () => {
+            onAutoClose: async () => {
               if (!undone) {
-                performDelete(conversation._id);
+                try {
+                  await performDelete(conversation._id);
+                } catch {
+                  managedToast.error("Failed to delete conversation", {
+                    id: `delete-error-${conversation._id}`,
+                  });
+                }
               }
             },
           });
