@@ -4,11 +4,15 @@ import { SettingsContainer } from "@/components/settings/settings-container";
 import { SettingsHeader } from "@/components/settings/settings-header";
 
 export default function SettingsMainLayout() {
+  const location = useLocation();
+
   return (
     <div className="flex h-[100dvh] flex-col">
       <SettingsHeader backLink="/" backText="Back to Chat" />
       <SettingsContainer>
-        <Outlet />
+        <div key={location.pathname} className="animate-page-enter">
+          <Outlet />
+        </div>
       </SettingsContainer>
     </div>
   );
