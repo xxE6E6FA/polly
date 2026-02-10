@@ -95,12 +95,13 @@ export default function NewPersonaPage() {
           Cancel
         </Link>
         <Button
-          disabled={!isFormValid || isPending}
+          disabled={!isFormValid}
+          loading={isPending}
           size="default"
           variant="default"
           onClick={handleCreatePersona}
         >
-          {isPending ? "Creating..." : "Create Persona"}
+          Create Persona
         </Button>
       </div>
     </SettingsPageLayout>

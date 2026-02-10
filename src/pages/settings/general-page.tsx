@@ -29,7 +29,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { useBackgroundJobs } from "@/hooks/use-background-jobs";
 import { useUserSettings } from "@/hooks/use-user-settings";
@@ -346,19 +345,10 @@ export default function GeneralPage() {
                     <Button
                       variant="primary"
                       onClick={handleExportAllData}
-                      disabled={isExportingData}
+                      loading={isExportingData}
                     >
-                      {isExportingData ? (
-                        <>
-                          <Spinner size="sm" className="mr-2" />
-                          Starting export...
-                        </>
-                      ) : (
-                        <>
-                          <DownloadSimpleIcon className="mr-2 size-4" />
-                          Export data
-                        </>
-                      )}
+                      <DownloadSimpleIcon className="mr-2 size-4" />
+                      Export data
                     </Button>
                     {exportQueued && (
                       <p className="text-xs text-muted-foreground">
@@ -380,19 +370,19 @@ export default function GeneralPage() {
                   feedback welcome.
                 </p>
                 <Button
-                  className="w-full sm:w-auto"
+                  render={
+                    <a
+                      href="https://github.com/slowedreverbd/polly"
+                      rel="noopener noreferrer"
+                      target="_blank"
+                    />
+                  }
+                  className="w-fit"
                   size="default"
                   variant="primary"
                 >
-                  <a
-                    className="flex items-center justify-center gap-2"
-                    href="https://github.com/slowedreverbd/polly"
-                    rel="noopener noreferrer"
-                    target="_blank"
-                  >
-                    <GithubLogoIcon className="size-4" />
-                    View on GitHub
-                  </a>
+                  <GithubLogoIcon className="size-4" />
+                  View on GitHub
                 </Button>
               </div>
             </section>
@@ -453,19 +443,10 @@ export default function GeneralPage() {
             <Button
               variant="destructive"
               onClick={handleDeleteAccount}
-              disabled={isDeletingAccount}
+              loading={isDeletingAccount}
             >
-              {isDeletingAccount ? (
-                <>
-                  <Spinner size="sm" className="mr-2" />
-                  Deleting...
-                </>
-              ) : (
-                <>
-                  <TrashIcon className="mr-2 size-4" />
-                  Delete account
-                </>
-              )}
+              <TrashIcon className="mr-2 size-4" />
+              Delete account
             </Button>
           </DialogFooter>
         </DialogContent>

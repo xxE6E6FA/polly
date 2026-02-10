@@ -15,7 +15,6 @@ import {
   DrawerHeader,
   DrawerTitle,
 } from "@/components/ui/drawer";
-import { Spinner } from "@/components/ui/spinner";
 
 interface ConfirmationDialogProps {
   open: boolean;
@@ -105,9 +104,9 @@ export const ConfirmationDialog = ({
               onClick={handleConfirm}
               autoFocus={autoFocusConfirm}
               type="button"
-              disabled={confirming}
+              loading={confirming}
             >
-              {confirming ? <Spinner size="sm" /> : confirmText}
+              {confirmText}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -136,9 +135,9 @@ export const ConfirmationDialog = ({
                   onClick={handleConfirm}
                   autoFocus={autoFocusConfirm}
                   type="button"
-                  disabled={confirming}
+                  loading={confirming}
                 >
-                  {confirming ? <Spinner size="sm" /> : confirmText}
+                  {confirmText}
                 </Button>
               </div>
             </div>

@@ -24,7 +24,6 @@ import {
   UsersIcon,
 } from "@phosphor-icons/react";
 import { useMutation, useQuery } from "convex/react";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   type KeyboardEvent as ReactKeyboardEvent,
   useCallback,
@@ -131,7 +130,6 @@ export function CommandPalette({
   onClose,
 }: CommandPaletteProps) {
   const online = useOnline();
-  const prefersReducedMotion = useReducedMotion();
   const [search, setSearch] = useState("");
   const [selectedValue, setSelectedValue] = useState("");
   const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
@@ -157,49 +155,14 @@ export function CommandPalette({
   const currentConversationId = params.conversationId;
   const isConversationPage = location.pathname.startsWith("/chat/");
 
-  // Track whether onClose has been called for the current close operation
-  const onCloseCalledRef = useRef(false);
-
-  // Called when the palette exit animation completes to fire the onClose callback
-  const handlePaletteExitComplete = useCallback(() => {
-    if (!open && onClose && !onCloseCalledRef.current) {
-      onCloseCalledRef.current = true;
-      onClose();
-    }
-  }, [open, onClose]);
-
-  // Helper function to close the command palette (triggers exit animation)
+  // Helper function to close the command palette and call onClose callback
   const handleClose = useCallback(() => {
     onOpenChange(false);
-  }, [onOpenChange]);
-
-  // Fallback: Ensure onClose is called when closing, even if the component
-  // unmounts before the exit animation completes
-  useEffect(() => {
-    if (!open && onClose && onCloseCalledRef.current === false) {
-      // Schedule onClose after the longest exit animation (backdrop is 0.5s, so use 0.6s)
-      const timeoutId = setTimeout(() => {
-        if (!onCloseCalledRef.current) {
-          onCloseCalledRef.current = true;
-          onClose();
-        }
-      }, 600);
-
-      return () => {
-        clearTimeout(timeoutId);
-        // If component unmounts while closed and onClose hasn't been called yet, call it now
-        if (!onCloseCalledRef.current) {
-          onCloseCalledRef.current = true;
-          onClose();
-        }
-      };
+    // Call onClose callback after a brief delay to allow the palette to close first
+    if (onClose) {
+      setTimeout(onClose, 150); // Match the transition duration
     }
-
-    // Reset the ref when opening
-    if (open) {
-      onCloseCalledRef.current = false;
-    }
-  }, [open, onClose]);
+  }, [onOpenChange, onClose]);
 
   // Helper to reset command palette state
   const resetCommandState = useCallback(() => {
@@ -1219,608 +1182,549 @@ export function CommandPalette({
   return (
     <>
       {/* Backdrop */}
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{
-              opacity: 1,
-              transition: prefersReducedMotion
-                ? { duration: 0 }
-                : { duration: 0.15 },
-            }}
-            exit={{
-              opacity: 0,
-              transition: prefersReducedMotion
-                ? { duration: 0 }
-                : { duration: 0.5 },
-            }}
-          >
-            <Backdrop
-              className="z-command-palette"
-              onClick={handleClose}
-              aria-hidden="true"
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <Backdrop
+        className={`z-command-palette ${
+          open ? "opacity-100" : "opacity-0 pointer-events-none"
+        }`}
+        data-state={open ? "open" : "closed"}
+        onClick={handleClose}
+        aria-hidden="true"
+      />
 
       {/* Command Palette Container */}
-      <AnimatePresence onExitComplete={handlePaletteExitComplete}>
-        {open && (
-          <motion.div
-            className="fixed left-1/2 top-[15%] z-command-palette w-full max-w-2xl -translate-x-1/2 px-4"
-            initial={{ opacity: 0, scale: 0.95, y: -8 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.97, y: -4 }}
-            transition={
-              prefersReducedMotion
-                ? { duration: 0 }
-                : {
-                    type: "spring",
-                    stiffness: 500,
-                    damping: 30,
-                    mass: 0.8,
-                  }
-            }
-          >
-            <Command
-              className="mx-auto w-full overflow-hidden rounded-xl border border-border bg-popover text-popover-foreground shadow-2xl [&_[cmdk-input-wrapper]]:border-0"
-              data-command-palette
-              shouldFilter={false}
-              value={selectedValue}
-              onValueChange={setSelectedValue}
-              onKeyDown={handleRootKeyDown}
-              loop
-              vimBindings={false}
-            >
-              <div className="border-b border-border/10 relative">
-                {navigation.currentMenu !== "main" && (
-                  <div className="flex items-center px-4 py-2 border-b border-border/50 bg-muted/30">
-                    <CommandItem
-                      value="back"
-                      onSelect={navigateBack}
-                      className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground cursor-pointer -mx-2 px-2"
-                    >
-                      <ArrowLeftIcon className="size-4" />
-                      <span>Back</span>
-                    </CommandItem>
-                    {navigation.breadcrumb && (
-                      <span className="ml-4 text-sm font-medium text-foreground">
-                        {navigation.breadcrumb}
-                      </span>
-                    )}
-                  </div>
-                )}
-                <CommandInput
-                  ref={inputRef}
-                  className="h-14 border-0 bg-transparent text-base focus:ring-0 [&_.cmdk-input]:h-14"
-                  placeholder={getCommandInputPlaceholder(
-                    navigation.currentMenu
-                  )}
-                  value={search}
-                  onValueChange={setSearch}
-                />
-                {isSearching && (
-                  <div className="absolute right-4 top-1/2 -translate-y-1/2">
-                    <Spinner size="sm" className="size-4" />
-                  </div>
+      <div
+        className={`fixed left-1/2 top-[15%] z-command-palette w-full max-w-2xl -translate-x-1/2 px-4 transition-all duration-200 ease-out ${
+          open
+            ? "opacity-100 scale-100 translate-y-0"
+            : "opacity-0 scale-95 -translate-y-2 pointer-events-none"
+        }`}
+      >
+        <Command
+          className="mx-auto w-full overflow-hidden rounded-xl border border-border bg-popover text-popover-foreground shadow-2xl [&_[cmdk-input-wrapper]]:border-0"
+          data-command-palette
+          shouldFilter={false}
+          value={selectedValue}
+          onValueChange={setSelectedValue}
+          onKeyDown={handleRootKeyDown}
+          loop
+          vimBindings={false}
+        >
+          <div className="border-b border-border/10 relative">
+            {navigation.currentMenu !== "main" && (
+              <div className="flex items-center px-4 py-2 border-b border-border/50 bg-muted/30">
+                <CommandItem
+                  value="back"
+                  onSelect={navigateBack}
+                  className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground cursor-pointer -mx-2 px-2"
+                >
+                  <ArrowLeftIcon className="size-4" />
+                  <span>Back</span>
+                </CommandItem>
+                {navigation.breadcrumb && (
+                  <span className="ml-4 text-sm font-medium text-foreground">
+                    {navigation.breadcrumb}
+                  </span>
                 )}
               </div>
-              <CommandList
-                ref={commandListRef}
-                className="max-h-[400px] overflow-y-auto py-3 pb-16"
-              >
-                {/* Only show empty state if data is loaded (to prevent flash while loading) */}
-                {modelsLoaded &&
-                  recentConversations !== undefined &&
-                  (navigation.currentMenu !== "conversation-browser" ||
-                    allConversations !== undefined) &&
-                  (navigation.currentMenu !== "main" ||
-                    !hasSearchQuery ||
-                    searchResults !== undefined) && (
-                    <CommandEmpty>
-                      <div className="flex flex-col items-center gap-2 py-6">
-                        <MagnifyingGlassIcon className="size-8 text-muted-foreground" />
-                        <p className="text-sm text-muted-foreground">
-                          No results found
-                        </p>
-                      </div>
-                    </CommandEmpty>
+            )}
+            <CommandInput
+              ref={inputRef}
+              className="h-14 border-0 bg-transparent text-base focus:ring-0 [&_.cmdk-input]:h-14"
+              placeholder={getCommandInputPlaceholder(navigation.currentMenu)}
+              value={search}
+              onValueChange={setSearch}
+            />
+            {isSearching && (
+              <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                <Spinner size="sm" className="size-4" />
+              </div>
+            )}
+          </div>
+          <CommandList
+            ref={commandListRef}
+            className="max-h-[400px] overflow-y-auto py-3 pb-16"
+          >
+            {/* Only show empty state if data is loaded (to prevent flash while loading) */}
+            {modelsLoaded &&
+              recentConversations !== undefined &&
+              (navigation.currentMenu !== "conversation-browser" ||
+                allConversations !== undefined) &&
+              (navigation.currentMenu !== "main" ||
+                !hasSearchQuery ||
+                searchResults !== undefined) && (
+                <CommandEmpty>
+                  <div className="flex flex-col items-center gap-2 py-6">
+                    <MagnifyingGlassIcon className="size-8 text-muted-foreground" />
+                    <p className="text-sm text-muted-foreground">
+                      No results found
+                    </p>
+                  </div>
+                </CommandEmpty>
+              )}
+
+            {/* Main Menu */}
+            {navigation.currentMenu === "main" && (
+              <>
+                {/* Conversation-specific actions - Show first when on conversation page */}
+                {isConversationPage &&
+                  currentConversation?.conversation &&
+                  filteredConversationActions.length > 0 && (
+                    <CommandGroup
+                      heading="Conversation"
+                      className="[&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group-heading]]:px-4 [&_[cmdk-group-heading]]:py-3 [&_[cmdk-group-heading]]:mb-1"
+                    >
+                      {filteredConversationActions.map(action => {
+                        const IconComponent = action.icon;
+                        const isExportAction = action.id.startsWith("export-");
+                        const isDeleteAction =
+                          action.id === "delete-conversation";
+                        const isPinAction = action.id === "toggle-pin";
+
+                        return (
+                          <CommandItem
+                            key={action.id}
+                            value={action.id}
+                            onSelect={action.handler}
+                            className="flex items-center gap-3 px-4 py-3 text-sm transition-colors rounded-md mx-2"
+                            disabled={
+                              isExportAction &&
+                              exportingFormat === action.id.split("-")[1]
+                            }
+                          >
+                            <IconComponent
+                              className={`size-4 flex-shrink-0 ${isDeleteAction ? "text-destructive" : "text-muted-foreground"}`}
+                              weight={
+                                isPinAction &&
+                                currentConversation?.conversation?.isPinned
+                                  ? "fill"
+                                  : "regular"
+                              }
+                            />
+                            <span
+                              className={`flex-1 ${isDeleteAction ? "text-destructive" : ""}`}
+                            >
+                              {isExportAction &&
+                              exportingFormat === action.id.split("-")[1]
+                                ? "Exporting..."
+                                : action.label}
+                            </span>
+                          </CommandItem>
+                        );
+                      })}
+                    </CommandGroup>
                   )}
 
-                {/* Main Menu */}
-                {navigation.currentMenu === "main" && (
+                {/* Global actions - Show after conversation actions */}
+                {filteredGlobalActions.length > 0 && (
                   <>
-                    {/* Conversation-specific actions - Show first when on conversation page */}
                     {isConversationPage &&
                       currentConversation?.conversation &&
                       filteredConversationActions.length > 0 && (
-                        <CommandGroup
-                          heading="Conversation"
-                          className="[&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group-heading]]:px-4 [&_[cmdk-group-heading]]:py-3 [&_[cmdk-group-heading]]:mb-1"
-                        >
-                          {filteredConversationActions.map(action => {
-                            const IconComponent = action.icon;
-                            const isExportAction =
-                              action.id.startsWith("export-");
-                            const isDeleteAction =
-                              action.id === "delete-conversation";
-                            const isPinAction = action.id === "toggle-pin";
-
-                            return (
-                              <CommandItem
-                                key={action.id}
-                                value={action.id}
-                                onSelect={action.handler}
-                                className="flex items-center gap-3 px-4 py-3 text-sm transition-colors rounded-md mx-2"
-                                disabled={
-                                  isExportAction &&
-                                  exportingFormat === action.id.split("-")[1]
-                                }
-                              >
-                                <IconComponent
-                                  className={`size-4 flex-shrink-0 ${isDeleteAction ? "text-destructive" : "text-muted-foreground"}`}
-                                  weight={
-                                    isPinAction &&
-                                    currentConversation?.conversation?.isPinned
-                                      ? "fill"
-                                      : "regular"
-                                  }
-                                />
-                                <span
-                                  className={`flex-1 ${isDeleteAction ? "text-destructive" : ""}`}
-                                >
-                                  {isExportAction &&
-                                  exportingFormat === action.id.split("-")[1]
-                                    ? "Exporting..."
-                                    : action.label}
-                                </span>
-                              </CommandItem>
-                            );
-                          })}
-                        </CommandGroup>
+                        <CommandSeparator className="my-2" />
                       )}
+                    <CommandGroup
+                      heading="Actions"
+                      className="[&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group-heading]]:px-4 [&_[cmdk-group-heading]]:py-3 [&_[cmdk-group-heading]]:mb-1"
+                    >
+                      {filteredGlobalActions.map(action => {
+                        const IconComponent = action.icon;
 
-                    {/* Global actions - Show after conversation actions */}
-                    {filteredGlobalActions.length > 0 && (
-                      <>
-                        {isConversationPage &&
-                          currentConversation?.conversation &&
-                          filteredConversationActions.length > 0 && (
-                            <CommandSeparator className="my-2" />
-                          )}
-                        <CommandGroup
-                          heading="Actions"
-                          className="[&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group-heading]]:px-4 [&_[cmdk-group-heading]]:py-3 [&_[cmdk-group-heading]]:mb-1"
-                        >
-                          {filteredGlobalActions.map(action => {
-                            const IconComponent = action.icon;
-
-                            return (
-                              <CommandItem
-                                key={action.id}
-                                value={action.id}
-                                onSelect={action.handler}
-                                className="flex items-center gap-3 px-4 py-3 text-sm transition-colors rounded-md mx-2"
-                                disabled={action.disabled}
-                              >
-                                <IconComponent className="size-4 flex-shrink-0 text-muted-foreground" />
-                                <span className="flex-1">{action.label}</span>
-                              </CommandItem>
-                            );
-                          })}
-                        </CommandGroup>
-                      </>
-                    )}
-
-                    {filteredSettingsActions.length > 0 && (
-                      <>
-                        {(filteredGlobalActions.length > 0 ||
-                          (isConversationPage &&
-                            currentConversation?.conversation &&
-                            filteredConversationActions.length > 0)) && (
-                          <CommandSeparator className="my-2" />
-                        )}
-                        <CommandGroup
-                          heading="Settings"
-                          className="[&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group-heading]]:px-4 [&_[cmdk-group-heading]]:py-3 [&_[cmdk-group-heading]]:mb-1"
-                        >
-                          {filteredSettingsActions.map(action => {
-                            const IconComponent = action.icon;
-
-                            return (
-                              <CommandItem
-                                key={action.id}
-                                value={action.id}
-                                onSelect={action.handler}
-                                className="flex items-center gap-3 px-4 py-3 text-sm transition-colors rounded-md mx-2"
-                                disabled={action.disabled}
-                              >
-                                <IconComponent className="size-4 flex-shrink-0 text-muted-foreground" />
-                                <span className="flex-1">{action.label}</span>
-                              </CommandItem>
-                            );
-                          })}
-                        </CommandGroup>
-                      </>
-                    )}
-
-                    {conversationsToShow && conversationsToShow.length > 0 && (
-                      <>
-                        {(filteredGlobalActions.length > 0 ||
-                          filteredSettingsActions.length > 0 ||
-                          (isConversationPage &&
-                            currentConversation?.conversation &&
-                            filteredConversationActions.length > 0)) && (
-                          <CommandSeparator className="my-2" />
-                        )}
-                        <CommandGroup
-                          heading={
-                            hasSearchQuery
-                              ? "Conversations"
-                              : "Recent Conversations"
-                          }
-                          className="[&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group-heading]]:px-4 [&_[cmdk-group-heading]]:py-3 [&_[cmdk-group-heading]]:mb-1"
-                        >
-                          {conversationsToShow.map(
-                            (conversation: ConversationType) => (
-                              <CommandItem
-                                key={conversation._id}
-                                value={`conversation-${conversation._id}`}
-                                onSelect={() =>
-                                  handleNavigateToConversation(conversation._id)
-                                }
-                                onPointerDown={event => {
-                                  if (event.metaKey || event.ctrlKey) {
-                                    event.preventDefault();
-                                    handleConversationActions(
-                                      conversation._id,
-                                      conversation.title
-                                    );
-                                  }
-                                }}
-                                className="flex items-center gap-3 px-4 py-3 text-sm transition-colors rounded-md mx-2"
-                                disabled={!online}
-                              >
-                                <ChatCircleIcon className="size-4 text-muted-foreground flex-shrink-0" />
-                                <div className="flex-1 min-w-0">
-                                  <div className="truncate font-medium">
-                                    {conversation.title}
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  {conversation.isPinned && (
-                                    <PushPinIcon
-                                      className="size-3 text-muted-foreground flex-shrink-0"
-                                      weight="fill"
-                                    />
-                                  )}
-                                  {conversation.isArchived && (
-                                    <ArchiveIcon className="size-3 text-muted-foreground flex-shrink-0" />
-                                  )}
-                                </div>
-                              </CommandItem>
-                            )
-                          )}
-                        </CommandGroup>
-                      </>
-                    )}
-
-                    {modelsLoaded &&
-                      modelsToShow &&
-                      modelsToShow.length > 0 && (
-                        <>
-                          {(filteredGlobalActions.length > 0 ||
-                            filteredSettingsActions.length > 0 ||
-                            (isConversationPage &&
-                              currentConversation?.conversation &&
-                              filteredConversationActions.length > 0) ||
-                            conversationsToShow?.length > 0) && (
-                            <CommandSeparator className="my-2" />
-                          )}
-                          <CommandGroup
-                            heading={hasSearchQuery ? "Models" : "Switch Model"}
-                            className="[&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group-heading]]:px-4 [&_[cmdk-group-heading]]:py-3 [&_[cmdk-group-heading]]:mb-1"
+                        return (
+                          <CommandItem
+                            key={action.id}
+                            value={action.id}
+                            onSelect={action.handler}
+                            className="flex items-center gap-3 px-4 py-3 text-sm transition-colors rounded-md mx-2"
+                            disabled={action.disabled}
                           >
-                            {modelsToShow.map(model => {
-                              const isSelected =
-                                currentSelectedModel?.modelId ===
-                                  model.modelId &&
-                                currentSelectedModel?.provider ===
-                                  model.provider;
-
-                              const capabilities = getModelCapabilities(
-                                model as ModelForCapabilities
-                              );
-
-                              return (
-                                <CommandItem
-                                  key={`${model.provider}-${model.modelId}`}
-                                  value={`model-${model.provider}-${model.modelId}`}
-                                  onSelect={() =>
-                                    handleSelectModel(
-                                      model.modelId,
-                                      model.provider
-                                    )
-                                  }
-                                  className="flex items-center gap-3 px-4 py-3 text-sm transition-colors rounded-md mx-2"
-                                >
-                                  <ProviderIcon
-                                    provider={
-                                      model.free ? "polly" : model.provider
-                                    }
-                                    className="h-4 w-4 text-muted-foreground flex-shrink-0"
-                                  />
-                                  <div className="flex-1 min-w-0">
-                                    <div className="truncate font-medium">
-                                      {model.name}
-                                    </div>
-                                  </div>
-                                  <div className="flex items-center gap-1">
-                                    {capabilities.length > 0 &&
-                                      capabilities.map((capability, index) => {
-                                        const IconComponent = capability.icon;
-                                        return (
-                                          <div
-                                            key={`${model.modelId}-${capability.label}-${index}`}
-                                            className="flex h-4 w-4 items-center justify-center rounded-sm bg-muted/50"
-                                            title={capability.label}
-                                          >
-                                            <IconComponent className="size-2.5 text-muted-foreground" />
-                                          </div>
-                                        );
-                                      })}
-                                    {isSelected && (
-                                      <div className="h-2 w-2 rounded-full bg-success flex-shrink-0 ml-1" />
-                                    )}
-                                  </div>
-                                </CommandItem>
-                              );
-                            })}
-                          </CommandGroup>
-                        </>
-                      )}
+                            <IconComponent className="size-4 flex-shrink-0 text-muted-foreground" />
+                            <span className="flex-1">{action.label}</span>
+                          </CommandItem>
+                        );
+                      })}
+                    </CommandGroup>
                   </>
                 )}
 
-                {/* Conversation Actions Menu */}
-                {navigation.currentMenu === "conversation-actions" && (
-                  <CommandGroup
-                    heading="Actions"
-                    className="[&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group-heading]]:px-4 [&_[cmdk-group-heading]]:py-3 [&_[cmdk-group-heading]]:mb-1"
-                  >
-                    {filteredConversationActions.map(action => {
-                      const IconComponent = action.icon;
-                      const isExportAction = action.id.startsWith("export-");
-                      const isDeleteAction =
-                        action.id === "delete-conversation";
-                      const isPinAction = action.id === "toggle-pin";
-                      const targetConversation =
-                        actionConversation?.conversation;
+                {filteredSettingsActions.length > 0 && (
+                  <>
+                    {(filteredGlobalActions.length > 0 ||
+                      (isConversationPage &&
+                        currentConversation?.conversation &&
+                        filteredConversationActions.length > 0)) && (
+                      <CommandSeparator className="my-2" />
+                    )}
+                    <CommandGroup
+                      heading="Settings"
+                      className="[&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group-heading]]:px-4 [&_[cmdk-group-heading]]:py-3 [&_[cmdk-group-heading]]:mb-1"
+                    >
+                      {filteredSettingsActions.map(action => {
+                        const IconComponent = action.icon;
 
-                      return (
-                        <CommandItem
-                          key={action.id}
-                          value={action.id}
-                          onSelect={action.handler}
-                          className="flex items-center gap-3 px-4 py-3 text-sm transition-colors rounded-md mx-2"
-                          disabled={
-                            action.disabled ||
-                            (isExportAction &&
-                              exportingFormat === action.id.split("-")[1])
-                          }
-                        >
-                          <IconComponent
-                            className={`size-4 flex-shrink-0 ${isDeleteAction ? "text-destructive" : "text-muted-foreground"}`}
-                            weight={
-                              isPinAction && targetConversation?.isPinned
-                                ? "fill"
-                                : "regular"
-                            }
-                          />
-                          <span
-                            className={`flex-1 ${isDeleteAction ? "text-destructive" : ""}`}
+                        return (
+                          <CommandItem
+                            key={action.id}
+                            value={action.id}
+                            onSelect={action.handler}
+                            className="flex items-center gap-3 px-4 py-3 text-sm transition-colors rounded-md mx-2"
+                            disabled={action.disabled}
                           >
-                            {isExportAction &&
-                            exportingFormat === action.id.split("-")[1]
-                              ? "Exporting..."
-                              : action.label}
-                          </span>
-                        </CommandItem>
-                      );
-                    })}
-                  </CommandGroup>
+                            <IconComponent className="size-4 flex-shrink-0 text-muted-foreground" />
+                            <span className="flex-1">{action.label}</span>
+                          </CommandItem>
+                        );
+                      })}
+                    </CommandGroup>
+                  </>
                 )}
 
-                {/* Model Categories Menu - Only show when models are loaded */}
-                {navigation.currentMenu === "model-categories" &&
-                  modelsLoaded && (
-                    <>
-                      {Object.entries(modelsByProvider).map(
-                        ([provider, models], providerIndex) => (
-                          <div key={provider}>
-                            {providerIndex > 0 && (
-                              <CommandSeparator className="my-2" />
-                            )}
-                            <CommandGroup
-                              heading={provider}
-                              className="[&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group-heading]]:px-4 [&_[cmdk-group-heading]]:py-3 [&_[cmdk-group-heading]]:mb-1"
-                            >
-                              {models.map(model => {
-                                const isSelected =
-                                  currentSelectedModel?.modelId ===
-                                    model.modelId &&
-                                  currentSelectedModel?.provider ===
-                                    model.provider;
-
-                                const capabilities = getModelCapabilities(
-                                  model as ModelForCapabilities
+                {conversationsToShow && conversationsToShow.length > 0 && (
+                  <>
+                    {(filteredGlobalActions.length > 0 ||
+                      filteredSettingsActions.length > 0 ||
+                      (isConversationPage &&
+                        currentConversation?.conversation &&
+                        filteredConversationActions.length > 0)) && (
+                      <CommandSeparator className="my-2" />
+                    )}
+                    <CommandGroup
+                      heading={
+                        hasSearchQuery
+                          ? "Conversations"
+                          : "Recent Conversations"
+                      }
+                      className="[&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group-heading]]:px-4 [&_[cmdk-group-heading]]:py-3 [&_[cmdk-group-heading]]:mb-1"
+                    >
+                      {conversationsToShow.map(
+                        (conversation: ConversationType) => (
+                          <CommandItem
+                            key={conversation._id}
+                            value={`conversation-${conversation._id}`}
+                            onSelect={() =>
+                              handleNavigateToConversation(conversation._id)
+                            }
+                            onPointerDown={event => {
+                              if (event.metaKey || event.ctrlKey) {
+                                event.preventDefault();
+                                handleConversationActions(
+                                  conversation._id,
+                                  conversation.title
                                 );
-
-                                return (
-                                  <CommandItem
-                                    key={`${model.provider}-${model.modelId}`}
-                                    value={`model-${model.provider}-${model.modelId}`}
-                                    onSelect={() =>
-                                      handleSelectModel(
-                                        model.modelId,
-                                        model.provider
-                                      )
-                                    }
-                                    className="flex items-center gap-3 px-4 py-3 text-sm transition-colors rounded-md mx-2"
-                                  >
-                                    <ProviderIcon
-                                      provider={
-                                        model.free ? "polly" : model.provider
-                                      }
-                                      className="h-4 w-4 text-muted-foreground flex-shrink-0"
-                                    />
-                                    <div className="flex-1 min-w-0">
-                                      <div className="truncate font-medium">
-                                        {model.name}
-                                      </div>
-                                      {model.contextLength && (
-                                        <div className="text-xs text-muted-foreground">
-                                          {model.contextLength.toLocaleString()}{" "}
-                                          tokens
-                                        </div>
-                                      )}
-                                    </div>
-                                    <div className="flex items-center gap-1">
-                                      {capabilities.length > 0 &&
-                                        capabilities.map(
-                                          (capability, index) => {
-                                            const IconComponent =
-                                              capability.icon;
-                                            return (
-                                              <div
-                                                key={`${model.modelId}-${capability.label}-${index}`}
-                                                className="flex h-4 w-4 items-center justify-center rounded-sm bg-muted/50"
-                                                title={capability.label}
-                                              >
-                                                <IconComponent className="size-2.5 text-muted-foreground" />
-                                              </div>
-                                            );
-                                          }
-                                        )}
-                                      {isSelected && (
-                                        <div className="h-2 w-2 rounded-full bg-success flex-shrink-0 ml-1" />
-                                      )}
-                                    </div>
-                                  </CommandItem>
-                                );
-                              })}
-                            </CommandGroup>
-                          </div>
+                              }
+                            }}
+                            className="flex items-center gap-3 px-4 py-3 text-sm transition-colors rounded-md mx-2"
+                            disabled={!online}
+                          >
+                            <ChatCircleIcon className="size-4 text-muted-foreground flex-shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <div className="truncate font-medium">
+                                {conversation.title}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {conversation.isPinned && (
+                                <PushPinIcon
+                                  className="size-3 text-muted-foreground flex-shrink-0"
+                                  weight="fill"
+                                />
+                              )}
+                              {conversation.isArchived && (
+                                <ArchiveIcon className="size-3 text-muted-foreground flex-shrink-0" />
+                              )}
+                            </div>
+                          </CommandItem>
                         )
                       )}
-                      {Object.keys(modelsByProvider).length === 0 && (
-                        <div className="flex flex-col items-center gap-2 py-6">
-                          <MagnifyingGlassIcon className="size-8 text-muted-foreground" />
-                          <p className="text-sm text-muted-foreground">
-                            No models found
-                          </p>
-                        </div>
-                      )}
-                    </>
-                  )}
-
-                {/* Conversation Browser Menu */}
-                {navigation.currentMenu === "conversation-browser" && (
-                  <>
-                    {Object.entries(conversationsByCategory).map(
-                      ([category, conversations], categoryIndex) => (
-                        <div key={category}>
-                          {categoryIndex > 0 && (
-                            <CommandSeparator className="my-2" />
-                          )}
-                          <CommandGroup
-                            heading={category}
-                            className="[&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group-heading]]:px-4 [&_[cmdk-group-heading]]:py-3 [&_[cmdk-group-heading]]:mb-1"
-                          >
-                            {conversations.map(
-                              (conversation: ConversationType) => (
-                                <CommandItem
-                                  key={conversation._id}
-                                  value={`conversation-${conversation._id}`}
-                                  onSelect={() =>
-                                    handleNavigateToConversation(
-                                      conversation._id
-                                    )
-                                  }
-                                  onPointerDown={event => {
-                                    if (event.metaKey || event.ctrlKey) {
-                                      event.preventDefault();
-                                      handleConversationActions(
-                                        conversation._id,
-                                        conversation.title
-                                      );
-                                    }
-                                  }}
-                                  className="flex items-center gap-3 px-4 py-3 text-sm transition-colors rounded-md mx-2"
-                                  disabled={!online}
-                                >
-                                  <ChatCircleIcon className="size-4 text-muted-foreground flex-shrink-0" />
-                                  <div className="flex-1 min-w-0">
-                                    <div className="truncate font-medium">
-                                      {conversation.title}
-                                    </div>
-                                    <div className="text-xs text-muted-foreground">
-                                      {new Date(
-                                        conversation._creationTime
-                                      ).toLocaleDateString()}
-                                    </div>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    {conversation.isPinned && (
-                                      <PushPinIcon
-                                        className="size-3 text-muted-foreground flex-shrink-0"
-                                        weight="fill"
-                                      />
-                                    )}
-                                    {conversation.isArchived && (
-                                      <ArchiveIcon className="size-3 text-muted-foreground flex-shrink-0" />
-                                    )}
-                                  </div>
-                                </CommandItem>
-                              )
-                            )}
-                          </CommandGroup>
-                        </div>
-                      )
-                    )}
-                    {Object.keys(conversationsByCategory).length === 0 &&
-                      allConversations !== undefined && (
-                        <div className="flex flex-col items-center gap-2 py-6">
-                          <ChatCircleIcon className="size-8 text-muted-foreground" />
-                          <p className="text-sm text-muted-foreground">
-                            No conversations found
-                          </p>
-                        </div>
-                      )}
+                    </CommandGroup>
                   </>
                 )}
-              </CommandList>
-              <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/40 bg-card/95 px-4 py-2 text-xs uppercase tracking-wide text-muted-foreground/80">
-                <div className="flex flex-wrap items-center gap-3">
-                  {footerHints.map(hint => (
-                    <span
-                      key={`${hint.key}-${hint.label}`}
-                      className={`flex items-center gap-1 ${hint.desktopOnly ? "hidden md:flex" : ""}`}
+
+                {modelsLoaded && modelsToShow && modelsToShow.length > 0 && (
+                  <>
+                    {(filteredGlobalActions.length > 0 ||
+                      filteredSettingsActions.length > 0 ||
+                      (isConversationPage &&
+                        currentConversation?.conversation &&
+                        filteredConversationActions.length > 0) ||
+                      conversationsToShow?.length > 0) && (
+                      <CommandSeparator className="my-2" />
+                    )}
+                    <CommandGroup
+                      heading={hasSearchQuery ? "Models" : "Switch Model"}
+                      className="[&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group-heading]]:px-4 [&_[cmdk-group-heading]]:py-3 [&_[cmdk-group-heading]]:mb-1"
                     >
-                      <kbd className="rounded border border-border/60 bg-background px-1.5 py-0.5 text-overline font-medium">
-                        {hint.key}
-                      </kbd>
-                      {hint.label}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </Command>
-          </motion.div>
-        )}
-      </AnimatePresence>
+                      {modelsToShow.map(model => {
+                        const isSelected =
+                          currentSelectedModel?.modelId === model.modelId &&
+                          currentSelectedModel?.provider === model.provider;
+
+                        const capabilities = getModelCapabilities(
+                          model as ModelForCapabilities
+                        );
+
+                        return (
+                          <CommandItem
+                            key={`${model.provider}-${model.modelId}`}
+                            value={`model-${model.provider}-${model.modelId}`}
+                            onSelect={() =>
+                              handleSelectModel(model.modelId, model.provider)
+                            }
+                            className="flex items-center gap-3 px-4 py-3 text-sm transition-colors rounded-md mx-2"
+                          >
+                            <ProviderIcon
+                              provider={model.free ? "polly" : model.provider}
+                              className="h-4 w-4 text-muted-foreground flex-shrink-0"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <div className="truncate font-medium">
+                                {model.name}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              {capabilities.length > 0 &&
+                                capabilities.map((capability, index) => {
+                                  const IconComponent = capability.icon;
+                                  return (
+                                    <div
+                                      key={`${model.modelId}-${capability.label}-${index}`}
+                                      className="flex h-4 w-4 items-center justify-center rounded-sm bg-muted/50"
+                                      title={capability.label}
+                                    >
+                                      <IconComponent className="size-2.5 text-muted-foreground" />
+                                    </div>
+                                  );
+                                })}
+                              {isSelected && (
+                                <div className="h-2 w-2 rounded-full bg-success flex-shrink-0 ml-1" />
+                              )}
+                            </div>
+                          </CommandItem>
+                        );
+                      })}
+                    </CommandGroup>
+                  </>
+                )}
+              </>
+            )}
+
+            {/* Conversation Actions Menu */}
+            {navigation.currentMenu === "conversation-actions" && (
+              <CommandGroup
+                heading="Actions"
+                className="[&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group-heading]]:px-4 [&_[cmdk-group-heading]]:py-3 [&_[cmdk-group-heading]]:mb-1"
+              >
+                {filteredConversationActions.map(action => {
+                  const IconComponent = action.icon;
+                  const isExportAction = action.id.startsWith("export-");
+                  const isDeleteAction = action.id === "delete-conversation";
+                  const isPinAction = action.id === "toggle-pin";
+                  const targetConversation = actionConversation?.conversation;
+
+                  return (
+                    <CommandItem
+                      key={action.id}
+                      value={action.id}
+                      onSelect={action.handler}
+                      className="flex items-center gap-3 px-4 py-3 text-sm transition-colors rounded-md mx-2"
+                      disabled={
+                        action.disabled ||
+                        (isExportAction &&
+                          exportingFormat === action.id.split("-")[1])
+                      }
+                    >
+                      <IconComponent
+                        className={`size-4 flex-shrink-0 ${isDeleteAction ? "text-destructive" : "text-muted-foreground"}`}
+                        weight={
+                          isPinAction && targetConversation?.isPinned
+                            ? "fill"
+                            : "regular"
+                        }
+                      />
+                      <span
+                        className={`flex-1 ${isDeleteAction ? "text-destructive" : ""}`}
+                      >
+                        {isExportAction &&
+                        exportingFormat === action.id.split("-")[1]
+                          ? "Exporting..."
+                          : action.label}
+                      </span>
+                    </CommandItem>
+                  );
+                })}
+              </CommandGroup>
+            )}
+
+            {/* Model Categories Menu - Only show when models are loaded */}
+            {navigation.currentMenu === "model-categories" && modelsLoaded && (
+              <>
+                {Object.entries(modelsByProvider).map(
+                  ([provider, models], providerIndex) => (
+                    <div key={provider}>
+                      {providerIndex > 0 && (
+                        <CommandSeparator className="my-2" />
+                      )}
+                      <CommandGroup
+                        heading={provider}
+                        className="[&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group-heading]]:px-4 [&_[cmdk-group-heading]]:py-3 [&_[cmdk-group-heading]]:mb-1"
+                      >
+                        {models.map(model => {
+                          const isSelected =
+                            currentSelectedModel?.modelId === model.modelId &&
+                            currentSelectedModel?.provider === model.provider;
+
+                          const capabilities = getModelCapabilities(
+                            model as ModelForCapabilities
+                          );
+
+                          return (
+                            <CommandItem
+                              key={`${model.provider}-${model.modelId}`}
+                              value={`model-${model.provider}-${model.modelId}`}
+                              onSelect={() =>
+                                handleSelectModel(model.modelId, model.provider)
+                              }
+                              className="flex items-center gap-3 px-4 py-3 text-sm transition-colors rounded-md mx-2"
+                            >
+                              <ProviderIcon
+                                provider={model.free ? "polly" : model.provider}
+                                className="h-4 w-4 text-muted-foreground flex-shrink-0"
+                              />
+                              <div className="flex-1 min-w-0">
+                                <div className="truncate font-medium">
+                                  {model.name}
+                                </div>
+                                {model.contextLength && (
+                                  <div className="text-xs text-muted-foreground">
+                                    {model.contextLength.toLocaleString()}{" "}
+                                    tokens
+                                  </div>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-1">
+                                {capabilities.length > 0 &&
+                                  capabilities.map((capability, index) => {
+                                    const IconComponent = capability.icon;
+                                    return (
+                                      <div
+                                        key={`${model.modelId}-${capability.label}-${index}`}
+                                        className="flex h-4 w-4 items-center justify-center rounded-sm bg-muted/50"
+                                        title={capability.label}
+                                      >
+                                        <IconComponent className="size-2.5 text-muted-foreground" />
+                                      </div>
+                                    );
+                                  })}
+                                {isSelected && (
+                                  <div className="h-2 w-2 rounded-full bg-success flex-shrink-0 ml-1" />
+                                )}
+                              </div>
+                            </CommandItem>
+                          );
+                        })}
+                      </CommandGroup>
+                    </div>
+                  )
+                )}
+                {Object.keys(modelsByProvider).length === 0 && (
+                  <div className="flex flex-col items-center gap-2 py-6">
+                    <MagnifyingGlassIcon className="size-8 text-muted-foreground" />
+                    <p className="text-sm text-muted-foreground">
+                      No models found
+                    </p>
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* Conversation Browser Menu */}
+            {navigation.currentMenu === "conversation-browser" && (
+              <>
+                {Object.entries(conversationsByCategory).map(
+                  ([category, conversations], categoryIndex) => (
+                    <div key={category}>
+                      {categoryIndex > 0 && (
+                        <CommandSeparator className="my-2" />
+                      )}
+                      <CommandGroup
+                        heading={category}
+                        className="[&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group-heading]]:px-4 [&_[cmdk-group-heading]]:py-3 [&_[cmdk-group-heading]]:mb-1"
+                      >
+                        {conversations.map((conversation: ConversationType) => (
+                          <CommandItem
+                            key={conversation._id}
+                            value={`conversation-${conversation._id}`}
+                            onSelect={() =>
+                              handleNavigateToConversation(conversation._id)
+                            }
+                            onPointerDown={event => {
+                              if (event.metaKey || event.ctrlKey) {
+                                event.preventDefault();
+                                handleConversationActions(
+                                  conversation._id,
+                                  conversation.title
+                                );
+                              }
+                            }}
+                            className="flex items-center gap-3 px-4 py-3 text-sm transition-colors rounded-md mx-2"
+                            disabled={!online}
+                          >
+                            <ChatCircleIcon className="size-4 text-muted-foreground flex-shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <div className="truncate font-medium">
+                                {conversation.title}
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                {new Date(
+                                  conversation._creationTime
+                                ).toLocaleDateString()}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {conversation.isPinned && (
+                                <PushPinIcon
+                                  className="size-3 text-muted-foreground flex-shrink-0"
+                                  weight="fill"
+                                />
+                              )}
+                              {conversation.isArchived && (
+                                <ArchiveIcon className="size-3 text-muted-foreground flex-shrink-0" />
+                              )}
+                            </div>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </div>
+                  )
+                )}
+                {Object.keys(conversationsByCategory).length === 0 &&
+                  allConversations !== undefined && (
+                    <div className="flex flex-col items-center gap-2 py-6">
+                      <ChatCircleIcon className="size-8 text-muted-foreground" />
+                      <p className="text-sm text-muted-foreground">
+                        No conversations found
+                      </p>
+                    </div>
+                  )}
+              </>
+            )}
+          </CommandList>
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/40 bg-card/95 px-4 py-2 text-xs uppercase tracking-wide text-muted-foreground/80">
+            <div className="flex flex-wrap items-center gap-3">
+              {footerHints.map(hint => (
+                <span
+                  key={`${hint.key}-${hint.label}`}
+                  className={`flex items-center gap-1 ${hint.desktopOnly ? "hidden md:flex" : ""}`}
+                >
+                  <kbd className="rounded border border-border/60 bg-background px-1.5 py-0.5 text-overline font-medium">
+                    {hint.key}
+                  </kbd>
+                  {hint.label}
+                </span>
+              ))}
+            </div>
+          </div>
+        </Command>
+      </div>
 
       {/* Share Dialog */}
       {currentConversation?.resolvedId && (

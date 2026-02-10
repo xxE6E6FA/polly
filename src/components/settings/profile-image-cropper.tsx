@@ -15,7 +15,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Slider } from "@/components/ui/slider";
-import { Spinner } from "@/components/ui/spinner";
 
 type ProfileImageCropperProps = {
   open: boolean;
@@ -168,16 +167,10 @@ export function ProfileImageCropper({
           <Button
             variant="primary"
             onClick={handleSave}
-            disabled={isUploading || !croppedAreaPixels}
+            disabled={!croppedAreaPixels}
+            loading={isUploading}
           >
-            {isUploading ? (
-              <>
-                <Spinner size="sm" className="mr-2" />
-                Uploading...
-              </>
-            ) : (
-              "Save"
-            )}
+            Save
           </Button>
         </DialogFooter>
       </DialogContent>

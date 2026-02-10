@@ -34,8 +34,6 @@ export default function EditPersonaPage() {
   );
 
   const persona = isPersona(personaRaw) ? personaRaw : null;
-  const isLoading = isUpdating || isDeleting;
-
   useEffect(() => {
     if (persona) {
       const data = {
@@ -162,12 +160,13 @@ export default function EditPersonaPage() {
 
       <div className="flex justify-between border-t pt-4">
         <Button
-          disabled={isLoading}
+          disabled={isUpdating}
+          loading={isDeleting}
           size="default"
           variant="destructive"
           onClick={handleDeletePersona}
         >
-          {isDeleting ? "Deleting..." : "Delete Persona"}
+          Delete Persona
         </Button>
         <div className="flex gap-3">
           <Link
@@ -177,12 +176,13 @@ export default function EditPersonaPage() {
             Cancel
           </Link>
           <Button
-            disabled={!isFormValid || isLoading}
+            disabled={!isFormValid || isDeleting}
+            loading={isUpdating}
             size="default"
             variant="default"
             onClick={handleUpdatePersona}
           >
-            {isUpdating ? "Saving..." : "Save Changes"}
+            Save Changes
           </Button>
         </div>
       </div>
