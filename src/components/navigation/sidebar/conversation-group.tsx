@@ -1,5 +1,5 @@
 import { CaretRightIcon, PushPinIcon } from "@phosphor-icons/react";
-import { Children, type ReactNode, useRef } from "react";
+import { Children, isValidElement, type ReactNode, useRef } from "react";
 import {
   Collapsible,
   CollapsibleContent,
@@ -37,16 +37,21 @@ export const ConversationGroup = ({
   const staggeredChildren = (
     <div className="stack-xs">
       {hasToggled.current
-        ? Children.map(children, (child, index) => (
-            <div
-              className="animate-list-item-in"
-              style={{
-                animationDelay: `${Math.min(index * 25, 250)}ms`,
-              }}
-            >
-              {child}
-            </div>
-          ))
+        ? Children.map(children, (child, index) => {
+            const key =
+              isValidElement(child) && child.key != null ? child.key : index;
+            return (
+              <div
+                key={key}
+                className="animate-list-item-in"
+                style={{
+                  animationDelay: `${Math.min(index * 25, 250)}ms`,
+                }}
+              >
+                {child}
+              </div>
+            );
+          })
         : children}
     </div>
   );

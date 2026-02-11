@@ -98,7 +98,12 @@
       "Bash(git push:*)",
       "Bash(gh pr reviews:*)",
       "Bash(gh pr review:*)",
-      "WebFetch(domain:v6.ai-sdk.dev)"
+      "WebFetch(domain:v6.ai-sdk.dev)",
+      "Bash(git fetch:*)",
+      "Bash(git rebase:*)",
+      "Bash(git stash:*)",
+      "Bash(gh auth switch:*)",
+      "Bash(git reset:*)"
     ],
     "deny": []
   },
