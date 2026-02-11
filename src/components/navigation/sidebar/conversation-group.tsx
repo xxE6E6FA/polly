@@ -38,11 +38,11 @@ export const ConversationGroup = ({
     <div className="stack-xs">
       {hasToggled.current
         ? Children.map(children, (child, index) => {
-            const key =
+            const childKey =
               isValidElement(child) && child.key != null ? child.key : index;
             return (
               <div
-                key={key}
+                key={`wrapper-${childKey}`}
                 className="animate-list-item-in"
                 style={{
                   animationDelay: `${Math.min(index * 25, 250)}ms`,
