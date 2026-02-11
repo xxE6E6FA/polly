@@ -9,6 +9,7 @@ import {
   XIcon,
 } from "@phosphor-icons/react";
 import { useAction } from "convex/react";
+import { AnimatePresence, motion } from "framer-motion";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -36,94 +37,100 @@ const SetupChecklist = () => {
   };
 
   const isAnonymous = user?.isAnonymous ?? true;
-  // Avoid showing while capability data is still resolving to prevent flicker
-  if (
-    !capabilitiesReady ||
-    isAnonymous ||
-    isDismissed ||
-    (hasUserApiKeys && hasUserModels)
-  ) {
-    return null;
-  }
+  const shouldShow =
+    capabilitiesReady &&
+    !isAnonymous &&
+    !isDismissed &&
+    !(hasUserApiKeys && hasUserModels);
 
   return (
-    <div className="mx-auto mt-2 max-w-sm sm:mt-4 sm:max-w-md">
-      <div
-        aria-live="polite"
-        className="relative rounded-md bg-muted/20 p-2.5 shadow-sm"
-      >
-        <Button
-          aria-label="Dismiss checklist"
-          className="absolute right-1.5 top-1.5 h-5 w-5 p-0 hover:bg-muted/70"
-          size="sm"
-          variant="ghost"
-          onClick={handleDismiss}
+    <AnimatePresence>
+      {shouldShow && (
+        <motion.div
+          className="mx-auto mt-2 max-w-sm overflow-hidden sm:mt-4 sm:max-w-md"
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -4, height: 0, marginTop: 0 }}
+          transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
         >
-          <XIcon className="size-2.5" />
-        </Button>
-        <div className="pr-6">
-          <h3 className="mb-3 flex items-center gap-1.5 text-sm font-semibold">
-            Next Steps
-          </h3>
-          <div className="stack-sm">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-xs text-left">
-              {hasUserApiKeys ? (
-                <CheckCircleIcon className="size-3 shrink-0 text-success" />
-              ) : (
-                <CircleIcon className="size-3 shrink-0 text-muted-foreground/40" />
-              )}
-              <span
-                className={cn(
-                  "flex-1 text-muted-foreground transition-colors text-left",
-                  hasUserApiKeys && "opacity-50"
-                )}
-              >
-                Add your API keys
-              </span>
-              {!hasUserApiKeys && (
-                <Link to={ROUTES.SETTINGS.API_KEYS}>
-                  <Button
-                    className="gap-1 bg-background/50 text-xs"
-                    size="sm"
-                    variant="outline"
+          <div
+            aria-live="polite"
+            className="relative rounded-md bg-muted/20 p-2.5 shadow-sm"
+          >
+            <Button
+              aria-label="Dismiss checklist"
+              className="absolute right-1.5 top-1.5 h-5 w-5 p-0 hover:bg-muted/70"
+              size="sm"
+              variant="ghost"
+              onClick={handleDismiss}
+            >
+              <XIcon className="size-2.5" />
+            </Button>
+            <div className="pr-6">
+              <h3 className="mb-3 flex items-center gap-1.5 text-sm font-semibold">
+                Next Steps
+              </h3>
+              <div className="stack-sm">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-xs text-left">
+                  {hasUserApiKeys ? (
+                    <CheckCircleIcon className="size-3 shrink-0 text-success" />
+                  ) : (
+                    <CircleIcon className="size-3 shrink-0 text-muted-foreground/40" />
+                  )}
+                  <span
+                    className={cn(
+                      "flex-1 text-muted-foreground transition-colors text-left",
+                      hasUserApiKeys && "opacity-50"
+                    )}
                   >
-                    <KeyIcon className="size-3" />
-                    Go to API Keys
-                  </Button>
-                </Link>
-              )}
-            </div>
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-xs text-left">
-              {hasUserModels ? (
-                <CheckCircleIcon className="size-3 shrink-0 text-success" />
-              ) : (
-                <CircleIcon className="size-3 shrink-0 text-muted-foreground/40" />
-              )}
-              <span
-                className={cn(
-                  "flex-1 text-muted-foreground transition-colors text-left",
-                  hasUserModels && "opacity-50"
-                )}
-              >
-                Enable AI models
-              </span>
-              {hasUserApiKeys && !hasUserModels && (
-                <Link to={ROUTES.SETTINGS.TEXT_MODELS}>
-                  <Button
-                    className="gap-1 bg-background/50 text-xs"
-                    size="sm"
-                    variant="outline"
+                    Add your API keys
+                  </span>
+                  {!hasUserApiKeys && (
+                    <Link to={ROUTES.SETTINGS.API_KEYS}>
+                      <Button
+                        className="gap-1 bg-background/50 text-xs"
+                        size="sm"
+                        variant="outline"
+                      >
+                        <KeyIcon className="size-3" />
+                        Go to API Keys
+                      </Button>
+                    </Link>
+                  )}
+                </div>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-xs text-left">
+                  {hasUserModels ? (
+                    <CheckCircleIcon className="size-3 shrink-0 text-success" />
+                  ) : (
+                    <CircleIcon className="size-3 shrink-0 text-muted-foreground/40" />
+                  )}
+                  <span
+                    className={cn(
+                      "flex-1 text-muted-foreground transition-colors text-left",
+                      hasUserModels && "opacity-50"
+                    )}
                   >
-                    <LightningIcon className="size-3" />
-                    View Models
-                  </Button>
-                </Link>
-              )}
+                    Enable AI models
+                  </span>
+                  {hasUserApiKeys && !hasUserModels && (
+                    <Link to={ROUTES.SETTINGS.TEXT_MODELS}>
+                      <Button
+                        className="gap-1 bg-background/50 text-xs"
+                        size="sm"
+                        variant="outline"
+                      >
+                        <LightningIcon className="size-3" />
+                        View Models
+                      </Button>
+                    </Link>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
-    </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 };
 
