@@ -146,7 +146,7 @@ export function ActivityStream({
   // While streaming: card with live items
   if (!isComplete) {
     return (
-      <div className="mb-3 -mx-3 sm:-mx-6 rounded-xl border border-border bg-surface-variant shadow-sm px-4 sm:px-6 py-3">
+      <div className="mb-3 -mx-3 sm:-mx-6 rounded-[1.65rem] border border-input-border bg-muted shadow-sm px-4 sm:px-6 py-3">
         {streamContent}
       </div>
     );
@@ -184,7 +184,7 @@ export function ActivityStream({
         style={{ gridTemplateRows: expanded ? "1fr" : "0fr" }}
       >
         <div className="overflow-hidden">
-          <div className="mt-2 rounded-xl border border-border bg-surface-variant shadow-sm px-4 sm:px-6 py-3">
+          <div className="mt-2 rounded-[1.65rem] border border-input-border bg-muted shadow-sm px-4 sm:px-6 py-3 overflow-hidden">
             {streamContent}
           </div>
         </div>

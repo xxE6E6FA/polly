@@ -158,9 +158,9 @@ const CodeBlockComponent = ({
       )}
       ref={componentRef}
     >
-      <div className="rounded-xl border border-border bg-card/95 shadow-sm backdrop-blur-xs dark:bg-card/95">
+      <div className="rounded-[1.65rem] border border-input-border bg-muted shadow-sm">
         {/* Header with language and actions */}
-        <div className="flex h-9 items-center justify-between rounded-t-xl border-b border-border/70 bg-muted/60 px-3 text-xs text-muted-foreground sm:px-6">
+        <div className="flex h-9 items-center justify-between rounded-t-[1.65rem] border-b border-input-border/70 bg-muted/60 px-3 text-xs text-muted-foreground sm:px-6">
           <span className="font-mono font-medium text-muted-foreground">
             {processedLanguage || "text"}
           </span>
