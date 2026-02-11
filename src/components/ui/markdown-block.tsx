@@ -113,7 +113,7 @@ const MarkdownBlockComponent: LLMOutputComponent = ({ blockMatch }) => {
   }, [messageId]);
 
   return (
-    <div className="prose prose-sm sm:prose-base max-w-none prose-headings:font-semibold prose-p:leading-[1.75] prose-li:my-1.5 prose-ul:my-3 prose-ol:my-3 prose-hr:my-6 prose-a:underline-offset-2 hover:prose-a:underline prose-code:rounded-md prose-code:px-1.5 prose-code:py-0.5 prose-pre:bg-surface-variant prose-pre:text-foreground prose-pre:rounded-xl prose-pre:border prose-pre:border-border prose-pre:shadow-sm prose-pre:p-0 prose-pre:mt-2 prose-pre:mb-2 prose-pre:w-[calc(100%+24px)] prose-pre:max-w-none sm:prose-pre:w-[calc(100%+48px)] prose-pre:-mx-[12px] sm:prose-pre:-mx-[24px] prose-pre:overflow-x-auto prose-blockquote:border-l-border prose-blockquote:text-muted-foreground [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&>p:first-of-type]:mt-0 tracking-tight">
+    <div className="prose prose-sm sm:prose-base max-w-[74ch] prose-headings:font-semibold prose-p:leading-[1.75] prose-li:my-1.5 prose-ul:my-3 prose-ol:my-3 prose-hr:my-6 prose-a:underline-offset-2 hover:prose-a:underline prose-code:rounded-md prose-code:px-1.5 prose-code:py-0.5 prose-pre:bg-muted prose-pre:text-foreground prose-pre:rounded-[1.65rem] prose-pre:border prose-pre:border-input-border prose-pre:shadow-sm prose-pre:p-0 prose-pre:mt-2 prose-pre:mb-2 prose-pre:overflow-x-auto prose-blockquote:border-l-border prose-blockquote:text-muted-foreground [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&>p:first-of-type]:mt-0 tracking-tight">
       <Markdown
         options={{
           disableParsingRawHTML: true,

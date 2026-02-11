@@ -421,7 +421,6 @@ export const UnifiedChatView = memo(
       setFooterInset(footerOverlayRef.current?.offsetHeight ?? 0);
     }, []);
 
-    const overlayScrollbarOffset = "calc(env(safe-area-inset-right) + 12px)";
     const handleMessagesContainerRef = useCallback(
       (node: HTMLDivElement | null) => {
         messagesContainerRef.current = node;
@@ -509,7 +508,7 @@ export const UnifiedChatView = memo(
               className={cn(
                 "flex h-full w-full flex-col overflow-hidden",
                 "**:data-vlist-id:overscroll-contain md:**:data-vlist-id:overscroll-auto",
-                "[&_[data-vlist-id]]:scrollbar-thin"
+                "[&_[data-vlist-id]]:scrollbar-thin [&_[data-vlist-id]]:[scrollbar-gutter:stable]"
               )}
             >
               {renderMessageArea()}
@@ -537,10 +536,7 @@ export const UnifiedChatView = memo(
             <div className="pointer-events-none absolute inset-x-0 bottom-0">
               <div
                 ref={footerOverlayRef}
-                className="pointer-events-auto px-3 pt-3 sm:px-5"
-                style={{
-                  right: overlayScrollbarOffset,
-                }}
+                className="pointer-events-auto px-4 pt-3 sm:px-8 me-[11px]"
               >
                 <div className="mx-auto w-full max-w-3xl stack-md">
                   <ArchivedBanner
