@@ -152,15 +152,15 @@ const CodeBlockComponent = ({
   return (
     <div
       className={cn(
-        "group relative mt-2 w-[calc(100%+24px)] max-w-none sm:w-[calc(100%+48px)]",
-        "mx-[-12px] sm:mx-[-24px]",
+        "group relative mt-2 w-full sm:w-[calc(100%+48px)] max-w-none",
+        "mx-0 sm:mx-[-24px]",
         className
       )}
       ref={componentRef}
     >
-      <div className="rounded-[1.65rem] border border-input-border bg-muted shadow-sm">
+      <div className="rounded-xl sm:rounded-[1.65rem] border border-input-border bg-muted shadow-sm">
         {/* Header with language and actions */}
-        <div className="flex h-9 items-center justify-between rounded-t-[1.65rem] border-b border-input-border/70 bg-muted/60 px-3 text-xs text-muted-foreground sm:px-6">
+        <div className="flex h-9 items-center justify-between rounded-t-xl sm:rounded-t-[1.65rem] border-b border-input-border/70 bg-muted/60 px-3 text-xs text-muted-foreground sm:px-6">
           <span className="font-mono font-medium text-muted-foreground">
             {processedLanguage || "text"}
           </span>
@@ -255,7 +255,7 @@ const CodeBlockComponent = ({
                   <pre
                     className={cn(
                       highlightClassName,
-                      "m-0 overflow-x-auto py-4 px-3 text-[14px] leading-[1.7] font-mono sm:px-6 sm:text-[15px]",
+                      "m-0 overflow-x-auto py-4 px-3 text-[13px] leading-[1.7] font-mono sm:px-6 sm:text-[15px]",
                       wordWrap &&
                         "whitespace-pre-wrap break-words overflow-x-visible"
                     )}
@@ -283,7 +283,7 @@ const CodeBlockComponent = ({
             ) : (
               <pre
                 className={cn(
-                  "m-0 overflow-x-auto py-4 px-3 text-[14px] font-mono leading-[1.7] opacity-60 sm:px-6 sm:text-[15px]",
+                  "m-0 overflow-x-auto py-4 px-3 text-[13px] font-mono leading-[1.7] opacity-60 sm:px-6 sm:text-[15px]",
                   wordWrap &&
                     "whitespace-pre-wrap break-words overflow-x-visible"
                 )}
