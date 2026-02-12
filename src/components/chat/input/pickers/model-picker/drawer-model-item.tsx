@@ -1,8 +1,4 @@
-import { api } from "@convex/_generated/api";
-import type { Doc } from "@convex/_generated/dataModel";
-import { MONTHLY_MESSAGE_LIMIT } from "@shared/constants";
-import { useQuery } from "convex/react";
-import { memo, useCallback, useMemo } from "react";
+import { memo } from "react";
 import { ProviderIcon } from "@/components/models/provider-icons";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -10,14 +6,11 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { formatContextLength } from "@/lib/format-context";
-import { getModelCapabilities } from "@/lib/model-capabilities";
+import { useModelItemData } from "@/hooks/use-model-item-data";
 import { cn } from "@/lib/utils";
-import { useUserDataContext } from "@/providers/user-data-context";
 import type { HydratedModel } from "@/types";
 import { DrawerItem } from "../../drawer-item";
-
-type AvailableModel = HydratedModel;
+import { ModelItemTooltip } from "./model-item-tooltip";
 
 const DrawerModelItemComponent = ({
   model,
@@ -26,67 +19,20 @@ const DrawerModelItemComponent = ({
   isSelected,
   size = "md",
 }: {
-  model: AvailableModel;
+  model: HydratedModel;
   onSelect: (value: string) => void;
   hasReachedPollyLimit?: boolean;
   isSelected?: boolean;
   size?: "sm" | "md";
 }) => {
-  const { user } = useUserDataContext();
-  const unavailableModels = useQuery(
-    api.userModels.getUnavailableModelIds,
-    user?._id ? {} : "skip"
-  );
-
-  const isUnavailable = useMemo(() => {
-    if (!unavailableModels || model.free) {
-      return false;
-    }
-    return unavailableModels.some(
-      u => u.modelId === model.modelId && u.provider === model.provider
-    );
-  }, [unavailableModels, model]);
-
-  const modelForCapabilities = useMemo(
-    () => ({
-      modelId: model.modelId,
-      provider: model.provider,
-      name: model.name,
-      contextLength: model.contextLength,
-      supportsReasoning: model.supportsReasoning,
-      supportsImages: model.supportsImages,
-      supportsTools: model.supportsTools,
-      supportsFiles: model.supportsFiles,
-      inputModalities: model.inputModalities,
-    }),
-    [model]
-  );
-
-  const capabilities = useMemo(
-    () => getModelCapabilities(modelForCapabilities),
-    [modelForCapabilities]
-  );
-
-  const handleSelect = useCallback(() => {
-    if (isUnavailable) {
-      return;
-    }
-    if (model.free && hasReachedPollyLimit) {
-      return;
-    }
-    onSelect(model.modelId);
-  }, [
-    model.modelId,
-    model.free,
-    hasReachedPollyLimit,
-    onSelect,
+  const {
     isUnavailable,
-  ]);
-
-  const isPollyDisabled = model.free && hasReachedPollyLimit;
-  const isDisabled = isUnavailable || isPollyDisabled;
-
-  const contextDisplay = formatContextLength(model.contextLength);
+    capabilities,
+    handleSelect,
+    isPollyDisabled,
+    isDisabled,
+    contextDisplay,
+  } = useModelItemData(model, onSelect, hasReachedPollyLimit);
 
   const icon = (
     <ProviderIcon
@@ -163,45 +109,15 @@ const DrawerModelItemComponent = ({
     />
   );
 
-  if (isPollyDisabled) {
-    return (
-      <Tooltip>
-        <TooltipTrigger className="w-full">{drawerItem}</TooltipTrigger>
-        <TooltipContent>
-          <div>
-            <div className="font-semibold text-foreground">
-              Monthly Limit Reached
-            </div>
-            <div className="mt-1 text-xs leading-relaxed text-muted-foreground">
-              You've used all {MONTHLY_MESSAGE_LIMIT} free messages this month.
-              Switch to BYOK models for unlimited usage.
-            </div>
-          </div>
-        </TooltipContent>
-      </Tooltip>
-    );
-  }
-
-  if (isUnavailable) {
-    return (
-      <Tooltip>
-        <TooltipTrigger className="w-full">{drawerItem}</TooltipTrigger>
-        <TooltipContent>
-          <div>
-            <div className="font-semibold text-foreground">
-              Model No Longer Available
-            </div>
-            <div className="mt-1 text-xs leading-relaxed text-muted-foreground">
-              This model has been disabled or deprecated by its provider. Please
-              remove it from Settings or select a different model.
-            </div>
-          </div>
-        </TooltipContent>
-      </Tooltip>
-    );
-  }
-
-  return drawerItem;
+  return (
+    <ModelItemTooltip
+      isPollyDisabled={isPollyDisabled}
+      isUnavailable={isUnavailable}
+      triggerClassName="w-full"
+    >
+      {drawerItem}
+    </ModelItemTooltip>
+  );
 };
 
 DrawerModelItemComponent.displayName = "DrawerModelItem";
