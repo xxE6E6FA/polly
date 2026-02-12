@@ -10,7 +10,7 @@ import {
   hasConversationAccess,
   validateAuthenticatedUser,
   validateConversationAccess,
-  validateMonthlyMessageLimit,
+  validateFreeModelUsage,
   sanitizeSchema,
   getConversationMessages,
   stopConversationStreaming,
@@ -255,9 +255,8 @@ describe("validateConversationAccess", () => {
   });
 });
 
-describe("validateMonthlyMessageLimit", () => {
-  test("does not throw when under limit", async () => {
-    const ctx = makeConvexCtx();
+describe("validateFreeModelUsage", () => {
+  test("does not throw when under limit", () => {
     const user = {
       _id: "user-123" as Id<"users">,
       _creationTime: Date.now(),
@@ -265,13 +264,11 @@ describe("validateMonthlyMessageLimit", () => {
       monthlyMessagesSent: 50,
     };
 
-    await validateMonthlyMessageLimit(ctx as any, user as any);
-    // If we get here without throwing, the test passes
+    validateFreeModelUsage(user as any);
     expect(true).toBe(true);
   });
 
-  test("throws when at limit", async () => {
-    const ctx = makeConvexCtx();
+  test("throws when at limit", () => {
     const user = {
       _id: "user-123" as Id<"users">,
       _creationTime: Date.now(),
@@ -279,13 +276,12 @@ describe("validateMonthlyMessageLimit", () => {
       monthlyMessagesSent: 100,
     };
 
-    await expect(
-      validateMonthlyMessageLimit(ctx as any, user as any)
-    ).rejects.toThrow("You've reached your monthly limit of 100 free messages");
+    expect(() => validateFreeModelUsage(user as any)).toThrow(
+      "You've reached your monthly limit of 100 free messages"
+    );
   });
 
-  test("throws when over limit", async () => {
-    const ctx = makeConvexCtx();
+  test("throws when over limit", () => {
     const user = {
       _id: "user-123" as Id<"users">,
       _creationTime: Date.now(),
@@ -293,21 +289,19 @@ describe("validateMonthlyMessageLimit", () => {
       monthlyMessagesSent: 150,
     };
 
-    await expect(
-      validateMonthlyMessageLimit(ctx as any, user as any)
-    ).rejects.toThrow("You've reached your monthly limit of 100 free messages");
+    expect(() => validateFreeModelUsage(user as any)).toThrow(
+      "You've reached your monthly limit of 100 free messages"
+    );
   });
 
-  test("uses default limit when monthlyLimit is undefined", async () => {
-    const ctx = makeConvexCtx();
+  test("uses default limit when monthlyLimit is undefined", () => {
     const user = {
       _id: "user-123" as Id<"users">,
       _creationTime: Date.now(),
       monthlyMessagesSent: 499, // Under the default 500 limit
     };
 
-    await validateMonthlyMessageLimit(ctx as any, user as any);
-    // If we get here without throwing, the test passes
+    validateFreeModelUsage(user as any);
     expect(true).toBe(true);
   });
 });

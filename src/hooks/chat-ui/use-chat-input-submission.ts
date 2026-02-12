@@ -5,6 +5,7 @@ import { useCallback, useState } from "react";
 import { useConvexFileUpload } from "@/hooks/use-convex-file-upload";
 import { useNotificationDialog } from "@/hooks/use-dialog-management";
 import { useReasoningConfig } from "@/hooks/use-reasoning";
+import { base64ToUint8Array } from "@/lib/file-utils";
 import { usePrivateMode } from "@/providers/private-mode-context";
 import type {
   Attachment,
@@ -83,13 +84,7 @@ export function useChatInputSubmission({
           uploaded.push(att);
         } else if (att.content && att.mimeType) {
           try {
-            const byteCharacters = atob(att.content);
-            const byteNumbers = new Array(byteCharacters.length);
-            for (let i = 0; i < byteCharacters.length; i++) {
-              byteNumbers[i] = byteCharacters.charCodeAt(i);
-            }
-            const byteArray = new Uint8Array(byteNumbers);
-            const file = new File([byteArray], att.name, {
+            const file = new File([base64ToUint8Array(att.content)], att.name, {
               type: att.mimeType,
             });
             const res = await uploadFile(file);

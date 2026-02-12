@@ -34,30 +34,3 @@ export async function isConversationStreaming(
     recentMessage.status !== "error";
   return result;
 }
-
-/**
- * Find the currently streaming message in a conversation
- */
-export async function findStreamingMessage(
-  ctx: AnyCtx,
-  conversationId: Id<"conversations">,
-): Promise<{ id: string; isStreaming: boolean } | null> {
-  const recentMessage = await ctx.db
-    .query("messages")
-    .withIndex("by_conversation", (q) => q.eq("conversationId", conversationId))
-    .filter((q) => q.eq(q.field("role"), "assistant"))
-    .order("desc")
-    .first();
-
-  if (!recentMessage) {
-    return null;
-  }
-
-  const metadata = recentMessage.metadata as any;
-  const isStreaming =
-    !metadata?.finishReason &&
-    !metadata?.stopped &&
-    recentMessage.status !== "error";
-
-  return isStreaming ? { id: recentMessage._id, isStreaming: true } : null;
-}

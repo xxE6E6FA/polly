@@ -67,8 +67,7 @@ import {
   stopConversationStreaming,
   validateAuthenticatedUser,
   validateConversationAccess,
-  validateMonthlyMessageLimit,
-  validateMonthlyMessageLimitForAction,
+  validateFreeModelUsage,
   validateTitleLength,
   validateUserMessageLength,
 } from "./lib/shared_utils";
@@ -120,7 +119,7 @@ export async function createConversationHandler(
   const isBuiltInModelResult = fullModel.free === true;
 
   if (isBuiltInModelResult && !user.hasUnlimitedCalls) {
-    await validateMonthlyMessageLimit(ctx, user);
+    validateFreeModelUsage(user);
   }
 
   // Always start with a neutral placeholder so title generation logic can update it
@@ -2648,7 +2647,7 @@ export const createBranchingConversation = action({
     const isBuiltInModelResult = selectedModel.free === true;
 
     if (isBuiltInModelResult && !user.hasUnlimitedCalls) {
-      await validateMonthlyMessageLimitForAction(ctx, user);
+      validateFreeModelUsage(user);
     }
 
     // Fetch persona prompt if personaId is provided but personaPrompt is not

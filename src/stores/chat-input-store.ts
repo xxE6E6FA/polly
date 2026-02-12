@@ -214,19 +214,6 @@ export function getChatKey(conversationId?: string | null): ConversationKey {
   return conversationId ?? GLOBAL_CHAT_INPUT_KEY;
 }
 
-export function makeChatInputKey(
-  conversationId?: string,
-  usePreserved?: boolean
-): ConversationKey {
-  // Only preserve when explicitly requested for new conversations without messages
-  if (usePreserved) {
-    return conversationId ?? GLOBAL_CHAT_INPUT_KEY;
-  }
-  // When not preserving, still return a stable key to allow optional usage,
-  // but callers generally should not write to the store in this case.
-  return conversationId ?? GLOBAL_CHAT_INPUT_KEY;
-}
-
 export function getSelectedPersonaIdFromStore(key: ConversationKey) {
   return chatInputStoreApi.getState().selectedByKey[key] ?? null;
 }

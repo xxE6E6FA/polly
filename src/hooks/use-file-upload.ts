@@ -8,6 +8,7 @@ import { useCallback, useState } from "react";
 import { useConvexFileUpload } from "@/hooks/use-convex-file-upload";
 import { useNotificationDialog } from "@/hooks/use-dialog-management";
 import {
+  base64ToUint8Array,
   convertImageToWebP,
   isHeicFile,
   readFileAsBase64,
@@ -96,15 +97,13 @@ async function processImageFile(file: File): Promise<
   try {
     const converted = await convertImageToWebP(file);
     const thumbnail = `data:${converted.mimeType};base64,${converted.base64}`;
-    const byteCharacters = atob(converted.base64);
-    const byteNumbers = new Array(byteCharacters.length);
-    for (let i = 0; i < byteCharacters.length; i++) {
-      byteNumbers[i] = byteCharacters.charCodeAt(i);
-    }
-    const byteArray = new Uint8Array(byteNumbers);
-    const processedFile = new File([byteArray], file.name, {
-      type: converted.mimeType,
-    });
+    const processedFile = new File(
+      [base64ToUint8Array(converted.base64)],
+      file.name,
+      {
+        type: converted.mimeType,
+      }
+    );
 
     return { processedFile, mimeType: converted.mimeType, thumbnail };
   } catch (error) {
@@ -133,8 +132,7 @@ export function useFileUpload({
   privateMode,
   conversationId,
 }: UseFileUploadProps) {
-  const [attachments, setAttachments] = useState<Attachment[]>([]);
-  const [uploadProgress, setUploadProgress] = useState<
+  const [_uploadProgress, setUploadProgress] = useState<
     Map<string, FileUploadProgress>
   >(new Map());
 
@@ -362,32 +360,6 @@ export function useFileUpload({
     [notificationDialog, currentModel, privateMode, conversationId, uploadFile]
   );
 
-  const removeAttachment = useCallback(
-    async (index: number) => {
-      if (conversationId !== undefined) {
-        const { removeAttachmentAt } = await import(
-          "@/stores/actions/chat-input-actions"
-        );
-        removeAttachmentAt(conversationId ?? undefined, index);
-      } else {
-        setAttachments(prev => prev.filter((_, i) => i !== index));
-      }
-    },
-    [conversationId]
-  );
-
-  const clearAttachments = useCallback(() => {
-    setAttachments([]);
-  }, []);
-
-  const buildMessageContent = useCallback((input: string) => {
-    return input.trim();
-  }, []);
-
-  const getBinaryAttachments = useCallback(() => {
-    return attachments;
-  }, [attachments]);
-
   const uploadAttachmentsToConvex = useCallback(
     async (attachmentsToUpload: Attachment[]): Promise<Attachment[]> => {
       if (privateMode) {
@@ -412,15 +384,13 @@ export function useFileUpload({
         } else if (attachment.content && attachment.mimeType) {
           try {
             // Convert Base64 back to File object for upload
-            const byteCharacters = atob(attachment.content);
-            const byteNumbers = new Array(byteCharacters.length);
-            for (let i = 0; i < byteCharacters.length; i++) {
-              byteNumbers[i] = byteCharacters.charCodeAt(i);
-            }
-            const byteArray = new Uint8Array(byteNumbers);
-            const file = new File([byteArray], attachment.name, {
-              type: attachment.mimeType,
-            });
+            const file = new File(
+              [base64ToUint8Array(attachment.content)],
+              attachment.name,
+              {
+                type: attachment.mimeType,
+              }
+            );
 
             const uploadedAttachment = await uploadFile(file);
             uploadedAttachments.push(uploadedAttachment);
@@ -447,13 +417,7 @@ export function useFileUpload({
   );
 
   return {
-    attachments,
-    uploadProgress,
     handleFileUpload,
-    removeAttachment,
-    clearAttachments,
-    buildMessageContent,
-    getBinaryAttachments,
     uploadAttachmentsToConvex,
     notificationDialog,
   };

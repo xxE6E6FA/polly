@@ -29,7 +29,6 @@
 
 export { ROUTES } from "./routes";
 export {
-  cleanAttachmentsForConvex,
   cn,
   formatDate,
   formatFileSize,
@@ -44,6 +43,7 @@ export { validateApiKey } from "./validation";
 // =============================================================================
 
 export {
+  base64ToUint8Array,
   convertImageToWebP,
   FILE_EXTENSION_TO_LANGUAGE,
   generateThumbnail,

@@ -101,22 +101,23 @@ export function exportAsMarkdown(data: ExportData): string {
   return markdown;
 }
 
-export function downloadFile(
-  content: string,
-  filename: string,
-  mimeType: string
-) {
-  const blob = new Blob([content], { type: mimeType });
+function triggerBlobDownload(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob);
-
   const link = document.createElement("a");
   link.href = url;
   link.download = filename;
   document.body.appendChild(link);
   link.click();
-
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
+}
+
+export function downloadFile(
+  content: string,
+  filename: string,
+  mimeType: string
+) {
+  triggerBlobDownload(new Blob([content], { type: mimeType }), filename);
 }
 
 export async function downloadFromUrl(
@@ -124,23 +125,10 @@ export async function downloadFromUrl(
   filename: string
 ): Promise<void> {
   const response = await fetch(downloadUrl);
-
   if (!response.ok) {
     throw new Error(`HTTP error! status: ${response.status}`);
   }
-
-  const blob = await response.blob();
-  const blobUrl = window.URL.createObjectURL(blob);
-
-  const link = document.createElement("a");
-  link.href = blobUrl;
-  link.download = filename;
-
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-
-  window.URL.revokeObjectURL(blobUrl);
+  triggerBlobDownload(await response.blob(), filename);
 }
 
 export function generateFilename(title: string, format: "json" | "md"): string {
