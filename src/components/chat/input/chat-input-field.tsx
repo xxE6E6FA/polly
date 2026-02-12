@@ -16,6 +16,7 @@ interface ChatInputFieldProps {
   isTransitioning?: boolean;
   disableAutoResize?: boolean;
   onHeightChange?: (isMultiline: boolean) => void;
+  onPaste?: (e: React.ClipboardEvent<HTMLTextAreaElement>) => void;
 
   navigation?: {
     onHistoryNavigation?: () => boolean;
@@ -39,6 +40,7 @@ export const ChatInputField = memo(function ChatInputField({
   isTransitioning = false,
   disableAutoResize = false,
   onHeightChange,
+  onPaste,
   navigation,
 }: ChatInputFieldProps) {
   const { onHistoryNavigation, onHistoryNavigationDown } = navigation || {};
@@ -184,6 +186,7 @@ export const ChatInputField = memo(function ChatInputField({
         value={value}
         onChange={handleChange}
         onKeyDown={handleKeyDown}
+        onPaste={onPaste}
         inputMode="text"
         tabIndex={0}
         aria-label="Chat message input"

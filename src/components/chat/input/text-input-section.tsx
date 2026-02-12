@@ -31,6 +31,7 @@ interface TextInputSectionProps {
   disableAutoResize?: boolean;
   quote?: string;
   onClearQuote?: () => void;
+  onPaste?: (e: React.ClipboardEvent<HTMLTextAreaElement>) => void;
 }
 
 export function TextInputSection({
@@ -51,6 +52,7 @@ export function TextInputSection({
   disableAutoResize,
   quote,
   onClearQuote,
+  onPaste,
 }: TextInputSectionProps) {
   const { attachments } = useChatAttachments(conversationId);
   const handleRemoveAttachment = useCallback(
@@ -127,6 +129,7 @@ export function TextInputSection({
               autoFocus={autoFocus}
               className={textareaClassNameOverride}
               disableAutoResize={disableAutoResize}
+              onPaste={onPaste}
               navigation={{
                 onHistoryNavigation: stableHistoryNavigation,
                 onHistoryNavigationDown: stableHistoryNavigationDown,
