@@ -140,17 +140,6 @@ export type ImageGenerationResult = {
   };
 };
 
-export type GeneratedImageAttachment = Attachment & {
-  type: "image";
-  isGenerated: true;
-  generationMetadata?: {
-    prompt: string;
-    model: string;
-    params: ImageGenerationParams;
-    replicateId: string;
-  };
-};
-
 // ============================================================================
 // CHAT & MESSAGING TYPES
 // ============================================================================

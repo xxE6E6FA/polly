@@ -8,6 +8,7 @@ import { useEnabledImageModels } from "@/hooks/use-enabled-image-models";
 import { useImageParams } from "@/hooks/use-generation";
 import { useReplicateSchema } from "@/hooks/use-replicate-schema";
 import { handleImageGeneration } from "@/lib/ai/image-generation-handlers";
+import { base64ToUint8Array } from "@/lib/file-utils";
 import { ROUTES } from "@/lib/routes";
 import { usePrivateMode } from "@/providers/private-mode-context";
 import type {
@@ -152,13 +153,9 @@ export function useChatInputImageGeneration({
 
       if (att.content && att.mimeType && !att.storageId) {
         try {
-          const byteCharacters = atob(att.content);
-          const byteNumbers = new Array(byteCharacters.length);
-          for (let i = 0; i < byteCharacters.length; i++) {
-            byteNumbers[i] = byteCharacters.charCodeAt(i);
-          }
-          const byteArray = new Uint8Array(byteNumbers);
-          const file = new File([byteArray], att.name, { type: att.mimeType });
+          const file = new File([base64ToUint8Array(att.content)], att.name, {
+            type: att.mimeType,
+          });
           const uploaded = await uploadFile(file);
           uploadedAttachments.push(uploaded);
         } catch (_e) {

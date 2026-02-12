@@ -2,6 +2,19 @@
 import { FILE_LIMITS } from "@shared/file-constants";
 
 /**
+ * Decode a base64 string into a Uint8Array.
+ */
+export function base64ToUint8Array(base64: string): Uint8Array<ArrayBuffer> {
+  const raw = atob(base64);
+  const buf = new ArrayBuffer(raw.length);
+  const view = new Uint8Array(buf);
+  for (let i = 0; i < raw.length; i++) {
+    view[i] = raw.charCodeAt(i);
+  }
+  return view;
+}
+
+/**
  * Check if a file is HEIC/HEIF format
  */
 export function isHeicFile(file: File): boolean {
@@ -42,6 +55,23 @@ async function convertHeicToJpeg(file: File): Promise<File> {
   );
 }
 
+/**
+ * Scale dimensions to fit within a max size while preserving aspect ratio.
+ */
+function scaleDimensions(
+  width: number,
+  height: number,
+  maxSize: number
+): { width: number; height: number } {
+  if (width <= maxSize && height <= maxSize) {
+    return { width, height };
+  }
+  if (width > height) {
+    return { width: maxSize, height: Math.round((height * maxSize) / width) };
+  }
+  return { width: Math.round((width * maxSize) / height), height: maxSize };
+}
+
 export async function convertImageToWebP(
   file: File,
   maxDimension = FILE_LIMITS.MAX_DIMENSION,
@@ -59,21 +89,10 @@ export async function convertImageToWebP(
       const img = new Image();
       img.onload = () => {
         const canvas = document.createElement("canvas");
-        let { width, height } = img;
+        const scaled = scaleDimensions(img.width, img.height, maxDimension);
 
-        // Calculate new dimensions while maintaining aspect ratio
-        if (width > maxDimension || height > maxDimension) {
-          if (width > height) {
-            height = (height * maxDimension) / width;
-            width = maxDimension;
-          } else {
-            width = (width * maxDimension) / height;
-            height = maxDimension;
-          }
-        }
-
-        canvas.width = width;
-        canvas.height = height;
+        canvas.width = scaled.width;
+        canvas.height = scaled.height;
 
         const ctx = canvas.getContext("2d");
         if (!ctx) {
@@ -84,7 +103,7 @@ export async function convertImageToWebP(
         // Use better image smoothing
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = "high";
-        ctx.drawImage(img, 0, 0, width, height);
+        ctx.drawImage(img, 0, 0, scaled.width, scaled.height);
 
         // Convert to WebP
         canvas.toBlob(
@@ -126,6 +145,19 @@ type ThumbnailDeps = {
   revokeObjectURL?: (url: string) => void;
 };
 
+function resolveObjectURLDeps(deps: ThumbnailDeps) {
+  return {
+    toObjectURL: deps.createObjectURL ?? ((f: File) => URL.createObjectURL(f)),
+    revokeObjectURL:
+      deps.revokeObjectURL ??
+      ((url: string) => {
+        if (typeof URL.revokeObjectURL === "function") {
+          URL.revokeObjectURL(url);
+        }
+      }),
+  };
+}
+
 export function getCanvas2DContext(
   canvas: HTMLCanvasElement,
   objectUrl: string,
@@ -154,41 +186,20 @@ export async function generateThumbnail(
     const createCanvas =
       deps.createCanvas ?? (() => document.createElement("canvas"));
     const createImage = deps.createImage ?? (() => new Image());
-    const toObjectURL =
-      deps.createObjectURL ??
-      ((fileToUrl: File) => URL.createObjectURL(fileToUrl));
-    const revokeObjectURL =
-      deps.revokeObjectURL ??
-      ((url: string) => {
-        if (typeof URL.revokeObjectURL === "function") {
-          URL.revokeObjectURL(url);
-        }
-      });
+    const { toObjectURL, revokeObjectURL } = resolveObjectURLDeps(deps);
 
     const canvas = createCanvas();
     const img = createImage();
 
     img.onload = () => {
-      // Calculate thumbnail dimensions while maintaining aspect ratio
-      let { width, height } = img;
-      if (width > height && width > maxSize) {
-        height = Math.round((height * maxSize) / width);
-        width = maxSize;
-      } else if (height > width && height > maxSize) {
-        width = Math.round((width * maxSize) / height);
-        height = maxSize;
-      } else if (width > maxSize) {
-        width = maxSize;
-        height = maxSize;
-      }
+      const scaled = scaleDimensions(img.width, img.height, maxSize);
 
-      canvas.width = width;
-      canvas.height = height;
+      canvas.width = scaled.width;
+      canvas.height = scaled.height;
 
       const ctx = getCanvas2DContext(canvas, objectUrl, revokeObjectURL);
 
-      // Draw the image on canvas with new dimensions
-      ctx.drawImage(img, 0, 0, width, height);
+      ctx.drawImage(img, 0, 0, scaled.width, scaled.height);
 
       // Convert to base64 with better quality
       const thumbnail = canvas.toDataURL("image/jpeg", 0.9);
@@ -214,15 +225,7 @@ export function generateVideoThumbnail(
 ): Promise<string> {
   const createCanvas =
     deps.createCanvas ?? (() => document.createElement("canvas"));
-  const toObjectURL =
-    deps.createObjectURL ?? ((f: File) => URL.createObjectURL(f));
-  const revokeObjectURL =
-    deps.revokeObjectURL ??
-    ((url: string) => {
-      if (typeof URL.revokeObjectURL === "function") {
-        URL.revokeObjectURL(url);
-      }
-    });
+  const { toObjectURL, revokeObjectURL } = resolveObjectURLDeps(deps);
 
   const objectUrl = toObjectURL(file);
 
@@ -253,25 +256,18 @@ export function generateVideoThumbnail(
 
     video.onseeked = () => {
       try {
-        let { videoWidth: width, videoHeight: height } = video;
-
-        if (width > height && width > maxSize) {
-          height = Math.round((height * maxSize) / width);
-          width = maxSize;
-        } else if (height > width && height > maxSize) {
-          width = Math.round((width * maxSize) / height);
-          height = maxSize;
-        } else if (width > maxSize) {
-          width = maxSize;
-          height = maxSize;
-        }
+        const scaled = scaleDimensions(
+          video.videoWidth,
+          video.videoHeight,
+          maxSize
+        );
 
         const canvas = createCanvas();
-        canvas.width = width;
-        canvas.height = height;
+        canvas.width = scaled.width;
+        canvas.height = scaled.height;
 
         const ctx = getCanvas2DContext(canvas, objectUrl, revokeObjectURL);
-        ctx.drawImage(video, 0, 0, width, height);
+        ctx.drawImage(video, 0, 0, scaled.width, scaled.height);
 
         const thumbnail = canvas.toDataURL("image/jpeg", 0.9);
         cleanup();

@@ -254,21 +254,7 @@ export function validateFreeModelUsage(user: Doc<"users">): void {
   }
 }
 
-// Validate monthly message limits (legacy - use validateFreeModelUsage instead)
-export async function validateMonthlyMessageLimit(
-  _ctx: MutationCtx | QueryCtx,
-  user: Doc<"users">,
-): Promise<void> {
-  validateFreeModelUsage(user);
-}
 
-// Validate monthly message limits for actions
-export async function validateMonthlyMessageLimitForAction(
-  _ctx: ActionCtx,
-  user: Doc<"users">,
-): Promise<void> {
-  validateFreeModelUsage(user);
-}
 
 // Create default conversation fields
 export function createDefaultConversationFields(

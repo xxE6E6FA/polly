@@ -1,6 +1,5 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
-import type { Attachment } from "@/types";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -96,16 +95,4 @@ export function formatFileSize(bytes: number): string {
   );
   const value = bytes / 1024 ** i;
   return `${value < 10 && i > 0 ? value.toFixed(1) : Math.round(value)} ${units[i]}`;
-}
-
-export function cleanAttachmentsForConvex(attachments?: Attachment[]) {
-  if (!attachments) {
-    return undefined;
-  }
-
-  return attachments.map(attachment => {
-    // The Convex schema now includes all fields from the Attachment type
-    // This function is kept for potential future field filtering
-    return attachment;
-  });
 }
