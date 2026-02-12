@@ -97,6 +97,7 @@ export function ActionButton({
     return (
       <Tooltip>
         <TooltipTrigger
+          delayDuration={200}
           render={<button ref={ref} type="button" className={chipClassName} />}
           aria-label={props["aria-label"] || tooltip}
           disabled={props.disabled}
