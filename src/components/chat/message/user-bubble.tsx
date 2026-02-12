@@ -186,7 +186,7 @@ export const UserBubble = memo(
                 </div>
               </div>
             ) : (
-              <div className="whitespace-pre-wrap break-words text-[15px] leading-[1.75] transition-all duration-300 ease-out sm:text-[16px] sm:leading-[1.8] selectable-text max-w-[74ch] min-w-0">
+              <div className="whitespace-pre-wrap [overflow-wrap:anywhere] text-[15px] leading-[1.75] transition-all duration-300 ease-out sm:text-[16px] sm:leading-[1.8] selectable-text max-w-[74ch] min-w-0">
                 {message.content}
                 <AttachmentStrip
                   attachments={message.attachments?.filter(
