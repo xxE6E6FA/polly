@@ -126,9 +126,9 @@ export function getProviderReasoningConfig(
       reasoningConfig.maxTokens
     )
   ) {
-    // Return base provider options when reasoning not enabled
-    // (e.g., Google needs structuredOutputs: false even without reasoning)
-    return getProviderBaseOptions(provider);
+    // Return explicit disable options for providers that auto-enable reasoning
+    // (e.g., OpenRouter enables reasoning by default for capable models)
+    return getReasoningDisabledOptions(actualProvider);
   }
 
   // Delegate to provider-specific implementation when reasoning is explicitly enabled
@@ -307,6 +307,27 @@ export function getProviderReasoningOptions(
     default:
       return {};
   }
+}
+
+/**
+ * Get provider options for when a reasoning-capable model has reasoning disabled.
+ * Some providers (e.g., OpenRouter) auto-enable reasoning for capable models,
+ * so we need to explicitly disable it. Other providers only reason when
+ * explicitly asked, so base options suffice.
+ */
+export function getReasoningDisabledOptions(
+  provider: string
+): ProviderStreamOptions {
+  if (provider === "openrouter") {
+    return {
+      extraBody: {
+        reasoning: {
+          enabled: false,
+        },
+      },
+    };
+  }
+  return getProviderBaseOptions(provider);
 }
 
 /**
