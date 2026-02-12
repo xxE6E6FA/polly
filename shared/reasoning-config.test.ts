@@ -5,6 +5,7 @@ import {
   getProviderBaseOptions,
   getProviderReasoningConfig,
   getProviderReasoningOptions,
+  getReasoningDisabledOptions,
   type ModelWithCapabilities,
   normalizeReasoningEffort,
   type ReasoningConfig,
@@ -356,6 +357,36 @@ describe("getProviderBaseOptions", () => {
   });
 });
 
+describe("getReasoningDisabledOptions", () => {
+  test("returns explicit disable for OpenRouter", () => {
+    expect(getReasoningDisabledOptions("openrouter")).toEqual({
+      extraBody: {
+        reasoning: {
+          enabled: false,
+        },
+      },
+    });
+  });
+
+  test("returns Google base options for Google", () => {
+    expect(getReasoningDisabledOptions("google")).toEqual({
+      providerOptions: {
+        google: {
+          structuredOutputs: false,
+        },
+      },
+    });
+  });
+
+  test("returns empty object for Anthropic", () => {
+    expect(getReasoningDisabledOptions("anthropic")).toEqual({});
+  });
+
+  test("returns empty object for OpenAI", () => {
+    expect(getReasoningDisabledOptions("openai")).toEqual({});
+  });
+});
+
 describe("getProviderReasoningConfig", () => {
   test("returns empty config for non-reasoning OpenAI model", () => {
     const model: ModelWithCapabilities = {
@@ -409,6 +440,62 @@ describe("getProviderReasoningConfig", () => {
       providerOptions: {
         google: {
           structuredOutputs: false,
+        },
+      },
+    });
+  });
+
+  test("returns empty config when reasoning disabled for Anthropic model", () => {
+    const model: ModelWithCapabilities = {
+      modelId: "claude-sonnet-4",
+      provider: "anthropic",
+      supportsReasoning: true,
+    };
+
+    const result = getProviderReasoningConfig(model, { enabled: false });
+    expect(result).toEqual({});
+  });
+
+  test("returns empty config when no reasoning config for Anthropic model", () => {
+    const model: ModelWithCapabilities = {
+      modelId: "claude-opus-4",
+      provider: "anthropic",
+      supportsReasoning: true,
+    };
+
+    const result = getProviderReasoningConfig(model);
+    expect(result).toEqual({});
+  });
+
+  test("returns explicit disable for OpenRouter when reasoning disabled", () => {
+    const model: ModelWithCapabilities = {
+      modelId: "kimi-k2.5",
+      provider: "openrouter",
+      supportsReasoning: true,
+    };
+
+    const result = getProviderReasoningConfig(model, { enabled: false });
+    expect(result).toEqual({
+      extraBody: {
+        reasoning: {
+          enabled: false,
+        },
+      },
+    });
+  });
+
+  test("returns explicit disable for OpenRouter when no reasoning config", () => {
+    const model: ModelWithCapabilities = {
+      modelId: "grok-4",
+      provider: "openrouter",
+      supportsReasoning: true,
+    };
+
+    const result = getProviderReasoningConfig(model);
+    expect(result).toEqual({
+      extraBody: {
+        reasoning: {
+          enabled: false,
         },
       },
     });

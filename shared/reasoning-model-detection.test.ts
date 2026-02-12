@@ -196,13 +196,13 @@ describe("needsSpecialReasoningHandling", () => {
     expect(needsSpecialReasoningHandling("openai", "o3-mini")).toBe(true);
   });
 
-  test("returns true for Anthropic optional reasoning models", () => {
+  test("returns false for Anthropic optional reasoning models", () => {
     expect(needsSpecialReasoningHandling("anthropic", "claude-opus-4")).toBe(
-      true
+      false
     );
     expect(
       needsSpecialReasoningHandling("anthropic", "claude-3-7-sonnet")
-    ).toBe(true);
+    ).toBe(false);
   });
 
   test("returns false for standard models", () => {
