@@ -1,5 +1,6 @@
 export { useChatInputDragDrop } from "./use-chat-input-drag-drop";
 export { useChatInputImageGeneration } from "./use-chat-input-image-generation";
+export { useChatInputPaste } from "./use-chat-input-paste";
 export {
   useChatInputControls,
   useChatInputState,

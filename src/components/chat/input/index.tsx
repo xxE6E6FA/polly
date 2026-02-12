@@ -11,6 +11,7 @@ import {
 import {
   useChatInputDragDrop,
   useChatInputImageGeneration,
+  useChatInputPaste,
   useChatInputState,
   useChatInputSubmission,
   useSpeechInput,
@@ -157,6 +158,13 @@ const ChatInputInner = ({
       isStreaming,
       onProcessFiles: handleFileUpload,
     });
+
+  const { handlePaste } = useChatInputPaste({
+    canSend: canSendMessage,
+    isLoading,
+    isStreaming,
+    onProcessFiles: handleFileUpload,
+  });
 
   // Force back to text mode if in private mode (image gen not supported)
   // Allow image mode if user has Replicate key OR selected model is free
@@ -433,6 +441,7 @@ const ChatInputInner = ({
             selectedImageModel={selectedImageModel}
             quote={activeQuote ?? undefined}
             onClearQuote={() => setActiveQuote(null)}
+            onPaste={handlePaste}
           />
 
           <ChatInputBottomBar
