@@ -244,11 +244,20 @@ export async function streamLLMToMessage({
 
     // Add tool calling if supported
     if (useTools) {
+      const MAX_TOOL_STEPS = 5;
       genOpts.tools = {
         webSearch: createWebSearchTool(exaApiKey),
       };
       genOpts.toolChoice = "auto";
-      genOpts.stopWhen = stepCountIs(3);
+      // Force text generation after MAX_TOOL_STEPS so the model always
+      // produces a final response instead of being cut off mid-tool-loop.
+      genOpts.prepareStep = ({ stepNumber }: { stepNumber: number }) => {
+        if (stepNumber >= MAX_TOOL_STEPS) {
+          return { toolChoice: "none" };
+        }
+        return {};
+      };
+      genOpts.stopWhen = stepCountIs(MAX_TOOL_STEPS + 1);
     }
 
     if (abortController) genOpts.abortSignal = abortController.signal;

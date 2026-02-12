@@ -301,10 +301,20 @@ export async function streamAndSaveMessage(
 
     // Add web search tool if model supports it and Exa API key is available
     if (supportsTools && exaApiKey) {
+      const MAX_TOOL_STEPS = 5;
       streamConfig.tools = {
         webSearch: createWebSearchTool(exaApiKey),
       };
-      streamConfig.stopWhen = stepCountIs(3);
+      streamConfig.toolChoice = "auto";
+      // Force text generation after MAX_TOOL_STEPS so the model always
+      // produces a final response instead of being cut off mid-tool-loop.
+      streamConfig.prepareStep = ({ stepNumber }: { stepNumber: number }) => {
+        if (stepNumber >= MAX_TOOL_STEPS) {
+          return { toolChoice: "none" };
+        }
+        return {};
+      };
+      streamConfig.stopWhen = stepCountIs(MAX_TOOL_STEPS + 1);
     }
 
     const result = streamText(streamConfig);

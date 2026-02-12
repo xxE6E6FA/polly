@@ -764,6 +764,7 @@ export const chatStream = httpAction(
         }
 
         // Start streaming with appropriate configuration
+        const MAX_TOOL_STEPS = 5;
         const result =
           modelSupportsTools && exaApiKey && !isAnonymousUser
             ? streamText({
@@ -773,7 +774,13 @@ export const chatStream = httpAction(
                   webSearch: createWebSearchTool(exaApiKey),
                 },
                 toolChoice: "auto",
-                stopWhen: stepCountIs(3),
+                prepareStep: ({ stepNumber }: { stepNumber: number }) => {
+                  if (stepNumber >= MAX_TOOL_STEPS) {
+                    return { toolChoice: "none" };
+                  }
+                  return {};
+                },
+                stopWhen: stepCountIs(MAX_TOOL_STEPS + 1),
               })
             : streamText({
                 ...streamOptionsBase,
