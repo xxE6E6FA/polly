@@ -17,9 +17,11 @@ export function PrivateModeRoute({
 
   useEffect(() => {
     setPrivateMode(enabled);
-    if (enabled) {
-      return () => setPrivateMode(false);
-    }
+    return () => {
+      if (enabled) {
+        setPrivateMode(false);
+      }
+    };
   }, [enabled, setPrivateMode]);
 
   return <>{children}</>;
