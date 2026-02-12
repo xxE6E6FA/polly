@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils";
 
 type ThemeToggleProps = {
   size?: "sm" | "default" | "lg" | "icon-sm";
-  variant?: "ghost" | "default" | "outline" | "secondary" | "action";
+  variant?: "ghost" | "default" | "outline" | "secondary";
   className?: string;
 };
 

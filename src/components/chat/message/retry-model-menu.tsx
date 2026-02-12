@@ -47,11 +47,7 @@ import { useSelectedModel } from "@/hooks/use-selected-model";
 import { getModelCapabilities } from "@/lib/model-capabilities";
 import { cn } from "@/lib/utils";
 import type { HydratedModel } from "@/types";
-import {
-  actionButtonStyles,
-  DRAWER_ICON_SIZE,
-  DrawerItem,
-} from "./action-button";
+import { ActionButton, DRAWER_ICON_SIZE, DrawerItem } from "./action-button";
 
 // Union type for models from getAvailableModels
 type AvailableModel = HydratedModel;
@@ -701,33 +697,31 @@ export const RetryDropdown = memo(
           <DropdownMenu open={open} onOpenChange={handleOpenChange}>
             <Tooltip>
               <TooltipTrigger>
-                <DropdownMenuTrigger>
-                  <button
-                    type="button"
-                    className={cn(
-                      actionButtonStyles.defaultButton,
-                      (isEditing || isRetrying || isStreaming) &&
-                        "pointer-events-none opacity-50"
-                    )}
-                    disabled={isEditing || isRetrying || isStreaming}
-                    title={
-                      isUser ? "Retry from this message" : "Retry this response"
-                    }
-                    aria-label={
-                      isUser
-                        ? "Retry conversation from this message"
-                        : "Regenerate this response"
-                    }
-                  >
-                    <ArrowCounterClockwiseIcon
-                      className={cn(
-                        "size-3.5",
-                        isRetrying && "motion-safe:animate-spin-reverse",
-                        "@media (prefers-reduced-motion: reduce) { animation: none }"
-                      )}
-                      aria-hidden="true"
+                <DropdownMenuTrigger
+                  render={
+                    <ActionButton
+                      disabled={isEditing || isRetrying || isStreaming}
+                      title={
+                        isUser
+                          ? "Retry from this message"
+                          : "Retry this response"
+                      }
+                      aria-label={
+                        isUser
+                          ? "Retry conversation from this message"
+                          : "Regenerate this response"
+                      }
                     />
-                  </button>
+                  }
+                >
+                  <ArrowCounterClockwiseIcon
+                    className={cn(
+                      "size-3.5",
+                      isRetrying && "motion-safe:animate-spin-reverse",
+                      "@media (prefers-reduced-motion: reduce) { animation: none }"
+                    )}
+                    aria-hidden="true"
+                  />
                 </DropdownMenuTrigger>
               </TooltipTrigger>
               <TooltipContent>
@@ -846,36 +840,34 @@ export const RetryDropdown = memo(
             onOpenChange={handleMobileSheetOpenChange}
           >
             <Tooltip>
-              <TooltipTrigger>
-                <DrawerTrigger>
-                  <button
-                    type="button"
-                    className={cn(
-                      actionButtonStyles.defaultButton,
-                      (isEditing || isRetrying || isStreaming) &&
-                        "pointer-events-none opacity-50"
-                    )}
-                    disabled={isEditing || isRetrying || isStreaming}
-                    title={
-                      isUser ? "Retry from this message" : "Retry this response"
-                    }
-                    aria-label={
-                      isUser
-                        ? "Retry conversation from this message"
-                        : "Regenerate this response"
-                    }
-                  >
-                    <ArrowCounterClockwiseIcon
-                      className={cn(
-                        "size-3.5",
-                        isRetrying && "motion-safe:animate-spin-reverse",
-                        "@media (prefers-reduced-motion: reduce) { animation: none }"
-                      )}
-                      aria-hidden="true"
+              <DrawerTrigger asChild>
+                <TooltipTrigger
+                  render={
+                    <ActionButton
+                      disabled={isEditing || isRetrying || isStreaming}
+                      title={
+                        isUser
+                          ? "Retry from this message"
+                          : "Retry this response"
+                      }
+                      aria-label={
+                        isUser
+                          ? "Retry conversation from this message"
+                          : "Regenerate this response"
+                      }
                     />
-                  </button>
-                </DrawerTrigger>
-              </TooltipTrigger>
+                  }
+                >
+                  <ArrowCounterClockwiseIcon
+                    className={cn(
+                      "size-3.5",
+                      isRetrying && "motion-safe:animate-spin-reverse",
+                      "@media (prefers-reduced-motion: reduce) { animation: none }"
+                    )}
+                    aria-hidden="true"
+                  />
+                </TooltipTrigger>
+              </DrawerTrigger>
               <TooltipContent>
                 <p>
                   {isUser ? "Retry from this message" : "Retry this response"}
