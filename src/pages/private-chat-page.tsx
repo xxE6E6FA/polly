@@ -7,7 +7,6 @@ import { UnifiedChatView } from "@/components/chat";
 import { usePrivateChat } from "@/hooks/use-private-chat";
 import { usePrivatePersona } from "@/lib/ai/private-personas";
 import { ROUTES } from "@/lib/routes";
-import { usePrivateMode } from "@/providers/private-mode-context";
 import { useToast } from "@/providers/toast-context";
 import { useUserDataContext } from "@/providers/user-data-context";
 import type {
@@ -24,7 +23,6 @@ export default function PrivateChatPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useUserDataContext();
-  const { setPrivateMode } = usePrivateMode();
   const managedToast = useToast();
 
   const hasApiKeys = useQuery(api.apiKeys.hasAnyApiKey, {});
@@ -64,14 +62,6 @@ export default function PrivateChatPage() {
     temperature: navigationState?.temperature,
     reasoningConfig: navigationState?.reasoningConfig,
   });
-
-  useEffect(() => {
-    setPrivateMode(true);
-
-    return () => {
-      setPrivateMode(false);
-    };
-  }, [setPrivateMode]);
 
   useEffect(() => {
     if (navigationState?.initialMessage) {

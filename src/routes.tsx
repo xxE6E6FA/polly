@@ -1,10 +1,14 @@
-import { lazy, Suspense } from "react";
+import { lazy, type ReactNode, Suspense } from "react";
 import { Navigate, type RouteObject } from "react-router-dom";
 import { ProtectedSuspense } from "./components/auth/protected-route";
 import ChatLayout from "./components/layouts/chat-layout";
-import MainChatLayout from "./components/layouts/main-chat-layout";
+import { PrivateModeRoute } from "./components/layouts/private-mode-route";
 import RootLayout from "./components/layouts/root-layout";
+import { RouteErrorBoundary } from "./components/layouts/route-error-boundary";
+// Prefer eager import for critical error/404 UI so offline navigation has a guard
+import { NotFoundPage } from "./components/ui/not-found-page";
 import { Spinner } from "./components/ui/spinner";
+import { conversationLoader } from "./loaders/conversation-loader";
 
 import HomePage from "./pages/home-page";
 import PrivateChatPage from "./pages/private-chat-page";
@@ -16,11 +20,6 @@ const ChatConversationPage = lazy(
 const FavoritesPage = lazy(() => import("./pages/favorites-page"));
 
 const AuthPage = lazy(() => import("./pages/auth-page"));
-
-import { RouteErrorBoundary } from "./components/layouts/route-error-boundary";
-// Prefer eager import for critical error/404 UI so offline navigation has a guard
-import { NotFoundPage } from "./components/ui/not-found-page";
-import { conversationLoader } from "./loaders/conversation-loader";
 
 const SharePage = lazy(() => import("./pages/shared-conversation-page"));
 const SettingsLayout = lazy(
@@ -82,6 +81,12 @@ const PageLoader = ({
   );
 };
 
+function withSuspense(element: ReactNode, size: "full" | "partial" = "full") {
+  return <Suspense fallback={<PageLoader size={size} />}>{element}</Suspense>;
+}
+
+const routeErrorElement = withSuspense(<RouteErrorBoundary />);
+
 export const preloadSettings = () => {
   import("./components/layouts/settings-main-layout");
   import("./pages/settings/general-page");
@@ -93,86 +98,64 @@ export const routes: RouteObject[] = [
   {
     path: "/",
     element: <RootLayout />,
-    errorElement: (
-      <Suspense fallback={<PageLoader size="full" />}>
-        <RouteErrorBoundary />
-      </Suspense>
-    ),
+    errorElement: routeErrorElement,
     children: [
-      // Main chat routes - share the same SharedChatLayout to prevent re-mounting
+      // All chat routes share the same ChatLayout to prevent re-mounting
       {
-        element: <MainChatLayout />,
-        errorElement: (
-          <Suspense fallback={<PageLoader size="full" />}>
-            <RouteErrorBoundary />
-          </Suspense>
-        ),
+        element: <ChatLayout />,
+        errorElement: routeErrorElement,
         children: [
-          { index: true, element: <HomePage /> },
+          {
+            index: true,
+            element: (
+              <PrivateModeRoute enabled={false}>
+                <HomePage />
+              </PrivateModeRoute>
+            ),
+          },
           {
             path: "chat/:conversationId",
             loader: conversationLoader,
-            element: (
-              <Suspense fallback={<PageLoader size="full" />}>
+            element: withSuspense(
+              <PrivateModeRoute enabled={false}>
                 <ChatConversationPage />
-              </Suspense>
+              </PrivateModeRoute>
             ),
           },
           {
             path: "chat/favorites",
-            element: (
-              <Suspense fallback={<PageLoader size="full" />}>
-                <ProtectedSuspense fallback={<PageLoader size="full" />}>
+            element: withSuspense(
+              <ProtectedSuspense fallback={<PageLoader size="full" />}>
+                <PrivateModeRoute enabled={false}>
                   <FavoritesPage />
-                </ProtectedSuspense>
-              </Suspense>
+                </PrivateModeRoute>
+              </ProtectedSuspense>
+            ),
+          },
+          {
+            path: "private",
+            element: (
+              <ProtectedSuspense fallback={<PageLoader size="full" />}>
+                <PrivateModeRoute enabled>
+                  <PrivateChatPage />
+                </PrivateModeRoute>
+              </ProtectedSuspense>
             ),
           },
         ],
       },
       {
         path: "signout",
-        element: (
-          <Suspense fallback={<PageLoader size="full" />}>
-            <SignOutPage />
-          </Suspense>
-        ),
+        element: withSuspense(<SignOutPage />),
       },
       {
         path: "auth",
-        element: (
-          <Suspense fallback={<PageLoader size="full" />}>
-            <AuthPage />
-          </Suspense>
-        ),
+        element: withSuspense(<AuthPage />),
       },
-      {
-        path: "private",
-        element: <ChatLayout />,
-        children: [
-          {
-            index: true,
-            element: (
-              <ProtectedSuspense fallback={<PageLoader size="full" />}>
-                <PrivateChatPage />
-              </ProtectedSuspense>
-            ),
-          },
-        ],
-      },
-
       {
         path: "share/:shareId",
-        element: (
-          <Suspense fallback={<PageLoader size="full" />}>
-            <SharePage />
-          </Suspense>
-        ),
-        errorElement: (
-          <Suspense fallback={<PageLoader size="full" />}>
-            <RouteErrorBoundary />
-          </Suspense>
-        ),
+        element: withSuspense(<SharePage />),
+        errorElement: routeErrorElement,
       },
       {
         path: "settings",
@@ -181,50 +164,25 @@ export const routes: RouteObject[] = [
             <SettingsLayout />
           </ProtectedSuspense>
         ),
-        errorElement: (
-          <Suspense fallback={<PageLoader size="full" />}>
-            <RouteErrorBoundary />
-          </Suspense>
-        ),
+        errorElement: routeErrorElement,
         children: [
           {
             index: true,
-            element: (
-              <Suspense fallback={<PageLoader size="partial" />}>
-                <Navigate to="/settings/general" replace />
-              </Suspense>
+            element: withSuspense(
+              <Navigate to="/settings/general" replace />,
+              "partial"
             ),
-            errorElement: (
-              <Suspense fallback={<PageLoader size="full" />}>
-                <RouteErrorBoundary />
-              </Suspense>
-            ),
+            errorElement: routeErrorElement,
           },
           {
             path: "api-keys",
-            element: (
-              <Suspense fallback={<PageLoader size="partial" />}>
-                <SettingsApiKeysPage />
-              </Suspense>
-            ),
-            errorElement: (
-              <Suspense fallback={<PageLoader size="full" />}>
-                <RouteErrorBoundary />
-              </Suspense>
-            ),
+            element: withSuspense(<SettingsApiKeysPage />, "partial"),
+            errorElement: routeErrorElement,
           },
           {
             path: "models",
-            element: (
-              <Suspense fallback={<PageLoader size="partial" />}>
-                <SettingsModelsPage />
-              </Suspense>
-            ),
-            errorElement: (
-              <Suspense fallback={<PageLoader size="full" />}>
-                <RouteErrorBoundary />
-              </Suspense>
-            ),
+            element: withSuspense(<SettingsModelsPage />, "partial"),
+            errorElement: routeErrorElement,
             children: [
               {
                 index: true,
@@ -246,81 +204,39 @@ export const routes: RouteObject[] = [
           },
           {
             path: "personas",
-            element: (
-              <Suspense fallback={<PageLoader size="partial" />}>
-                <SettingsPersonasPage />
-              </Suspense>
-            ),
-            errorElement: (
-              <Suspense fallback={<PageLoader size="full" />}>
-                <RouteErrorBoundary />
-              </Suspense>
-            ),
+            element: withSuspense(<SettingsPersonasPage />, "partial"),
+            errorElement: routeErrorElement,
           },
           {
             path: "shared-conversations",
-            element: (
-              <Suspense fallback={<PageLoader size="partial" />}>
-                <SettingsSharedConversationsPage />
-              </Suspense>
+            element: withSuspense(
+              <SettingsSharedConversationsPage />,
+              "partial"
             ),
-            errorElement: (
-              <Suspense fallback={<PageLoader size="full" />}>
-                <RouteErrorBoundary />
-              </Suspense>
-            ),
+            errorElement: routeErrorElement,
           },
           {
             path: "archived-conversations",
-            element: (
-              <Suspense fallback={<PageLoader size="partial" />}>
-                <SettingsArchivedConversationsPage />
-              </Suspense>
+            element: withSuspense(
+              <SettingsArchivedConversationsPage />,
+              "partial"
             ),
-            errorElement: (
-              <Suspense fallback={<PageLoader size="full" />}>
-                <RouteErrorBoundary />
-              </Suspense>
-            ),
+            errorElement: routeErrorElement,
           },
           {
             path: "chat-history",
-            element: (
-              <Suspense fallback={<PageLoader size="partial" />}>
-                <SettingsChatHistoryPage />
-              </Suspense>
-            ),
-            errorElement: (
-              <Suspense fallback={<PageLoader size="full" />}>
-                <RouteErrorBoundary />
-              </Suspense>
-            ),
+            element: withSuspense(<SettingsChatHistoryPage />, "partial"),
+            errorElement: routeErrorElement,
           },
           {
             path: "attachments",
-            element: (
-              <Suspense fallback={<PageLoader size="partial" />}>
-                <SettingsAttachmentsPage />
-              </Suspense>
-            ),
-            errorElement: (
-              <Suspense fallback={<PageLoader size="full" />}>
-                <RouteErrorBoundary />
-              </Suspense>
-            ),
+            element: withSuspense(<SettingsAttachmentsPage />, "partial"),
+            errorElement: routeErrorElement,
           },
           {
             path: "general",
-            element: (
-              <Suspense fallback={<PageLoader size="partial" />}>
-                <SettingsGeneralPage />
-              </Suspense>
-            ),
-            errorElement: (
-              <Suspense fallback={<PageLoader size="full" />}>
-                <RouteErrorBoundary />
-              </Suspense>
-            ),
+            element: withSuspense(<SettingsGeneralPage />, "partial"),
+            errorElement: routeErrorElement,
           },
         ],
       },
@@ -331,24 +247,12 @@ export const routes: RouteObject[] = [
             <SettingsStandaloneLayout />
           </ProtectedSuspense>
         ),
-        errorElement: (
-          <Suspense fallback={<PageLoader size="full" />}>
-            <RouteErrorBoundary />
-          </Suspense>
-        ),
+        errorElement: routeErrorElement,
         children: [
           {
             index: true,
-            element: (
-              <Suspense fallback={<PageLoader size="partial" />}>
-                <SettingsNewPersonaPage />
-              </Suspense>
-            ),
-            errorElement: (
-              <Suspense fallback={<PageLoader size="full" />}>
-                <RouteErrorBoundary />
-              </Suspense>
-            ),
+            element: withSuspense(<SettingsNewPersonaPage />, "partial"),
+            errorElement: routeErrorElement,
           },
         ],
       },
@@ -359,34 +263,18 @@ export const routes: RouteObject[] = [
             <SettingsStandaloneLayout />
           </ProtectedSuspense>
         ),
-        errorElement: (
-          <Suspense fallback={<PageLoader size="full" />}>
-            <RouteErrorBoundary />
-          </Suspense>
-        ),
+        errorElement: routeErrorElement,
         children: [
           {
             index: true,
-            element: (
-              <Suspense fallback={<PageLoader size="partial" />}>
-                <SettingsEditPersonaPage />
-              </Suspense>
-            ),
-            errorElement: (
-              <Suspense fallback={<PageLoader size="full" />}>
-                <RouteErrorBoundary />
-              </Suspense>
-            ),
+            element: withSuspense(<SettingsEditPersonaPage />, "partial"),
+            errorElement: routeErrorElement,
           },
         ],
       },
       {
         path: "*",
-        element: (
-          <Suspense fallback={<PageLoader size="full" />}>
-            <NotFoundPage />
-          </Suspense>
-        ),
+        element: withSuspense(<NotFoundPage />),
       },
     ],
   },

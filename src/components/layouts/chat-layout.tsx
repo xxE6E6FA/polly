@@ -2,6 +2,10 @@ import { Outlet, useLocation, useParams } from "react-router-dom";
 
 import { SharedChatLayout } from "@/components/layouts/shared-chat-layout";
 
+/**
+ * Single chat layout for all chat routes (home, conversation, favorites, private).
+ * Wraps SharedChatLayout so the sidebar and input stay mounted across navigations.
+ */
 export default function ChatLayout() {
   const { conversationId } = useParams();
   const location = useLocation();

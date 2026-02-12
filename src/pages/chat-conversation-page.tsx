@@ -13,7 +13,6 @@ import { useOnline } from "@/hooks/use-online";
 import { retryImageGeneration } from "@/lib/ai/image-generation-handlers";
 import { ROUTES } from "@/lib/routes";
 import type { ConversationLoaderResult } from "@/loaders/conversation-loader";
-import { usePrivateMode } from "@/providers/private-mode-context";
 import { useToast } from "@/providers/toast-context";
 import { useChatInputStore } from "@/stores/chat-input-store";
 
@@ -69,7 +68,6 @@ function createOptimisticMessages(
 
 export default function ConversationRoute() {
   const { slug } = useLoaderData() as ConversationLoaderResult;
-  const { setPrivateMode } = usePrivateMode();
   const navigate = useNavigate();
   const location = useLocation();
   const convex = useConvex();
@@ -92,10 +90,6 @@ export default function ConversationRoute() {
       window.history.replaceState({}, document.title);
     }
   }, [initialMessage]);
-
-  useEffect(() => {
-    setPrivateMode(false);
-  }, [setPrivateMode]);
 
   // Query for conversation by slug
   const slugQuery = useQuery(api.conversations.getBySlug, { slug });
