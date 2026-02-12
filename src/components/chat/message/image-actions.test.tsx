@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import type React from "react";
+import React from "react";
 import { TestProviders } from "../../../../test/TestProviders";
 import { ImageActions } from "./image-actions";
 
@@ -27,7 +27,25 @@ mock.module("@/lib/export", () => ({
 // Mock tooltip components to avoid context requirements
 mock.module("@/components/ui/tooltip", () => ({
   Tooltip: ({ children }: React.PropsWithChildren) => <>{children}</>,
-  TooltipTrigger: ({ children }: React.PropsWithChildren) => <>{children}</>,
+  TooltipTrigger: ({
+    children,
+    render,
+    onClick,
+    disabled,
+    delayDuration: _delayDuration, // eslint-disable-line @typescript-eslint/no-unused-vars
+    ...props
+  }: React.PropsWithChildren<{
+    render?: React.ReactElement;
+    onClick?: () => void;
+    disabled?: boolean;
+    delayDuration?: number;
+  }>) => {
+    // If render prop is provided, clone it with the onClick and disabled props
+    if (render) {
+      return React.cloneElement(render, { onClick, disabled, ...props });
+    }
+    return <>{children}</>;
+  },
   TooltipContent: () => null,
 }));
 
