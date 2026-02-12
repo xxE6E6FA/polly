@@ -4,7 +4,7 @@ import {
   useChatInputStore,
 } from "@/stores/chat-input-store";
 
-export const selectReasoningConfig = (state: ChatInputStoreState) =>
+const selectReasoningConfig = (state: ChatInputStoreState) =>
   [state.reasoningConfig, state.setReasoningConfig] as const;
 
 export function useReasoningConfig() {

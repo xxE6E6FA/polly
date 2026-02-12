@@ -1,12 +1,11 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { act, renderHook } from "@testing-library/react";
 import {
-  type ChatInputStoreState,
   createChatInputStore,
   getChatInputStore,
   setChatInputStoreApi,
 } from "@/stores/chat-input-store";
-import { selectReasoningConfig, useReasoningConfig } from "./use-reasoning";
+import { useReasoningConfig } from "./use-reasoning";
 
 let originalStore: ReturnType<typeof getChatInputStore>;
 
@@ -34,39 +33,5 @@ describe("useReasoningConfig", () => {
     });
 
     expect(result.current[0]).toEqual({ enabled: true, effort: "high" });
-  });
-
-  test("selectReasoningConfig extracts tuple", () => {
-    const mockState = {
-      reasoningConfig: { enabled: true, effort: "low" },
-      setReasoningConfig: () => {
-        /* empty */
-      },
-      selectedByKey: {},
-      setSelectedPersonaId: () => {
-        /* empty */
-      },
-      clearKey: () => {
-        /* empty */
-      },
-      clearAll: () => {
-        /* empty */
-      },
-      temperatureByKey: {},
-      setTemperature: () => {
-        /* empty */
-      },
-      clearTemperatureKey: () => {
-        /* empty */
-      },
-      clearAllTemperature: () => {
-        /* empty */
-      },
-    } as unknown as ChatInputStoreState;
-
-    expect(selectReasoningConfig(mockState)).toEqual([
-      mockState.reasoningConfig,
-      mockState.setReasoningConfig,
-    ]);
   });
 });

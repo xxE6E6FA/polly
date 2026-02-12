@@ -49,7 +49,6 @@ import type * as fileStorage from "../fileStorage.js";
 import type * as http from "../http.js";
 import type * as imageModels from "../imageModels.js";
 import type * as internal_ from "../internal.js";
-import type * as lib_cache_utils from "../lib/cache_utils.js";
 import type * as lib_capability_resolver from "../lib/capability_resolver.js";
 import type * as lib_conversation_background_operations from "../lib/conversation/background_operations.js";
 import type * as lib_conversation_context_building from "../lib/conversation/context_building.js";
@@ -133,7 +132,6 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   imageModels: typeof imageModels;
   internal: typeof internal_;
-  "lib/cache_utils": typeof lib_cache_utils;
   "lib/capability_resolver": typeof lib_capability_resolver;
   "lib/conversation/background_operations": typeof lib_conversation_background_operations;
   "lib/conversation/context_building": typeof lib_conversation_context_building;

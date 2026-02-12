@@ -124,4 +124,4 @@ const AlertIcon = ({
   }
 };
 
-export { Alert, AlertDescription, AlertIcon, AlertTitle, alertVariants };
+export { Alert, AlertDescription, AlertIcon, AlertTitle };

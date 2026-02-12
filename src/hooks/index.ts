@@ -42,22 +42,18 @@ export type { AssistantPhase } from "./use-assistant-display-phase";
 export { useAssistantDisplayPhase } from "./use-assistant-display-phase";
 export { mapServerMessageToChatMessage, useChat } from "./use-chat";
 export { useChatAttachments } from "./use-chat-attachments";
-export { useChatInputPreservation } from "./use-chat-input-preservation";
-export { useChatMessages } from "./use-chat-messages";
 export { useChatScopedState } from "./use-chat-scoped-state";
-export { useChatStateMachine } from "./use-chat-state-machine";
 export { useChatViewState } from "./use-chat-view-state";
 export { useClearOnConversationChange } from "./use-clear-on-conversation-change";
 export { useGenerationMode, useImageParams } from "./use-generation";
 export { usePrivateChat } from "./use-private-chat";
-export { selectReasoningConfig, useReasoningConfig } from "./use-reasoning";
+export { useReasoningConfig } from "./use-reasoning";
 export { useSpeechInputContext } from "./use-speech-input-context";
 
 // =============================================================================
 // Model Hooks
 // =============================================================================
 
-export { useBuiltInImageModels } from "./use-built-in-image-models";
 export { useConversationModelOverride } from "./use-conversation-model-override";
 export { useEnabledImageModels } from "./use-enabled-image-models";
 export { useLastGeneratedImageSeed } from "./use-last-generated-image-seed";
@@ -92,7 +88,6 @@ export {
 } from "./use-dialog-management";
 export { useHoverLinger } from "./use-hover-linger";
 export { useListSelection } from "./use-list-selection";
-export { useListSort } from "./use-list-sort";
 export { useMediaQuery } from "./use-media-query";
 export { useOnline } from "./use-online";
 export { useTextSelection } from "./use-text-selection";
