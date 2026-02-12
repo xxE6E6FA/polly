@@ -103,7 +103,7 @@ export function normalizeEscapedMarkdown(text: string): string {
 }
 
 // Normalize citation patterns to clean [N] format
-export function normalizeCitationPatterns(text: string): string {
+function normalizeCitationPatterns(text: string): string {
   if (!text) {
     return text;
   }
@@ -164,7 +164,7 @@ export function convertCitationsToMarkdownLinks(text: string): string {
 }
 
 // Helper function to check if content is multi-word
-export function isMultiWord(content: string): boolean {
+function isMultiWord(content: string): boolean {
   const trimmed = content.trim();
   return (
     trimmed.includes(" ") || trimmed.includes("\n") || trimmed.includes("\t")

@@ -5,26 +5,6 @@ import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 
 /**
- * Base styles for menu items used in ContextMenu, DropdownMenu, and similar components.
- * Combine with data-attribute states for highlighted/disabled styling.
- *
- * @example
- * ```tsx
- * <ContextMenu.Item className={cn(menuItemBaseStyles, "data-[highlighted]:bg-muted")}>
- *   Item
- * </ContextMenu.Item>
- * ```
- */
-export const menuItemBaseStyles =
-  "relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none";
-
-/**
- * Default data-attribute states for menu items (highlighted and disabled).
- */
-export const menuItemStateStyles =
-  "data-[highlighted]:bg-muted data-[disabled]:pointer-events-none data-[disabled]:opacity-50";
-
-/**
  * Button variants using CVA (class-variance-authority).
  *
  * @variant default - Primary action button with solid background

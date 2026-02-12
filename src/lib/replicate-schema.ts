@@ -89,36 +89,16 @@ export async function fetchReplicateModelSchema(
 /**
  * Get the input properties from a model schema
  */
-export function getInputProperties(
+function getInputProperties(
   schema: ReplicateModelSchema | null
 ): Record<string, SchemaProperty> {
   return schema?.openapi_schema?.components?.schemas?.Input?.properties || {};
 }
 
 /**
- * Get required input fields from a model schema
- */
-export function getRequiredFields(
-  schema: ReplicateModelSchema | null
-): string[] {
-  return schema?.openapi_schema?.components?.schemas?.Input?.required || [];
-}
-
-/**
- * Check if a property exists in the schema
- */
-export function hasProperty(
-  schema: ReplicateModelSchema | null,
-  propertyName: string
-): boolean {
-  const properties = getInputProperties(schema);
-  return propertyName in properties;
-}
-
-/**
  * Get a specific property from the schema
  */
-export function getProperty(
+function getProperty(
   schema: ReplicateModelSchema | null,
   propertyName: string
 ): SchemaProperty | null {
@@ -337,24 +317,6 @@ export function sortPropertiesByOrder(
     const orderB = b[1]["x-order"] ?? 999;
     return orderA - orderB;
   });
-}
-
-/**
- * Map common parameter names to standardized names
- */
-export function normalizeParameterName(paramName: string): string {
-  const mapping: Record<string, string> = {
-    num_inference_steps: "steps",
-    inference_steps: "steps",
-    num_steps: "steps",
-    guidance_scale: "guidance",
-    cfg_scale: "guidance",
-    classifier_free_guidance: "guidance",
-    num_outputs: "count",
-    batch_size: "count",
-  };
-
-  return mapping[paramName] || paramName;
 }
 
 /**

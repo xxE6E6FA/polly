@@ -5,7 +5,6 @@ import {
   bufferIncompleteEntities,
   convertCitationsToMarkdownLinks,
   decodeMinimalEntities,
-  isMultiWord,
   normalizeEscapedMarkdown,
   normalizeLatexDelimiters,
   removeParenthesesAroundItalics,
@@ -231,37 +230,6 @@ describe("convertCitationsToMarkdownLinks", () => {
 
   it("should not convert non-numeric brackets", () => {
     expect(convertCitationsToMarkdownLinks("[link]")).toBe("[link]");
-  });
-});
-
-describe("isMultiWord", () => {
-  it("should return false for single word", () => {
-    expect(isMultiWord("word")).toBe(false);
-  });
-
-  it("should return true for multiple words", () => {
-    expect(isMultiWord("multiple words")).toBe(true);
-  });
-
-  it("should return true for words with newline", () => {
-    expect(isMultiWord("line1\nline2")).toBe(true);
-  });
-
-  it("should return true for words with tab", () => {
-    expect(isMultiWord("word1\tword2")).toBe(true);
-  });
-
-  it("should handle empty string", () => {
-    expect(isMultiWord("")).toBe(false);
-  });
-
-  it("should handle whitespace-only string", () => {
-    expect(isMultiWord("   ")).toBe(false);
-  });
-
-  it("should trim before checking", () => {
-    expect(isMultiWord("  word  ")).toBe(false);
-    expect(isMultiWord("  two words  ")).toBe(true);
   });
 });
 

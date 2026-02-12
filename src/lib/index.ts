@@ -66,8 +66,6 @@ export {
   bufferIncompleteEntities,
   convertCitationsToMarkdownLinks,
   decodeMinimalEntities,
-  isMultiWord,
-  normalizeCitationPatterns,
   normalizeEscapedMarkdown,
   normalizeLatexDelimiters,
   removeParenthesesAroundItalics,
@@ -132,15 +130,10 @@ export {
   detectAspectRatioSupport,
   detectImageInput,
   getGuidanceParameter,
-  getInputProperties,
   getMaxOutputs,
-  getProperty,
-  getRequiredFields,
   getSeedParameter,
   getStepsParameter,
   getSupportedAspectRatios,
-  hasProperty,
-  normalizeParameterName,
   sortPropertiesByOrder,
   supportsImageInput,
   supportsMultipleOutputs,
@@ -180,12 +173,6 @@ export { darkSyntaxTheme, lightSyntaxTheme } from "./syntax-themes";
 // AI Utils (from lib/ai/)
 // =============================================================================
 
-export {
-  extractCitations,
-  extractMarkdownCitations,
-} from "./ai/browser-citations";
-export { getUserFriendlyErrorMessage } from "./ai/browser-errors";
-export { getEnvironmentApiKey, humanizeText } from "./ai/browser-utils";
 export type {
   ChatHandlers,
   ChatMode,

@@ -83,47 +83,6 @@ export type AIProvider = {
   supportsStreaming: boolean;
 };
 
-export type OpenRouterModel = {
-  id: string;
-  name: string;
-  description?: string;
-  context_length: number;
-  top_provider: {
-    context_length: number;
-    max_completion_tokens?: number;
-    is_moderated?: boolean;
-  };
-  architecture: {
-    modality?: string;
-    tokenizer: string;
-    instruct_type?: string;
-    input_modalities?: string[];
-    output_modalities?: string[];
-  };
-  supported_parameters?: string[];
-  pricing?: {
-    internal_reasoning?: string;
-  };
-  created?: number;
-  hugging_face_id?: string;
-  per_request_limits?: Record<string, unknown>;
-};
-
-export type GeminiApiModel = {
-  name: string;
-  baseModelId: string;
-  version: string;
-  displayName?: string;
-  description?: string;
-  inputTokenLimit?: number;
-  outputTokenLimit?: number;
-  supportedGenerationMethods?: string[];
-  temperature?: number;
-  maxTemperature?: number;
-  topP?: number;
-  topK?: number;
-};
-
 export type ModelCapability = {
   icon: React.ComponentType<{ className?: string }>;
   label: string;
@@ -336,30 +295,6 @@ export interface SendMessageParams {
   reasoningConfig?: ReasoningConfig;
 }
 
-export interface ChatStrategy {
-  sendMessage(params: SendMessageParams): Promise<void>;
-  stopGeneration(): void;
-  deleteMessage(messageId: string): Promise<void>;
-  editMessage(messageId: string, content: string): Promise<void>;
-  getMessages(): ChatMessage[];
-  isStreaming?(): boolean;
-  isLoading(): boolean;
-  initialize?(): void;
-  cleanup?(): void;
-}
-
-export interface ChatStrategyOptions {
-  conversationId?: ConversationId;
-  userId?: Id<"users">;
-  onError?: (error: Error) => void;
-  onConversationCreate?: (conversationId: ConversationId) => void;
-  onStreamingStateChange?: (isStreaming: boolean) => void;
-  initialMessage?: string;
-  initialAttachments?: Attachment[];
-  initialPersonaId?: Id<"personas">;
-  initialReasoningConfig?: ReasoningConfig;
-}
-
 export type ChatMode = "regular" | "private";
 
 export type CreateConversationParams = {
@@ -415,29 +350,6 @@ export type ChatStreamRequest = {
   options?: StreamOptions;
   callbacks: StreamCallbacks;
 };
-
-// ============================================================================
-// ANTHROPIC CLIENT TYPES
-// ============================================================================
-
-export interface AnthropicStreamOptions {
-  messages: Array<{
-    role: "user" | "assistant" | "system";
-    content: string;
-    attachments?: Attachment[];
-  }>;
-  model: string;
-  apiKey: string;
-  temperature?: number;
-  maxTokens?: number;
-  topP?: number;
-  reasoningConfig?: {
-    effort?: "low" | "medium" | "high";
-    maxTokens?: number;
-  };
-  abortSignal?: AbortSignal;
-  callbacks: StreamCallbacks;
-}
 
 // ============================================================================
 // SEARCH & CITATION TYPES

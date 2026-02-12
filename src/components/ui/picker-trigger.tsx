@@ -111,4 +111,4 @@ function PickerTrigger({
   );
 }
 
-export { PickerTrigger, pickerTriggerVariants };
+export { PickerTrigger };
