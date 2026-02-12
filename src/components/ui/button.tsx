@@ -12,7 +12,6 @@ import { cn } from "@/lib/utils";
  * @variant outline - Secondary button with border, transparent background
  * @variant secondary - Low-emphasis button with subtle background
  * @variant ghost - Minimal button, visible only on hover
- * @variant action - Custom action button styles (uses .btn-action class)
  * @variant link - Text-only button styled as a link
  * @variant tropical - Gradient button for special CTAs
  * @variant primary - Alias for default
@@ -48,7 +47,6 @@ const buttonVariants = cva(
           "bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary-hover focus-visible:bg-secondary-hover",
         ghost:
           "hover:bg-muted hover:text-foreground focus-visible:bg-muted focus-visible:text-foreground",
-        action: "btn-action",
         link: "text-primary underline-offset-4 hover:underline focus-visible:underline",
         tropical:
           "bg-gradient-tropical text-white shadow-lg transition-all duration-200 ease-in-out hover:scale-105 hover:shadow-xl focus-visible:scale-105 focus-visible:shadow-xl",

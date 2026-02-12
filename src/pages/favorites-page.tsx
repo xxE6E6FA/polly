@@ -5,17 +5,12 @@ import { useMutation, usePaginatedQuery } from "convex/react";
 import { memo, useCallback, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Virtuoso } from "react-virtuoso";
-import { actionButtonStyles } from "@/components/chat/message/action-button";
+import { ActionButton } from "@/components/chat/message/action-button";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { SearchInput } from "@/components/ui/search-input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StreamingMarkdown } from "@/components/ui/streaming-markdown";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { cn } from "@/lib";
 import { ROUTES } from "@/lib/routes";
 import { useToast } from "@/providers/toast-context";
@@ -205,50 +200,28 @@ export default function FavoritesPage() {
                 )}
               </div>
               <div className="flex items-center gap-1 ml-2">
-                <Tooltip>
-                  <TooltipTrigger>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        navigate(
-                          ROUTES.CHAT_CONVERSATION(item.conversation._id)
-                        )
-                      }
-                      className={actionButtonStyles.defaultButton}
-                    >
-                      <ArrowSquareOutIcon className="size-3.5" />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent>Open conversation</TooltipContent>
-                </Tooltip>
-                <Tooltip>
-                  <TooltipTrigger>
-                    <button
-                      type="button"
-                      onClick={() => handleCopy(item.message.content)}
-                      className={actionButtonStyles.defaultButton}
-                    >
-                      <CopyIcon className="size-3.5" />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent>Copy message</TooltipContent>
-                </Tooltip>
-                <Tooltip>
-                  <TooltipTrigger>
-                    <button
-                      type="button"
-                      onClick={() => handleUnfavorite(item.message._id)}
-                      className={cn(
-                        actionButtonStyles.destructiveButton,
-                        "text-destructive"
-                      )}
-                      title="Remove favorite"
-                    >
-                      <HeartIcon className="size-3.5" weight="fill" />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent>Remove favorite</TooltipContent>
-                </Tooltip>
+                <ActionButton
+                  tooltip="Open conversation"
+                  onClick={() =>
+                    navigate(ROUTES.CHAT_CONVERSATION(item.conversation._id))
+                  }
+                >
+                  <ArrowSquareOutIcon className="size-3.5" />
+                </ActionButton>
+                <ActionButton
+                  tooltip="Copy message"
+                  onClick={() => handleCopy(item.message.content)}
+                >
+                  <CopyIcon className="size-3.5" />
+                </ActionButton>
+                <ActionButton
+                  variant="destructive"
+                  tooltip="Remove favorite"
+                  className="text-destructive"
+                  onClick={() => handleUnfavorite(item.message._id)}
+                >
+                  <HeartIcon className="size-3.5" weight="fill" />
+                </ActionButton>
               </div>
             </div>
           </Card>

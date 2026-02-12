@@ -14,7 +14,7 @@ import {
 import { downloadFromUrl } from "@/lib/export";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/providers/toast-context";
-import { actionButtonStyles } from "./action-button";
+import { ActionButton } from "./action-button";
 import {
   type AspectRatioValue,
   type ImageRetryParams,
@@ -142,24 +142,13 @@ export const ImageActions = ({
   if (minimal) {
     return (
       <div className={cn("flex items-center gap-1", className)}>
-        <Tooltip>
-          <TooltipTrigger>
-            <button
-              type="button"
-              onClick={handleCopyPrompt}
-              disabled={isCopying || !prompt}
-              className={cn(
-                actionButtonStyles.defaultButton,
-                (isCopying || !prompt) && "pointer-events-none opacity-50"
-              )}
-            >
-              <CopyIcon className="size-3.5" />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent>
-            {prompt ? "Copy prompt to clipboard" : "No prompt available"}
-          </TooltipContent>
-        </Tooltip>
+        <ActionButton
+          tooltip={prompt ? "Copy prompt to clipboard" : "No prompt available"}
+          onClick={handleCopyPrompt}
+          disabled={isCopying || !prompt}
+        >
+          <CopyIcon className="size-3.5" />
+        </ActionButton>
 
         {onRetry && (
           <ImageRetryPopover
@@ -180,20 +169,14 @@ export const ImageActions = ({
           <Tooltip>
             <TooltipTrigger>
               <DropdownMenuTrigger>
-                <button
-                  type="button"
+                <ActionButton
+                  size="label"
+                  className="h-7 gap-0.5"
                   disabled={isCopying || (!prompt && seed === undefined)}
-                  className={cn(
-                    actionButtonStyles.base,
-                    actionButtonStyles.default,
-                    "w-auto h-7 px-1.5 gap-0.5",
-                    (isCopying || (!prompt && seed === undefined)) &&
-                      "pointer-events-none opacity-50"
-                  )}
                 >
                   <CopyIcon className="size-3.5" />
                   <CaretDownIcon className="size-3" />
-                </button>
+                </ActionButton>
               </DropdownMenuTrigger>
             </TooltipTrigger>
             <TooltipContent>Copy generation details</TooltipContent>
@@ -218,42 +201,22 @@ export const ImageActions = ({
           </DropdownMenuContent>
         </DropdownMenu>
       ) : (
-        <Tooltip>
-          <TooltipTrigger>
-            <button
-              type="button"
-              onClick={handleCopyPrompt}
-              disabled={isCopying || !prompt}
-              className={cn(
-                actionButtonStyles.defaultButton,
-                (isCopying || !prompt) && "pointer-events-none opacity-50"
-              )}
-            >
-              <CopyIcon className="size-3.5" />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent>
-            {prompt ? "Copy prompt to clipboard" : "No prompt available"}
-          </TooltipContent>
-        </Tooltip>
+        <ActionButton
+          tooltip={prompt ? "Copy prompt to clipboard" : "No prompt available"}
+          onClick={handleCopyPrompt}
+          disabled={isCopying || !prompt}
+        >
+          <CopyIcon className="size-3.5" />
+        </ActionButton>
       )}
 
-      <Tooltip>
-        <TooltipTrigger delayDuration={200}>
-          <button
-            type="button"
-            onClick={handleDownloadImage}
-            disabled={isDownloading}
-            className={cn(
-              actionButtonStyles.defaultButton,
-              isDownloading && "pointer-events-none opacity-50"
-            )}
-          >
-            <DownloadIcon className="size-3.5" />
-          </button>
-        </TooltipTrigger>
-        <TooltipContent>Download image</TooltipContent>
-      </Tooltip>
+      <ActionButton
+        tooltip="Download image"
+        onClick={handleDownloadImage}
+        disabled={isDownloading}
+      >
+        <DownloadIcon className="size-3.5" />
+      </ActionButton>
 
       {onRetry && (
         <ImageRetryPopover

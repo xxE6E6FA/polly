@@ -14,8 +14,6 @@ import type React from "react";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ProviderIcon } from "@/components/models/provider-icons";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   Drawer,
   DrawerBody,
@@ -46,7 +44,6 @@ import { CitationAvatarStack } from "../citation-avatar-stack";
 import {
   ActionButton,
   ActionButtons,
-  actionButtonStyles,
   DRAWER_ICON_SIZE,
   DrawerItem,
 } from "./action-button";
@@ -336,7 +333,7 @@ export const MessageActions = memo(
     }
 
     const containerClassName = cn(
-      "flex items-center gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100",
+      "flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100",
       "translate-y-0 sm:translate-y-1 sm:group-hover:translate-y-0",
       "transition-all duration-200 ease-out",
       "@media (prefers-reduced-motion: reduce) { transition-duration: 0ms; opacity: 100; transform: none }",
@@ -427,267 +424,238 @@ export const MessageActions = memo(
 
     return (
       <div className={containerClassName}>
-        <div className="flex items-center gap-1">
-          {/* Mobile: Overflow drawer */}
-          {hasOverflowActions && (
-            <div className="sm:hidden">
-              <Drawer
-                open={isOverflowDrawerOpen}
-                onOpenChange={setIsOverflowDrawerOpen}
-              >
-                <Tooltip>
-                  <TooltipTrigger>
-                    <DrawerTrigger>
-                      <button
-                        type="button"
-                        className={cn(
-                          actionButtonStyles.defaultButton,
-                          isEditing && "pointer-events-none opacity-50"
-                        )}
-                        disabled={isEditing}
-                        aria-label="More actions"
-                      >
-                        <DotsThreeIcon
-                          className="size-3.5"
-                          aria-hidden="true"
-                        />
-                      </button>
-                    </DrawerTrigger>
+        {/* Mobile: Overflow drawer */}
+        {hasOverflowActions && (
+          <div className="sm:hidden">
+            <Drawer
+              open={isOverflowDrawerOpen}
+              onOpenChange={setIsOverflowDrawerOpen}
+            >
+              <Tooltip>
+                <DrawerTrigger asChild>
+                  <TooltipTrigger
+                    render={<ActionButton />}
+                    disabled={isEditing}
+                    aria-label="More actions"
+                  >
+                    <DotsThreeIcon className="size-3.5" aria-hidden="true" />
                   </TooltipTrigger>
-                  <TooltipContent>
-                    <p>More actions</p>
-                  </TooltipContent>
-                </Tooltip>
+                </DrawerTrigger>
+                <TooltipContent>
+                  <p>More actions</p>
+                </TooltipContent>
+              </Tooltip>
 
-                <DrawerContent>
-                  <DrawerHeader>
-                    <DrawerTitle>More actions</DrawerTitle>
-                  </DrawerHeader>
-                  <DrawerBody>
-                    <div className="flex flex-col">
-                      {renderOverflowDrawerItems()}
-                    </div>
-                  </DrawerBody>
-                </DrawerContent>
-              </Drawer>
-            </div>
-          )}
-
-          {/* Desktop: Individual action buttons */}
-          <div className="hidden sm:flex sm:items-center sm:gap-1">
-            {onEditMessage && (
-              <ActionButtons.Edit
-                disabled={isEditing}
-                tooltip="Edit message"
-                ariaLabel="Edit this message"
-                onClick={onEditMessage}
-              />
-            )}
-
-            {!isPrivateMode && messageId && conversationId && (
-              <BranchActionButton
-                conversationId={conversationId}
-                messageId={messageId}
-                isEditing={isEditing}
-                onSuccess={newConversationId => {
-                  navigate(ROUTES.CHAT_CONVERSATION(newConversationId));
-                }}
-              />
-            )}
-
-            {!isPrivateMode &&
-              messageId &&
-              !messageId.startsWith("private-") && (
-                <ActionButtons.Favorite
-                  disabled={isEditing}
-                  favorited={isFavorited}
-                  ariaLabel={
-                    isFavorited ? "Remove from favorites" : "Add to favorites"
-                  }
-                  onClick={handleToggleFavorite}
-                />
-              )}
-
-            {!isUser && messageId && (
-              <ActionButton
-                disabled={isEditing}
-                tooltip={getTTSTooltip(ttsState)}
-                ariaLabel={getTTSTooltip(ttsState)}
-                icon={getTTSIconForButton(ttsState)}
-                onClick={handleTTS}
-              />
-            )}
-
-            {!isUser && onOpenZenMode && (
-              <ActionButtons.ZenMode
-                disabled={isEditing}
-                ariaLabel="Open Zen mode"
-                onClick={onOpenZenMode}
-              />
-            )}
+              <DrawerContent>
+                <DrawerHeader>
+                  <DrawerTitle>More actions</DrawerTitle>
+                </DrawerHeader>
+                <DrawerBody>
+                  <div className="flex flex-col">
+                    {renderOverflowDrawerItems()}
+                  </div>
+                </DrawerBody>
+              </DrawerContent>
+            </Drawer>
           </div>
+        )}
 
-          {/* Primary actions: Copy, Retry, Delete */}
-          <ActionButtons.Copy
-            disabled={isEditing}
-            copied={isCopied}
-            tooltip="Copy message"
-            ariaLabel={
-              isCopied
-                ? "Message copied to clipboard"
-                : "Copy message to clipboard"
-            }
-            onClick={copyToClipboard}
-          />
-
-          {/* Image generation messages use dedicated popover */}
-          {isImageGenerationMessage && onRetryImageGeneration && (
-            <ImageRetryPopover
-              currentModel={imageGenerationParams?.model}
-              currentAspectRatio={imageGenerationParams?.aspectRatio}
-              onRetry={onRetryImageGeneration}
+        {/* Desktop: Individual action buttons */}
+        <div className="hidden sm:flex sm:items-center sm:gap-1">
+          {onEditMessage && (
+            <ActionButtons.Edit
+              disabled={isEditing}
+              tooltip="Edit message"
+              ariaLabel="Edit this message"
+              onClick={onEditMessage}
             />
           )}
 
-          {/* Text messages use the regular retry dropdown */}
-          {!isImageGenerationMessage && onRetryMessage && (
-            <RetryDropdown
-              isUser={isUser}
-              isRetrying={isRetrying}
-              isStreaming={isStreaming}
-              isEditing={isEditing}
+          {!isPrivateMode && messageId && conversationId && (
+            <BranchActionButton
+              conversationId={conversationId}
               messageId={messageId}
-              onRetry={onRetryMessage}
-              onRefine={onRefineMessage}
-              onDropdownOpenChange={setIsDropdownOpen}
-              currentModel={model}
-              currentProvider={provider}
+              isEditing={isEditing}
+              onSuccess={newConversationId => {
+                navigate(ROUTES.CHAT_CONVERSATION(newConversationId));
+              }}
             />
           )}
 
-          {onDeleteMessage && (
-            <ActionButtons.Delete
-              disabled={isEditing || isDeleting || isStreaming}
-              title="Delete message"
-              ariaLabel="Delete this message permanently"
-              onClick={onDeleteMessage}
+          {!isPrivateMode && messageId && !messageId.startsWith("private-") && (
+            <ActionButtons.Favorite
+              disabled={isEditing}
+              favorited={isFavorited}
+              ariaLabel={
+                isFavorited ? "Remove from favorites" : "Add to favorites"
+              }
+              onClick={handleToggleFavorite}
             />
           )}
 
-          {/* Metadata Display */}
-          {showMetadata && tokenUsage && (
-            <Popover>
-              <PopoverTrigger>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 gap-1.5 px-2 text-overline font-medium text-primary sm:text-muted-foreground hover:text-foreground/80 hover:bg-muted/50"
-                >
-                  {/* Desktop: Show full text */}
-                  <span className="hidden sm:inline">
-                    {tokenUsage.totalTokens} tokens
-                  </span>
-                  {metadata?.tokensPerSecond && (
-                    <span className="hidden sm:inline">
-                      <span className="text-muted-foreground/30">&middot;</span>
-                      <span>{Math.round(metadata.tokensPerSecond)} t/s</span>
-                    </span>
-                  )}
-                  {/* Mobile: Show only icon */}
-                  <ChartBarIcon
-                    className="size-3.5 sm:hidden"
-                    aria-hidden="true"
-                  />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-64 p-3" align="start" side="top">
-                <div className="stack-md">
-                  <div className="flex items-center justify-between border-b pb-2">
-                    <span className="text-xs font-semibold">
-                      Generation Stats
-                    </span>
-                    <span className="text-overline text-muted-foreground font-mono">
-                      {metadata?.providerMessageId?.slice(0, 8)}
-                    </span>
-                  </div>
-
-                  <div className="grid gap-2 text-xs">
-                    <div className="flex justify-between items-center">
-                      <span className="text-muted-foreground">
-                        Input Tokens
-                      </span>
-                      <span className="font-mono">
-                        {tokenUsage.inputTokens.toLocaleString()}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-muted-foreground">
-                        Output Tokens
-                      </span>
-                      <span className="font-mono">
-                        {tokenUsage.outputTokens.toLocaleString()}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center border-t pt-2 mt-1 font-medium">
-                      <span>Total Tokens</span>
-                      <span className="font-mono">
-                        {tokenUsage.totalTokens.toLocaleString()}
-                      </span>
-                    </div>
-                  </div>
-
-                  {(metadata?.timeToFirstTokenMs ||
-                    metadata?.tokensPerSecond) && (
-                    <div className="grid gap-2 text-xs border-t pt-2">
-                      {metadata.timeToFirstTokenMs && (
-                        <div className="flex justify-between items-center">
-                          <span className="text-muted-foreground">
-                            Time to First Token
-                          </span>
-                          <span className="font-mono">
-                            {metadata.timeToFirstTokenMs}ms
-                          </span>
-                        </div>
-                      )}
-                      {metadata.tokensPerSecond && (
-                        <div className="flex justify-between items-center">
-                          <span className="text-muted-foreground">
-                            Generation Speed
-                          </span>
-                          <span className="font-mono">
-                            {metadata.tokensPerSecond.toFixed(1)} t/s
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </PopoverContent>
-            </Popover>
+          {!isUser && messageId && (
+            <ActionButton
+              disabled={isEditing}
+              tooltip={getTTSTooltip(ttsState)}
+              aria-label={getTTSTooltip(ttsState)}
+              onClick={handleTTS}
+            >
+              {getTTSIconForButton(ttsState)}
+            </ActionButton>
           )}
 
-          {/* Citations avatar stack */}
-          {!isUser &&
-            citations &&
-            citations.length > 0 &&
-            onToggleCitations && (
-              <CitationAvatarStack
-                citations={citations}
-                isExpanded={citationsExpanded}
-                onToggle={onToggleCitations}
-              />
-            )}
+          {!isUser && onOpenZenMode && (
+            <ActionButtons.ZenMode
+              disabled={isEditing}
+              ariaLabel="Open Zen mode"
+              onClick={onOpenZenMode}
+            />
+          )}
         </div>
 
-        {!isUser && model && provider && (
-          <Badge variant="outline" size="sm" className="text-muted-foreground">
-            <div className="flex items-center gap-1.5">
-              {provider !== "replicate" && (
-                <ProviderIcon className="h-3 w-3" provider={provider} />
+        {/* Primary actions: Copy, Retry, Delete */}
+        <ActionButtons.Copy
+          disabled={isEditing}
+          copied={isCopied}
+          tooltip="Copy message"
+          ariaLabel={
+            isCopied
+              ? "Message copied to clipboard"
+              : "Copy message to clipboard"
+          }
+          onClick={copyToClipboard}
+        />
+
+        {/* Image generation messages use dedicated popover */}
+        {isImageGenerationMessage && onRetryImageGeneration && (
+          <ImageRetryPopover
+            currentModel={imageGenerationParams?.model}
+            currentAspectRatio={imageGenerationParams?.aspectRatio}
+            onRetry={onRetryImageGeneration}
+          />
+        )}
+
+        {/* Text messages use the regular retry dropdown */}
+        {!isImageGenerationMessage && onRetryMessage && (
+          <RetryDropdown
+            isUser={isUser}
+            isRetrying={isRetrying}
+            isStreaming={isStreaming}
+            isEditing={isEditing}
+            messageId={messageId}
+            onRetry={onRetryMessage}
+            onRefine={onRefineMessage}
+            onDropdownOpenChange={setIsDropdownOpen}
+            currentModel={model}
+            currentProvider={provider}
+          />
+        )}
+
+        {onDeleteMessage && (
+          <ActionButtons.Delete
+            disabled={isEditing || isDeleting || isStreaming}
+            title="Delete message"
+            ariaLabel="Delete this message permanently"
+            onClick={onDeleteMessage}
+          />
+        )}
+
+        {/* Metadata Display */}
+        {showMetadata && tokenUsage && (
+          <Popover>
+            <PopoverTrigger render={<ActionButton size="label" />}>
+              {/* Desktop: Show full text */}
+              <span className="hidden sm:inline">
+                {tokenUsage.totalTokens} tokens
+              </span>
+              {metadata?.tokensPerSecond && (
+                <span className="hidden sm:inline">
+                  <span className="text-muted-foreground/30">&middot;</span>
+                  <span>{Math.round(metadata.tokensPerSecond)} t/s</span>
+                </span>
               )}
-              <span className="hidden sm:inline">{modelTitle}</span>
-            </div>
-          </Badge>
+              {/* Mobile: Show only icon */}
+              <ChartBarIcon className="size-3.5 sm:hidden" aria-hidden="true" />
+            </PopoverTrigger>
+            <PopoverContent className="w-64 p-3" align="start" side="top">
+              <div className="stack-md">
+                <div className="flex items-center justify-between border-b pb-2">
+                  <span className="text-xs font-semibold">
+                    Generation Stats
+                  </span>
+                  <span className="text-overline text-muted-foreground font-mono">
+                    {metadata?.providerMessageId?.slice(0, 8)}
+                  </span>
+                </div>
+
+                <div className="grid gap-2 text-xs">
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Input Tokens</span>
+                    <span className="font-mono">
+                      {tokenUsage.inputTokens.toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Output Tokens</span>
+                    <span className="font-mono">
+                      {tokenUsage.outputTokens.toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center border-t pt-2 mt-1 font-medium">
+                    <span>Total Tokens</span>
+                    <span className="font-mono">
+                      {tokenUsage.totalTokens.toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+
+                {(metadata?.timeToFirstTokenMs ||
+                  metadata?.tokensPerSecond) && (
+                  <div className="grid gap-2 text-xs border-t pt-2">
+                    {metadata.timeToFirstTokenMs && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-muted-foreground">
+                          Time to First Token
+                        </span>
+                        <span className="font-mono">
+                          {metadata.timeToFirstTokenMs}ms
+                        </span>
+                      </div>
+                    )}
+                    {metadata.tokensPerSecond && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-muted-foreground">
+                          Generation Speed
+                        </span>
+                        <span className="font-mono">
+                          {metadata.tokensPerSecond.toFixed(1)} t/s
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </PopoverContent>
+          </Popover>
+        )}
+
+        {/* Citations avatar stack */}
+        {!isUser && citations && citations.length > 0 && onToggleCitations && (
+          <CitationAvatarStack
+            citations={citations}
+            isExpanded={citationsExpanded}
+            onToggle={onToggleCitations}
+          />
+        )}
+
+        {/* Model badge */}
+        {!isUser && model && provider && (
+          <ActionButton size="label" className="pointer-events-none">
+            {provider !== "replicate" && (
+              <ProviderIcon className="h-3 w-3" provider={provider} />
+            )}
+            <span className="hidden sm:inline">{modelTitle}</span>
+          </ActionButton>
         )}
       </div>
     );

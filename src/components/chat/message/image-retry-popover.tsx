@@ -1,4 +1,5 @@
 import {
+  ArrowCounterClockwiseIcon,
   DeviceMobile,
   DeviceTabletCamera,
   FrameCorners,
@@ -19,11 +20,7 @@ import {
 import { ResponsivePicker } from "@/components/ui/responsive-picker";
 import { useEnabledImageModels, useMediaQuery } from "@/hooks";
 import { cn } from "@/lib";
-import {
-  ActionIcon,
-  actionButtonStyles,
-  DRAWER_ICON_SIZE,
-} from "./action-button";
+import { actionButtonClass, DRAWER_ICON_SIZE } from "./action-button";
 
 const ASPECT_RATIOS = [
   { value: "1:1", label: "Square", icon: Square },
@@ -99,7 +96,9 @@ export function ImageRetryPopover({
     r => r.value === selectedAspectRatio
   );
 
-  const triggerContent = <ActionIcon.Retry />;
+  const triggerContent = (
+    <ArrowCounterClockwiseIcon className="size-3.5" aria-hidden="true" />
+  );
 
   return (
     <ResponsivePicker
@@ -113,7 +112,7 @@ export function ImageRetryPopover({
       contentClassName={isDesktop ? "w-80 p-0" : "stack-lg"}
       align="start"
       ariaLabel="Retry image generation"
-      triggerClassName={cn(actionButtonStyles.defaultButton, className)}
+      triggerClassName={cn(actionButtonClass(), className)}
     >
       {isDesktop ? (
         <DesktopContent
@@ -244,7 +243,10 @@ function DesktopContent({
           Cancel
         </Button>
         <Button size="sm" onClick={onRetry} disabled={!selectedModel}>
-          <ActionIcon.Retry className="mr-1.5" />
+          <ArrowCounterClockwiseIcon
+            className="size-3.5 mr-1.5"
+            aria-hidden="true"
+          />
           Retry
         </Button>
       </PickerFooter>
@@ -357,7 +359,10 @@ function MobileContent({
           Cancel
         </Button>
         <Button className="flex-1" onClick={onRetry} disabled={!selectedModel}>
-          <ActionIcon.Retry className="mr-1.5 size-4" />
+          <ArrowCounterClockwiseIcon
+            className="size-4 mr-1.5"
+            aria-hidden="true"
+          />
           Retry
         </Button>
       </div>

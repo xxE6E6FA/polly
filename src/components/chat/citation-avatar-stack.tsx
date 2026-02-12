@@ -6,7 +6,7 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import type { WebSearchCitation } from "@/types";
-import { actionButtonStyles } from "./message/action-button";
+import { ActionButton } from "./message/action-button";
 
 type CitationAvatarStackProps = {
   citations: WebSearchCitation[];
@@ -43,41 +43,37 @@ export function CitationAvatarStack({
 
   return (
     <Tooltip>
-      <TooltipTrigger>
-        <button
-          type="button"
-          onClick={onToggle}
-          className={cn(
-            actionButtonStyles.base,
-            actionButtonStyles.default,
-            "w-auto h-7 px-1 gap-1.5",
-            isExpanded && "bg-muted",
-            className
-          )}
-          aria-label={`${citations.length} source${citations.length === 1 ? "" : "s"}`}
-        >
-          <div className="flex items-center -space-x-2">
-            {visibleCitations.map((citation, index) => (
-              <Avatar
-                key={citation.url || `citation-${index}`}
-                className="h-5 w-5 border-2 border-muted"
-              >
-                {citation.favicon ? (
-                  <AvatarImage
-                    src={citation.favicon}
-                    alt={getDomain(citation.url)}
-                  />
-                ) : null}
-                <AvatarFallback className="text-[8px] bg-muted text-muted-foreground">
-                  {getInitials(citation.url)}
-                </AvatarFallback>
-              </Avatar>
-            ))}
-          </div>
-          <span className="text-xs font-medium text-muted-foreground">
-            {citations.length} source{citations.length === 1 ? "" : "s"}
-          </span>
-        </button>
+      <TooltipTrigger
+        render={
+          <ActionButton
+            size="label"
+            className={cn(isExpanded && "bg-muted", className)}
+          />
+        }
+        onClick={onToggle}
+        aria-label={`${citations.length} source${citations.length === 1 ? "" : "s"}`}
+      >
+        <div className="flex items-center -space-x-1.5">
+          {visibleCitations.map((citation, index) => (
+            <Avatar
+              key={citation.url || `citation-${index}`}
+              className="h-4 w-4 border border-muted"
+            >
+              {citation.favicon ? (
+                <AvatarImage
+                  src={citation.favicon}
+                  alt={getDomain(citation.url)}
+                />
+              ) : null}
+              <AvatarFallback className="text-[7px] bg-muted text-muted-foreground">
+                {getInitials(citation.url)}
+              </AvatarFallback>
+            </Avatar>
+          ))}
+        </div>
+        <span className="text-muted-foreground">
+          {citations.length} source{citations.length === 1 ? "" : "s"}
+        </span>
       </TooltipTrigger>
       <TooltipContent>
         <p>

@@ -4,15 +4,10 @@ import { TrashIcon } from "@phosphor-icons/react";
 import { useQuery } from "convex/react";
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { useHoverLinger } from "@/hooks/use-hover-linger";
 import { cn } from "@/lib/utils";
 import type { Attachment, ChatMessage as ChatMessageType } from "@/types";
-import { actionButtonStyles } from "./action-button";
+import { ActionButton } from "./action-button";
 import { ImageActions, type ImageRetryParams } from "./image-actions";
 import { ImageCardStack } from "./image-card-stack";
 import { ImageGenerationSkeleton } from "./image-generation-skeleton";
@@ -552,22 +547,14 @@ export const ImageGenerationBubble = ({
             />
 
             {onDeleteMessage && (
-              <Tooltip>
-                <TooltipTrigger>
-                  <button
-                    type="button"
-                    onClick={onDeleteMessage}
-                    disabled={isDeleting}
-                    className={cn(
-                      actionButtonStyles.destructiveButton,
-                      isDeleting && "pointer-events-none opacity-50"
-                    )}
-                  >
-                    <TrashIcon className="size-3.5" />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>Delete message</TooltipContent>
-              </Tooltip>
+              <ActionButton
+                variant="destructive"
+                tooltip="Delete message"
+                onClick={onDeleteMessage}
+                disabled={isDeleting}
+              >
+                <TrashIcon className="size-3.5" />
+              </ActionButton>
             )}
           </div>
 
@@ -602,22 +589,14 @@ export const ImageGenerationBubble = ({
             />
 
             {onDeleteMessage && (
-              <Tooltip>
-                <TooltipTrigger>
-                  <button
-                    type="button"
-                    onClick={onDeleteMessage}
-                    disabled={isDeleting}
-                    className={cn(
-                      actionButtonStyles.destructiveButton,
-                      isDeleting && "pointer-events-none opacity-50"
-                    )}
-                  >
-                    <TrashIcon className="size-3.5" />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>Delete message</TooltipContent>
-              </Tooltip>
+              <ActionButton
+                variant="destructive"
+                tooltip="Delete message"
+                onClick={onDeleteMessage}
+                disabled={isDeleting}
+              >
+                <TrashIcon className="size-3.5" />
+              </ActionButton>
             )}
           </div>
 
