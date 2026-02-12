@@ -58,6 +58,7 @@ export { useConversationModelOverride } from "./use-conversation-model-override"
 export { useEnabledImageModels } from "./use-enabled-image-models";
 export { useLastGeneratedImageSeed } from "./use-last-generated-image-seed";
 export { useModelCatalog, useModelTitle } from "./use-model-catalog";
+export { useModelItemData } from "./use-model-item-data";
 export { useReplicateApiKey } from "./use-replicate-api-key";
 export { useReplicateSchema } from "./use-replicate-schema";
 export { useSelectedModel } from "./use-selected-model";

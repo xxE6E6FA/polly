@@ -1,9 +1,5 @@
-import { api } from "@convex/_generated/api";
-import type { Doc } from "@convex/_generated/dataModel";
 import { CheckCircle } from "@phosphor-icons/react";
-import { MONTHLY_MESSAGE_LIMIT } from "@shared/constants";
-import { useQuery } from "convex/react";
-import { memo, useCallback, useMemo } from "react";
+import { memo } from "react";
 import { ProviderIcon } from "@/components/models/provider-icons";
 import { Badge } from "@/components/ui/badge";
 import { CommandItem } from "@/components/ui/command";
@@ -12,16 +8,11 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { formatContextLength } from "@/lib/format-context";
-import { getModelCapabilities } from "@/lib/model-capabilities";
+import { useModelItemData } from "@/hooks/use-model-item-data";
 import { cn } from "@/lib/utils";
-import { useUserDataContext } from "@/providers/user-data-context";
 import type { HydratedModel } from "@/types";
+import { ModelItemTooltip } from "./model-item-tooltip";
 
-// Union type for models returned by getAvailableModels
-type AvailableModel = HydratedModel;
-
-// Memoized model item component
 const ModelItemComponent = ({
   model,
   onSelect,
@@ -29,69 +20,20 @@ const ModelItemComponent = ({
   isSelected,
   size = "sm",
 }: {
-  model: AvailableModel;
+  model: HydratedModel;
   onSelect: (value: string) => void;
   hasReachedPollyLimit?: boolean;
   isSelected?: boolean;
   size?: "sm" | "md";
 }) => {
-  const { user } = useUserDataContext();
-  const unavailableModels = useQuery(
-    api.userModels.getUnavailableModelIds,
-    user?._id ? {} : "skip"
-  );
-
-  const isUnavailable = useMemo(() => {
-    if (!unavailableModels || model.free) {
-      return false;
-    }
-    return unavailableModels.some(
-      u => u.modelId === model.modelId && u.provider === model.provider
-    );
-  }, [unavailableModels, model]);
-
-  // Convert model to capabilities format
-  const modelForCapabilities = useMemo(
-    () => ({
-      modelId: model.modelId,
-      provider: model.provider,
-      name: model.name,
-      contextLength: model.contextLength,
-      supportsReasoning: model.supportsReasoning,
-      supportsImages: model.supportsImages,
-      supportsTools: model.supportsTools,
-      supportsFiles: model.supportsFiles,
-      inputModalities: model.inputModalities,
-    }),
-    [model]
-  );
-
-  const _capabilities = useMemo(
-    () => getModelCapabilities(modelForCapabilities),
-    [modelForCapabilities]
-  );
-
-  const handleSelect = useCallback(() => {
-    if (isUnavailable) {
-      return;
-    }
-    if (model.free && hasReachedPollyLimit) {
-      return;
-    }
-    onSelect(model.modelId);
-  }, [
-    model.modelId,
-    model.free,
-    hasReachedPollyLimit,
-    onSelect,
+  const {
     isUnavailable,
-  ]);
-
-  const isPollyDisabled = model.free && hasReachedPollyLimit;
-  const isDisabled = isUnavailable || isPollyDisabled;
-
-  // Format context length using utility
-  const contextDisplay = formatContextLength(model.contextLength);
+    capabilities,
+    handleSelect,
+    isPollyDisabled,
+    isDisabled,
+    contextDisplay,
+  } = useModelItemData(model, onSelect, hasReachedPollyLimit);
 
   const modelItem = (
     <CommandItem
@@ -145,7 +87,6 @@ const ModelItemComponent = ({
               {model.name}
             </div>
             <div className="flex gap-1 items-center flex-wrap mt-1">
-              {/* Status Badges */}
               {model.free && !isPollyDisabled && (
                 <Badge variant="status-free" size="xs">
                   Free
@@ -162,8 +103,7 @@ const ModelItemComponent = ({
                 </Badge>
               )}
 
-              {/* Capability Icons */}
-              {_capabilities.map((capability, index) => {
+              {capabilities.map((capability, index) => {
                 const IconComponent = capability.icon;
                 return (
                   <Tooltip key={capability.label || `capability-${index}`}>
@@ -186,7 +126,6 @@ const ModelItemComponent = ({
                 );
               })}
 
-              {/* Context Window */}
               {contextDisplay && (
                 <Tooltip>
                   <TooltipTrigger>
@@ -220,45 +159,14 @@ const ModelItemComponent = ({
     </CommandItem>
   );
 
-  if (isPollyDisabled) {
-    return (
-      <Tooltip>
-        <TooltipTrigger>{modelItem}</TooltipTrigger>
-        <TooltipContent>
-          <div>
-            <div className="font-semibold text-foreground">
-              Monthly Limit Reached
-            </div>
-            <div className="mt-1 text-xs leading-relaxed text-muted-foreground">
-              You've used all {MONTHLY_MESSAGE_LIMIT} free messages this month.
-              Switch to BYOK models for unlimited usage.
-            </div>
-          </div>
-        </TooltipContent>
-      </Tooltip>
-    );
-  }
-
-  if (isUnavailable) {
-    return (
-      <Tooltip>
-        <TooltipTrigger>{modelItem}</TooltipTrigger>
-        <TooltipContent>
-          <div>
-            <div className="font-semibold text-foreground">
-              Model No Longer Available
-            </div>
-            <div className="mt-1 text-xs leading-relaxed text-muted-foreground">
-              This model has been disabled or deprecated by its provider. Please
-              remove it from Settings or select a different model.
-            </div>
-          </div>
-        </TooltipContent>
-      </Tooltip>
-    );
-  }
-
-  return modelItem;
+  return (
+    <ModelItemTooltip
+      isPollyDisabled={isPollyDisabled}
+      isUnavailable={isUnavailable}
+    >
+      {modelItem}
+    </ModelItemTooltip>
+  );
 };
 
 ModelItemComponent.displayName = "ModelItem";
