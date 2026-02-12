@@ -13,6 +13,58 @@ function toMessageDoc(message: unknown): Doc<"messages"> | null {
   return message ? (message as Doc<"messages">) : null;
 }
 
+/**
+ * Resolve image attachment URLs for use as Replicate model inputs.
+ * When a storageId is available, converts to a data URI so format info
+ * is preserved — Convex storage URLs lack file extensions, which causes
+ * Replicate to reject them with "Invalid image format".
+ */
+export async function resolveImageUrlsFromAttachments(
+  attachments: any[] | undefined,
+  storageGetUrl: (storageId: any) => Promise<string | null>,
+): Promise<string[]> {
+  if (!Array.isArray(attachments) || attachments.length === 0) {
+    return [];
+  }
+
+  const resolved: string[] = [];
+  for (const att of attachments) {
+    if (!att || att.type !== "image") {
+      continue;
+    }
+
+    // When we have a storageId, convert to data URI to ensure format info
+    // is preserved. Convex storage URLs lack file extensions, which causes
+    // Replicate to fail with "Invalid image format" when validating inputs.
+    if (att.storageId) {
+      const storageUrl = await storageGetUrl(att.storageId);
+      if (storageUrl) {
+        try {
+          const response = await fetch(storageUrl);
+          if (response.ok) {
+            const buffer = await response.arrayBuffer();
+            const base64 = Buffer.from(buffer).toString("base64");
+            const mimeType =
+              att.mimeType ||
+              response.headers.get("content-type") ||
+              "image/jpeg";
+            resolved.push(`data:${mimeType};base64,${base64}`);
+            continue;
+          }
+        } catch {
+          // Fall through to URL-based approach
+        }
+      }
+    }
+
+    if (typeof att.url === "string" && att.url.trim()) {
+      resolved.push(att.url);
+    }
+  }
+
+  return resolved;
+}
+
 // Helper function to detect image editing models
 function isImageEditingModel(modelName: string): boolean {
   // Known image editing models from Replicate's image editing collection
@@ -451,31 +503,11 @@ export const generateImage = action({
       const previewUrlsForLog = (urls: string[]) =>
         urls.slice(0, 3).map(redactUrlForLog);
 
-      const resolveImageUrlsFromAttachments = async (
-        attachments: any[] | undefined,
-      ): Promise<string[]> => {
-        if (!Array.isArray(attachments) || attachments.length === 0) {
-          return [];
-        }
-
-        const resolved: string[] = [];
-        for (const att of attachments) {
-          if (!att || att.type !== "image") {
-            continue;
-          }
-
-          if (typeof att.url === "string" && att.url.trim()) {
-            resolved.push(att.url);
-          } else if (att.storageId) {
-            const storageUrl = await ctx.storage.getUrl(att.storageId);
-            if (storageUrl) {
-              resolved.push(storageUrl);
-            }
-          }
-        }
-
-        return resolved;
-      };
+      const resolveUrls = (attachments: any[] | undefined) =>
+        resolveImageUrlsFromAttachments(
+          attachments,
+          (id) => ctx.storage.getUrl(id),
+        );
 
       if (acceptsImageInput) {
         // Get conversation messages to find user-uploaded image(s) first,
@@ -499,9 +531,7 @@ export const generateImage = action({
               continue;
             }
 
-            const urls = await resolveImageUrlsFromAttachments(
-              candidate.attachments,
-            );
+            const urls = await resolveUrls(candidate.attachments);
             if (urls.length > 0) {
               inputImageUrls = urls;
               break;
@@ -542,7 +572,7 @@ export const generateImage = action({
             );
             const prioritized = generatedFirst.concat(others);
 
-            const urls = await resolveImageUrlsFromAttachments(prioritized);
+            const urls = await resolveUrls(prioritized);
             if (urls.length > 0) {
               inputImageUrls = urls;
               break;
