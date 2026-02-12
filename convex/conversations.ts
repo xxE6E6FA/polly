@@ -60,6 +60,8 @@ import {
 import {
   createDefaultConversationFields,
   createDefaultMessageFields,
+  getAuthenticatedUser,
+  getAuthenticatedUserWithData,
   getAuthenticatedUserWithDataForAction,
   hasConversationAccess,
   setConversationStreaming,
@@ -1447,17 +1449,7 @@ export const createEmpty = mutation({
   },
   returns: v.id("conversations"),
   handler: async (ctx, args) => {
-    // Get authenticated user ID (getAuthUserId returns Id<"users"> directly)
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw new Error("Not authenticated");
-    }
-
-    // Get user data for conversation count update
-    const user = await ctx.db.get("users", userId);
-    if (!user) {
-      throw new Error("User not found");
-    }
+    const { userId, user } = await getAuthenticatedUserWithData(ctx);
 
     // Create empty conversation with clientId for optimistic lookup
     const conversationId = await ctx.db.insert("conversations", {
@@ -2541,10 +2533,7 @@ export const stopGenerationHandler = async (
     reasoning?: string;
   }
 ) => {
-  const userId = await getAuthUserId(ctx);
-  if (!userId) {
-    throw new Error("Not authenticated");
-  }
+  const userId = await getAuthenticatedUser(ctx);
 
   const conversation = await ctx.db.get("conversations", args.conversationId);
   if (!conversation) {

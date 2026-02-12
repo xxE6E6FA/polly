@@ -377,7 +377,7 @@ describe("fileStorage: getFileMetadata", () => {
 
     await expect(
       getFileMetadataHandler(ctx as QueryCtx, { storageId })
-    ).rejects.toThrow("Not authenticated");
+    ).rejects.toThrow("User not authenticated");
   });
 });
 
@@ -428,7 +428,7 @@ describe("fileStorage: getFileUrl", () => {
 
     await expect(
       getFileUrlHandler(ctx as QueryCtx, { storageId })
-    ).rejects.toThrow("Not authenticated");
+    ).rejects.toThrow("User not authenticated");
   });
 });
 
@@ -481,7 +481,7 @@ describe("fileStorage: deleteFile", () => {
 
     await expect(
       deleteFileHandler(ctx as MutationCtx, { storageId })
-    ).rejects.toThrow("Not authenticated");
+    ).rejects.toThrow("User not authenticated");
   });
 
   test("throws error when user does not own file", async () => {
@@ -950,7 +950,7 @@ describe("fileStorage: deleteMultipleFiles", () => {
 
     await expect(
       deleteMultipleFilesHandler(ctx as MutationCtx, { storageIds })
-    ).rejects.toThrow("Not authenticated");
+    ).rejects.toThrow("User not authenticated");
   });
 
   test("deletes files from storage", async () => {
@@ -1256,7 +1256,7 @@ describe("fileStorage: getUserFileStats", () => {
     });
 
     await expect(getUserFileStatsHandler(ctx as QueryCtx)).rejects.toThrow(
-      "Not authenticated"
+      "User not authenticated"
     );
   });
 

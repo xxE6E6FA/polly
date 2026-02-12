@@ -14,6 +14,10 @@ import {
 } from "./_generated/server";
 import { checkConversationAccess } from "./lib/conversation_utils";
 import { attachmentSchema } from "./lib/schemas";
+import {
+  getAuthenticatedUser,
+  validateConversationAccess,
+} from "./lib/shared_utils";
 
 type FileTypeFilter = "image" | "pdf" | "text" | "audio" | "video" | "all";
 
@@ -221,10 +225,7 @@ export async function getFileMetadataHandler(
   ctx: QueryCtx,
   args: { storageId: Id<"_storage"> }
 ) {
-  const userId = await getAuthUserId(ctx);
-  if (!userId) {
-    throw new ConvexError("Not authenticated");
-  }
+  const userId = await getAuthenticatedUser(ctx);
 
   // Verify user owns this file via userFiles table
   // Use .first() since the same storageId can have multiple userFiles entries
@@ -314,10 +315,7 @@ export async function getFileUrlHandler(
   ctx: QueryCtx,
   args: { storageId: Id<"_storage"> }
 ) {
-  const userId = await getAuthUserId(ctx);
-  if (!userId) {
-    throw new ConvexError("Not authenticated");
-  }
+  const userId = await getAuthenticatedUser(ctx);
 
   // Verify user owns this file via userFiles table
   // Use .first() since the same storageId can have multiple userFiles entries
@@ -383,10 +381,7 @@ export async function deleteFileHandler(
   ctx: MutationCtx,
   args: { storageId: Id<"_storage"> }
 ) {
-  const userId = await getAuthUserId(ctx);
-  if (!userId) {
-    throw new ConvexError("Not authenticated");
-  }
+  const userId = await getAuthenticatedUser(ctx);
 
   // Verify user owns this file via userFiles table
   // Use .first() since the same storageId can have multiple userFiles entries
@@ -749,10 +744,7 @@ export async function deleteMultipleFilesHandler(
     updateMessages?: boolean;
   }
 ) {
-  const userId = await getAuthUserId(ctx);
-  if (!userId) {
-    throw new Error("Not authenticated");
-  }
+  const userId = await getAuthenticatedUser(ctx);
 
   // First, verify ownership of ALL files before deleting anything
   // This prevents malicious users from deleting other users' files
@@ -849,10 +841,7 @@ export const deleteMultipleFiles = mutation({
  * Now using the dedicated userFiles table for efficient querying
  */
 export async function getUserFileStatsHandler(ctx: QueryCtx) {
-  const userId = await getAuthUserId(ctx);
-  if (!userId) {
-    throw new Error("Not authenticated");
-  }
+  const userId = await getAuthenticatedUser(ctx);
 
   // Get all user files efficiently using the index
   const userFiles = await ctx.db
@@ -905,10 +894,7 @@ export async function getMessageAttachmentsHandler(
   args: { messageId: Id<"messages"> }
 ) {
   // Check authentication
-  const userId = await getAuthUserId(ctx);
-  if (!userId) {
-    throw new Error("Not authenticated");
-  }
+  await getAuthenticatedUser(ctx);
 
   // Get the message to find its conversation
   const message = await ctx.db.get("messages", args.messageId);
@@ -917,14 +903,7 @@ export async function getMessageAttachmentsHandler(
   }
 
   // Check access to the conversation
-  const { hasAccess } = await checkConversationAccess(
-    ctx,
-    message.conversationId,
-    false
-  );
-  if (!hasAccess) {
-    throw new Error("Access denied");
-  }
+  await validateConversationAccess(ctx, message.conversationId, false);
 
   const userFiles = await ctx.db
     .query("userFiles")
@@ -980,10 +959,7 @@ export async function getBatchMessageAttachmentsHandler(
   args: { messageIds: Id<"messages">[] }
 ) {
   // Check authentication
-  const userId = await getAuthUserId(ctx);
-  if (!userId) {
-    throw new Error("Not authenticated");
-  }
+  await getAuthenticatedUser(ctx);
 
   // Fetch all messages to verify access
   const messages = await Promise.all(
@@ -1001,14 +977,7 @@ export async function getBatchMessageAttachmentsHandler(
 
   // Check access to all conversations
   for (const conversationId of conversationIds) {
-    const { hasAccess } = await checkConversationAccess(
-      ctx,
-      conversationId,
-      false
-    );
-    if (!hasAccess) {
-      throw new Error("Access denied to one or more conversations");
-    }
+    await validateConversationAccess(ctx, conversationId, false);
   }
 
   // Fetch all userFiles for these messages

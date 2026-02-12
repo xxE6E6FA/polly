@@ -10,7 +10,7 @@ import {
   query,
 } from "./_generated/server";
 import { imageModelDefinitionSchema } from "./lib/schemas";
-import { sanitizeSchema } from "./lib/shared_utils";
+import { getAuthenticatedUser, sanitizeSchema } from "./lib/shared_utils";
 
 // Helper function to determine if a model supports aspect_ratio parameter
 function determineAspectRatioSupport(
@@ -505,11 +505,7 @@ export const toggleImageModel = mutation({
     supportsNegativePrompt: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-
-    if (!userId) {
-      throw new Error("Authentication required");
-    }
+    const userId = await getAuthenticatedUser(ctx);
 
     // Check if model already exists
     const existingModel = await ctx.db
@@ -579,11 +575,7 @@ export const setSelectedImageModel = mutation({
     provider: v.string(),
   },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-
-    if (!userId) {
-      throw new Error("Authentication required");
-    }
+    const userId = await getAuthenticatedUser(ctx);
 
     // Clear previous selection
     const selectedModels = await ctx.db
