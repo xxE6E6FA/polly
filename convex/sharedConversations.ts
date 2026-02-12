@@ -1,4 +1,3 @@
-import { getAuthUserId } from "@convex-dev/auth/server";
 import { paginationOptsValidator } from "convex/server";
 import { ConvexError, v } from "convex/values";
 import { api } from "./_generated/api";
@@ -10,17 +9,7 @@ import {
   query,
 } from "./_generated/server";
 import { paginationOptsSchema, validatePaginationOpts } from "./lib/pagination";
-
-// Shared handler for user authentication
-async function handleGetAuthenticatedUser(
-  ctx: MutationCtx | QueryCtx
-): Promise<Id<"users">> {
-  const userId = await getAuthUserId(ctx);
-  if (!userId) {
-    throw new ConvexError("User not authenticated");
-  }
-  return userId;
-}
+import { getAuthenticatedUser } from "./lib/shared_utils";
 
 // Shared handler for conversation ownership validation
 async function handleValidateConversationOwnership(
@@ -68,7 +57,7 @@ export const shareConversation = mutation({
     conversationId: v.id("conversations"),
   },
   handler: async (ctx, args) => {
-    const userId = await handleGetAuthenticatedUser(ctx);
+    const userId = await getAuthenticatedUser(ctx);
     const conversation = await handleValidateConversationOwnership(
       ctx,
       args.conversationId,
@@ -112,7 +101,7 @@ export const updateSharedConversation = mutation({
     conversationId: v.id("conversations"),
   },
   handler: async (ctx, args) => {
-    const userId = await handleGetAuthenticatedUser(ctx);
+    const userId = await getAuthenticatedUser(ctx);
     const conversation = await handleValidateConversationOwnership(
       ctx,
       args.conversationId,
@@ -150,7 +139,7 @@ export const unshareConversation = mutation({
     conversationId: v.id("conversations"),
   },
   handler: async (ctx, args) => {
-    const userId = await handleGetAuthenticatedUser(ctx);
+    const userId = await getAuthenticatedUser(ctx);
     await handleValidateConversationOwnership(ctx, args.conversationId, userId);
 
     // Find and delete the shared conversation record
@@ -276,7 +265,7 @@ export const listUserSharedConversations = query({
     paginationOpts: paginationOptsSchema,
   },
   handler: async (ctx, args) => {
-    const userId = await handleGetAuthenticatedUser(ctx);
+    const userId = await getAuthenticatedUser(ctx);
 
     const query = ctx.db
       .query("sharedConversations")
@@ -300,7 +289,7 @@ export const listUserSharedConversationsPaginated = query({
     sortDirection: v.optional(v.union(v.literal("asc"), v.literal("desc"))),
   },
   handler: async (ctx, args) => {
-    const userId = await handleGetAuthenticatedUser(ctx);
+    const userId = await getAuthenticatedUser(ctx);
     const sortField = args.sortField ?? "sharedAt";
     const sortDirection = args.sortDirection ?? "desc";
 

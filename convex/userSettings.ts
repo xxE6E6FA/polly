@@ -8,17 +8,7 @@ import {
   query,
 } from "./_generated/server";
 import { userSettingsUpdateSchema } from "./lib/schemas";
-
-// Shared handler for user authentication
-async function handleGetAuthenticatedUser(
-  ctx: MutationCtx | QueryCtx
-): Promise<Id<"users">> {
-  const userId = await getAuthUserId(ctx);
-  if (!userId) {
-    throw new Error("User not authenticated");
-  }
-  return userId;
-}
+import { getAuthenticatedUser } from "./lib/shared_utils";
 
 // Shared handler for getting user settings
 async function handleGetUserSettings(
@@ -123,7 +113,7 @@ export async function updateUserSettingsHandler(
   ctx: MutationCtx,
   args: UpdateUserSettingsArgs
 ) {
-  const userId = await handleGetAuthenticatedUser(ctx);
+  const userId = await getAuthenticatedUser(ctx);
 
   const existingSettings = await handleGetUserSettings(ctx, userId);
 
@@ -227,7 +217,7 @@ export async function updateUserSettingsForImportHandler(
   ctx: MutationCtx,
   args: { settings: Partial<Doc<"userSettings">> }
 ) {
-  const userId = await handleGetAuthenticatedUser(ctx);
+  const userId = await getAuthenticatedUser(ctx);
   await handleUpsertUserSettings(ctx, userId, args.settings);
   return { success: true };
 }
@@ -243,7 +233,7 @@ export async function togglePersonasEnabledHandler(
   ctx: MutationCtx,
   args: { enabled: boolean }
 ) {
-  const userId = await handleGetAuthenticatedUser(ctx);
+  const userId = await getAuthenticatedUser(ctx);
   await handleUpsertUserSettings(ctx, userId, {
     personasEnabled: args.enabled,
   });
@@ -261,7 +251,7 @@ export async function updateArchiveSettingsHandler(
   ctx: MutationCtx,
   args: { autoArchiveEnabled: boolean; autoArchiveDays: number }
 ) {
-  const userId = await handleGetAuthenticatedUser(ctx);
+  const userId = await getAuthenticatedUser(ctx);
 
   // Validate autoArchiveDays range (1-365 days)
   if (args.autoArchiveDays < 1 || args.autoArchiveDays > 365) {

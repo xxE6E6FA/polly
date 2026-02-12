@@ -16,17 +16,7 @@ import {
   validatePaginationOpts,
 } from "./lib/pagination";
 import { personaImportSchema } from "./lib/schemas";
-
-// Shared handler for user authentication and validation
-async function handleGetAuthenticatedUser(
-  ctx: MutationCtx | QueryCtx
-): Promise<Id<"users">> {
-  const userId = await getAuthUserId(ctx);
-  if (!userId) {
-    throw new Error("User not authenticated");
-  }
-  return userId;
-}
+import { getAuthenticatedUser } from "./lib/shared_utils";
 
 // Shared handler for persona ownership validation
 async function handleValidatePersonaOwnership(
@@ -124,7 +114,7 @@ export async function createHandler(
     advancedSamplingEnabled?: boolean;
   }
 ) {
-  const userId = await handleGetAuthenticatedUser(ctx);
+  const userId = await getAuthenticatedUser(ctx);
 
   const now = Date.now();
 
@@ -167,7 +157,7 @@ export async function updateHandler(
     advancedSamplingEnabled?: boolean;
   }
 ) {
-  const userId = await handleGetAuthenticatedUser(ctx);
+  const userId = await getAuthenticatedUser(ctx);
   await handleValidatePersonaOwnership(ctx, args.id, userId);
 
   await ctx.db.patch("personas", args.id, {
@@ -199,7 +189,7 @@ export async function removeHandler(
   ctx: MutationCtx,
   args: { id: Id<"personas"> }
 ) {
-  const userId = await handleGetAuthenticatedUser(ctx);
+  const userId = await getAuthenticatedUser(ctx);
   await handleValidatePersonaOwnership(ctx, args.id, userId);
 
   await ctx.db.delete("personas", args.id);
@@ -209,7 +199,7 @@ export async function togglePersonaHandler(
   ctx: MutationCtx,
   args: { id: Id<"personas">; isActive: boolean }
 ) {
-  const userId = await handleGetAuthenticatedUser(ctx);
+  const userId = await getAuthenticatedUser(ctx);
   await handleValidatePersonaOwnership(ctx, args.id, userId);
 
   await ctx.db.patch("personas", args.id, {
@@ -243,7 +233,7 @@ export async function importPersonasHandler(
     }>;
   }
 ) {
-  const userId = await handleGetAuthenticatedUser(ctx);
+  const userId = await getAuthenticatedUser(ctx);
 
   const now = Date.now();
   const createdPersonas = [];
@@ -597,7 +587,7 @@ export async function toggleBuiltInPersonaHandler(
   ctx: MutationCtx,
   args: { personaId: Id<"personas">; isDisabled: boolean }
 ) {
-  const userId = await handleGetAuthenticatedUser(ctx);
+  const userId = await getAuthenticatedUser(ctx);
 
   // Verify this is a built-in persona
   const persona = await ctx.db.get("personas", args.personaId);

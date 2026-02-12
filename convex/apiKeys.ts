@@ -10,6 +10,7 @@ import {
   type QueryCtx,
   query,
 } from "./_generated/server";
+import { getAuthenticatedUser } from "./lib/shared_utils";
 
 // Provider type definition
 type ProviderType =
@@ -21,17 +22,6 @@ type ProviderType =
   | "moonshot"
   | "replicate"
   | "elevenlabs";
-
-// Shared handler for user authentication
-async function handleGetAuthenticatedUser(
-  ctx: MutationCtx | QueryCtx
-): Promise<Id<"users">> {
-  const userId = await getAuthUserId(ctx);
-  if (!userId) {
-    throw new Error("User not authenticated");
-  }
-  return userId;
-}
 
 // Shared handler for getting user API key record
 async function handleGetUserApiKey(
@@ -178,7 +168,7 @@ export const storeApiKey = mutation({
     rawKey: v.string(),
   },
   handler: async (ctx, args) => {
-    const userId = await handleGetAuthenticatedUser(ctx);
+    const userId = await getAuthenticatedUser(ctx);
 
     if (!validateApiKeyFormat(args.provider, args.rawKey)) {
       throw new Error(`Invalid API key format for ${args.provider}`);
@@ -216,7 +206,7 @@ export const storeClientEncryptedApiKey = mutation({
     partialKey: v.string(), // For display purposes
   },
   handler: async (ctx, args) => {
-    const userId = await handleGetAuthenticatedUser(ctx);
+    const userId = await getAuthenticatedUser(ctx);
 
     await handleUpsertApiKey(ctx, userId, args.provider, {
       clientEncryptedKey: args.encryptedKey,
@@ -267,7 +257,7 @@ export const removeApiKey = mutation({
     ),
   },
   handler: async (ctx, args) => {
-    const userId = await handleGetAuthenticatedUser(ctx);
+    const userId = await getAuthenticatedUser(ctx);
     const existing = await handleGetUserApiKey(ctx, userId, args.provider);
 
     if (existing) {
@@ -290,7 +280,7 @@ export const validateApiKey = mutation({
     ),
   },
   handler: async (ctx, args) => {
-    const userId = await handleGetAuthenticatedUser(ctx);
+    const userId = await getAuthenticatedUser(ctx);
     const apiKeyRecord = await handleGetUserApiKey(ctx, userId, args.provider);
 
     if (!apiKeyRecord) {
