@@ -11,6 +11,10 @@ import {
   query,
 } from "./_generated/server";
 import { withRetry } from "./ai/error_handlers";
+import {
+  getAuthenticatedUser,
+  getAuthenticatedUserWithData,
+} from "./lib/shared_utils";
 
 // Shared handler for creating anonymous users
 export async function handleCreateAnonymousUser(ctx: MutationCtx) {
@@ -30,10 +34,7 @@ export async function handleCreateAnonymousUser(ctx: MutationCtx) {
 export async function handleGetUserById(ctx: QueryCtx, id: Id<"users">) {
   // Security check: only allow users to access their own data
   if (process.env.NODE_ENV !== "test") {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw new ConvexError("Not authenticated");
-    }
+    const userId = await getAuthenticatedUser(ctx);
     // Only allow users to get their own data
     if (userId !== id) {
       throw new ConvexError("Access denied");
@@ -280,15 +281,7 @@ export const updateProfile = mutation({
     image: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw new Error("User not authenticated");
-    }
-
-    const user = await ctx.db.get("users", userId);
-    if (!user) {
-      throw new Error("User not found");
-    }
+    const { userId } = await getAuthenticatedUserWithData(ctx);
 
     const updates: { name?: string; image?: string } = {};
 
@@ -318,10 +311,7 @@ export const updateProfile = mutation({
 export const deleteAccount = mutation({
   args: {},
   handler: async ctx => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw new Error("User not authenticated");
-    }
+    const userId = await getAuthenticatedUser(ctx);
 
     try {
       const conversations = await ctx.db

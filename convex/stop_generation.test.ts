@@ -60,7 +60,7 @@ describe("stopGeneration", () => {
       stopGenerationHandler(ctx as MutationCtx, {
         conversationId: "conv-123" as Id<"conversations">,
       })
-    ).rejects.toThrow("Not authenticated");
+    ).rejects.toThrow("User not authenticated");
   });
 
   test("throws if conversation not found", async () => {

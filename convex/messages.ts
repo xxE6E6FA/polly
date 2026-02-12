@@ -42,6 +42,10 @@ import {
   ttsAudioCacheEntrySchema,
   webCitationSchema,
 } from "./lib/schemas";
+import {
+  getAuthenticatedUser,
+  validateConversationAccess,
+} from "./lib/shared_utils";
 
 /**
  * ============================================================================
@@ -250,10 +254,7 @@ export async function createHandler(
     imageGeneration?: Infer<typeof imageGenerationSchema>;
   }
 ) {
-  const userId = await getAuthUserId(ctx);
-  if (!userId) {
-    throw new ConvexError("User not authenticated");
-  }
+  const userId = await getAuthenticatedUser(ctx);
   // Rolling token estimate helper
   const estimateTokens = (text: string) =>
     Math.max(1, Math.ceil((text || "").length / 4));
@@ -365,10 +366,7 @@ export const createUserMessageBatched = mutation({
     metadata: v.optional(extendedMessageMetadataSchema),
   },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw new ConvexError("User not authenticated");
-    }
+    const userId = await getAuthenticatedUser(ctx);
 
     const messageId = await ctx.db.insert("messages", {
       ...args,
@@ -425,14 +423,7 @@ export async function listHandler(
 ) {
   // Verify the user has access to this conversation
   if (process.env.NODE_ENV !== "test") {
-    const { hasAccess } = await checkConversationAccess(
-      ctx,
-      args.conversationId,
-      true // allowShared for viewing
-    );
-    if (!hasAccess) {
-      throw new ConvexError("Access denied");
-    }
+    await validateConversationAccess(ctx, args.conversationId, false);
   }
 
   let query = ctx.db
@@ -529,14 +520,7 @@ export async function updateHandler(
 
   // Check access to the conversation this message belongs to (no shared access for mutations)
   if (process.env.NODE_ENV !== "test") {
-    const { hasAccess } = await checkConversationAccess(
-      ctx,
-      message.conversationId,
-      false
-    );
-    if (!hasAccess) {
-      throw new Error("Access denied");
-    }
+    await validateConversationAccess(ctx, message.conversationId, false);
   }
 
   const { id, patch, ...directUpdates } = args;
@@ -770,14 +754,7 @@ export async function setBranchHandler(
 
   // Check access to the conversation this message belongs to (no shared access for mutations)
   if (process.env.NODE_ENV !== "test") {
-    const { hasAccess } = await checkConversationAccess(
-      ctx,
-      message.conversationId,
-      false
-    );
-    if (!hasAccess) {
-      throw new Error("Access denied");
-    }
+    await validateConversationAccess(ctx, message.conversationId, false);
   }
 
   if (args.parentId) {
@@ -808,10 +785,7 @@ export async function removeHandler(
   ctx: MutationCtx,
   args: { id: Id<"messages"> }
 ) {
-  const userId = await getAuthUserId(ctx);
-  if (!userId) {
-    throw new Error("Not authenticated");
-  }
+  const userId = await getAuthenticatedUser(ctx);
 
   const message = await ctx.db.get("messages", args.id);
 
@@ -820,14 +794,7 @@ export async function removeHandler(
   }
 
   // Check access to the conversation this message belongs to (no shared access for mutations)
-  const { hasAccess } = await checkConversationAccess(
-    ctx,
-    message.conversationId,
-    false
-  );
-  if (!hasAccess) {
-    throw new Error("Access denied");
-  }
+  await validateConversationAccess(ctx, message.conversationId, false);
 
   const operations: Promise<void>[] = [];
 
@@ -847,10 +814,7 @@ export const remove = mutation({
 export const removeMultiple = mutation({
   args: { ids: v.array(v.id("messages")) },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw new Error("Not authenticated");
-    }
+    const userId = await getAuthenticatedUser(ctx);
 
     const messages = await Promise.all(
       args.ids.map(id => ctx.db.get("messages", id))
@@ -866,14 +830,7 @@ export const removeMultiple = mutation({
 
     // Check access for each unique conversation
     for (const conversationId of uniqueConversationIds) {
-      const { hasAccess } = await checkConversationAccess(
-        ctx,
-        conversationId,
-        false
-      );
-      if (!hasAccess) {
-        throw new Error("Access denied to one or more messages");
-      }
+      await validateConversationAccess(ctx, conversationId, false);
     }
 
     const conversationMessageCounts = new Map<Id<"conversations">, number>();
@@ -1717,14 +1674,7 @@ export const toggleFavorite = mutation({
       throw new Error("Message not found");
     }
 
-    const { hasAccess } = await checkConversationAccess(
-      ctx,
-      message.conversationId,
-      false
-    );
-    if (!hasAccess) {
-      throw new Error("Access denied");
-    }
+    await validateConversationAccess(ctx, message.conversationId, false);
 
     const existing = await ctx.db
       .query("messageFavorites")
@@ -2565,14 +2515,7 @@ export const removeAttachment = mutation({
       }
 
       // Check access to the conversation this message belongs to
-      const { hasAccess } = await checkConversationAccess(
-        ctx,
-        message.conversationId,
-        false
-      );
-      if (!hasAccess) {
-        throw new Error("Access denied");
-      }
+      await validateConversationAccess(ctx, message.conversationId, false);
 
       // Find the attachment being removed to get its storageId
       const attachmentToRemove = (message.attachments || []).find(

@@ -8,6 +8,7 @@ import {
   mutation,
   query,
 } from "./_generated/server";
+import { getAuthenticatedUser } from "./lib/shared_utils";
 
 // Export conversation type definition
 export type ExportAttachment = {
@@ -365,10 +366,7 @@ export const create = mutation({
     includeAttachments: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw new ConvexError("User not authenticated");
-    }
+    const userId = await getAuthenticatedUser(ctx);
 
     return handleCreateBackgroundJob(ctx, args, userId);
   },
@@ -514,10 +512,7 @@ export const deleteJob = mutation({
     jobId: v.string(),
   },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw new ConvexError("User not authenticated");
-    }
+    const userId = await getAuthenticatedUser(ctx);
 
     const job = await ctx.db
       .query("backgroundJobs")
