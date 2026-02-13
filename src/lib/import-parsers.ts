@@ -245,6 +245,7 @@ function parseMarkdownImport(content: string): ImportResult {
     let currentReasoning: string[] = [];
     let currentContent: string[] = [];
     let inReasoning = false;
+    let inAttachmentsOrSources = false;
 
     const flushMessage = () => {
       if (currentRole) {
@@ -346,6 +347,8 @@ function parseMarkdownImport(content: string): ImportResult {
         // For now, keep accumulating reasoning until we hit metadata or separator
         currentReasoning.push(line);
       } else {
+        currentContent.push(line);
+      }
     }
 
     // Flush last message
