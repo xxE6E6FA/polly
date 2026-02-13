@@ -814,6 +814,10 @@ export const messageSchema = v.object({
   toolCalls: v.optional(v.array(toolCallSchema)), // Tool calls made during reasoning
   error: v.optional(v.string()), // Error message for failed text-to-text requests
   ttsAudioCache: v.optional(v.array(ttsAudioCacheEntrySchema)),
+  // Persona snapshot — frozen at message creation time so changing the conversation persona
+  // doesn't retroactively update existing messages.
+  personaName: v.optional(v.string()),
+  personaIcon: v.optional(v.string()),
   createdAt: v.number(),
   completedAt: v.optional(v.number()),
 });

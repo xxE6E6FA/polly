@@ -25,6 +25,7 @@ type PersonaPickerProps = {
   onPersonaSelect?: (personaId: Id<"personas"> | null) => void;
   tooltip?: string | React.ReactNode;
   disabled?: boolean;
+  hasExistingMessages?: boolean;
 };
 
 function PersonaPickerComponent({
@@ -34,6 +35,7 @@ function PersonaPickerComponent({
   onPersonaSelect,
   tooltip,
   disabled = false,
+  hasExistingMessages = false,
 }: PersonaPickerProps) {
   const { user } = useUserDataContext();
   const isDesktop = useMediaQuery("(min-width: 640px)");
@@ -108,12 +110,14 @@ function PersonaPickerComponent({
             personas={availablePersonas}
             currentPersona={currentPersona}
             onPersonaSelect={onPersonaSelect}
+            hasExistingMessages={hasExistingMessages}
           />
         ) : (
           <PersonaListMobile
             personas={availablePersonas}
             currentPersona={currentPersona}
             onPersonaSelect={onPersonaSelect}
+            hasExistingMessages={hasExistingMessages}
           />
         )}
       </ResponsivePicker>
@@ -210,12 +214,14 @@ type PersonaListProps = {
     isBuiltIn: boolean;
   } | null;
   onPersonaSelect?: (personaId: Id<"personas"> | null) => void;
+  hasExistingMessages?: boolean;
 };
 
 const PersonaListDesktop = ({
   personas,
   currentPersona,
   onPersonaSelect,
+  hasExistingMessages = false,
 }: PersonaListProps) => {
   // Separate built-in and user-defined personas
   const builtInPersonas = personas.filter(persona => persona.isBuiltIn);
@@ -331,6 +337,11 @@ const PersonaListDesktop = ({
           </CommandGroup>
         )}
       </CommandList>
+      {hasExistingMessages && (
+        <p className="border-t border-border/40 px-3 py-2 text-xs text-muted-foreground">
+          New persona will apply to future messages.
+        </p>
+      )}
     </Command>
   );
 };
@@ -339,6 +350,7 @@ const PersonaListMobile = ({
   personas,
   currentPersona,
   onPersonaSelect,
+  hasExistingMessages = false,
 }: PersonaListProps) => {
   // Separate built-in and user-defined personas
   const builtInPersonas = personas.filter(persona => persona.isBuiltIn);
@@ -396,6 +408,12 @@ const PersonaListMobile = ({
             />
           ))}
         </div>
+      )}
+
+      {hasExistingMessages && (
+        <p className="px-2 text-xs text-muted-foreground">
+          New persona will apply to future messages.
+        </p>
       )}
     </div>
   );

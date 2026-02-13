@@ -210,6 +210,9 @@ export type ChatMessage = {
   reasoningParts?: ReasoningPart[]; // Interleaved reasoning segments
   toolCalls?: ToolCall[]; // Tool calls made during reasoning
   error?: string; // Error message for failed text-to-text requests
+  // Persona snapshot — frozen at message creation time
+  personaName?: string;
+  personaIcon?: string;
   metadata?: {
     tokenCount?: number;
     finishReason?: string;

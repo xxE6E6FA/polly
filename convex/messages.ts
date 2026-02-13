@@ -271,10 +271,26 @@ export async function createHandler(
     })
   );
 
+  // For assistant messages, snapshot the active persona so it's frozen at creation time
+  let personaName: string | undefined;
+  let personaIcon: string | undefined;
+  if (args.role === "assistant") {
+    const conversation = await ctx.db.get("conversations", args.conversationId);
+    if (conversation?.personaId) {
+      const persona = await ctx.db.get("personas", conversation.personaId);
+      if (persona) {
+        personaName = persona.name;
+        personaIcon = persona.icon ?? undefined;
+      }
+    }
+  }
+
   const messageId = await ctx.db.insert("messages", {
     ...args,
     attachments: attachmentsForStorage,
     userId,
+    personaName,
+    personaIcon,
     isMainBranch: args.isMainBranch ?? true,
     createdAt: Date.now(),
   });

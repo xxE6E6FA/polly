@@ -131,22 +131,11 @@ export function useChatInputState(conversationId?: ConversationId) {
  * Hook for managing chat input UI controls visibility
  * Determines which pickers should be shown based on context
  */
-export function useChatInputControls(
-  conversationId?: ConversationId,
-  hasExistingMessages?: boolean
-) {
-  const { isPrivateMode, personasEnabled, user } =
-    useChatInputState(conversationId);
-
-  // Show persona selector only when starting a new conversation
-  const isNewConversation = isPrivateMode && !hasExistingMessages;
-  const isNewRegularConversation = !(isPrivateMode || conversationId);
-  const shouldShowPersonaSelector =
-    isNewConversation || isNewRegularConversation;
+export function useChatInputControls(conversationId?: ConversationId) {
+  const { personasEnabled, user } = useChatInputState(conversationId);
 
   const canShowPersonaSelector = user && personasEnabled;
-  const showPersonaSelector =
-    canShowPersonaSelector && shouldShowPersonaSelector;
+  const showPersonaSelector = Boolean(canShowPersonaSelector);
 
   return {
     showPersonaSelector,
