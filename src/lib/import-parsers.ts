@@ -321,8 +321,17 @@ function parseMarkdownImport(content: string): ImportResult {
         line.match(/^\*\*Attachments:\*\*/) ||
         line.match(/^\*\*Sources:\*\*/)
       ) {
-        // Skip attachment/source lines until next blank line or section
+        inAttachmentsOrSources = true;
         continue;
+      }
+
+      // Skip content within attachments/sources blocks (list items, citations)
+      if (inAttachmentsOrSources) {
+        if (line === "" || line.match(/^###/) || line.match(/^##/)) {
+          inAttachmentsOrSources = false;
+        } else {
+          continue;
+        }
       }
 
       if (inReasoning) {
