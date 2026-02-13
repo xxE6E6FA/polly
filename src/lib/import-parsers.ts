@@ -326,20 +326,17 @@ function parseMarkdownImport(content: string): ImportResult {
       }
 
       if (inReasoning) {
-        // Reasoning ends when we hit the main content (non-empty line after a blank)
-        // Since the markdown format puts reasoning before content with a blank line between,
-        // we detect the transition: once we see content after reasoning, switch
         if (line === "") {
-          // Check if we already have reasoning content - blank line might be the separator
+          // Blank lines within reasoning are preserved
           if (currentReasoning.length > 0) {
-            inReasoning = false;
+            currentReasoning.push(line);
           }
           continue;
         }
+        // Check if this looks like content (e.g., starts new paragraph after reasoning)
+        // For now, keep accumulating reasoning until we hit metadata or separator
         currentReasoning.push(line);
       } else {
-        currentContent.push(line);
-      }
     }
 
     // Flush last message
