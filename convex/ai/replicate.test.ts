@@ -35,8 +35,8 @@ function stubFetch(
         headers: { "content-type": contentType },
       }),
     ),
+  );
   globalThis.fetch = stub as unknown as typeof globalThis.fetch;
-  globalThis.fetch = stub as unknown as unknown as typeof globalThis.fetch;
   return { stub, restore: () => { globalThis.fetch = original; } };
 }
 
