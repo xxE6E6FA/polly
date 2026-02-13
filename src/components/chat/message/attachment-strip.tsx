@@ -1,13 +1,12 @@
 import { XIcon } from "@phosphor-icons/react";
 import { memo, useCallback } from "react";
-import { FileDisplay, ImageThumbnail } from "@/components/files/file-display";
+import { ImageThumbnail } from "@/components/files/file-display";
 import { truncateMiddle } from "@/lib";
 import { cn } from "@/lib/utils";
 import type { Attachment } from "@/types";
 
 type AttachmentStripProps = {
   attachments?: Attachment[];
-  variant?: "user" | "assistant";
   onPreviewFile?: (attachment: Attachment) => void;
   onRemove?: (index: number) => void;
   className?: string;
@@ -17,7 +16,6 @@ type AttachmentStripProps = {
 
 const AttachmentStripComponent = ({
   attachments,
-  variant = "user",
   onPreviewFile,
   onRemove,
   className,
@@ -36,56 +34,11 @@ const AttachmentStripComponent = ({
     return null;
   }
 
-  if (variant === "user") {
-    const images = attachments.filter(att => att.type === "image");
-    const files = attachments.filter(att => att.type !== "image");
-
-    return (
-      <div className={cn("mt-2 stack-sm", className)}>
-        {/* Images - horizontal thumbnails */}
-        {images.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {images.map((attachment, index) => (
-              <button
-                key={attachment.name || attachment.url || `image-${index}`}
-                type="button"
-                className={cn(
-                  "relative h-12 w-12 cursor-pointer overflow-hidden rounded-lg",
-                  "ring-1 ring-border/30 hover:ring-primary/50",
-                  "transition-all duration-200 hover:shadow-md",
-                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                )}
-                onClick={() => handleFileClick(attachment)}
-              >
-                <ImageThumbnail attachment={attachment} className="h-12 w-12" />
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* Files - compact pills */}
-        {files.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {files.map((attachment, index) => (
-              <FileDisplay
-                key={attachment.name || attachment.url || `file-${index}`}
-                attachment={attachment}
-                onClick={() => handleFileClick(attachment)}
-              />
-            ))}
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  // Assistant attachments - compact style with thumbnails
   return (
     <div className={cn("mt-2 flex flex-wrap gap-2", className)}>
       {attachments.map((attachment, index) => {
         const isVisual =
-          attachment.type === "image" ||
-          (attachment.type === "video" && !!attachment.thumbnail);
+          attachment.type === "image" || attachment.type === "video";
         return (
           <div
             key={attachment.name || attachment.url || `attachment-${index}`}
@@ -165,7 +118,7 @@ const AttachmentStripComponent = ({
 };
 
 export const AttachmentStrip = memo(AttachmentStripComponent, (prev, next) => {
-  if (prev.variant !== next.variant || prev.className !== next.className) {
+  if (prev.className !== next.className) {
     return false;
   }
   if (prev.onPreviewFile !== next.onPreviewFile) {

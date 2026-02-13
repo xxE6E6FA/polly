@@ -170,6 +170,9 @@ export const attachmentSchema = v.object({
   textFileId: v.optional(v.id("_storage")), // Reference to stored text file
   extractedText: v.optional(v.string()), // Cached text extraction for PDFs (deprecated in favor of textFileId)
   extractionError: v.optional(v.string()), // Error message if extraction failed
+  // Media dimensions for layout shift prevention
+  width: v.optional(v.float64()),
+  height: v.optional(v.float64()),
   // Generated image metadata
   generatedImage: v.optional(
     v.object({

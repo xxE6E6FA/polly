@@ -59,7 +59,6 @@ export interface VirtualizedChatMessagesRef {
 interface MessageItemProps {
   messageId: string;
   isStreaming: boolean;
-  animate: boolean;
   conversationId?: string;
   onPreviewAttachment?: (attachment: import("@/types").Attachment) => void;
   onEditMessage?: (messageId: string, newContent: string) => void;
@@ -102,7 +101,6 @@ const MessageItem = memo(
   ({
     messageId,
     isStreaming,
-    animate,
     conversationId,
     onPreviewAttachment,
     onEditMessage,
@@ -123,7 +121,7 @@ const MessageItem = memo(
       <div className="px-4 sm:px-8 overflow-visible">
         <div
           id={message.id}
-          className={`mx-auto w-full max-w-3xl pb-3 sm:pb-4 overflow-visible${animate ? " animate-message-in" : ""}`}
+          className="mx-auto w-full max-w-3xl pb-3 sm:pb-4 overflow-visible"
         >
           {message.role === "context" ? (
             <ContextMessage message={message} />
@@ -159,10 +157,6 @@ const MessageItem = memo(
     }
 
     if (prevProps.isStreaming !== nextProps.isStreaming) {
-      return false;
-    }
-
-    if (prevProps.animate !== nextProps.animate) {
       return false;
     }
 
@@ -246,12 +240,6 @@ export const VirtualizedChatMessages = memo(
     const hasScrolledForCurrentAssistant = useRef(false);
     const lastAssistantMessageId = useRef<string | null>(null);
     const hasInitialScrolled = useRef(false);
-
-    // Track initial message IDs so we only animate newly added messages
-    const initialMessageIdsRef = useRef<Set<string> | null>(null);
-    if (initialMessageIdsRef.current === null) {
-      initialMessageIdsRef.current = new Set(messages.map(m => m.id));
-    }
 
     // Create a memoized message selector for efficient lookups
     const messagesMap = useMemo(() => {
@@ -625,13 +613,10 @@ export const VirtualizedChatMessages = memo(
           !message.metadata?.finishReason &&
           !message.metadata?.stopped;
 
-        const isNewMessage = !initialMessageIdsRef.current?.has(message.id);
-
         return (
           <MessageItem
             messageId={message.id}
             isStreaming={!!isMessageStreaming}
-            animate={isNewMessage}
             conversationId={conversationId}
             onPreviewAttachment={onPreviewAttachment}
             onEditMessage={onEditMessage}

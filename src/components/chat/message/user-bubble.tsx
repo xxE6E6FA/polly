@@ -162,7 +162,6 @@ export const UserBubble = memo(
                   attachments={message.attachments?.filter(
                     att => !att.generatedImage?.isGenerated
                   )}
-                  variant="user"
                   onPreviewFile={onPreviewFile}
                   className="mt-2"
                 />
@@ -192,7 +191,6 @@ export const UserBubble = memo(
                   attachments={message.attachments?.filter(
                     att => !att.generatedImage?.isGenerated
                   )}
-                  variant="user"
                   onPreviewFile={onPreviewFile}
                 />
               </div>

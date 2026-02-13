@@ -218,7 +218,6 @@ const TextMessageBubble = ({
         attachments={message.attachments?.filter(
           att => !att.generatedImage?.isGenerated
         )}
-        variant="assistant"
         onPreviewFile={onPreviewFile}
       />
 

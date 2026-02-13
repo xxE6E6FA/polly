@@ -267,6 +267,9 @@ export type Attachment = {
     wordCount: number;
     contentLength: number;
   };
+  // Media dimensions for layout shift prevention
+  width?: number;
+  height?: number;
   // Generated image metadata
   generatedImage?: {
     isGenerated: boolean;

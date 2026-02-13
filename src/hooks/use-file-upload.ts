@@ -89,6 +89,8 @@ async function processImageFile(file: File): Promise<
       processedFile: File;
       mimeType: string;
       thumbnail?: string;
+      width?: number;
+      height?: number;
     }
   | { error: string }
 > {
@@ -105,7 +107,13 @@ async function processImageFile(file: File): Promise<
       }
     );
 
-    return { processedFile, mimeType: converted.mimeType, thumbnail };
+    return {
+      processedFile,
+      mimeType: converted.mimeType,
+      thumbnail,
+      width: converted.width,
+      height: converted.height,
+    };
   } catch (error) {
     // HEIC files require conversion - can't fall back to original
     if (isHeic) {
@@ -189,6 +197,8 @@ export function useFileUpload({
             let processedFile = file;
             let mimeType = file.type;
             let thumbnailBase64: string | undefined;
+            let mediaWidth: number | undefined;
+            let mediaHeight: number | undefined;
             const isImage = category === "image";
 
             // Convert images to WebP for optimization
@@ -205,6 +215,8 @@ export function useFileUpload({
               processedFile = result.processedFile;
               mimeType = result.mimeType;
               thumbnailBase64 = result.thumbnail;
+              mediaWidth = result.width;
+              mediaHeight = result.height;
             }
 
             // Generate thumbnail for videos
@@ -213,7 +225,10 @@ export function useFileUpload({
                 const { generateVideoThumbnail } = await import(
                   "@/lib/file-utils"
                 );
-                thumbnailBase64 = await generateVideoThumbnail(file);
+                const videoResult = await generateVideoThumbnail(file);
+                thumbnailBase64 = videoResult.thumbnail;
+                mediaWidth = videoResult.width;
+                mediaHeight = videoResult.height;
               } catch (error) {
                 console.warn("Failed to generate video thumbnail:", error);
               }
@@ -232,6 +247,8 @@ export function useFileUpload({
                 content: base64Content,
                 mimeType,
                 storageId: undefined,
+                width: mediaWidth,
+                height: mediaHeight,
               });
             } else {
               // Eager upload: Add attachment immediately, upload in background
@@ -248,6 +265,8 @@ export function useFileUpload({
                 mimeType,
                 storageId: undefined,
                 thumbnail: thumbnailBase64,
+                width: mediaWidth,
+                height: mediaHeight,
               };
 
               // Add to store immediately so user sees the attachment

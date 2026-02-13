@@ -96,7 +96,6 @@ function AttachmentDisplayInner({
     <>
       <AttachmentStrip
         attachments={attachments as Attachment[]}
-        variant="assistant"
         className="mt-0 mb-2 flex-nowrap overflow-x-auto"
         onPreviewFile={setPreviewFile}
         onRemove={onRemoveAttachment}

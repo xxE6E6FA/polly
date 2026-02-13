@@ -83,7 +83,7 @@ export const SharedChatLayout = ({ children }: SharedChatLayoutProps) => {
 
       <main
         className={cn(
-          "min-w-0 flex-1 overflow-hidden flex flex-col transition-all duration-300 ease-out",
+          "min-w-0 flex-1 overflow-hidden flex flex-col transition-[margin,padding,border-radius,box-shadow] duration-300 ease-out",
           // Base styles
           "bg-background",
           // Private mode specific styles: use margins to create the "shrunk" card effect

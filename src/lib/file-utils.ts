@@ -76,7 +76,12 @@ export async function convertImageToWebP(
   file: File,
   maxDimension = FILE_LIMITS.MAX_DIMENSION,
   quality = FILE_LIMITS.IMAGE_QUALITY
-): Promise<{ base64: string; mimeType: string }> {
+): Promise<{
+  base64: string;
+  mimeType: string;
+  width: number;
+  height: number;
+}> {
   // Convert HEIC/HEIF to JPEG first (browsers can't decode HEIC natively)
   let processedFile = file;
   if (isHeicFile(file)) {
@@ -117,7 +122,12 @@ export async function convertImageToWebP(
                   reject(new Error("Failed to parse converted image"));
                   return;
                 }
-                resolve({ base64, mimeType: "image/webp" });
+                resolve({
+                  base64,
+                  mimeType: "image/webp",
+                  width: scaled.width,
+                  height: scaled.height,
+                });
               };
               reader.onerror = () =>
                 reject(new Error("Failed to read converted image"));
@@ -175,7 +185,7 @@ export async function generateThumbnail(
   file: File,
   maxSize = FILE_LIMITS.THUMBNAIL_SIZE,
   deps: ThumbnailDeps = {}
-): Promise<string> {
+): Promise<{ thumbnail: string; width: number; height: number }> {
   // Convert HEIC/HEIF to JPEG first (browsers can't decode HEIC natively)
   let processedFile = file;
   if (isHeicFile(file)) {
@@ -204,7 +214,7 @@ export async function generateThumbnail(
       // Convert to base64 with better quality
       const thumbnail = canvas.toDataURL("image/jpeg", 0.9);
       revokeObjectURL(objectUrl);
-      resolve(thumbnail);
+      resolve({ thumbnail, width: img.width, height: img.height });
     };
 
     img.onerror = error => {
@@ -222,7 +232,7 @@ export function generateVideoThumbnail(
   file: File,
   maxSize = FILE_LIMITS.THUMBNAIL_SIZE,
   deps: ThumbnailDeps = {}
-): Promise<string> {
+): Promise<{ thumbnail: string; width: number; height: number }> {
   const createCanvas =
     deps.createCanvas ?? (() => document.createElement("canvas"));
   const { toObjectURL, revokeObjectURL } = resolveObjectURLDeps(deps);
@@ -271,7 +281,11 @@ export function generateVideoThumbnail(
 
         const thumbnail = canvas.toDataURL("image/jpeg", 0.9);
         cleanup();
-        resolve(thumbnail);
+        resolve({
+          thumbnail,
+          width: video.videoWidth,
+          height: video.videoHeight,
+        });
       } catch (error) {
         cleanup();
         reject(error);
