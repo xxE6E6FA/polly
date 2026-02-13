@@ -8,25 +8,30 @@ export function exportAsJSON(data: ExportData): string {
 
   return JSON.stringify(
     {
-      conversation: {
-        title: data.conversation.title,
-        createdAt: new Date(data.conversation.createdAt).toISOString(),
-        updatedAt: new Date(data.conversation.updatedAt).toISOString(),
-      },
-      messages: data.messages.map(message => ({
-        role: message.role,
-        content: stripCitations(message.content),
-        reasoning: message.reasoning
-          ? stripCitations(message.reasoning)
-          : undefined,
-        model: message.model,
-        provider: message.provider,
-        useWebSearch: message.useWebSearch,
-        attachments: message.attachments,
-        citations: message.citations,
-        createdAt: new Date(message.createdAt).toISOString(),
-        metadata: message.metadata,
-      })),
+      source: "Polly",
+      version: "1.0.0",
+      exportedAt: Date.now(),
+      conversations: [
+        {
+          title: data.conversation.title,
+          createdAt: data.conversation.createdAt,
+          updatedAt: data.conversation.updatedAt,
+          messages: data.messages.map(message => ({
+            role: message.role,
+            content: stripCitations(message.content),
+            reasoning: message.reasoning
+              ? stripCitations(message.reasoning)
+              : undefined,
+            model: message.model,
+            provider: message.provider,
+            useWebSearch: message.useWebSearch,
+            attachments: message.attachments,
+            citations: message.citations,
+            createdAt: message.createdAt,
+            metadata: message.metadata,
+          })),
+        },
+      ],
     },
     null,
     2
