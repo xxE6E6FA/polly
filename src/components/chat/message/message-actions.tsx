@@ -126,6 +126,7 @@ type MessageActionsProps = {
     aspectRatio?: string;
   };
   onRetryImageGeneration?: (params: ImageRetryParams) => void;
+  persona?: { name: string; icon: string } | null;
 };
 
 export const MessageActions = memo(
@@ -155,6 +156,7 @@ export const MessageActions = memo(
     isImageGenerationMessage,
     imageGenerationParams,
     onRetryImageGeneration,
+    persona,
   }: MessageActionsProps & {
     metadata?: Doc<"messages">["metadata"];
   }) => {
@@ -646,6 +648,14 @@ export const MessageActions = memo(
             isExpanded={citationsExpanded}
             onToggle={onToggleCitations}
           />
+        )}
+
+        {/* Persona badge */}
+        {!isUser && persona && (
+          <ActionButton size="label" className="pointer-events-none">
+            <span className="text-xs leading-none">{persona.icon || "🤖"}</span>
+            <span className="hidden sm:inline">{persona.name}</span>
+          </ActionButton>
         )}
 
         {/* Model badge */}

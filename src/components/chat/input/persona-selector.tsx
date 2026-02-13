@@ -13,15 +13,12 @@ interface PersonaSelectorProps {
 
 export function PersonaSelector({
   conversationId,
-  hasExistingMessages,
+  hasExistingMessages = false,
   selectedPersonaId = null,
   onPersonaSelect,
   disabled = false,
 }: PersonaSelectorProps) {
-  const { showPersonaSelector } = useChatInputControls(
-    conversationId,
-    hasExistingMessages
-  );
+  const { showPersonaSelector } = useChatInputControls(conversationId);
 
   if (!showPersonaSelector) {
     return null;
@@ -33,6 +30,7 @@ export function PersonaSelector({
       selectedPersonaId={selectedPersonaId}
       onPersonaSelect={onPersonaSelect}
       disabled={disabled}
+      hasExistingMessages={hasExistingMessages}
     />
   );
 }

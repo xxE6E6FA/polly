@@ -185,18 +185,35 @@ export async function createConversationHandler(
     });
   }
 
+  // Resolve persona snapshot for the assistant message (frozen at creation time)
+  let personaName: string | undefined;
+  let personaIcon: string | undefined;
+  if (args.personaId) {
+    const persona = await ctx.db.get("personas", args.personaId);
+    if (persona) {
+      personaName = persona.name;
+      personaIcon = persona.icon ?? undefined;
+    }
+  }
+
   // Create assistant message directly (avoid extra mutation call)
   // Set initial status to "thinking" to ensure UI treats it as live before HTTP stream flips to "streaming"
-  const assistantMessageId = await ctx.db.insert(
-    "messages",
-    createDefaultMessageFields(conversationId, user._id, {
+  const assistantMessageFields = createDefaultMessageFields(
+    conversationId,
+    user._id,
+    {
       role: "assistant",
       content: "",
       model: fullModel.modelId,
       provider: fullModel.provider,
       status: "thinking",
-    })
+    }
   );
+  const assistantMessageId = await ctx.db.insert("messages", {
+    ...assistantMessageFields,
+    personaName,
+    personaIcon,
+  });
 
   // Increment rolling token estimate and messageCount for the first user + assistant messages
   try {
@@ -1313,6 +1330,18 @@ export const createWithUserId = internalMutation({
       );
     }
 
+    // Resolve persona snapshot for the assistant message
+    let personaName: string | undefined;
+    let personaIcon: string | undefined;
+    const convo = await ctx.db.get("conversations", conversationId);
+    if (convo?.personaId) {
+      const persona = await ctx.db.get("personas", convo.personaId);
+      if (persona) {
+        personaName = persona.name;
+        personaIcon = persona.icon ?? undefined;
+      }
+    }
+
     // Create empty assistant message for streaming with status: "thinking"
     // This ensures proper streaming state from the start
     const assistantMessageId = await ctx.db.insert("messages", {
@@ -1323,6 +1352,8 @@ export const createWithUserId = internalMutation({
       userId: args.userId,
       model: args.model,
       provider: args.provider,
+      personaName,
+      personaIcon,
       isMainBranch: true,
       createdAt: Date.now(),
     });

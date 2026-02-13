@@ -10,6 +10,7 @@ import { CitationProvider } from "@/providers/citation-context";
 import { useZenModeStore } from "@/stores/zen-mode-store";
 import type { Attachment, ChatMessage as ChatMessageType } from "@/types";
 import { CitationsGallery } from "../citations-gallery";
+import type { PersonaInfo } from "../virtualized-chat-messages";
 import { AssistantLoadingState } from "./assistant-loading-state";
 import { AttachmentStrip } from "./attachment-strip";
 import type { ImageRetryParams } from "./image-actions";
@@ -20,6 +21,7 @@ import { MessageError } from "./message-error";
 type AssistantBubbleProps = {
   conversationId?: string;
   message: ChatMessageType;
+  persona?: PersonaInfo;
   isStreaming?: boolean;
   isCopied: boolean;
   isRetrying: boolean;
@@ -42,6 +44,7 @@ type AssistantBubbleProps = {
 export const AssistantBubble = ({
   conversationId,
   message,
+  persona,
   isStreaming = false,
   isCopied,
   isRetrying,
@@ -73,6 +76,7 @@ export const AssistantBubble = ({
     <TextMessageBubble
       conversationId={conversationId}
       message={message}
+      persona={persona}
       isStreaming={isStreaming}
       isCopied={isCopied}
       isRetrying={isRetrying}
@@ -90,7 +94,7 @@ export const AssistantBubble = ({
 const TextMessageBubble = ({
   conversationId,
   message,
-  isStreaming = false,
+  persona,
   isCopied,
   isRetrying,
   isDeleting,
@@ -155,6 +159,104 @@ const TextMessageBubble = ({
   const isLoading = phase === "loading";
   const showContent = phase === "streaming" || phase === "complete";
 
+  const messageContent = (
+    <>
+      {/* Content area */}
+      <div className="relative">
+        {/* Content - visibility controlled via CSS */}
+        <div
+          className={cn(
+            "transition-opacity duration-150",
+            showContent
+              ? "opacity-100"
+              : "opacity-0 pointer-events-none absolute inset-0"
+          )}
+        >
+          <CitationProvider
+            citations={message.citations || []}
+            messageId={message.id}
+          >
+            <StreamingMarkdown
+              isStreaming={isActive}
+              messageId={message.id}
+              className="text-[15px] leading-[1.75] sm:text-[16px] sm:leading-[1.8]"
+            >
+              {displayContent}
+            </StreamingMarkdown>
+          </CitationProvider>
+        </div>
+
+        {message.status === "error" && message.error && (
+          <MessageError
+            message={message}
+            messageId={message.id}
+            onRetry={onRetryMessage}
+          />
+        )}
+      </div>
+
+      {(message.metadata?.stopped ||
+        message.metadata?.finishReason === "user_stopped") &&
+        !isActive && (
+          <Alert variant="danger" className="my-2">
+            <AlertDescription>Stopped by user</AlertDescription>
+          </Alert>
+        )}
+
+      {/* Defer citations until content has begun to reduce early reflow */}
+      {message.citations && message.citations.length > 0 && showContent && (
+        <CitationsGallery
+          key={`citations-${message.id}-${phase}`}
+          citations={message.citations}
+          messageId={message.id}
+          content={displayContent}
+          isExpanded={citationsExpanded}
+        />
+      )}
+
+      <AttachmentStrip
+        attachments={message.attachments?.filter(
+          att => !att.generatedImage?.isGenerated
+        )}
+        variant="assistant"
+        onPreviewFile={onPreviewFile}
+      />
+
+      {/* Message actions for text messages; keep a reserved row to avoid shifts */}
+      <div className="mt-2 min-h-7">
+        <div
+          className={cn(
+            "transition-opacity duration-150",
+            isLoading ? "opacity-0" : "opacity-100"
+          )}
+        >
+          <MessageActions
+            conversationId={conversationId}
+            messageId={message.id}
+            copyToClipboard={copyToClipboard}
+            isCopied={isCopied}
+            isDeleting={isDeleting}
+            isRetrying={isRetrying}
+            isStreaming={isActive}
+            isUser={false}
+            model={message.model}
+            provider={message.provider}
+            forceVisible={showActions}
+            onDeleteMessage={onDeleteMessage}
+            onRetryMessage={onRetryMessage}
+            onRefineMessage={onRefineMessage}
+            onOpenZenMode={isZenModeAvailable ? openZenMode : undefined}
+            citations={message.citations}
+            citationsExpanded={citationsExpanded}
+            onToggleCitations={() => setCitationsExpanded(!citationsExpanded)}
+            metadata={message.metadata}
+            persona={persona}
+          />
+        </div>
+      </div>
+    </>
+  );
+
   return (
     <div className="w-full">
       <div
@@ -162,7 +264,6 @@ const TextMessageBubble = ({
         onMouseEnter={onMouseEnter}
         onMouseLeave={onMouseLeave}
       >
-        {/* Extracted loading state: activity stream + skeleton */}
         <AssistantLoadingState
           phase={phase}
           isActive={isActive}
@@ -171,99 +272,7 @@ const TextMessageBubble = ({
           thinkingDurationMs={message.metadata?.thinkingDurationMs}
           toolCalls={message.toolCalls}
         />
-
-        {/* Content area */}
-        <div className="relative">
-          {/* Content - visibility controlled via CSS */}
-          <div
-            className={cn(
-              "transition-opacity duration-150",
-              showContent
-                ? "opacity-100"
-                : "opacity-0 pointer-events-none absolute inset-0"
-            )}
-          >
-            <CitationProvider
-              citations={message.citations || []}
-              messageId={message.id}
-            >
-              <StreamingMarkdown
-                isStreaming={isActive}
-                messageId={message.id}
-                className="text-[15px] leading-[1.75] sm:text-[16px] sm:leading-[1.8]"
-              >
-                {displayContent}
-              </StreamingMarkdown>
-            </CitationProvider>
-          </div>
-
-          {message.status === "error" && message.error && (
-            <MessageError
-              message={message}
-              messageId={message.id}
-              onRetry={onRetryMessage}
-            />
-          )}
-        </div>
-
-        {(message.metadata?.stopped ||
-          message.metadata?.finishReason === "user_stopped") &&
-          !isActive && (
-            <Alert variant="danger" className="my-2">
-              <AlertDescription>Stopped by user</AlertDescription>
-            </Alert>
-          )}
-
-        {/* Defer citations until content has begun to reduce early reflow */}
-        {message.citations && message.citations.length > 0 && showContent && (
-          <CitationsGallery
-            key={`citations-${message.id}-${phase}`}
-            citations={message.citations}
-            messageId={message.id}
-            content={displayContent}
-            isExpanded={citationsExpanded}
-          />
-        )}
-
-        <AttachmentStrip
-          attachments={message.attachments?.filter(
-            att => !att.generatedImage?.isGenerated
-          )}
-          variant="assistant"
-          onPreviewFile={onPreviewFile}
-        />
-
-        {/* Message actions for text messages; keep a reserved row to avoid shifts */}
-        <div className="mt-2 min-h-7">
-          <div
-            className={cn(
-              "transition-opacity duration-150",
-              isLoading ? "opacity-0" : "opacity-100"
-            )}
-          >
-            <MessageActions
-              conversationId={conversationId}
-              messageId={message.id}
-              copyToClipboard={copyToClipboard}
-              isCopied={isCopied}
-              isDeleting={isDeleting}
-              isRetrying={isRetrying}
-              isStreaming={isActive}
-              isUser={false}
-              model={message.model}
-              provider={message.provider}
-              forceVisible={showActions}
-              onDeleteMessage={onDeleteMessage}
-              onRetryMessage={onRetryMessage}
-              onRefineMessage={onRefineMessage}
-              onOpenZenMode={isZenModeAvailable ? openZenMode : undefined}
-              citations={message.citations}
-              citationsExpanded={citationsExpanded}
-              onToggleCitations={() => setCitationsExpanded(!citationsExpanded)}
-              metadata={message.metadata}
-            />
-          </div>
-        </div>
+        {messageContent}
       </div>
     </div>
   );

@@ -14,6 +14,8 @@ import { ContextMessage } from "./context-message";
 import type { ImageRetryParams } from "./message/image-actions";
 import { ZenModeDialog } from "./message/zen-mode-dialog";
 
+export type PersonaInfo = { icon: string; name: string } | null;
+
 type VirtualizedChatMessagesProps = {
   messages: ChatMessageType[];
   isStreaming?: boolean;

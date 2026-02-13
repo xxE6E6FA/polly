@@ -85,6 +85,7 @@ const ChatInputInner = ({
   userMessageContents,
   autoFocus = false,
   isLikelyImageConversation = false,
+  conversationPersonaId,
   ref,
 }: ChatInputProps & { ref?: React.Ref<ChatInputRef> }) => {
   // Unified state management
@@ -458,6 +459,7 @@ const ChatInputInner = ({
             hasReplicateApiKey={hasReplicateApiKey}
             isPrivateMode={isPrivateMode}
             selectedImageModel={selectedImageModel}
+            conversationPersonaId={conversationPersonaId}
           />
         </div>
       </div>

@@ -46,6 +46,8 @@ export function mapServerMessageToChatMessage(
     citations: msg.citations,
     toolCalls: msg.toolCalls as ChatMessage["toolCalls"],
     error: msg.error,
+    personaName: msg.personaName,
+    personaIcon: msg.personaIcon,
     metadata: msg.metadata,
     imageGeneration: msg.imageGeneration
       ? {

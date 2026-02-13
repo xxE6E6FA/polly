@@ -46,6 +46,8 @@ export function convertServerMessage(msg: Doc<"messages">): ChatMessage {
     reasoningParts: msg.reasoningParts as ChatMessage["reasoningParts"],
     toolCalls: msg.toolCalls as ChatMessage["toolCalls"],
     error: msg.error,
+    personaName: msg.personaName,
+    personaIcon: msg.personaIcon,
     metadata: isMessageMetadata(msg.metadata)
       ? (msg.metadata as ChatMessage["metadata"])
       : undefined,

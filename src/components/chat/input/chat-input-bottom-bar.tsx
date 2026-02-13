@@ -1,4 +1,6 @@
+import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
+import { useMutation } from "convex/react";
 import { useCallback } from "react";
 import { useSpeechInputContext } from "@/hooks";
 import { useVisibleControls } from "@/hooks/chat-ui/use-visible-controls";
@@ -53,6 +55,7 @@ interface ChatInputBottomBarProps {
     supportsImages?: boolean;
     free?: boolean;
   } | null;
+  conversationPersonaId?: Id<"personas"> | null;
 }
 
 export function ChatInputBottomBar({
@@ -69,6 +72,7 @@ export function ChatInputBottomBar({
   hasReplicateApiKey,
   isPrivateMode,
   selectedImageModel,
+  conversationPersonaId,
 }: ChatInputBottomBarProps) {
   const { selectedModel } = useSelectedModel();
   const { user } = useUserDataContext();
@@ -80,11 +84,14 @@ export function ChatInputBottomBar({
   const disabled =
     isLoading || isProcessing || !online || isRecordingOrTranscribing;
   const [reasoningConfig, setReasoningConfig] = useReasoningConfig();
-  const { selectedPersonaId, temperature } = useChatScopedState(conversationId);
+  const { selectedPersonaId: storePersonaId, temperature } =
+    useChatScopedState(conversationId);
+  const selectedPersonaId = storePersonaId ?? conversationPersonaId ?? null;
   const lastGeneratedImageSeed = useLastGeneratedImageSeed(conversationId);
   const [generationMode] = useGenerationMode();
   const { params: imageParams, setParams: setImageParams } = useImageParams();
   const { clearOnSend } = useChatFullscreenUI();
+  const patchConversation = useMutation(api.conversations.patch);
 
   // Compute if quota is exhausted (for built-in models only)
   const isQuotaExhausted =
@@ -132,8 +139,16 @@ export function ChatInputBottomBar({
         "@/stores/actions/chat-input-actions"
       );
       setPersona(conversationId, id);
+
+      // Persist to DB for existing conversations
+      if (conversationId && !isPrivateMode) {
+        await patchConversation({
+          id: conversationId as Id<"conversations">,
+          updates: { personaId: id ?? undefined },
+        });
+      }
     },
-    [conversationId]
+    [conversationId, isPrivateMode, patchConversation]
   );
 
   const handleTemperatureChange = useCallback(

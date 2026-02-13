@@ -8,7 +8,6 @@ import {
   FloppyDiskIcon,
   GitBranchIcon,
   GitCommitIcon,
-  NotePencilIcon,
   PencilSimpleIcon,
   PushPinIcon,
   ShareNetworkIcon,
@@ -18,7 +17,6 @@ import {
 import { useMutation, useQuery } from "convex/react";
 import { memo, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import {
@@ -183,7 +181,6 @@ const ChatHeaderComponent = ({
   onSavePrivateChat,
   canSavePrivateChat,
   privateMessages,
-  privatePersonaId,
 }: ChatHeaderProps) => {
   const { user } = useUserDataContext();
   const { isSidebarVisible, setSidebarVisible } = useUI();
@@ -225,18 +222,6 @@ const ChatHeaderComponent = ({
     api.conversations.getForExport,
     conversationId && shouldLoadExportData ? { id: conversationId } : "skip"
   );
-
-  const personaQueryArg = (() => {
-    if (conversation?.personaId) {
-      return { id: conversation.personaId };
-    }
-    if (privatePersonaId) {
-      return { id: privatePersonaId };
-    }
-    return "skip";
-  })();
-
-  const persona = useQuery(api.personas.get, personaQueryArg);
 
   const patchConversation = useMutation(api.conversations.patch);
   const { deleteConversation: performDelete } = useDeleteConversation({
@@ -427,12 +412,6 @@ const ChatHeaderComponent = ({
           </Button>
         )}
         <div className="flex min-w-0 flex-1 items-center gap-1">
-          {persona && (
-            <Badge size="sm">
-              <span>{persona.icon}</span>
-              <span>{persona.name}</span>
-            </Badge>
-          )}
           {/* Branch selector */}
           {conversationId && Array.isArray(branches) && branches.length > 1 && (
             <DropdownMenu>

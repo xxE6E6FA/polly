@@ -4,6 +4,7 @@ import type { Attachment, ChatMessage as ChatMessageType } from "@/types";
 import { AssistantBubble } from "./message/assistant-bubble";
 import type { ImageRetryParams } from "./message/image-actions";
 import { UserBubble } from "./message/user-bubble";
+import type { PersonaInfo } from "./virtualized-chat-messages";
 
 type ChatMessageProps = {
   message: ChatMessageType;
@@ -40,6 +41,13 @@ const ChatMessageComponent = ({
   onPreviewAttachment,
 }: ChatMessageProps) => {
   const isUser = message.role === "user";
+
+  // Only show persona when the message has its own snapshot — avoids retroactive
+  // persona changes when the conversation-level persona is switched.
+  const messagePersona: PersonaInfo = message.personaName
+    ? { name: message.personaName, icon: message.personaIcon ?? "" }
+    : null;
+
   const [isCopied, setIsCopied] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -125,6 +133,7 @@ const ChatMessageComponent = ({
         <AssistantBubble
           conversationId={conversationId}
           message={message}
+          persona={messagePersona}
           isStreaming={isStreaming}
           isCopied={isCopied}
           isRetrying={isRetrying}
@@ -196,6 +205,7 @@ export const ChatMessage = memo(
       prevProps.message.id === nextProps.message.id &&
       prevProps.message.content === nextProps.message.content &&
       prevProps.message.status === nextProps.message.status &&
+      prevProps.message.personaName === nextProps.message.personaName &&
       prevProps.isStreaming === nextProps.isStreaming
     );
   }
