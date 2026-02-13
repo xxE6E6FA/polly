@@ -10,7 +10,7 @@ import {
   SpeakerHighIcon,
 } from "@phosphor-icons/react";
 import { useQuery } from "convex/react";
-import { Spinner } from "@/components/ui/spinner";
+import { useState } from "react";
 import type { Attachment } from "@/types";
 
 function getFileIcon(
@@ -93,13 +93,32 @@ export const FileDisplay = ({
     fileUrl = `data:${attachment.mimeType};base64,${attachment.content}`;
   }
 
-  // Show loading state for Convex files
+  // Show loading skeleton for Convex files (matches final rendered shape per type)
   if (attachment.storageId && convexFileUrl === undefined) {
+    const isMedia = attachment.type === "image" || attachment.type === "video";
+    if (isMedia) {
+      const aspectStyle =
+        attachment.width && attachment.height
+          ? { aspectRatio: `${attachment.width} / ${attachment.height}` }
+          : { aspectRatio: "4 / 3" };
+      return (
+        <div
+          className={`overflow-hidden rounded-xl border border-border/20 shadow-sm ${className}`}
+        >
+          <div
+            className="max-w-sm animate-pulse bg-muted/40"
+            style={aspectStyle}
+          />
+        </div>
+      );
+    }
+    // Non-media files: skeleton pill matching the final icon+name pill shape
     return (
       <div
-        className={`flex items-center justify-center bg-muted/20 ${className}`}
+        className={`inline-flex items-center gap-1.5 rounded-md border border-border/50 bg-muted/30 px-3 py-1 ${className}`}
       >
-        <Spinner size="sm" className="opacity-50" />
+        {getFileIcon(attachment)}
+        <span className="text-xs text-muted-foreground">{attachment.name}</span>
       </div>
     );
   }
@@ -117,19 +136,12 @@ export const FileDisplay = ({
 
   if (attachment.type === "image" && fileUrl) {
     return (
-      <button
-        className={`overflow-hidden rounded-xl border border-border/20 shadow-sm ${className}`}
+      <ImageWithSkeleton
+        attachment={attachment}
+        fileUrl={fileUrl}
+        className={className}
         onClick={onClick}
-        type="button"
-      >
-        <img
-          alt={attachment.name}
-          className="h-auto w-full max-w-sm object-cover"
-          loading="lazy"
-          src={fileUrl}
-          style={{ maxHeight: "300px" }}
-        />
-      </button>
+      />
     );
   }
 
@@ -156,6 +168,10 @@ export const FileDisplay = ({
 
   if (attachment.type === "video" && (attachment.thumbnail || fileUrl)) {
     const posterUrl = attachment.thumbnail;
+    const aspectStyle =
+      attachment.width && attachment.height
+        ? { aspectRatio: `${attachment.width} / ${attachment.height}` }
+        : undefined;
     return (
       <button
         className={`relative overflow-hidden rounded-xl border border-border/20 shadow-sm ${className}`}
@@ -167,10 +183,13 @@ export const FileDisplay = ({
             src={posterUrl}
             alt={attachment.name}
             className="h-auto w-full max-w-sm object-cover"
-            style={{ maxHeight: "300px" }}
+            style={{ maxHeight: "300px", ...aspectStyle }}
           />
         ) : (
-          <div className="flex h-40 w-64 items-center justify-center bg-muted/30">
+          <div
+            className="flex items-center justify-center bg-muted/30"
+            style={aspectStyle ?? { height: "10rem", width: "16rem" }}
+          >
             <FilmStripIcon className="size-8 text-muted-foreground" />
           </div>
         )}
@@ -195,6 +214,46 @@ export const FileDisplay = ({
     </button>
   );
 };
+
+function ImageWithSkeleton({
+  attachment,
+  fileUrl,
+  className = "",
+  onClick,
+}: {
+  attachment: Attachment;
+  fileUrl: string;
+  className?: string;
+  onClick?: () => void;
+}) {
+  const [loaded, setLoaded] = useState(false);
+  const hasKnownDimensions = attachment.width && attachment.height;
+  const aspectStyle = hasKnownDimensions
+    ? { aspectRatio: `${attachment.width} / ${attachment.height}` }
+    : { aspectRatio: "4 / 3" };
+
+  return (
+    <button
+      className={`overflow-hidden rounded-xl border border-border/20 shadow-sm ${className}`}
+      onClick={onClick}
+      type="button"
+    >
+      <div className="relative max-w-sm" style={aspectStyle}>
+        {!loaded && (
+          <div className="absolute inset-0 animate-pulse rounded-xl bg-muted/40" />
+        )}
+        <img
+          alt={attachment.name}
+          className={`h-full w-full object-cover transition-opacity duration-200 ${loaded ? "opacity-100" : "opacity-0"}`}
+          loading="lazy"
+          src={fileUrl}
+          style={{ maxHeight: "300px" }}
+          onLoad={() => setLoaded(true)}
+        />
+      </div>
+    </button>
+  );
+}
 
 type ImageThumbnailProps = {
   attachment: Attachment;
@@ -236,13 +295,11 @@ export const ImageThumbnail = ({
     thumbnailUrl = `data:${attachment.mimeType};base64,${attachment.content}`;
   }
 
-  if (attachment.storageId && !thumbnailUrl) {
+  if (attachment.storageId && !thumbnailUrl && attachment.type !== "video") {
     return (
       <div
-        className={`flex flex-shrink-0 items-center justify-center rounded bg-muted ${className}`}
-      >
-        <Spinner size="sm" className="size-3 opacity-50" />
-      </div>
+        className={`flex-shrink-0 animate-pulse rounded bg-muted ${className}`}
+      />
     );
   }
 
@@ -262,18 +319,22 @@ export const ImageThumbnail = ({
     );
   }
 
-  if (attachment.type === "video" && thumbnailUrl) {
+  if (attachment.type === "video") {
     return (
       <div
         className={`relative flex-shrink-0 overflow-hidden rounded-md ${className}`}
         title={attachment.name}
       >
-        <img
-          alt={attachment.name}
-          className="absolute inset-0 h-full w-full object-cover"
-          loading="lazy"
-          src={thumbnailUrl}
-        />
+        {thumbnailUrl ? (
+          <img
+            alt={attachment.name}
+            className="absolute inset-0 h-full w-full object-cover"
+            loading="lazy"
+            src={thumbnailUrl}
+          />
+        ) : (
+          <div className="absolute inset-0 bg-muted/60" />
+        )}
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-white">
             <PlayIcon className="size-2.5" />

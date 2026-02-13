@@ -1184,22 +1184,6 @@ pre {
   animation: fade-in-up 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* Message entrance animation - subtle slide up + fade */
-@keyframes message-in {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.animate-message-in {
-  animation: message-in 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
 /* Copy success bounce - plays on the check icon */
 @keyframes copy-success {
   0% {
@@ -1251,7 +1235,6 @@ pre {
 
 /* Respect reduced motion preferences */
 @media (prefers-reduced-motion: reduce) {
-  .animate-message-in,
   .animate-copy-success,
   .animate-page-enter,
   .animate-list-item-in {

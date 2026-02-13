@@ -84,7 +84,10 @@ export function useConvexFileUpload() {
         // Generate thumbnail for images
         if (attachmentType === "image") {
           try {
-            attachment.thumbnail = await generateThumbnail(file);
+            const imageResult = await generateThumbnail(file);
+            attachment.thumbnail = imageResult.thumbnail;
+            attachment.width = imageResult.width;
+            attachment.height = imageResult.height;
           } catch (error) {
             console.warn("Failed to generate thumbnail:", error);
           }
@@ -93,7 +96,10 @@ export function useConvexFileUpload() {
         // Generate thumbnail for videos
         if (attachmentType === "video") {
           try {
-            attachment.thumbnail = await generateVideoThumbnail(file);
+            const videoResult = await generateVideoThumbnail(file);
+            attachment.thumbnail = videoResult.thumbnail;
+            attachment.width = videoResult.width;
+            attachment.height = videoResult.height;
           } catch (error) {
             console.warn("Failed to generate video thumbnail:", error);
           }
