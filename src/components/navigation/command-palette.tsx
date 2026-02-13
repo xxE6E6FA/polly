@@ -20,6 +20,7 @@ import {
   ShareNetworkIcon,
   SunIcon,
   TrashIcon,
+  UploadIcon,
   UsersIcon,
 } from "@phosphor-icons/react";
 import { useMutation, useQuery } from "convex/react";
@@ -46,6 +47,7 @@ import { ControlledShareConversationDialog } from "@/components/ui/share-convers
 import { Spinner } from "@/components/ui/spinner";
 import { TextInputDialog } from "@/components/ui/text-input-dialog";
 import { useArchiveConversation } from "@/hooks/use-archive-conversation";
+import { useConversationImport } from "@/hooks/use-conversation-import";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useDeleteConversation } from "@/hooks/use-delete-conversation";
 import { useModelCatalog } from "@/hooks/use-model-catalog";
@@ -226,6 +228,7 @@ export function CommandPalette({
     });
 
   const managedToast = useToast();
+  const conversationImport = useConversationImport();
 
   const allModels: ModelType[] = useMemo(() => {
     const combined: AvailableModel[] = [
@@ -529,6 +532,12 @@ export function CommandPalette({
     handleClose();
   }, [toggleTheme, handleClose]);
 
+  const handleImportConversations = useCallback(() => {
+    handleClose();
+    // Trigger file picker after palette closes
+    setTimeout(() => conversationImport.triggerFileInput(), 200);
+  }, [handleClose, conversationImport]);
+
   const handlePrivateMode = useCallback(() => {
     navigate("/private");
     handleClose();
@@ -678,7 +687,7 @@ export function CommandPalette({
       },
     ];
 
-    // Browse actions require authentication
+    // Browse and import actions require authentication
     if (isAuthenticated) {
       actions.push(
         {
@@ -700,6 +709,13 @@ export function CommandPalette({
           handler: () =>
             navigateToMenu("model-categories", undefined, "All Models"),
           disabled: !online,
+        },
+        {
+          id: "import-conversations",
+          label: "Import Conversations",
+          icon: UploadIcon,
+          handler: handleImportConversations,
+          disabled: !online,
         }
       );
     }
@@ -717,6 +733,7 @@ export function CommandPalette({
     theme,
     handleNewConversation,
     handlePrivateMode,
+    handleImportConversations,
     handleToggleTheme,
     navigateToMenu,
     online,
@@ -1337,6 +1354,26 @@ export function CommandPalette({
         cancelText="Cancel"
         variant="destructive"
         onConfirm={confirmDeleteConversation}
+      />
+
+      {/* Import file input + confirmation dialog */}
+      <input
+        ref={conversationImport.fileInputRef}
+        type="file"
+        accept=".json,.md,.markdown"
+        onChange={conversationImport.handleFileChange}
+        className="hidden"
+      />
+      <ConfirmationDialog
+        open={conversationImport.confirmDialog.state.isOpen}
+        onOpenChange={conversationImport.confirmDialog.handleOpenChange}
+        title={conversationImport.confirmDialog.state.title}
+        description={conversationImport.confirmDialog.state.description}
+        confirmText={conversationImport.confirmDialog.state.confirmText}
+        cancelText={conversationImport.confirmDialog.state.cancelText}
+        variant={conversationImport.confirmDialog.state.variant}
+        onConfirm={conversationImport.confirmDialog.handleConfirm}
+        onCancel={conversationImport.confirmDialog.handleCancel}
       />
 
       {/* Rename Dialog */}
