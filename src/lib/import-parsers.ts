@@ -328,25 +328,37 @@ function parseMarkdownImport(content: string): ImportResult {
 
       // Skip content within attachments/sources blocks (list items, citations)
       if (inAttachmentsOrSources) {
+        // Exit attachments/sources mode when we hit a blank line or new section
         if (line === "" || line.match(/^###/) || line.match(/^##/)) {
           inAttachmentsOrSources = false;
+          // Don't continue here - process the line normally (could be end of reasoning, etc.)
         } else {
+          // Skip all content within attachments/sources sections
           continue;
         }
       }
 
       if (inReasoning) {
-        if (line === "") {
-          // Blank lines within reasoning are preserved
+        // End reasoning mode when we hit a new section (not just blank lines)
+        // This allows multi-paragraph reasoning with blank lines between paragraphs
+        if (line.match(/^###/) || line.match(/^##/)) {
+          inReasoning = false;
+          // Don't continue - let the line be processed (might be attachments/sources header)
+        } else if (line === "") {
+          // Preserve blank lines within reasoning (for paragraph separation)
           if (currentReasoning.length > 0) {
             currentReasoning.push(line);
           }
           continue;
+        } else {
+          // Accumulate reasoning content
+          currentReasoning.push(line);
+          continue;
         }
-        // Check if this looks like content (e.g., starts new paragraph after reasoning)
-        // For now, keep accumulating reasoning until we hit metadata or separator
-        currentReasoning.push(line);
-      } else {
+      }
+
+      // If we reach here and the line isn't processed by any special logic, add to content
+      if (!inAttachmentsOrSources && line !== "") {
         currentContent.push(line);
       }
     }
