@@ -271,6 +271,7 @@ function parseMarkdownImport(content: string): ImportResult {
       currentReasoning = [];
       currentContent = [];
       inReasoning = false;
+      inAttachmentsOrSources = false;
     };
 
     for (const line of lines) {
