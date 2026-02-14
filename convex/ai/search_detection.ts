@@ -1,6 +1,6 @@
 // Determine which Exa feature to use based on query type
 export type ExaFeatureType = "search" | "answer" | "similar";
-export type SearchMode = "fast" | "auto" | "deep";
+export type SearchMode = "instant" | "fast" | "auto" | "deep";
 
 export interface SearchDecision {
   shouldSearch: boolean;
@@ -81,21 +81,22 @@ export const generateSearchStrategy = (
     Query: "${context.userQuery}"
 
     Output format:
-    {"type":"search|answer","mode":"fast|deep","category":null|"news"|"company"|"github"|"research paper","query":"optimized search query"}
+    {"type":"search|answer","mode":"instant|fast|deep","category":null|"news"|"company"|"github"|"research paper","query":"optimized search query"}
 
     Guidelines:
     - type "answer": Simple factual questions (who, what, when, how much)
     - type "search": Complex topics, comparisons, explanations (default)
-    - mode "fast": Most queries, quick results
+    - mode "instant": Default for most queries, ultra-fast (<200ms)
+    - mode "fast": Quick results (~350ms), use when instant is insufficient
     - mode "deep": Research, academic, comprehensive analysis
     - category: Only set if clearly applicable (news for current events, github for code/repos, company for business info)
     - query: Remove conversational filler, focus on key terms
 
     Examples:
-    "What's the current Bitcoin price?" → {"type":"answer","mode":"fast","category":null,"query":"Bitcoin price USD"}
-    "Latest news about OpenAI" → {"type":"search","mode":"fast","category":"news","query":"OpenAI news announcements"}
+    "What's the current Bitcoin price?" → {"type":"answer","mode":"instant","category":null,"query":"Bitcoin price USD"}
+    "Latest news about OpenAI" → {"type":"search","mode":"instant","category":"news","query":"OpenAI news announcements"}
     "Comprehensive analysis of React vs Vue in 2024" → {"type":"search","mode":"deep","category":null,"query":"React vs Vue comparison 2024 performance features"}
-    "Who is the CEO of Anthropic?" → {"type":"answer","mode":"fast","category":"company","query":"Anthropic CEO"}
+    "Who is the CEO of Anthropic?" → {"type":"answer","mode":"instant","category":"company","query":"Anthropic CEO"}
 
     JSON:
   `;
@@ -167,7 +168,7 @@ export const parseSearchStrategy = (
     // Support both old format (searchType/searchMode) and new format (type/mode)
     const searchType = parsed.type || parsed.searchType || "search";
     const searchMode =
-      parsed.mode || parsed.searchMode || (isResearchQuery(userQuery) ? "deep" : "fast");
+      parsed.mode || parsed.searchMode || (isResearchQuery(userQuery) ? "deep" : "instant");
     const suggestedQuery = parsed.query || parsed.suggestedQuery || userQuery;
 
     return {
@@ -187,7 +188,7 @@ export const parseSearchStrategy = (
     return {
       shouldSearch: true,
       searchType: "search",
-      searchMode: isResearchQuery(userQuery) ? "deep" : "fast",
+      searchMode: isResearchQuery(userQuery) ? "deep" : "instant",
       reasoning: "Fallback due to parsing error",
       confidence: 0.8,
       suggestedSources: 8,

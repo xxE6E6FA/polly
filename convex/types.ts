@@ -223,7 +223,7 @@ export type ProviderStreamOptions =
 // ============================================================================
 
 export type ExaFeatureType = "search" | "answer" | "similar";
-export type SearchMode = "fast" | "auto" | "deep";
+export type SearchMode = "instant" | "fast" | "auto" | "deep";
 
 export interface SearchDecision {
   shouldSearch: boolean;

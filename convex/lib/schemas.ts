@@ -238,7 +238,12 @@ export const messageMetadataSchema = v.object({
   searchFeature: v.optional(v.string()),
   searchCategory: v.optional(v.string()),
   searchMode: v.optional(
-    v.union(v.literal("fast"), v.literal("auto"), v.literal("deep")),
+    v.union(
+      v.literal("instant"),
+      v.literal("fast"),
+      v.literal("auto"),
+      v.literal("deep"),
+    ),
   ),
 });
 
