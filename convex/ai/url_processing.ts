@@ -296,7 +296,7 @@ export async function fetchUrlContents(
           // Fallback: try to search for the URL content
           const searchOptions: Record<string, unknown> = {
             numResults: 1,
-            mode: "fast",
+            type: "instant",
             text: args.includeText !== false ? {
               maxCharacters: args.maxCharacters || 8000,
               includeHtmlTags: false,
