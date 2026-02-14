@@ -73,6 +73,15 @@ export const executeStreamingActionForRetry = async (
     supportsTools?: boolean;
     supportsFiles?: boolean;
     supportsReasoning?: boolean;
+    // Image generation tool support
+    imageModels?: Array<{
+      modelId: string;
+      name: string;
+      description?: string;
+      supportedAspectRatios?: string[];
+      modelVersion?: string;
+    }>;
+    userId?: string;
   }
 ): Promise<StreamingActionResult> => {
   const userId = await getAuthUserId(ctx);
@@ -115,6 +124,8 @@ export const executeStreamingActionForRetry = async (
     supportsTools: args.supportsTools ?? false,
     supportsFiles: args.supportsFiles ?? false,
     supportsReasoning: args.supportsReasoning ?? false,
+    imageModels: args.imageModels,
+    userId: args.userId as Id<"users"> | undefined,
   });
 
   return {

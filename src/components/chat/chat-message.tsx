@@ -200,6 +200,20 @@ export const ChatMessage = memo(
       return false;
     }
 
+    // Re-render when tool calls change (e.g., generateImage running → completed)
+    const prevToolCalls = prevProps.message.toolCalls;
+    const nextToolCalls = nextProps.message.toolCalls;
+    if ((prevToolCalls?.length ?? 0) !== (nextToolCalls?.length ?? 0)) {
+      return false;
+    }
+    if (prevToolCalls && nextToolCalls) {
+      for (let i = 0; i < prevToolCalls.length; i++) {
+        if (prevToolCalls[i]?.status !== nextToolCalls[i]?.status) {
+          return false;
+        }
+      }
+    }
+
     // Default memo comparison for other props
     return (
       prevProps.message.id === nextProps.message.id &&

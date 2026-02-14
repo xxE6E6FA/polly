@@ -10,6 +10,8 @@ type AssistantLoadingStateProps = {
   reasoningParts?: ReasoningPart[];
   thinkingDurationMs?: number;
   toolCalls?: ToolCall[];
+  /** Suppress the text skeleton when another loading indicator is visible (e.g. image gen). */
+  suppressSkeleton?: boolean;
 };
 
 /**
@@ -24,12 +26,13 @@ export function AssistantLoadingState({
   reasoningParts,
   thinkingDurationMs,
   toolCalls,
+  suppressSkeleton,
 }: AssistantLoadingStateProps) {
   const hasActivity =
     (reasoningParts?.length ?? 0) > 0 ||
     Boolean(reasoning?.trim()) ||
     (toolCalls?.length ?? 0) > 0;
-  const showSkeleton = phase === "loading" && !hasActivity;
+  const showSkeleton = phase === "loading" && !hasActivity && !suppressSkeleton;
 
   // Reasoning is only "active" before content starts streaming.
   // Once the phase transitions to streaming/complete, reasoning is done.

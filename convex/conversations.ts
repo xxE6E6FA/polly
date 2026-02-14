@@ -28,6 +28,33 @@ import {
   getProviderStreamOptions,
 } from "./ai/server_streaming";
 import { streamLLMToMessage } from "./ai/streaming_core";
+import type { ImageModelInfo } from "./ai/tools";
+
+/**
+ * Map raw DB image model records to the slim shape needed by streaming actions.
+ * Returns undefined when the array is empty (no models configured).
+ */
+function toImageModelInfos(
+  models: Array<{
+    modelId: string;
+    name: string;
+    description?: string;
+    supportedAspectRatios?: string[];
+    modelVersion?: string;
+  }>
+): ImageModelInfo[] | undefined {
+  if (models.length === 0) {
+    return undefined;
+  }
+  return models.map(m => ({
+    modelId: m.modelId,
+    name: m.name,
+    description: m.description,
+    supportedAspectRatios: m.supportedAspectRatios,
+    modelVersion: m.modelVersion,
+  }));
+}
+
 import {
   processBulkDelete,
   scheduleBackgroundBulkDelete,
@@ -280,6 +307,16 @@ export async function createConversationHandler(
       },
     ];
 
+    // Query image models if the text model supports tools
+    let imageModelsForTools: ImageModelInfo[] | undefined;
+    if (fullModel.supportsTools) {
+      const userImageModels = await ctx.db
+        .query("userImageModels")
+        .withIndex("by_user", q => q.eq("userId", userId))
+        .collect();
+      imageModelsForTools = toImageModelInfos(userImageModels);
+    }
+
     await ctx.scheduler.runAfter(0, internal.streaming_actions.streamMessage, {
       messageId: assistantMessageId,
       conversationId,
@@ -292,6 +329,8 @@ export async function createConversationHandler(
       supportsTools: fullModel.supportsTools ?? false,
       supportsFiles: fullModel.supportsFiles ?? false,
       supportsReasoning: fullModel.supportsReasoning ?? false,
+      imageModels: imageModelsForTools,
+      userId,
     });
   }
   return {
@@ -589,6 +628,17 @@ export const sendMessage = action({
       console.warn("Failed to schedule token-aware summaries:", e);
     }
 
+    // Query image models if the text model supports tools
+    const supportsTools = fullModel.supportsTools ?? false;
+    let imageModelsForTools: ImageModelInfo[] | undefined;
+    if (supportsTools) {
+      const userImageModels = await ctx.runQuery(
+        internal.imageModels.getUserImageModelsInternal,
+        { userId }
+      );
+      imageModelsForTools = toImageModelInfos(userImageModels);
+    }
+
     // Build context messages
     const { contextMessages } = await buildContextMessages(ctx, {
       conversationId: args.conversationId,
@@ -610,10 +660,11 @@ export const sendMessage = action({
       messages: contextMessages,
       personaId: effectivePersonaId,
       reasoningConfig: args.reasoningConfig,
-      // Pass model capabilities from mutation context where auth is available
-      supportsTools: fullModel.supportsTools ?? false,
+      supportsTools,
       supportsFiles: fullModel.supportsFiles ?? false,
       supportsReasoning: fullModel.supportsReasoning ?? false,
+      imageModels: imageModelsForTools,
+      userId,
     });
 
     return { userMessageId, assistantMessageId };
@@ -1620,7 +1671,17 @@ export const startConversation = action({
       modelId: fullModel.modelId,
     });
 
-    // 6. Schedule server-side streaming (runs in background)
+    // 6. Query image models if the text model supports tools
+    let imageModelsForTools: ImageModelInfo[] | undefined;
+    if (fullModel.supportsTools) {
+      const userImageModels = await ctx.runQuery(
+        internal.imageModels.getUserImageModelsInternal,
+        { userId }
+      );
+      imageModelsForTools = toImageModelInfos(userImageModels);
+    }
+
+    // 7. Schedule server-side streaming (runs in background)
     await ctx.scheduler.runAfter(0, internal.streaming_actions.streamMessage, {
       messageId: assistantMessageId,
       conversationId,
@@ -1633,9 +1694,11 @@ export const startConversation = action({
       supportsTools: fullModel.supportsTools ?? false,
       supportsFiles: fullModel.supportsFiles ?? false,
       supportsReasoning: fullModel.supportsReasoning ?? false,
+      imageModels: imageModelsForTools,
+      userId,
     });
 
-    // 7. Schedule title generation
+    // 8. Schedule title generation
     await scheduleRunAfter(ctx, 100, api.titleGeneration.generateTitle, {
       conversationId,
       message: args.content,
@@ -2229,8 +2292,11 @@ export const retryFromMessage = action({
       await ctx.runMutation(internal.messages.internalUpdate, {
         id: targetMessage._id,
         content: "",
-        reasoning: "", // Clear reasoning by setting to empty string
+        reasoning: "",
         citations: [],
+        toolCalls: [],
+        attachments: [],
+        reasoningParts: [],
         model: fullModel.modelId,
         provider: fullModel.provider as
           | "openai"
@@ -2240,7 +2306,7 @@ export const retryFromMessage = action({
           | "openrouter"
           | "replicate"
           | "elevenlabs",
-        clearMetadataFields: ["finishReason", "stopped"], // Clear stopped state to allow new streaming
+        clearMetadataFields: ["finishReason", "stopped"],
       });
 
       // Set status to thinking
@@ -2261,6 +2327,17 @@ export const retryFromMessage = action({
       const previousUserMessage = messages[previousUserMessageIndex];
       if (!previousUserMessage || previousUserMessage.role !== "user") {
         throw new Error("Cannot find previous user message to retry from");
+      }
+
+      // Query image models if the text model supports tools
+      const retrySupportsTools = fullModel.supportsTools ?? false;
+      let imageModelsForRetry: ImageModelInfo[] | undefined;
+      if (retrySupportsTools) {
+        const userImageModels = await ctx.runQuery(
+          internal.imageModels.getUserImageModelsInternal,
+          { userId: user._id }
+        );
+        imageModelsForRetry = toImageModelInfos(userImageModels);
       }
 
       // Build context messages for streaming, passing pre-fetched data to avoid redundant queries
@@ -2290,9 +2367,11 @@ export const retryFromMessage = action({
           messages: contextMessages,
           personaId: effectivePersonaId,
           reasoningConfig: args.reasoningConfig,
-          supportsTools: fullModel.supportsTools ?? false,
+          supportsTools: retrySupportsTools,
           supportsFiles: fullModel.supportsFiles ?? false,
           supportsReasoning: fullModel.supportsReasoning ?? false,
+          imageModels: imageModelsForRetry,
+          userId: user._id,
         }
       );
 
@@ -2424,6 +2503,17 @@ export const retryFromMessage = action({
     // Delete messages after the user message (preserve the user message and context)
     await handleMessageDeletion(ctx, messages, messageIndex, "user");
 
+    // Query image models if the text model supports tools
+    const userRetrySupportsTools = fullModel.supportsTools ?? false;
+    let imageModelsForUserRetry: ImageModelInfo[] | undefined;
+    if (userRetrySupportsTools) {
+      const userImageModels = await ctx.runQuery(
+        internal.imageModels.getUserImageModelsInternal,
+        { userId: user._id }
+      );
+      imageModelsForUserRetry = toImageModelInfos(userImageModels);
+    }
+
     // Build context messages up to the retry point, passing pre-fetched data
     const { contextMessages } = await buildContextMessages(ctx, {
       conversationId: args.conversationId,
@@ -2448,8 +2538,10 @@ export const retryFromMessage = action({
       contextMessages,
       useWebSearch: true, // Retry operations are always from authenticated users
       reasoningConfig: args.reasoningConfig,
-      supportsTools: fullModel.supportsTools ?? false,
+      supportsTools: userRetrySupportsTools,
       supportsFiles: fullModel.supportsFiles ?? false,
+      imageModels: imageModelsForUserRetry,
+      userId: user._id,
     });
 
     return {
@@ -2529,6 +2621,17 @@ export const editMessage = action({
       preferredProvider
     );
 
+    // Query image models if the text model supports tools
+    const editSupportsTools = fullModel.supportsTools ?? false;
+    let imageModelsForEdit: ImageModelInfo[] | undefined;
+    if (editSupportsTools) {
+      const userImageModels = await ctx.runQuery(
+        internal.imageModels.getUserImageModelsInternal,
+        { userId: user._id }
+      );
+      imageModelsForEdit = toImageModelInfos(userImageModels);
+    }
+
     // Build context messages including the edited message, passing pre-fetched data
     const { contextMessages } = await buildContextMessages(ctx, {
       conversationId: args.conversationId,
@@ -2552,6 +2655,10 @@ export const editMessage = action({
       contextMessages,
       useWebSearch: true, // Retry operations are always from authenticated users
       reasoningConfig: args.reasoningConfig,
+      supportsTools: editSupportsTools,
+      supportsFiles: fullModel.supportsFiles ?? false,
+      imageModels: imageModelsForEdit,
+      userId: user._id,
     });
 
     return {

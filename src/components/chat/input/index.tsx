@@ -4,7 +4,6 @@ import {
   useDeferredValue,
   useEffect,
   useImperativeHandle,
-  useMemo,
   useRef,
   useState,
 } from "react";
@@ -62,7 +61,6 @@ interface ChatInputProps {
   userMessageContents?: string[];
   autoFocus?: boolean;
   conversationPersonaId?: Id<"personas"> | null;
-  isLikelyImageConversation?: boolean;
 }
 
 export type ChatInputRef = {
@@ -84,7 +82,6 @@ const ChatInputInner = ({
   messages,
   userMessageContents,
   autoFocus = false,
-  isLikelyImageConversation = false,
   conversationPersonaId,
   ref,
 }: ChatInputProps & { ref?: React.Ref<ChatInputRef> }) => {
@@ -176,41 +173,6 @@ const ChatInputInner = ({
       setGenerationMode("text");
     }
   }, [isPrivateMode, canUseImageMode, generationMode, setGenerationMode]);
-
-  // Auto-switch to image mode for image generation conversations
-  // WHY: When users continue an image generation conversation, we want to keep them
-  // in image mode so follow-ups trigger Replicate instead of switching to text chat.
-  // We only do this once per conversation to respect manual user mode changes.
-  const autoAppliedForConversationRef = useRef<ConversationId | null>(null);
-  useEffect(() => {
-    // Reset tracker when navigating between conversations (including undefined -> id)
-    if (autoAppliedForConversationRef.current !== conversationId) {
-      autoAppliedForConversationRef.current = null;
-    }
-
-    const shouldAutoSwitch =
-      hasExistingMessages &&
-      isLikelyImageConversation &&
-      generationMode === "text" &&
-      canUseImageMode &&
-      !isPrivateMode &&
-      autoAppliedForConversationRef.current == null;
-
-    if (shouldAutoSwitch) {
-      setGenerationMode("image");
-      autoAppliedForConversationRef.current = conversationId ?? null;
-    }
-    // Only re-evaluate when the conversation context or heuristic changes; avoid
-    // triggering on unrelated state updates to preserve user choice.
-  }, [
-    conversationId,
-    hasExistingMessages,
-    isLikelyImageConversation,
-    canUseImageMode,
-    isPrivateMode,
-    generationMode,
-    setGenerationMode,
-  ]);
 
   // Extract user messages for history navigation
   // WHY: Users can use arrow keys to navigate through their previous messages.

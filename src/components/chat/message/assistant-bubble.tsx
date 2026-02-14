@@ -1,6 +1,7 @@
 import { api } from "@convex/_generated/api";
+import { IMAGE_GEN_MARKER } from "@shared/constants";
 import { useQuery } from "convex/react";
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { StreamingMarkdown } from "@/components/ui/streaming-markdown";
 import { useAssistantDisplayPhase } from "@/hooks";
@@ -17,6 +18,7 @@ import type { ImageRetryParams } from "./image-actions";
 import { ImageGenerationBubble } from "./image-generation-bubble";
 import { MessageActions } from "./message-actions";
 import { MessageError } from "./message-error";
+import { ToolGeneratedImages } from "./tool-generated-images";
 
 type AssistantBubbleProps = {
   conversationId?: string;
@@ -159,6 +161,24 @@ const TextMessageBubble = ({
   const isLoading = phase === "loading";
   const showContent = phase === "streaming" || phase === "complete";
 
+  // Split content on the image-gen marker so images render inline.
+  // Before the marker = text the model wrote before calling generateImage.
+  // After the marker = text the model wrote after the image was generated.
+  const { beforeImage, afterImage } = useMemo(() => {
+    if (!displayContent?.includes(IMAGE_GEN_MARKER)) {
+      return { beforeImage: null, afterImage: null };
+    }
+    const idx = displayContent.indexOf(IMAGE_GEN_MARKER);
+    return {
+      beforeImage: displayContent.slice(0, idx),
+      afterImage: displayContent.slice(idx + IMAGE_GEN_MARKER.length),
+    };
+  }, [displayContent]);
+
+  const hasImageSplit = beforeImage !== null;
+
+  const mdClass = "text-[15px] leading-[1.75] sm:text-[16px] sm:leading-[1.8]";
+
   const messageContent = (
     <>
       {/* Content area */}
@@ -176,13 +196,49 @@ const TextMessageBubble = ({
             citations={message.citations || []}
             messageId={message.id}
           >
-            <StreamingMarkdown
-              isStreaming={isActive}
-              messageId={message.id}
-              className="text-[15px] leading-[1.75] sm:text-[16px] sm:leading-[1.8]"
-            >
-              {displayContent}
-            </StreamingMarkdown>
+            {hasImageSplit ? (
+              <>
+                {/* Text before image generation */}
+                {beforeImage && (
+                  <StreamingMarkdown
+                    isStreaming={false}
+                    messageId={`${message.id}-before`}
+                    className={mdClass}
+                  >
+                    {beforeImage}
+                  </StreamingMarkdown>
+                )}
+
+                {/* Generated image(s) inline — extra vertical spacing between text blocks */}
+                <div className="my-4">
+                  <ToolGeneratedImages
+                    toolCalls={message.toolCalls}
+                    attachments={message.attachments}
+                    isActive={isActive}
+                    onPreviewFile={onPreviewFile}
+                  />
+                </div>
+
+                {/* Text after image generation */}
+                {afterImage && (
+                  <StreamingMarkdown
+                    isStreaming={isActive}
+                    messageId={`${message.id}-after`}
+                    className={mdClass}
+                  >
+                    {afterImage}
+                  </StreamingMarkdown>
+                )}
+              </>
+            ) : (
+              <StreamingMarkdown
+                isStreaming={isActive}
+                messageId={message.id}
+                className={mdClass}
+              >
+                {displayContent}
+              </StreamingMarkdown>
+            )}
           </CitationProvider>
         </div>
 
@@ -269,8 +325,22 @@ const TextMessageBubble = ({
           reasoning={message.reasoning}
           reasoningParts={message.reasoningParts}
           thinkingDurationMs={message.metadata?.thinkingDurationMs}
-          toolCalls={message.toolCalls}
+          toolCalls={message.toolCalls?.filter(
+            tc => tc.name !== "generateImage"
+          )}
+          suppressSkeleton={message.toolCalls?.some(
+            tc => tc.name === "generateImage"
+          )}
         />
+        {/* When no marker in content, show images before text (backward compat) */}
+        {!hasImageSplit && (
+          <ToolGeneratedImages
+            toolCalls={message.toolCalls}
+            attachments={message.attachments}
+            isActive={isActive}
+            onPreviewFile={onPreviewFile}
+          />
+        )}
         {messageContent}
       </div>
     </div>

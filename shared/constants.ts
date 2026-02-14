@@ -22,6 +22,13 @@ export const BATCH_SIZE = 20; // Batch size for import processing
 export const WEB_SEARCH_MAX_RESULTS = 12; // Default max Exa search results - matches Exa demo default
 
 // Image Generation Defaults
+/**
+ * Marker inserted into assistant message content at the point where
+ * an image-generation tool call occurs. The frontend splits on this
+ * to render: text-before → generated image → text-after.
+ */
+export const IMAGE_GEN_MARKER = "\n\n<!-- generated-image -->\n\n";
+
 export const IMAGE_GENERATION_DEFAULTS = {
   MODEL: "black-forest-labs/flux-dev",
   ASPECT_RATIO: "1:1" as const,

@@ -141,6 +141,19 @@ export const streamMessage = internalAction({
     supportsTools: v.optional(v.boolean()),
     supportsFiles: v.optional(v.boolean()),
     supportsReasoning: v.optional(v.boolean()),
+    // Image generation tool support
+    imageModels: v.optional(
+      v.array(
+        v.object({
+          modelId: v.string(),
+          name: v.string(),
+          description: v.optional(v.string()),
+          supportedAspectRatios: v.optional(v.array(v.string())),
+          modelVersion: v.optional(v.string()),
+        })
+      )
+    ),
+    userId: v.optional(v.id("users")),
   },
   handler: async (ctx, args) => {
     const {
@@ -243,7 +256,25 @@ export const streamMessage = internalAction({
         })
       );
 
-      // 6. Stream using consolidated streaming_core
+      // 6. Get Replicate API key if image models are available
+      let replicateApiKey: string | undefined;
+      if (args.imageModels && args.imageModels.length > 0 && args.userId) {
+        try {
+          replicateApiKey = await getApiKey(
+            ctx,
+            "replicate",
+            undefined,
+            conversationId
+          );
+        } catch {
+          // No Replicate API key available — image generation won't be enabled
+          console.warn(
+            "[streamMessage] No Replicate API key available for image generation"
+          );
+        }
+      }
+
+      // 7. Stream using consolidated streaming_core
       await streamLLMToMessage({
         ctx,
         conversationId,
@@ -254,6 +285,8 @@ export const streamMessage = internalAction({
         >[0]["messages"],
         // Pass capabilities directly instead of re-looking them up (action context lacks auth)
         supportsTools: supportsTools ?? false,
+        replicateApiKey,
+        imageModels: args.imageModels,
         extraOptions: streamOptions,
       });
     } catch (error) {

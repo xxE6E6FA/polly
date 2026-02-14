@@ -20,3 +20,12 @@ export {
   type ConversationSearchToolParams,
   type ConversationSearchToolResult,
 } from "./conversation_search";
+
+export {
+  createImageGenerationTool,
+  imageGenerationToolSchema,
+  IMAGE_GENERATION_TOOL_NAME,
+  type ImageModelInfo,
+  type ImageGenerationToolParams,
+  type ImageGenerationToolResult,
+} from "./image_generation";

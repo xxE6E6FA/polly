@@ -176,6 +176,8 @@ export type ToolCall = {
   args?: {
     query?: string;
     mode?: string;
+    prompt?: string;
+    imageModel?: string;
   };
   error?: string;
 };

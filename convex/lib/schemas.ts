@@ -766,6 +766,8 @@ export const toolCallSchema = v.object({
     v.object({
       query: v.optional(v.string()),
       mode: v.optional(v.string()),
+      prompt: v.optional(v.string()),
+      imageModel: v.optional(v.string()),
     })
   ),
   error: v.optional(v.string()),

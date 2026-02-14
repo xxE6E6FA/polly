@@ -9,8 +9,17 @@ import {
   isReasoningDelta,
 } from "../lib/shared/stream_utils";
 import type { Citation } from "../types";
+import { IMAGE_GEN_MARKER } from "../../shared/constants";
+import {
+  CITATION_INSTRUCTIONS,
+  IMAGE_GENERATION_INSTRUCTIONS,
+} from "../../shared/system-prompts";
 import { getUserFriendlyErrorMessage } from "./error_handlers";
-import { createWebSearchTool } from "./tools";
+import {
+  createWebSearchTool,
+  createImageGenerationTool,
+  type ImageModelInfo,
+} from "./tools";
 
 type StreamingParams = {
   ctx: ActionCtx;
@@ -28,6 +37,9 @@ type StreamingParams = {
   presencePenalty?: number;
   extraOptions?: Record<string, unknown>;
   abortController?: AbortController;
+  // Image generation tool support
+  replicateApiKey?: string;
+  imageModels?: ImageModelInfo[];
   // AI SDK v6: Telemetry metadata
   userId?: Id<"users">;
   modelId?: string;
@@ -41,6 +53,8 @@ export async function streamLLMToMessage({
   model,
   messages,
   supportsTools = false,
+  replicateApiKey,
+  imageModels = [],
   temperature,
   maxOutputTokens,
   topP,
@@ -72,7 +86,8 @@ export async function streamLLMToMessage({
 
   // Track citations from tool results
   let citationsFromTools: Citation[] = [];
-  let isSearching = false;
+  let isToolRunning = false;
+  let hasCalledImageGen = false;
 
   // Timing metrics
   const startTime = Date.now();
@@ -201,14 +216,37 @@ export async function streamLLMToMessage({
   // Promote to streaming once first chunk arrives
   let setStreaming = false;
 
-  // Determine if tools will be used (affects experimental_transform)
-  const useTools = supportsTools && !!exaApiKey;
+  // Determine which tools will be used (affects experimental_transform)
+  const useWebSearch = supportsTools && !!exaApiKey;
+  const useImageGen =
+    supportsTools && !!replicateApiKey && imageModels.length > 0;
+  const hasAnyTools = useWebSearch || useImageGen;
   console.log("[streaming_core] Tool configuration:", {
     supportsTools,
     hasExaApiKey: !!exaApiKey,
-    useTools,
+    useWebSearch,
+    useImageGen,
+    imageModelCount: imageModels.length,
     messageId,
   });
+
+  // Inject tool-specific instructions into the first system message.
+  // This is the single place where tool availability is known, so we co-locate
+  // the instructions here rather than plumbing flags through context building.
+  if (useWebSearch || useImageGen) {
+    const systemIdx = messages.findIndex((m) => m.role === "system");
+    if (systemIdx !== -1) {
+      const sys = messages[systemIdx] as { role: "system"; content: string };
+      let extra = "";
+      if (useWebSearch) {
+        extra += `\n\n${CITATION_INSTRUCTIONS}`;
+      }
+      if (useImageGen) {
+        extra += `\n\n${IMAGE_GENERATION_INSTRUCTIONS}`;
+      }
+      messages[systemIdx] = { role: "system", content: sys.content + extra };
+    }
+  }
 
   try {
     // Build streamText options - base required fields with optional additions
@@ -220,7 +258,7 @@ export async function streamLLMToMessage({
       messages,
       // Only apply smooth stream transform when NOT using tools
       // (may interfere with tool-related chunks)
-      ...(useTools
+      ...(hasAnyTools
         ? {}
         : {
             // biome-ignore lint/style/useNamingConvention: AI SDK option
@@ -242,17 +280,28 @@ export async function streamLLMToMessage({
       ...extraOptions,
     };
 
-    // Add tool calling if supported
-    if (useTools) {
+    // Add tool calling if any tools are available
+    if (hasAnyTools) {
       const MAX_TOOL_STEPS = 5;
       genOpts.tools = {
-        webSearch: createWebSearchTool(exaApiKey),
+        ...(useWebSearch ? { webSearch: createWebSearchTool(exaApiKey!) } : {}),
+        ...(useImageGen
+          ? {
+              generateImage: createImageGenerationTool(
+                ctx,
+                messageId,
+                replicateApiKey!,
+                imageModels
+              ),
+            }
+          : {}),
       };
       genOpts.toolChoice = "auto";
-      // Force text generation after MAX_TOOL_STEPS so the model always
-      // produces a final response instead of being cut off mid-tool-loop.
+      // After an image generation, force the model to produce text (no more tool calls).
+      // This prevents the model from calling generateImage multiple times.
+      // Also caps at MAX_TOOL_STEPS for safety.
       genOpts.prepareStep = ({ stepNumber }: { stepNumber: number }) => {
-        if (stepNumber >= MAX_TOOL_STEPS) {
+        if (hasCalledImageGen || stepNumber >= MAX_TOOL_STEPS) {
           return { toolChoice: "none" };
         }
         return {};
@@ -293,15 +342,22 @@ export async function streamLLMToMessage({
           });
         }
 
-        // Handle tool call - set status to searching and track tool call
+        // Handle tool call - track tool call and update status
         // AI SDK v6 uses 'input' for tool parameters (not 'args')
-        if (chunk.type === "tool-call" && !isSearching) {
-          isSearching = true;
+        if (chunk.type === "tool-call" && !isToolRunning) {
+          isToolRunning = true;
           const toolCallChunk = chunk as {
             toolCallId: string;
             toolName: string;
-            input?: { query?: string; searchMode?: string };
+            input?: Record<string, unknown>;
           };
+          if (toolCallChunk.toolName === "generateImage") {
+            hasCalledImageGen = true;
+            // Insert marker so the frontend knows where to place the image
+            // relative to the surrounding text.
+            contentBuf += IMAGE_GEN_MARKER;
+            await flushContent();
+          }
           console.log("[streaming_core] Tool call chunk received:", {
             toolCallId: toolCallChunk.toolCallId,
             toolName: toolCallChunk.toolName,
@@ -313,6 +369,18 @@ export async function streamLLMToMessage({
           reasoningSegmentIndex++;
           reasoningSegmentStartedAt = 0; // Will be set on next reasoning delta
 
+          // Build args based on tool type
+          const toolArgs: Record<string, string | undefined> = {};
+          if (toolCallChunk.input) {
+            if (toolCallChunk.toolName === "generateImage") {
+              toolArgs.prompt = toolCallChunk.input.prompt as string | undefined;
+              toolArgs.imageModel = toolCallChunk.input.model as string | undefined;
+            } else {
+              toolArgs.query = toolCallChunk.input.query as string | undefined;
+              toolArgs.mode = toolCallChunk.input.searchMode as string | undefined;
+            }
+          }
+
           // Add tool call to message for UI tracking
           try {
             await ctx.runMutation(internal.messages.addToolCall, {
@@ -322,12 +390,7 @@ export async function streamLLMToMessage({
                 name: toolCallChunk.toolName,
                 status: "running",
                 startedAt: Date.now(),
-                ...(toolCallChunk.input && {
-                  args: {
-                    query: toolCallChunk.input.query,
-                    mode: toolCallChunk.input.searchMode,
-                  },
-                }),
+                args: toolArgs,
               },
             });
             console.log("[streaming_core] Tool call added successfully");
@@ -369,7 +432,7 @@ export async function streamLLMToMessage({
           } catch (e) {
             console.error("[streaming_core] Failed to finalize tool result:", e);
           }
-          isSearching = false;
+          isToolRunning = false;
         }
 
         // Reasoning chunks
