@@ -55,6 +55,13 @@ describe("hasMandatoryReasoning", () => {
     expect(hasMandatoryReasoning("moonshot", "kimi-k2")).toBe(false);
     expect(hasMandatoryReasoning("moonshot", "moonlight-16k-v2")).toBe(false);
   });
+
+  test("returns false for Kimi K2.5 (optional reasoning, not mandatory)", () => {
+    expect(hasMandatoryReasoning("openrouter", "moonshotai/kimi-k2.5")).toBe(
+      false
+    );
+    expect(hasMandatoryReasoning("moonshot", "kimi-k2.5")).toBe(false);
+  });
 });
 
 describe("hasOptionalReasoning", () => {
@@ -88,6 +95,13 @@ describe("hasOptionalReasoning", () => {
     expect(hasOptionalReasoning("openrouter", "gemini-2.5-flash")).toBe(true);
     expect(hasOptionalReasoning("openrouter", "claude-opus-4")).toBe(true);
   });
+
+  test("detects Kimi K2.5 as optional reasoning", () => {
+    expect(hasOptionalReasoning("openrouter", "moonshotai/kimi-k2.5")).toBe(
+      true
+    );
+    expect(hasOptionalReasoning("moonshot", "kimi-k2.5")).toBe(true);
+  });
 });
 
 describe("supportsReasoning", () => {
@@ -112,6 +126,10 @@ describe("supportsReasoning", () => {
 
   test("returns false for non-thinking Moonshot models", () => {
     expect(supportsReasoning("moonshot", "kimi-k2")).toBe(false);
+  });
+
+  test("returns true for Kimi K2.5 via OpenRouter", () => {
+    expect(supportsReasoning("openrouter", "moonshotai/kimi-k2.5")).toBe(true);
   });
 });
 
@@ -174,6 +192,12 @@ describe("getReasoningType", () => {
 
   test("returns none for non-thinking Moonshot models", () => {
     expect(getReasoningType("moonshot", "kimi-k2")).toBe("none");
+  });
+
+  test("returns optional for Kimi K2.5", () => {
+    expect(getReasoningType("openrouter", "moonshotai/kimi-k2.5")).toBe(
+      "optional"
+    );
   });
 });
 

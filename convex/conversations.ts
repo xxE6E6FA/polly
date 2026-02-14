@@ -291,6 +291,7 @@ export async function createConversationHandler(
       // Pass model capabilities from mutation context where auth is available
       supportsTools: fullModel.supportsTools ?? false,
       supportsFiles: fullModel.supportsFiles ?? false,
+      supportsReasoning: fullModel.supportsReasoning ?? false,
     });
   }
   return {
@@ -612,6 +613,7 @@ export const sendMessage = action({
       // Pass model capabilities from mutation context where auth is available
       supportsTools: fullModel.supportsTools ?? false,
       supportsFiles: fullModel.supportsFiles ?? false,
+      supportsReasoning: fullModel.supportsReasoning ?? false,
     });
 
     return { userMessageId, assistantMessageId };
@@ -1630,6 +1632,7 @@ export const startConversation = action({
       // Pass model capabilities from mutation context where auth is available
       supportsTools: fullModel.supportsTools ?? false,
       supportsFiles: fullModel.supportsFiles ?? false,
+      supportsReasoning: fullModel.supportsReasoning ?? false,
     });
 
     // 7. Schedule title generation
@@ -2289,6 +2292,7 @@ export const retryFromMessage = action({
           reasoningConfig: args.reasoningConfig,
           supportsTools: fullModel.supportsTools ?? false,
           supportsFiles: fullModel.supportsFiles ?? false,
+          supportsReasoning: fullModel.supportsReasoning ?? false,
         }
       );
 

@@ -71,6 +71,9 @@ export const OPTIONAL_REASONING_PATTERNS = [
   "grok", // Grok supports effort levels per OpenRouter docs
   "grok-4", // Grok-4 with optional reasoning
 
+  // Moonshot/Kimi reasoning models (optional reasoning via OpenRouter)
+  "kimi-k2.5",
+
   // Additional reasoning-capable models available via OpenRouter
   "deepthink",
   "reflection",
