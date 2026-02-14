@@ -268,10 +268,12 @@ describe("getProviderReasoningOptions", () => {
     });
 
     expect(result).toEqual({
-      extraBody: {
-        reasoning: {
-          effort: "high",
-          exclude: false,
+      providerOptions: {
+        openrouter: {
+          reasoning: {
+            effort: "high",
+            exclude: false,
+          },
         },
       },
     });
@@ -283,10 +285,12 @@ describe("getProviderReasoningOptions", () => {
     });
 
     expect(result).toEqual({
-      extraBody: {
-        reasoning: {
-          max_tokens: 8000,
-          exclude: false,
+      providerOptions: {
+        openrouter: {
+          reasoning: {
+            max_tokens: 8000,
+            exclude: false,
+          },
         },
       },
     });
@@ -296,10 +300,12 @@ describe("getProviderReasoningOptions", () => {
     const result = getProviderReasoningOptions("openrouter");
 
     expect(result).toEqual({
-      extraBody: {
-        reasoning: {
-          enabled: true,
-          exclude: false,
+      providerOptions: {
+        openrouter: {
+          reasoning: {
+            enabled: true,
+            exclude: false,
+          },
         },
       },
     });
@@ -360,9 +366,11 @@ describe("getProviderBaseOptions", () => {
 describe("getReasoningDisabledOptions", () => {
   test("returns explicit disable for OpenRouter", () => {
     expect(getReasoningDisabledOptions("openrouter")).toEqual({
-      extraBody: {
-        reasoning: {
-          enabled: false,
+      providerOptions: {
+        openrouter: {
+          reasoning: {
+            enabled: false,
+          },
         },
       },
     });
@@ -476,9 +484,11 @@ describe("getProviderReasoningConfig", () => {
 
     const result = getProviderReasoningConfig(model, { enabled: false });
     expect(result).toEqual({
-      extraBody: {
-        reasoning: {
-          enabled: false,
+      providerOptions: {
+        openrouter: {
+          reasoning: {
+            enabled: false,
+          },
         },
       },
     });
@@ -494,9 +504,11 @@ describe("getProviderReasoningConfig", () => {
 
     const result = getProviderReasoningConfig(model, { enabled: false });
     expect(result).toEqual({
-      extraBody: {
-        reasoning: {
-          enabled: false,
+      providerOptions: {
+        openrouter: {
+          reasoning: {
+            enabled: false,
+          },
         },
       },
     });
@@ -511,9 +523,11 @@ describe("getProviderReasoningConfig", () => {
 
     const result = getProviderReasoningConfig(model);
     expect(result).toEqual({
-      extraBody: {
-        reasoning: {
-          enabled: false,
+      providerOptions: {
+        openrouter: {
+          reasoning: {
+            enabled: false,
+          },
         },
       },
     });
@@ -528,9 +542,11 @@ describe("getProviderReasoningConfig", () => {
 
     const result = getProviderReasoningConfig(model);
     expect(result).toEqual({
-      extraBody: {
-        reasoning: {
-          enabled: false,
+      providerOptions: {
+        openrouter: {
+          reasoning: {
+            enabled: false,
+          },
         },
       },
     });
