@@ -39,11 +39,11 @@ function cleanSnippet(text: string): string {
 export const webSearchToolSchema = z.object({
   query: z.string().describe("The search query to find relevant information"),
   searchMode: z
-    .enum(["fast", "deep", "auto"])
+    .enum(["instant", "fast", "deep", "auto"])
     .optional()
-    .default("fast")
+    .default("instant")
     .describe(
-      "Search mode: 'fast' for quick results (~350ms), 'deep' for comprehensive research (~3.5s), 'auto' for balanced"
+      "Search mode: 'instant' for ultra-fast results (<200ms, default), 'fast' for quick results (~350ms), 'deep' for comprehensive research (~3.5s), 'auto' for balanced"
     ),
   searchType: z
     .enum(["search", "answer", "similar"])
@@ -110,7 +110,8 @@ Parameters:
   - 'answer': Direct factual questions (who is CEO of X, what is the price of Y)
   - 'similar': Find pages similar to a given URL
 - searchMode: Search speed/depth tradeoff
-  - 'fast': Default for most queries (~350ms)
+  - 'instant': Default for most queries (<200ms, ultra-fast)
+  - 'fast': Quick results (~350ms)
   - 'deep': For comprehensive research (~3.5s)
   - 'auto': Let the system decide
 - category: Optional filter to narrow results by type
@@ -139,7 +140,7 @@ Example: For "latest AI news", use searchType='search' with category='news'.`,
           citations: result.citations,
           context: buildContextSummary(result),
           searchQuery: query,
-          searchMode: searchMode || "fast",
+          searchMode: searchMode || "instant",
           searchType: searchType || "search",
           category,
         };
@@ -149,7 +150,7 @@ Example: For "latest AI news", use searchType='search' with category='news'.`,
           citations: [],
           context: "",
           searchQuery: query,
-          searchMode: searchMode || "fast",
+          searchMode: searchMode || "instant",
           searchType: searchType || "search",
           error:
             error instanceof Error ? error.message : "Unknown error occurred",

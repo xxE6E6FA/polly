@@ -7,7 +7,12 @@ export const exaSearchArgs = v.object({
   query: v.string(),
   maxResults: v.optional(v.number()),
   searchType: v.optional(
-    v.union(v.literal("fast"), v.literal("auto"), v.literal("deep")),
+    v.union(
+      v.literal("instant"),
+      v.literal("fast"),
+      v.literal("auto"),
+      v.literal("deep"),
+    ),
   ),
   category: v.optional(
     v.union(
@@ -109,11 +114,12 @@ export async function searchWithExa(
     const exa = new Exa(apiKey);
 
     const searchMode =
-      args.searchType || (detectResearchQuery(args.query) ? "deep" : "fast");
+      args.searchType ||
+      (detectResearchQuery(args.query) ? "deep" : "instant");
 
     const searchOptions: Record<string, unknown> = {
       numResults: args.maxResults || WEB_SEARCH_MAX_RESULTS,
-      mode: searchMode,
+      type: searchMode,
       useAutoprompt: true,
       category: args.category,
       startPublishedDate: args.startPublishedDate,
@@ -304,7 +310,7 @@ export async function findSimilarWithExa(
 export interface WebSearchArgs {
   query: string;
   searchType?: "search" | "answer" | "similar";
-  searchMode?: "fast" | "auto" | "deep";
+  searchMode?: "instant" | "fast" | "auto" | "deep";
   category?: string;
   maxResults?: number;
   excludeDomains?: string[];
@@ -357,7 +363,7 @@ export async function performWebSearch(
 
         const searchMode =
           args.searchMode ||
-          (detectResearchQuery(args.query) ? "deep" : "fast");
+          (detectResearchQuery(args.query) ? "deep" : "instant");
         const result = await searchWithExa(apiKey, {
           query: args.query,
           maxResults,
@@ -384,7 +390,7 @@ export async function performWebSearch(
       default: {
         const searchMode =
           args.searchMode ||
-          (detectResearchQuery(args.query) ? "deep" : "fast");
+          (detectResearchQuery(args.query) ? "deep" : "instant");
         const result = await searchWithExa(apiKey, {
           query: args.query,
           maxResults,
