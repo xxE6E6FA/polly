@@ -484,6 +484,41 @@ describe("getProviderReasoningConfig", () => {
     });
   });
 
+  test("returns explicit disable for OpenRouter Kimi K2.5 via pattern detection when reasoning disabled", () => {
+    // Even without supportsReasoning from DB, pattern detection should recognize K2.5
+    const model: ModelWithCapabilities = {
+      modelId: "moonshotai/kimi-k2.5",
+      provider: "openrouter",
+      supportsReasoning: false,
+    };
+
+    const result = getProviderReasoningConfig(model, { enabled: false });
+    expect(result).toEqual({
+      extraBody: {
+        reasoning: {
+          enabled: false,
+        },
+      },
+    });
+  });
+
+  test("returns explicit disable for OpenRouter Kimi K2.5 via pattern detection when no config", () => {
+    const model: ModelWithCapabilities = {
+      modelId: "moonshotai/kimi-k2.5",
+      provider: "openrouter",
+      supportsReasoning: false,
+    };
+
+    const result = getProviderReasoningConfig(model);
+    expect(result).toEqual({
+      extraBody: {
+        reasoning: {
+          enabled: false,
+        },
+      },
+    });
+  });
+
   test("returns explicit disable for OpenRouter when no reasoning config", () => {
     const model: ModelWithCapabilities = {
       modelId: "grok-4",

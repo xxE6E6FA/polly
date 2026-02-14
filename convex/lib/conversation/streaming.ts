@@ -72,6 +72,7 @@ export const executeStreamingActionForRetry = async (
     // Model capabilities - passed from caller who has access to model info
     supportsTools?: boolean;
     supportsFiles?: boolean;
+    supportsReasoning?: boolean;
   }
 ): Promise<StreamingActionResult> => {
   const userId = await getAuthUserId(ctx);
@@ -113,6 +114,7 @@ export const executeStreamingActionForRetry = async (
     reasoningConfig: args.reasoningConfig,
     supportsTools: args.supportsTools ?? false,
     supportsFiles: args.supportsFiles ?? false,
+    supportsReasoning: args.supportsReasoning ?? false,
   });
 
   return {

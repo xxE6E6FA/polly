@@ -140,6 +140,7 @@ export const streamMessage = internalAction({
     // Model capabilities passed from mutation context (where auth is available)
     supportsTools: v.optional(v.boolean()),
     supportsFiles: v.optional(v.boolean()),
+    supportsReasoning: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const {
@@ -180,7 +181,12 @@ export const streamMessage = internalAction({
         ctx,
         provider as Parameters<typeof getProviderStreamOptions>[1],
         modelId,
-        reasoningConfig
+        reasoningConfig,
+        {
+          modelId,
+          provider,
+          supportsReasoning: args.supportsReasoning ?? false,
+        }
       );
 
       // 4. Strip attachments from older messages (keep only on last user message)
