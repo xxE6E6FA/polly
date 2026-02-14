@@ -46,25 +46,19 @@ export type GoogleProviderOptions = {
 export type ProviderStreamOptions =
   | Record<string, never> // Empty object for non-reasoning models
   | { openai: { reasoning: boolean } }
-  | {
-      providerOptions: {
-        google: GoogleProviderOptions;
-      };
-    }
   | { anthropic: { thinking: { type: "enabled"; budgetTokens: number } } }
   | {
       providerOptions: {
-        groq: {
+        google?: GoogleProviderOptions;
+        groq?: {
           reasoningFormat: "parsed";
           reasoningEffort: "low" | "default" | "high";
           maxOutputTokens?: number;
           parallelToolCalls: boolean;
         };
-      };
-    }
-  | {
-      extraBody: {
-        reasoning: OpenRouterReasoningOptions;
+        openrouter?: {
+          reasoning: OpenRouterReasoningOptions;
+        };
       };
     };
 
@@ -262,6 +256,7 @@ export function getProviderReasoningOptions(
       // - max_tokens: Direct token allocation (for Gemini, Anthropic models)
       // - exclude: true/false to hide reasoning from response
       // - enabled: true to use default settings
+      // Must use providerOptions.openrouter (not extraBody) at the streamText level
       const reasoningOptions: OpenRouterReasoningOptions = {
         exclude: false,
       };
@@ -289,8 +284,10 @@ export function getProviderReasoningOptions(
       }
 
       return {
-        extraBody: {
-          reasoning: reasoningOptions,
+        providerOptions: {
+          openrouter: {
+            reasoning: reasoningOptions,
+          },
         },
       };
     }
@@ -320,9 +317,11 @@ export function getReasoningDisabledOptions(
 ): ProviderStreamOptions {
   if (provider === "openrouter") {
     return {
-      extraBody: {
-        reasoning: {
-          enabled: false,
+      providerOptions: {
+        openrouter: {
+          reasoning: {
+            enabled: false,
+          },
         },
       },
     };

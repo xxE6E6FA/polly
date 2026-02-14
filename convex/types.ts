@@ -195,21 +195,19 @@ export type OpenRouterReasoningConfig = {
 export type ProviderStreamOptions =
   | Record<string, never> // Empty object for non-reasoning models
   | { openai: { reasoning: boolean } }
-  | {
-      providerOptions: {
-        google: {
-          thinkingConfig: { thinkingBudget: number };
-        };
-      };
-    }
   | { anthropic: { thinking: { type: "enabled"; budgetTokens: number } } }
   | {
-      extraBody: {
-        reasoning: {
-          effort?: "low" | "medium" | "high";
-          max_tokens?: number;
-          exclude?: boolean;
-          enabled?: boolean;
+      providerOptions: {
+        google?: {
+          thinkingConfig: { thinkingBudget: number };
+        };
+        openrouter?: {
+          reasoning: {
+            effort?: "low" | "medium" | "high";
+            max_tokens?: number;
+            exclude?: boolean;
+            enabled?: boolean;
+          };
         };
       };
     };
