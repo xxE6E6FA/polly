@@ -272,6 +272,20 @@ export const getUserImageModels = query({
 });
 
 /**
+ * Internal query to get user image models without auth context.
+ * Used by streaming actions which run outside auth context.
+ */
+export const getUserImageModelsInternal = internalQuery({
+  args: { userId: v.id("users") },
+  handler: (ctx, args) => {
+    return ctx.db
+      .query("userImageModels")
+      .withIndex("by_user", q => q.eq("userId", args.userId))
+      .collect();
+  },
+});
+
+/**
  * Get all active built-in image models.
  */
 export const getBuiltInImageModels = query({

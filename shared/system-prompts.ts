@@ -51,7 +51,25 @@ CITATIONS:
 `;
 
 /**
- * Build baseline instructions with dynamic values
+ * Image generation instructions - appended when image generation tool is available
+ */
+export const IMAGE_GENERATION_INSTRUCTIONS = dedent`
+IMAGE GENERATION:
+- You can generate images using the generateImage tool when the user asks you to create, draw, make, or generate an image.
+- Only call generateImage ONCE per response. Do not generate multiple images unless the user explicitly asks for variations.
+- Write a brief introduction before calling the tool, then call generateImage.
+- The generated image is displayed directly to the user. After the tool completes, do NOT describe the image, restate what it shows, or output the tool result. Just continue the conversation naturally — the user can already see it.
+- Write detailed, descriptive prompts that specify style, composition, lighting, mood, and subject matter.
+- If generation fails, inform the user and suggest they try again or adjust their request.
+`;
+
+/**
+ * Build baseline instructions with dynamic values.
+ *
+ * Note: Tool-specific instructions (citations, image generation) are injected
+ * in streaming_core.ts where tool availability is actually determined, rather
+ * than being passed as options here.
+ *
  * @param modelName - The AI model name to display
  * @param timezone - Timezone for datetime (defaults to UTC)
  * @param options.webSearchEnabled - Include citation instructions when true

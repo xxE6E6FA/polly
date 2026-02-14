@@ -572,6 +572,10 @@ export const internalUpdate = internalMutation({
     // Web search citations
     citations: v.optional(v.array(webCitationSchema)),
     metadata: v.optional(extendedMessageMetadataSchema),
+    // Streaming state that must be clearable on retry
+    toolCalls: v.optional(v.array(toolCallSchema)),
+    attachments: v.optional(v.array(attachmentSchema)),
+    reasoningParts: v.optional(v.array(reasoningPartSchema)),
     // Allow simple appends for streaming-like updates
     appendContent: v.optional(v.string()),
     appendReasoning: v.optional(v.string()),

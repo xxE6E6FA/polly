@@ -39,30 +39,6 @@ const ConversationZeroState = () => {
   );
 };
 
-function checkIfLikelyImageConversation(messages: ChatMessage[]): boolean {
-  if (!messages || messages.length === 0) {
-    return false;
-  }
-  for (let i = messages.length - 1; i >= 0; i--) {
-    const m = messages[i];
-    if (!m) {
-      continue;
-    }
-    if (m.role === "assistant") {
-      if (m.imageGeneration) {
-        return true;
-      }
-      const hasGeneratedImage = (m.attachments || []).some(
-        att => att.type === "image" && att.generatedImage?.isGenerated
-      );
-      if (hasGeneratedImage) {
-        return true;
-      }
-    }
-  }
-  return false;
-}
-
 type UnifiedChatViewProps = {
   conversationId?: ConversationId;
   messages: ChatMessage[];
@@ -571,9 +547,6 @@ export const UnifiedChatView = memo(
                       isLoading={isLoading || !hasApiKeys}
                       isStreaming={isStreaming}
                       isArchived={isArchived}
-                      isLikelyImageConversation={checkIfLikelyImageConversation(
-                        messages
-                      )}
                       onSendMessage={
                         hasApiKeys && !isArchived
                           ? handleSendMessage

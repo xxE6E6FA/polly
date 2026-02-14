@@ -330,8 +330,8 @@ export const buildContextMessages = async (
     // Build system messages
     const systemMessages = [];
 
-    // Add baseline instructions with persona (webSearchEnabled: false for retry contexts)
-    const baselineInstructions = getBaselineInstructions("default", "UTC", { webSearchEnabled: false });
+    // Add baseline instructions with persona
+    const baselineInstructions = getBaselineInstructions("default", "UTC");
     const mergedInstructions = mergeSystemPrompts(
       baselineInstructions,
       personaPrompt,

@@ -453,13 +453,9 @@ export default function ConversationRoute() {
       if (!latestWithContext) {
         return "text";
       }
-      if (
-        latestWithContext.imageGeneration ||
-        latestWithContext.provider === "replicate" ||
-        (latestWithContext.attachments ?? []).some(
-          att => att.type === "image" && att.generatedImage?.isGenerated
-        )
-      ) {
+      // Only switch to image mode for direct Replicate image generation,
+      // not when a text model calls the generateImage tool.
+      if (latestWithContext.provider === "replicate") {
         return "image";
       }
       return "text";

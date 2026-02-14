@@ -47,6 +47,25 @@ const TOOL_CONFIG: Record<string, { icon: React.ReactNode; label: string }> = {
     ),
     label: "Conversation Search",
   },
+  generateImage: {
+    icon: (
+      <svg
+        className={ICON_SIZE}
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
+        <circle cx="9" cy="9" r="2" />
+        <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
+      </svg>
+    ),
+    label: "Image Generation",
+  },
 };
 
 // Default config for unknown tools
@@ -100,6 +119,32 @@ const ErrorIcon = () => (
   </svg>
 );
 
+function truncate(text: string, maxLen: number): string {
+  if (text.length <= maxLen) {
+    return text;
+  }
+  return `${text.slice(0, maxLen)}...`;
+}
+
+function getImageGenLabel(
+  args: ToolCall["args"],
+  isRunning: boolean
+): string | null {
+  if (!args?.prompt) {
+    return null;
+  }
+  const promptPreview = truncate(args.prompt, isRunning ? 30 : 40);
+  const modelName = args.imageModel
+    ? args.imageModel.split("/").pop() || args.imageModel
+    : undefined;
+  if (isRunning) {
+    const suffix = modelName ? ` with ${modelName}` : "";
+    return `Generating "${promptPreview}"${suffix}...`;
+  }
+  const suffix = modelName ? ` with ${modelName}` : "";
+  return `Generated "${promptPreview}"${suffix}`;
+}
+
 /**
  * Displays a single tool call as a compact line in the activity stream.
  * Shows: status icon, label, and optional error.
@@ -107,14 +152,23 @@ const ErrorIcon = () => (
 export const ToolCallBlock = ({ toolCall }: ToolCallBlockProps) => {
   const { name, status, args, error } = toolCall;
   const config = TOOL_CONFIG[name] ?? DEFAULT_TOOL_CONFIG;
+  const isRunning = status === "running";
 
-  const runningLabel = args?.query
-    ? `Searching for "${args.query.length > 30 ? `${args.query.slice(0, 30)}...` : args.query}"`
-    : `${config.label}...`;
+  let runningLabel: string;
+  let completedLabel: string;
 
-  const completedLabel = args?.query
-    ? `Searched for "${args.query.length > 40 ? `${args.query.slice(0, 40)}...` : args.query}"`
-    : config.label;
+  if (name === "generateImage") {
+    const imageLabel = getImageGenLabel(args, isRunning);
+    runningLabel = imageLabel ?? `${config.label}...`;
+    completedLabel = getImageGenLabel(args, false) ?? config.label;
+  } else {
+    runningLabel = args?.query
+      ? `Searching for "${truncate(args.query, 30)}"`
+      : `${config.label}...`;
+    completedLabel = args?.query
+      ? `Searched for "${truncate(args.query, 40)}"`
+      : config.label;
+  }
 
   let statusIcon = <Spinner size="sm" />;
   if (status === "completed") {
@@ -123,7 +177,6 @@ export const ToolCallBlock = ({ toolCall }: ToolCallBlockProps) => {
     statusIcon = <ErrorIcon />;
   }
 
-  const isRunning = status === "running";
   const label = isRunning ? runningLabel : completedLabel;
 
   return (
