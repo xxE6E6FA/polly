@@ -45,6 +45,9 @@ export function highlightMatches(
 
   for (const m of text.matchAll(pattern)) {
     const matchStart = m.index;
+    if (matchStart === undefined) {
+      continue;
+    }
     if (matchStart > lastIndex) {
       segments.push({
         text: text.substring(lastIndex, matchStart),

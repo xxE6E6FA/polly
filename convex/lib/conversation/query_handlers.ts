@@ -470,7 +470,7 @@ export async function searchWithMatchesHandler(
   const matchCountPerConversation = new Map<string, number>();
 
   for (const msg of messageMatches) {
-    const convId = msg.conversationId as string;
+    const convId = msg.conversationId;
     const currentCount = matchCountPerConversation.get(convId) ?? 0;
     if (currentCount >= maxMatchesPerConversation) {
       continue;

@@ -15,18 +15,23 @@ type SearchResultItemProps = {
 
 const HighlightedText = ({ text, query }: { text: string; query: string }) => {
   const segments = highlightMatches(text, query);
+  let offset = 0;
   return (
     <>
-      {segments.map((segment, i) => (
-        <span
-          key={`${i}-${segment.text.substring(0, 8)}`}
-          className={
-            segment.isMatch ? "bg-primary/15 rounded-sm px-0.5" : undefined
-          }
-        >
-          {segment.text}
-        </span>
-      ))}
+      {segments.map(segment => {
+        const key = offset;
+        offset += segment.text.length;
+        return (
+          <span
+            key={key}
+            className={
+              segment.isMatch ? "bg-primary/15 rounded-sm px-0.5" : undefined
+            }
+          >
+            {segment.text}
+          </span>
+        );
+      })}
     </>
   );
 };
