@@ -184,12 +184,7 @@ export { TextInputDialog } from "./text-input-dialog";
 export { CodeBlock } from "./code-block";
 export { CodeBlockWrapper, CodeBlockWrapperLLM } from "./code-block-wrapper";
 export { MarkdownBlock } from "./markdown-block";
-export {
-  StreamingMarkdown,
-  useIsStreaming,
-  useMessageId,
-  useStreamingContext,
-} from "./streaming-markdown";
+export { StreamingMarkdown, useIsStreaming } from "./streaming-markdown";
 
 // =============================================================================
 // Citations

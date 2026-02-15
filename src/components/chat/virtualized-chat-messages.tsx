@@ -51,7 +51,6 @@ type VirtualizedChatMessagesProps = {
 };
 
 export interface VirtualizedChatMessagesRef {
-  scrollToMessage: (messageId: string, headingId?: string) => void;
   scrollToBottom: () => void;
   scrollToShowAssistantStart: () => void;
 }
@@ -403,66 +402,6 @@ export const VirtualizedChatMessages = memo(
     useImperativeHandle(
       ref,
       () => ({
-        scrollToMessage: (messageId: string, headingId?: string) => {
-          const messageIndex = processedMessages.findIndex(
-            msg => msg.id === messageId
-          );
-          if (messageIndex !== -1 && virtuosoRef.current) {
-            virtuosoRef.current.scrollToIndex({
-              index: messageIndex,
-              align: "start",
-              behavior: "auto",
-            });
-
-            // If we have a headingId, we need to scroll to that specific heading
-            // after the message is rendered
-            if (headingId) {
-              // Use MutationObserver to detect when the heading is rendered
-              const observer = new MutationObserver((_mutations, obs) => {
-                const headingElement = document.getElementById(headingId);
-                if (headingElement) {
-                  // Stop observing once we find the element
-                  obs.disconnect();
-
-                  const scrollContainer = getScrollContainer();
-                  if (scrollContainer) {
-                    // Use requestAnimationFrame for smooth timing
-                    requestAnimationFrame(() => {
-                      // Calculate the position of the heading relative to the scroll container
-                      const containerRect =
-                        scrollContainer.getBoundingClientRect();
-                      const headingRect =
-                        headingElement.getBoundingClientRect();
-
-                      // Calculate the offset from the top of the container
-                      const relativeTop = headingRect.top - containerRect.top;
-
-                      // Scroll to put the heading near the top with some padding
-                      const targetOffset =
-                        scrollContainer.scrollTop + relativeTop - 80; // 80px padding from top
-
-                      scrollContainer.scrollTo({
-                        top: targetOffset,
-                        behavior: "auto", // Instant scrolling
-                      });
-                    });
-                  }
-                }
-              });
-
-              // Start observing the document body for changes
-              observer.observe(document.body, {
-                childList: true,
-                subtree: true,
-              });
-
-              // Set a timeout to stop observing after 1 second as a failsafe
-              setTimeout(() => {
-                observer.disconnect();
-              }, 1000);
-            }
-          }
-        },
         scrollToBottom: () => {
           const container = getScrollContainer();
           if (!container) {
@@ -479,7 +418,7 @@ export const VirtualizedChatMessages = memo(
         },
         scrollToShowAssistantStart,
       }),
-      [processedMessages, getScrollContainer, scrollToShowAssistantStart]
+      [getScrollContainer, scrollToShowAssistantStart]
     );
 
     // Track when a new assistant message appears for scroll control

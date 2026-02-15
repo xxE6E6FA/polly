@@ -29,9 +29,7 @@ const StreamingContext = createContext<StreamingContextValue>({
   isStreaming: false,
 });
 
-export const useMessageId = () => useContext(StreamingContext).messageId;
 export const useIsStreaming = () => useContext(StreamingContext).isStreaming;
-export const useStreamingContext = () => useContext(StreamingContext);
 
 // Burst-then-throttle strategy:
 // - No throttling for the very first moments to minimize TTFT.
