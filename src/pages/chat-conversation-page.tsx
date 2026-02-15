@@ -315,16 +315,17 @@ export default function ConversationRoute() {
   const handleRetryImageGeneration = useCallback(
     async (messageId: string, overrideParams: ImageRetryParams) => {
       try {
-        const message = messages.find(m => m.id === messageId);
+        const currentMessages = latestMessagesRef.current;
+        const message = currentMessages.find(m => m.id === messageId);
         if (!message?.imageGeneration) {
           throw new Error("Image generation message not found");
         }
 
-        const messageIndex = messages.findIndex(m => m.id === messageId);
+        const messageIndex = currentMessages.findIndex(m => m.id === messageId);
         let userMessage = null;
 
         for (let i = messageIndex - 1; i >= 0; i--) {
-          const candidate = messages[i];
+          const candidate = currentMessages[i];
           if (candidate?.role === "user") {
             userMessage = candidate;
             break;
@@ -376,7 +377,7 @@ export default function ConversationRoute() {
         });
       }
     },
-    [messages, convex, resolvedId, managedToast.error]
+    [convex, resolvedId, managedToast.error]
   );
 
   // Sync generation mode with conversation context
@@ -521,6 +522,82 @@ export default function ConversationRoute() {
     }
   }, [resolvedId, messages]);
 
+  // Extracted callbacks — stable references for UnifiedChatView memo boundary.
+  // Must be before early returns to satisfy rules of hooks.
+  const handleSendMessage = useCallback(
+    async (
+      content: string,
+      attachments?: Attachment[],
+      personaId?: Id<"personas"> | null,
+      reasoningConfig?: ReasoningConfig,
+      temperature?: number
+    ) => {
+      await sendMessage({
+        content,
+        attachments,
+        personaId,
+        reasoningConfig,
+        temperature,
+      });
+    },
+    [sendMessage]
+  );
+
+  const handleRefineMessage = useCallback(
+    async (
+      messageId: string,
+      type: "custom" | "add_details" | "more_concise",
+      instruction?: string
+    ) => {
+      await convex.action(api.messages.refineAssistantMessage, {
+        messageId: messageId as Id<"messages">,
+        mode: (() => {
+          if (type === "custom") {
+            return "custom";
+          }
+          if (type === "more_concise") {
+            return "more_concise";
+          }
+          return "add_details";
+        })(),
+        instruction,
+      });
+    },
+    [convex]
+  );
+
+  const handleRetryMessage = useCallback(
+    async (
+      messageId: string,
+      modelId?: string,
+      provider?: string,
+      reasoningConfig?: ReasoningConfig,
+      temperature?: number
+    ) => {
+      const options: Partial<{
+        model: string;
+        provider: string;
+        reasoningConfig: ReasoningConfig;
+        temperature: number;
+      }> = {};
+      if (modelId) {
+        options.model = modelId;
+      }
+      if (provider) {
+        options.provider = provider;
+      }
+      if (reasoningConfig) {
+        options.reasoningConfig = reasoningConfig;
+      }
+      if (temperature !== undefined) {
+        options.temperature = temperature;
+      }
+
+      await retryFromMessage(messageId, options);
+    },
+    [retryFromMessage]
+  );
+
   // Error state: no optimistic message AND query definitively says not found/deleted
   const queryComplete = slugQuery !== undefined;
   const notFound =
@@ -558,96 +635,14 @@ export default function ConversationRoute() {
           canSavePrivateChat={false}
           hasApiKeys={hasApiKeys === true}
           isArchived={conversation?.isArchived ?? undefined}
-          onSendMessage={async (
-            content: string,
-            attachments?: Attachment[],
-            personaId?: Id<"personas"> | null,
-            reasoningConfig?: ReasoningConfig,
-            temperature?: number
-          ) => {
-            await sendMessage({
-              content,
-              attachments,
-              personaId,
-              reasoningConfig,
-              temperature,
-            });
-          }}
+          onSendMessage={handleSendMessage}
           onSendAsNewConversation={handleSendAsNewConversation}
           onDeleteMessage={deleteMessage}
           onEditMessage={editMessage}
-          onRefineMessage={async (messageId, type, instruction) => {
-            await convex.action(api.messages.refineAssistantMessage, {
-              messageId: messageId as Id<"messages">,
-              mode: (() => {
-                if (type === "custom") {
-                  return "custom";
-                }
-                if (type === "more_concise") {
-                  return "more_concise";
-                }
-                return "add_details";
-              })(),
-              instruction,
-            });
-          }}
+          onRefineMessage={handleRefineMessage}
           onStopGeneration={stopGeneration}
-          onRetryUserMessage={async (
-            messageId,
-            modelId,
-            provider,
-            reasoningConfig,
-            temperature
-          ) => {
-            const options: Partial<{
-              model: string;
-              provider: string;
-              reasoningConfig: ReasoningConfig;
-              temperature: number;
-            }> = {};
-            if (modelId) {
-              options.model = modelId;
-            }
-            if (provider) {
-              options.provider = provider;
-            }
-            if (reasoningConfig) {
-              options.reasoningConfig = reasoningConfig;
-            }
-            if (temperature !== undefined) {
-              options.temperature = temperature;
-            }
-
-            await retryFromMessage(messageId, options);
-          }}
-          onRetryAssistantMessage={async (
-            messageId,
-            modelId,
-            provider,
-            reasoningConfig,
-            temperature
-          ) => {
-            const options: Partial<{
-              model: string;
-              provider: string;
-              reasoningConfig: ReasoningConfig;
-              temperature: number;
-            }> = {};
-            if (modelId) {
-              options.model = modelId;
-            }
-            if (provider) {
-              options.provider = provider;
-            }
-            if (reasoningConfig) {
-              options.reasoningConfig = reasoningConfig;
-            }
-            if (temperature !== undefined) {
-              options.temperature = temperature;
-            }
-
-            await retryFromMessage(messageId, options);
-          }}
+          onRetryUserMessage={handleRetryMessage}
+          onRetryAssistantMessage={handleRetryMessage}
           onRetryImageGeneration={handleRetryImageGeneration}
         />
 

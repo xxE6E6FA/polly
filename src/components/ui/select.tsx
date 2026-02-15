@@ -6,6 +6,7 @@ import {
   type RefCallback,
   useCallback,
   useContext,
+  useMemo,
   useState,
 } from "react";
 
@@ -32,8 +33,9 @@ const TriggerWidthCtx = createContext<TriggerWidthContextValue>({
 
 function SelectRoot<V>(props: SelectRootProps<V>) {
   const [width, setWidth] = useState<number | null>(null);
+  const ctxValue = useMemo(() => ({ width, setWidth }), [width]);
   return (
-    <TriggerWidthCtx value={{ width, setWidth }}>
+    <TriggerWidthCtx value={ctxValue}>
       <Select.Root<V> {...props} />
     </TriggerWidthCtx>
   );

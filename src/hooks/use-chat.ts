@@ -65,6 +65,27 @@ export function mapServerMessageToChatMessage(
   };
 }
 
+const FALLBACK_HANDLERS = {
+  sendMessage: () => {
+    throw new Error("Model not loaded");
+  },
+  retryFromMessage: () => {
+    throw new Error("Model not loaded");
+  },
+  editMessage: () => {
+    throw new Error("Model not loaded");
+  },
+  deleteMessage: () => {
+    throw new Error("Model not loaded");
+  },
+  stopGeneration: () => {
+    throw new Error("Model not loaded");
+  },
+  saveConversation: () => {
+    throw new Error("Model not loaded");
+  },
+} as const;
+
 export function useChat({ conversationId, initialMessages }: UseChatParams) {
   const [messages, setMessages] = useState<ChatMessage[]>(
     initialMessages ?? []
@@ -157,69 +178,69 @@ export function useChat({ conversationId, initialMessages }: UseChatParams) {
     setIsLoading(conversationId ? initialMessages === undefined : false);
   }, [conversationId, initialMessages]);
 
-  const chatHandlers = useMemo(() => {
-    if (conversationId) {
-      const mode: ChatMode = {
-        type: "server",
-        conversationId,
-        actions: {
-          sendMessage: sendMessageAction,
-          editAndResend: editAndResendAction,
-          retryFromMessage: retryFromMessageAction,
-          deleteMessage: deleteMessageMutation,
-          stopGeneration: stopGenerationMutation,
-        },
-        getAuthToken: () => authRef.current || null,
-      };
-      return createChatHandlers(mode, modelOptions);
+  // Ref for messages so private-mode handlers always read the latest value
+  // without forcing handler recreation on every message update.
+  const messagesRef = useRef(messages);
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
+
+  // Split handler creation so React Compiler can independently track deps.
+  // Server handlers: no dependency on `messages` — stable across message updates.
+  const serverHandlers = useMemo(() => {
+    if (!conversationId) {
+      return null;
     }
-    if (modelCapabilities) {
-      const mode: ChatMode = {
-        type: "private",
-        config: {
-          messages,
-          setMessages,
-          saveConversationAction,
-          getDecryptedApiKey,
-          modelCapabilities,
-        },
-      };
-      return createChatHandlers(mode, modelOptions);
-    }
-    // Return handlers that throw errors when model is not loaded
-    return {
-      sendMessage: () => {
-        throw new Error("Model not loaded");
+    const mode: ChatMode = {
+      type: "server",
+      conversationId,
+      actions: {
+        sendMessage: sendMessageAction,
+        editAndResend: editAndResendAction,
+        retryFromMessage: retryFromMessageAction,
+        deleteMessage: deleteMessageMutation,
+        stopGeneration: stopGenerationMutation,
       },
-      retryFromMessage: () => {
-        throw new Error("Model not loaded");
-      },
-      editMessage: () => {
-        throw new Error("Model not loaded");
-      },
-      deleteMessage: () => {
-        throw new Error("Model not loaded");
-      },
-      stopGeneration: () => {
-        throw new Error("Model not loaded");
-      },
-      saveConversation: () => {
-        throw new Error("Model not loaded");
-      },
+      getAuthToken: () => authRef.current || null,
     };
+    return createChatHandlers(mode, modelOptions);
   }, [
     conversationId,
     sendMessageAction,
+    editAndResendAction,
+    retryFromMessageAction,
     deleteMessageMutation,
     stopGenerationMutation,
-    saveConversationAction,
-    messages,
     modelOptions,
-    getDecryptedApiKey,
-    modelCapabilities,
-    retryFromMessageAction,
-    editAndResendAction,
   ]);
+
+  // Private handlers: use messagesRef getter so handlers lazily read current messages.
+  const privateHandlers = useMemo(() => {
+    if (conversationId || !modelCapabilities) {
+      return null;
+    }
+    const mode: ChatMode = {
+      type: "private",
+      config: {
+        get messages() {
+          return messagesRef.current;
+        },
+        setMessages,
+        saveConversationAction,
+        getDecryptedApiKey,
+        modelCapabilities,
+      },
+    };
+    return createChatHandlers(mode, modelOptions);
+  }, [
+    conversationId,
+    modelCapabilities,
+    saveConversationAction,
+    getDecryptedApiKey,
+    modelOptions,
+  ]);
+
+  const chatHandlers = serverHandlers ?? privateHandlers ?? FALLBACK_HANDLERS;
 
   // Sync server messages to local state
   useEffect(() => {

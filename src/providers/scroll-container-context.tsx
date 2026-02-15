@@ -1,5 +1,5 @@
 import type React from "react";
-import { createContext, useContext, useRef } from "react";
+import { createContext, useCallback, useContext, useMemo, useRef } from "react";
 
 type ScrollContainerContextValue = {
   scrollContainerRef: React.RefObject<HTMLElement | null>;
@@ -16,14 +16,17 @@ export function ScrollContainerProvider({
 }) {
   const scrollContainerRef = useRef<HTMLElement | null>(null);
 
-  const setScrollContainer = (element: HTMLElement | null) => {
+  const setScrollContainer = useCallback((element: HTMLElement | null) => {
     scrollContainerRef.current = element;
-  };
+  }, []);
+
+  const value = useMemo(
+    () => ({ scrollContainerRef, setScrollContainer }),
+    [setScrollContainer]
+  );
 
   return (
-    <ScrollContainerContext.Provider
-      value={{ scrollContainerRef, setScrollContainer }}
-    >
+    <ScrollContainerContext.Provider value={value}>
       {children}
     </ScrollContainerContext.Provider>
   );

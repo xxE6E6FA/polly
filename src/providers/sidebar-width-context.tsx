@@ -1,4 +1,11 @@
-import { createContext, type ReactNode, useContext, useState } from "react";
+import {
+  createContext,
+  type ReactNode,
+  useCallback,
+  useContext,
+  useMemo,
+  useState,
+} from "react";
 import { CACHE_KEYS, get, set } from "@/lib/local-storage";
 
 const MIN_SIDEBAR_WIDTH = 320;
@@ -24,24 +31,22 @@ export function SidebarWidthProvider({ children }: { children: ReactNode }) {
   });
   const [isResizing, setIsResizing] = useState(false);
 
-  const setSidebarWidth = (width: number) => {
+  const setSidebarWidth = useCallback((width: number) => {
     const constrainedWidth = Math.max(
       MIN_SIDEBAR_WIDTH,
       Math.min(MAX_SIDEBAR_WIDTH, width)
     );
     setSidebarWidthState(constrainedWidth);
     set(CACHE_KEYS.sidebarWidth, constrainedWidth);
-  };
+  }, []);
+
+  const value = useMemo(
+    () => ({ sidebarWidth, setSidebarWidth, isResizing, setIsResizing }),
+    [sidebarWidth, setSidebarWidth, isResizing]
+  );
 
   return (
-    <SidebarWidthContext.Provider
-      value={{
-        sidebarWidth,
-        setSidebarWidth,
-        isResizing,
-        setIsResizing,
-      }}
-    >
+    <SidebarWidthContext.Provider value={value}>
       {children}
     </SidebarWidthContext.Provider>
   );

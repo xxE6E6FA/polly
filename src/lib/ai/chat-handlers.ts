@@ -279,8 +279,9 @@ export const createPrivateChatHandlers = (
   config: PrivateChatConfig,
   modelOptions: ModelOptions
 ): ChatHandlers => {
+  // Read messages lazily via config.messages (may be a getter) so handlers
+  // always see the latest state without needing to be recreated on each update.
   const {
-    messages,
     setMessages,
     saveConversationAction,
     getDecryptedApiKey,
@@ -410,7 +411,7 @@ export const createPrivateChatHandlers = (
       };
       setMessages(prev => [...prev, assistantMessage]);
 
-      const messageHistory = [...messages, userMessage];
+      const messageHistory = [...config.messages, userMessage];
       const options = {
         ...modelOptions,
         reasoningConfig: params.reasoningConfig || modelOptions.reasoningConfig,
@@ -424,12 +425,13 @@ export const createPrivateChatHandlers = (
       messageId: string,
       options: ModelOptions = {}
     ): Promise<void> {
-      const messageIndex = messages.findIndex(m => m.id === messageId);
+      const currentMessages = config.messages;
+      const messageIndex = currentMessages.findIndex(m => m.id === messageId);
       if (messageIndex === -1) {
         return;
       }
 
-      const targetMessage = messages[messageIndex];
+      const targetMessage = currentMessages[messageIndex];
 
       if (!targetMessage) {
         return;
@@ -445,14 +447,17 @@ export const createPrivateChatHandlers = (
 
         // Find previous user message for context
         const previousUserMessageIndex = messageIndex - 1;
-        const previousUserMessage = messages[previousUserMessageIndex];
+        const previousUserMessage = currentMessages[previousUserMessageIndex];
 
         if (!previousUserMessage || previousUserMessage.role !== "user") {
           return;
         }
 
         // Get messages up to (and including) the previous user message
-        const contextMessages = messages.slice(0, previousUserMessageIndex + 1);
+        const contextMessages = currentMessages.slice(
+          0,
+          previousUserMessageIndex + 1
+        );
 
         const mergedOptions = { ...modelOptions, ...options };
 
@@ -481,7 +486,10 @@ export const createPrivateChatHandlers = (
       }
 
       // For user message retry: use existing logic
-      const newMessages = prepareMessagesForRetry(messages, messageIndex);
+      const newMessages = prepareMessagesForRetry(
+        currentMessages,
+        messageIndex
+      );
       if (!newMessages) {
         return;
       }
@@ -500,13 +508,14 @@ export const createPrivateChatHandlers = (
       newContent: string,
       options: ModelOptions = {}
     ): Promise<void> {
-      const messageIndex = messages.findIndex(m => m.id === messageId);
+      const currentMessages = config.messages;
+      const messageIndex = currentMessages.findIndex(m => m.id === messageId);
       if (messageIndex === -1) {
         return;
       }
 
       // Update the user message content
-      const updatedMessages = [...messages];
+      const updatedMessages = [...currentMessages];
       updatedMessages[messageIndex] = {
         ...updatedMessages[messageIndex],
         content: newContent,
@@ -561,7 +570,7 @@ export const createPrivateChatHandlers = (
       title?: string
     ): Promise<Id<"conversations"> | null> {
       return await saveConversationAction({
-        messages,
+        messages: config.messages,
         title,
       });
     },
