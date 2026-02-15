@@ -10,6 +10,7 @@ import { OfflinePlaceholder } from "@/components/ui/offline-placeholder";
 import { useChat } from "@/hooks/use-chat";
 import { useConversationModelOverride } from "@/hooks/use-conversation-model-override";
 import { useOnline } from "@/hooks/use-online";
+import { useSelectedModel } from "@/hooks/use-selected-model";
 import { retryImageGeneration } from "@/lib/ai/image-generation-handlers";
 import { ROUTES } from "@/lib/routes";
 import type { ConversationLoaderResult } from "@/loaders/conversation-loader";
@@ -110,9 +111,11 @@ export default function ConversationRoute() {
   });
 
   // Model override for this conversation
+  const { selectedModel } = useSelectedModel();
   useConversationModelOverride(
     resolvedId ? (resolvedId as ConversationId) : undefined,
-    null
+    null,
+    selectedModel
   );
 
   const hasApiKeys = useQuery(api.apiKeys.hasAnyApiKey, {});
@@ -629,6 +632,7 @@ export default function ConversationRoute() {
       <div className="relative flex h-full min-h-0 w-full">
         <UnifiedChatView
           conversationId={resolvedId as ConversationId}
+          conversation={conversation}
           messages={messages}
           status={status}
           currentPersonaId={conversation?.personaId ?? null}
