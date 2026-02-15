@@ -10,6 +10,7 @@ import { OfflinePlaceholder } from "@/components/ui/offline-placeholder";
 import { useChat } from "@/hooks/use-chat";
 import { useConversationModelOverride } from "@/hooks/use-conversation-model-override";
 import { useOnline } from "@/hooks/use-online";
+import { useScrollToMessage } from "@/hooks/use-scroll-to-message";
 import { useSelectedModel } from "@/hooks/use-selected-model";
 import { retryImageGeneration } from "@/lib/ai/image-generation-handlers";
 import { ROUTES } from "@/lib/routes";
@@ -123,6 +124,9 @@ export default function ConversationRoute() {
   // Determine display state
   const hasRealMessages = realMessages.length > 0;
   const isOptimistic = !!initialMessageRef.current && !hasRealMessages;
+
+  // Scroll-to-message from search results (?m= URL param)
+  useScrollToMessage(resolvedId ?? undefined, hasRealMessages);
 
   // Track whether we've transitioned from optimistic to real messages
   // to preserve displayKey stability during streaming.

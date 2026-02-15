@@ -201,3 +201,9 @@ export {
   isMessageMetadata,
   isMessageStreaming,
 } from "./chat/message-utils";
+
+// =============================================================================
+// Search Utils
+// =============================================================================
+
+export { highlightMatches } from "./search-highlight";

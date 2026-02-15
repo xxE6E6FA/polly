@@ -50,6 +50,7 @@ import {
   isStreamingHandler,
   listHandler,
   searchHandler,
+  searchWithMatchesHandler,
 } from "./lib/conversation/query_handlers";
 import { paginationOptsSchema } from "./lib/pagination";
 import {
@@ -67,6 +68,7 @@ export {
   createConversationHandler,
   listHandler,
   searchHandler,
+  searchWithMatchesHandler,
   getHandler,
   getWithAccessInfoHandler,
   getForExportHandler,
@@ -97,6 +99,16 @@ export const search = query({
     limit: v.optional(v.number()),
   },
   handler: searchHandler,
+});
+
+export const searchWithMatches = query({
+  args: {
+    searchQuery: v.string(),
+    includeArchived: v.optional(v.boolean()),
+    limit: v.optional(v.number()),
+    maxMatchesPerConversation: v.optional(v.number()),
+  },
+  handler: searchWithMatchesHandler,
 });
 
 export const get = query({
