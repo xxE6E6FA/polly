@@ -14,21 +14,25 @@ const baseModelReference = {
 const baseModelSchema = v.object(baseModelReference);
 
 // User model schema - for database storage
-// Note: capability fields are optional for backward compatibility during migration
-// After running stripCapabilityFieldsFromModels migration, these can be removed
 export const userModelSchema = baseModelSchema.extend({
   userId: v.id("users"),
   selected: v.optional(v.boolean()),
   free: v.optional(v.boolean()),
   isAvailable: v.optional(v.boolean()),
   availabilityCheckedAt: v.optional(v.number()),
-  // Legacy capability fields - optional for migration, will be stripped
+  /** @deprecated Remove after stripCapabilityFieldsFromModels migration. Capabilities resolved from modelsDevCache at query time. */
   contextLength: v.optional(v.number()),
+  /** @deprecated Remove after stripCapabilityFieldsFromModels migration. */
   maxOutputTokens: v.optional(v.number()),
+  /** @deprecated Remove after stripCapabilityFieldsFromModels migration. */
   supportsImages: v.optional(v.boolean()),
+  /** @deprecated Remove after stripCapabilityFieldsFromModels migration. */
   supportsTools: v.optional(v.boolean()),
+  /** @deprecated Remove after stripCapabilityFieldsFromModels migration. */
   supportsReasoning: v.optional(v.boolean()),
+  /** @deprecated Remove after stripCapabilityFieldsFromModels migration. */
   supportsFiles: v.optional(v.boolean()),
+  /** @deprecated Remove after stripCapabilityFieldsFromModels migration. */
   inputModalities: v.optional(v.array(v.string())),
 });
 
@@ -40,19 +44,23 @@ export const userModelInputSchema = v.object({
 });
 
 // Built-in models schema (global, not per-user)
-// Note: capability fields are optional for backward compatibility during migration
-// After running stripCapabilityFieldsFromModels migration, these can be removed
 export const builtInModelSchema = baseModelSchema.extend({
   displayProvider: v.optional(v.string()),
   free: v.boolean(),
   isActive: v.optional(v.boolean()),
-  // Legacy capability fields - optional for migration, will be stripped
+  /** @deprecated Remove after stripCapabilityFieldsFromModels migration. Capabilities resolved from modelsDevCache at query time. */
   contextLength: v.optional(v.number()),
+  /** @deprecated Remove after stripCapabilityFieldsFromModels migration. */
   maxOutputTokens: v.optional(v.number()),
+  /** @deprecated Remove after stripCapabilityFieldsFromModels migration. */
   supportsImages: v.optional(v.boolean()),
+  /** @deprecated Remove after stripCapabilityFieldsFromModels migration. */
   supportsTools: v.optional(v.boolean()),
+  /** @deprecated Remove after stripCapabilityFieldsFromModels migration. */
   supportsReasoning: v.optional(v.boolean()),
+  /** @deprecated Remove after stripCapabilityFieldsFromModels migration. */
   supportsFiles: v.optional(v.boolean()),
+  /** @deprecated Remove after stripCapabilityFieldsFromModels migration. */
   inputModalities: v.optional(v.array(v.string())),
 });
 
@@ -168,7 +176,8 @@ export const attachmentSchema = v.object({
   mimeType: v.optional(v.string()), // Added for PDF processing support
   // PDF-specific fields for persistent text extraction
   textFileId: v.optional(v.id("_storage")), // Reference to stored text file
-  extractedText: v.optional(v.string()), // Cached text extraction for PDFs (deprecated in favor of textFileId)
+  /** @deprecated Use textFileId instead for persistent PDF text extraction. */
+  extractedText: v.optional(v.string()),
   extractionError: v.optional(v.string()), // Error message if extraction failed
   // Media dimensions for layout shift prevention
   width: v.optional(v.float64()),
@@ -367,14 +376,15 @@ export const messagePartSchema = v.object({
     v.literal("pdf"),
     v.literal("audio"),
     v.literal("video"),
-    // Legacy formats - kept for backward compatibility
+    /** @deprecated Use "image" type with attachment field instead. */
     v.literal("image_url"),
+    /** @deprecated Use typed literal ("pdf", "text", etc.) with attachment field instead. */
     v.literal("file"),
   ),
   text: v.optional(v.string()),
-  // Legacy format - kept for backward compatibility
+  /** @deprecated Use attachment field with storageId instead. */
   image_url: v.optional(v.object({ url: v.string() })),
-  // Legacy format - kept for backward compatibility
+  /** @deprecated Use attachment field with storageId instead. */
   file: v.optional(
     v.object({
       filename: v.string(),
@@ -604,9 +614,11 @@ export const conversationSchema = v.object({
   tokenEstimate: v.optional(v.number()),
   // Cached message count (updated on message add/delete for efficient counting)
   messageCount: v.optional(v.number()),
-  // Legacy branching fields (for backward compatibility)
+  /** @deprecated Use parentConversationId/branchFromMessageId/branchId instead. */
   activeBranchId: v.optional(v.string()),
+  /** @deprecated Use parentConversationId/branchFromMessageId/branchId instead. */
   activeForkDefaultBranchId: v.optional(v.string()),
+  /** @deprecated Use parentConversationId/branchFromMessageId/branchId instead. */
   activeForkRootId: v.optional(v.id("messages")),
   // New structured branching fields
   parentConversationId: v.optional(v.id("conversations")),
@@ -814,7 +826,7 @@ export const messageSchema = v.object({
   reasoningConfig: v.optional(reasoningConfigSchema),
   parentId: v.optional(v.id("messages")),
   isMainBranch: v.boolean(),
-  // Legacy branching field (for backward compatibility)
+  /** @deprecated Branching now uses conversation-level fields (parentConversationId, branchFromMessageId). */
   branchId: v.optional(v.string()),
   sourceConversationId: v.optional(v.id("conversations")),
   useWebSearch: v.optional(v.boolean()),
@@ -945,7 +957,8 @@ export const userFileSchema = v.object({
   content: v.optional(v.string()), // Extracted text content (for PDFs/text files)
   thumbnail: v.optional(v.string()), // Thumbnail URL for images
   textFileId: v.optional(v.id("_storage")), // Reference to stored text file (for PDFs)
-  extractedText: v.optional(v.string()), // Cached PDF text (deprecated, use textFileId)
+  /** @deprecated Use textFileId instead. */
+  extractedText: v.optional(v.string()),
   extractionError: v.optional(v.string()), // Error message if PDF extraction failed
   // Generated image metadata
   generatedImageSource: v.optional(v.string()), // e.g., "replicate"

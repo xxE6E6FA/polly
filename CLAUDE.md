@@ -2,6 +2,20 @@
 
 Guidance for Claude Code when working with this repository.
 
+## Context Map
+
+- `.claude/rules/convex.md` — Query/Mutation/Action patterns, indexes, auth, OCC
+- `.claude/rules/domain.md` — Domain glossary: Conversation, Branch, Streaming, Persona
+- `CONTRIBUTING.md` — Test isolation, pre-commit hooks, quality commands
+- `convex/migrations/README.md` — Migration ordering and CLI helpers
+
+## Reading Order (fresh sessions)
+
+1. This file (conventions + gotchas)
+2. `src/types/index.ts` (all domain types)
+3. `convex/lib/schemas.ts` (database structure)
+4. Barrel files: `src/hooks/index.ts`, `src/lib/index.ts`, `src/components/ui/index.ts`
+
 ## Commands
 
 **Always use `bun`** - never npm, pnpm, or npx.
@@ -11,8 +25,11 @@ bun run dev          # Start dev server (React Router + Convex)
 bun run build        # Production build
 bun run fix          # Auto-fix formatting/linting (Biome)
 bun run check        # Full verification: lint + types + build
+bun run check:json   # Biome lint with JSON reporter (structured errors)
 bun run typecheck    # TypeScript only
 bun run test         # Run tests
+bun run lint:file <path>   # Auto-fix a single file
+bun run check:file <path>  # Lint-check a single file (no fix)
 bunx <package>       # Instead of npx
 ```
 
