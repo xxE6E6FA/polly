@@ -1,8 +1,6 @@
 import type { Id } from "../../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../../_generated/server";
-import {
-  isStorageIdReferencedByOtherMessages,
-} from "../../fileStorage";
+import { isStorageIdReferencedByOtherMessages } from "../file_storage/helpers";
 import {
   checkConversationAccess,
 } from "../conversation_utils";

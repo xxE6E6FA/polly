@@ -1,50 +1,36 @@
-import { streamText, stepCountIs, type ModelMessage, type LanguageModel } from "ai";
+/**
+ * Streaming Core — Orchestrator
+ *
+ * Wires together buffer management and streaming state/lifecycle to drive
+ * an LLM streaming session. This file is intentionally thin; domain logic
+ * lives in `./streaming/buffer.ts` and `./streaming/state.ts`.
+ */
+import { streamText, stepCountIs, type LanguageModel } from "ai";
 import { createSmoothStreamTransform } from "../../shared/streaming-utils";
 import { internal } from "../_generated/api";
-import type { Id } from "../_generated/dataModel";
-import type { ActionCtx } from "../_generated/server";
 import {
   DEFAULT_STREAM_CONFIG,
   humanizeReasoningText,
   isReasoningDelta,
 } from "../lib/shared/stream_utils";
 import type { Citation } from "../types";
-import { IMAGE_GEN_MARKER } from "../../shared/constants";
-import {
-  CITATION_INSTRUCTIONS,
-  IMAGE_GENERATION_INSTRUCTIONS,
-} from "../../shared/system-prompts";
 import { getUserFriendlyErrorMessage } from "./error_handlers";
+import { createStreamBuffer } from "./streaming/buffer";
 import {
-  createWebSearchTool,
-  createImageGenerationTool,
-  type ImageModelInfo,
-} from "./tools";
+  type StreamingParams,
+  type TimingMetrics,
+  initializeStreaming,
+  configureTools,
+  buildToolOptions,
+  handleToolCall,
+  handleToolResult,
+  finalizeSuccess,
+  finalizeUserStopped,
+  handleStreamError,
+} from "./streaming/state";
 
-type StreamingParams = {
-  ctx: ActionCtx;
-  conversationId: Id<"conversations">;
-  messageId: Id<"messages">;
-  model: LanguageModel;
-  messages: ModelMessage[];
-  // Model capability for tool calling (passed from mutation context where auth is available)
-  supportsTools?: boolean;
-  // Optional generation params
-  temperature?: number;
-  maxOutputTokens?: number;
-  topP?: number;
-  frequencyPenalty?: number;
-  presencePenalty?: number;
-  extraOptions?: Record<string, unknown>;
-  abortController?: AbortController;
-  // Image generation tool support
-  replicateApiKey?: string;
-  imageModels?: ImageModelInfo[];
-  // AI SDK v6: Telemetry metadata
-  userId?: Id<"users">;
-  modelId?: string;
-  provider?: string;
-};
+// Re-export the params type so callers don't need to reach into submodules
+export type { StreamingParams } from "./streaming/state";
 
 export async function streamLLMToMessage({
   ctx,
@@ -66,199 +52,51 @@ export async function streamLLMToMessage({
   modelId,
   provider,
 }: StreamingParams) {
-  // Initial state
-  await ctx.runMutation(internal.messages.updateMessageStatus, {
-    messageId,
-    status: "thinking",
-  });
+  // ── Initialize ────────────────────────────────────────────────────────
+  await initializeStreaming(ctx, conversationId, messageId);
 
-  // Mark conversation as streaming, set current message ID, and clear any previous stop request.
-  // The currentStreamingMessageId prevents race conditions where an old streaming action's
-  // finally block could clear isStreaming after a new action has already started.
-  await ctx.runMutation(internal.conversations.internalPatch, {
-    id: conversationId,
-    updates: { isStreaming: true, currentStreamingMessageId: messageId },
-    clearFields: ["stopRequested"],
-  });
-
-  // Check for Exa API key (supportsTools is passed from mutation context where auth is available)
   const exaApiKey = process.env.EXA_API_KEY;
-
-  // Track citations from tool results
-  let citationsFromTools: Citation[] = [];
+  const citationsRef: { value: Citation[] } = { value: [] };
+  const hasCalledImageGenRef = { value: false };
   let isToolRunning = false;
-  let hasCalledImageGen = false;
 
   // Timing metrics
-  const startTime = Date.now();
-  let firstTokenTime: number | undefined;
-  let reasoningStartTime: number | undefined;
-  let reasoningEndTime: number | undefined;
-  let hasReceivedContent = false;
+  const timing: TimingMetrics = {
+    startTime: Date.now(),
+    firstTokenTime: undefined,
+    reasoningStartTime: undefined,
+    reasoningEndTime: undefined,
+    hasReceivedContent: false,
+  };
 
-  // Lightweight batching buffers
-  let contentBuf = "";
-  let reasoningBuf = "";
   let chunkCounter = 0;
-  let stopped = false;
-  let userStopped = false; // Track if stopped by user request
-  let isFlushing = false; // Prevent concurrent flushes causing OCC conflicts
 
-  // Segment tracking for interleaved reasoning/tool-call streams
-  let reasoningSegmentIndex = 0;
-  let reasoningSegmentStartedAt = 0;
+  // ── Buffer ────────────────────────────────────────────────────────────
+  const buffer = createStreamBuffer({ ctx, messageId, conversationId });
 
-  // Internal flush functions - should only be called via flushAll to avoid OCC conflicts
-  const _flushContentInternal = async () => {
-    if (!contentBuf || stopped) return;
-    const toSend = contentBuf;
-    contentBuf = "";
-    try {
-      const result = await ctx.runMutation(
-        internal.messages.updateAssistantContent,
-        {
-          messageId,
-          appendContent: toSend,
-        }
-      );
-      // Check stop signal from mutation - interrupt at the source
-      if (result?.shouldStop) {
-        userStopped = true;
-        stopped = true;
-      }
-    } catch (e) {
-      console.error("Stream error: content flush failed", e);
-    }
-  };
-
-  const _flushReasoningInternal = async () => {
-    if (!reasoningBuf || stopped) return;
-    const toSend = reasoningBuf;
-    reasoningBuf = "";
-    try {
-      const result = await ctx.runMutation(
-        internal.messages.appendReasoningSegment,
-        {
-          messageId,
-          segmentIndex: reasoningSegmentIndex,
-          text: toSend,
-          startedAt: reasoningSegmentStartedAt || Date.now(),
-        }
-      );
-      // Check stop signal from mutation - interrupt at the source
-      if (result?.shouldStop) {
-        userStopped = true;
-        stopped = true;
-      }
-    } catch (e) {
-      console.error("Stream error: reasoning flush failed", e);
-    }
-  };
-
-  // Serialized flush that prevents OCC (Optimistic Concurrency Control) conflicts.
-  // Convex doesn't support concurrent mutations on the same document - if two mutations
-  // try to update the same message simultaneously, one will fail with an OCC error.
-  // By serializing all flushes through this function, we ensure only one mutation
-  // runs at a time, preventing race conditions between content and reasoning updates.
-  const flushAll = async () => {
-    if (isFlushing || stopped) return;
-    isFlushing = true;
-    try {
-      // Flush sequentially to avoid concurrent mutations on the same document
-      await _flushContentInternal();
-      await _flushReasoningInternal();
-    } finally {
-      isFlushing = false;
-    }
-  };
-
-  // Public flush functions that go through flushAll for serialization
-  const flushContent = flushAll;
-  const flushReasoning = flushAll;
-
-  // Track pending flush promise to avoid Convex dangling promise warnings
-  let pendingFlush: Promise<void> | null = null;
-
-  // Periodic flush using recursive setTimeout to properly await promises
-  let flushTimeoutId: ReturnType<typeof setTimeout> | null = null;
-  const scheduleFlush = () => {
-    if (stopped) return;
-    flushTimeoutId = setTimeout(() => {
-      pendingFlush = flushAll().finally(() => {
-        pendingFlush = null;
-        scheduleFlush(); // Schedule next flush after current completes
-      });
-    }, DEFAULT_STREAM_CONFIG.BATCH_TIMEOUT);
-  };
-  scheduleFlush();
-
-  const stopAll = async () => {
-    if (stopped && !userStopped) return; // Already stopped for other reasons
-    stopped = true;
-    if (flushTimeoutId) {
-      clearTimeout(flushTimeoutId);
-      flushTimeoutId = null;
-    }
-    // Wait for any pending flush to complete
-    if (pendingFlush) {
-      await pendingFlush;
-    }
-    try {
-      // Use conditional clearing to prevent race conditions with newer streaming actions.
-      // Only clears isStreaming if this message is still the current streaming message.
-      await ctx.runMutation(internal.conversations.clearStreamingForMessage, {
-        conversationId,
-        messageId,
-      });
-    } catch {}
-  };
+  // ── Tools ─────────────────────────────────────────────────────────────
+  const toolConfig = configureTools(
+    messages,
+    supportsTools,
+    exaApiKey,
+    replicateApiKey,
+    imageModels,
+    messageId,
+  );
 
   // Promote to streaming once first chunk arrives
   let setStreaming = false;
 
-  // Determine which tools will be used (affects experimental_transform)
-  const useWebSearch = supportsTools && !!exaApiKey;
-  const useImageGen =
-    supportsTools && !!replicateApiKey && imageModels.length > 0;
-  const hasAnyTools = useWebSearch || useImageGen;
-  console.log("[streaming_core] Tool configuration:", {
-    supportsTools,
-    hasExaApiKey: !!exaApiKey,
-    useWebSearch,
-    useImageGen,
-    imageModelCount: imageModels.length,
-    messageId,
-  });
-
-  // Inject tool-specific instructions into the first system message.
-  // This is the single place where tool availability is known, so we co-locate
-  // the instructions here rather than plumbing flags through context building.
-  if (useWebSearch || useImageGen) {
-    const systemIdx = messages.findIndex((m) => m.role === "system");
-    if (systemIdx !== -1) {
-      const sys = messages[systemIdx] as { role: "system"; content: string };
-      let extra = "";
-      if (useWebSearch) {
-        extra += `\n\n${CITATION_INSTRUCTIONS}`;
-      }
-      if (useImageGen) {
-        extra += `\n\n${IMAGE_GENERATION_INSTRUCTIONS}`;
-      }
-      messages[systemIdx] = { role: "system", content: sys.content + extra };
-    }
-  }
-
   try {
-    // Build streamText options - base required fields with optional additions
-    const genOpts: {
+    // ── Build streamText options ───────────────────────────────────────
+    const genOpts: Record<string, unknown> & {
       model: LanguageModel;
-      messages: ModelMessage[];
-    } & Record<string, unknown> = {
+      messages: typeof messages;
+    } = {
       model,
       messages,
       // Only apply smooth stream transform when NOT using tools
-      // (may interfere with tool-related chunks)
-      ...(hasAnyTools
+      ...(toolConfig.hasAnyTools
         ? {}
         : {
             // biome-ignore lint/style/useNamingConvention: AI SDK option
@@ -277,61 +115,47 @@ export async function streamLLMToMessage({
           ...(provider && { provider }),
         },
       },
+      ...buildToolOptions(
+        ctx,
+        messageId,
+        toolConfig,
+        exaApiKey,
+        replicateApiKey,
+        imageModels,
+        hasCalledImageGenRef,
+      ),
       ...extraOptions,
     };
 
-    // Add tool calling if any tools are available
-    if (hasAnyTools) {
-      const MAX_TOOL_STEPS = 5;
-      genOpts.tools = {
-        ...(useWebSearch ? { webSearch: createWebSearchTool(exaApiKey!) } : {}),
-        ...(useImageGen
-          ? {
-              generateImage: createImageGenerationTool(
-                ctx,
-                messageId,
-                replicateApiKey!,
-                imageModels,
-              ),
-            }
-          : {}),
-      };
-      genOpts.toolChoice = "auto";
-      // After an image generation, force the model to produce text (no more tool calls).
-      // This prevents the model from calling generateImage multiple times.
-      // Also caps at MAX_TOOL_STEPS for safety.
-      genOpts.prepareStep = ({ stepNumber }: { stepNumber: number }) => {
-        if (hasCalledImageGen || stepNumber >= MAX_TOOL_STEPS) {
-          return { toolChoice: "none" };
-        }
-        return {};
-      };
-      genOpts.stopWhen = stepCountIs(MAX_TOOL_STEPS + 1);
+    if (toolConfig.hasAnyTools) {
+      genOpts.stopWhen = stepCountIs(6); // MAX_TOOL_STEPS (5) + 1
     }
-
     if (abortController) genOpts.abortSignal = abortController.signal;
     if (temperature !== undefined) genOpts.temperature = temperature;
-    if (maxOutputTokens && maxOutputTokens > 0)
+    if (maxOutputTokens && maxOutputTokens > 0) {
       genOpts.maxOutputTokens = maxOutputTokens;
+    }
     if (topP !== undefined) genOpts.topP = topP;
-    if (frequencyPenalty !== undefined)
+    if (frequencyPenalty !== undefined) {
       genOpts.frequencyPenalty = frequencyPenalty;
-    if (presencePenalty !== undefined)
+    }
+    if (presencePenalty !== undefined) {
       genOpts.presencePenalty = presencePenalty;
+    }
 
-    // Start the generation immediately and proactively mark as streaming
+    // ── Start streaming ───────────────────────────────────────────────
     const result = streamText({
       ...genOpts,
       onChunk: async ({ chunk }) => {
-        if (stopped) return;
+        if (buffer.state.stopped) return;
 
         // Track first token time for any meaningful chunk
         if (
-          !firstTokenTime &&
+          !timing.firstTokenTime &&
           (isReasoningDelta(chunk) ||
             (chunk.type === "text-delta" && chunk.text))
         ) {
-          firstTokenTime = Date.now();
+          timing.firstTokenTime = Date.now();
         }
 
         if (!setStreaming) {
@@ -342,134 +166,71 @@ export async function streamLLMToMessage({
           });
         }
 
-        // Handle tool call - track tool call and update status
-        // AI SDK v6 uses 'input' for tool parameters (not 'args')
+        // Handle tool call
         if (chunk.type === "tool-call" && !isToolRunning) {
           isToolRunning = true;
-          const toolCallChunk = chunk as {
+          const toolChunk = chunk as {
             toolCallId: string;
             toolName: string;
             input?: Record<string, unknown>;
           };
-          if (toolCallChunk.toolName === "generateImage") {
-            hasCalledImageGen = true;
-            // Insert marker so the frontend knows where to place the image
-            // relative to the surrounding text.
-            contentBuf += IMAGE_GEN_MARKER;
-            await flushContent();
-          }
-          console.log("[streaming_core] Tool call chunk received:", {
-            toolCallId: toolCallChunk.toolCallId,
-            toolName: toolCallChunk.toolName,
-            input: toolCallChunk.input,
-          });
-
-          // Flush pending reasoning before starting new segment
-          await flushReasoning();
-          reasoningSegmentIndex++;
-          reasoningSegmentStartedAt = 0; // Will be set on next reasoning delta
-
-          // Build args based on tool type
-          const toolArgs: Record<string, string | undefined> = {};
-          if (toolCallChunk.input) {
-            if (toolCallChunk.toolName === "generateImage") {
-              toolArgs.prompt = toolCallChunk.input.prompt as string | undefined;
-              toolArgs.imageModel = toolCallChunk.input.model as string | undefined;
-            } else {
-              toolArgs.query = toolCallChunk.input.query as string | undefined;
-              toolArgs.mode = toolCallChunk.input.searchMode as string | undefined;
-            }
-          }
-
-          // Add tool call to message for UI tracking
-          try {
-            await ctx.runMutation(internal.messages.addToolCall, {
-              messageId,
-              toolCall: {
-                id: toolCallChunk.toolCallId,
-                name: toolCallChunk.toolName,
-                status: "running",
-                startedAt: Date.now(),
-                args: toolArgs,
-              },
-            });
-            console.log("[streaming_core] Tool call added successfully");
-          } catch (e) {
-            console.error("[streaming_core] Failed to add tool call:", e);
-          }
-          await ctx.runMutation(internal.messages.updateMessageStatus, {
+          await handleToolCall(
+            ctx,
             messageId,
-            status: "searching",
-          });
+            toolChunk,
+            buffer,
+            hasCalledImageGenRef,
+          );
         }
 
-        // Handle tool result - single mutation for tool status + citations + message status
+        // Handle tool result
         if (chunk.type === "tool-result") {
           const toolResult = chunk as {
             toolCallId: string;
             output?: { success?: boolean; citations?: Citation[] };
           };
-          console.log("[streaming_core] Tool result chunk received:", {
-            toolCallId: toolResult.toolCallId,
-            success: toolResult.output?.success,
-            citationsCount: toolResult.output?.citations?.length,
-          });
-          const isSuccess = toolResult.output?.success;
-          const hasCitations =
-            isSuccess && toolResult.output?.citations?.length;
-          if (hasCitations) {
-            citationsFromTools = toolResult.output!.citations!;
-          }
-          try {
-            await ctx.runMutation(internal.messages.finalizeToolResult, {
-              messageId,
-              toolCallId: toolResult.toolCallId,
-              toolStatus: isSuccess ? "completed" : "error",
-              ...(isSuccess ? {} : { toolError: "Tool call failed" }),
-              ...(hasCitations ? { citations: citationsFromTools } : {}),
-              messageStatus: "streaming",
-            });
-          } catch (e) {
-            console.error("[streaming_core] Failed to finalize tool result:", e);
-          }
+          await handleToolResult(ctx, messageId, toolResult, citationsRef);
           isToolRunning = false;
         }
 
         // Reasoning chunks
         if (isReasoningDelta(chunk)) {
-          // Track when reasoning starts
-          if (!reasoningStartTime) {
-            reasoningStartTime = Date.now();
+          if (!timing.reasoningStartTime) {
+            timing.reasoningStartTime = Date.now();
           }
-          // Track segment start time for interleaved reasoning parts
-          if (!reasoningSegmentStartedAt) {
-            reasoningSegmentStartedAt = Date.now();
+          if (!buffer.hasSegmentStartTime) {
+            buffer.setSegmentStartTime(Date.now());
           }
-          reasoningBuf += humanizeReasoningText(chunk.text);
-          if (reasoningBuf.length >= DEFAULT_STREAM_CONFIG.BATCH_SIZE) {
-            await flushReasoning();
+          buffer.appendReasoning(humanizeReasoningText(chunk.text));
+          if (buffer.reasoningLength >= DEFAULT_STREAM_CONFIG.BATCH_SIZE) {
+            await buffer.flush();
           }
           return;
         }
 
         // Text deltas
         if (chunk.type === "text-delta" && chunk.text) {
-          // Track when content starts (marks end of reasoning phase)
-          if (!hasReceivedContent && reasoningStartTime && !reasoningEndTime) {
-            reasoningEndTime = Date.now();
+          if (
+            !timing.hasReceivedContent &&
+            timing.reasoningStartTime &&
+            !timing.reasoningEndTime
+          ) {
+            timing.reasoningEndTime = Date.now();
           }
-          hasReceivedContent = true;
+          timing.hasReceivedContent = true;
 
-          contentBuf += chunk.text;
+          buffer.appendContent(chunk.text);
           chunkCounter++;
           if (
-            contentBuf.length >= DEFAULT_STREAM_CONFIG.BATCH_SIZE ||
-            chunkCounter % DEFAULT_STREAM_CONFIG.CHECK_STOP_EVERY_N_CHUNKS === 0
+            buffer.contentLength >= DEFAULT_STREAM_CONFIG.BATCH_SIZE ||
+            chunkCounter % DEFAULT_STREAM_CONFIG.CHECK_STOP_EVERY_N_CHUNKS ===
+              0
           ) {
-            await flushContent();
+            await buffer.flush();
           }
         }
       },
+
       onFinish: async ({
         finishReason,
         usage,
@@ -478,107 +239,30 @@ export async function streamLLMToMessage({
         text: _text,
         reasoning: _reasoning,
       }) => {
-        if (stopped) return;
-        await flushReasoning();
-        await flushContent();
-
-        // Calculate timing metrics
-        const endTime = Date.now();
-        const duration = endTime - startTime;
-        const timeToFirstTokenMs = firstTokenTime
-          ? firstTokenTime - startTime
-          : undefined;
-        const totalTokens = usage?.totalTokens ?? 0;
-        const tokensPerSecond =
-          duration > 0 ? totalTokens / (duration / 1000) : 0;
-
-        // Calculate thinking duration (reasoning phase)
-        const thinkingDurationMs =
-          reasoningStartTime && reasoningEndTime
-            ? reasoningEndTime - reasoningStartTime
-            : reasoningStartTime
-              ? endTime - reasoningStartTime // If no content, reasoning lasted until the end
-              : undefined;
-
-        // Use AI SDK v6's rich metadata for comprehensive final state
-        await ctx.runMutation(internal.messages.internalUpdate, {
-          id: messageId,
-          // Include citations from tool calls if any
-          ...(citationsFromTools.length > 0 ? { citations: citationsFromTools } : {}),
-          metadata: {
-            finishReason: finishReason || "stop",
-            tokenUsage:
-              usage &&
-              usage.totalTokens !== undefined &&
-              usage.inputTokens !== undefined &&
-              usage.outputTokens !== undefined
-                ? {
-                    inputTokens: usage.inputTokens,
-                    outputTokens: usage.outputTokens,
-                    totalTokens: usage.totalTokens,
-                    // AI SDK v6: Use new detailed token fields, fallback to deprecated fields
-                    reasoningTokens:
-                      usage.outputTokenDetails?.reasoningTokens ??
-                      usage.reasoningTokens,
-                    cachedInputTokens:
-                      usage.inputTokenDetails?.cacheReadTokens ??
-                      usage.cachedInputTokens,
-                  }
-                : undefined,
-            providerMessageId: response?.id,
-            timestamp: response?.timestamp
-              ? new Date(response.timestamp).toISOString()
-              : undefined,
-            warnings: warnings?.map((w) => {
-              // AI SDK v6 unified Warning type with feature + details
-              if (w.type === "unsupported") {
-                return `Unsupported: ${w.feature}${w.details ? ` - ${w.details}` : ""}`;
-              }
-              if (w.type === "compatibility") {
-                return `Compatibility: ${w.feature}${w.details ? ` - ${w.details}` : ""}`;
-              }
-              if (w.type === "other") {
-                return w.message;
-              }
-              return String(w);
-            }),
-            // Timing metrics
-            timeToFirstTokenMs,
-            tokensPerSecond,
-            thinkingDurationMs,
-            duration,
-          },
-        });
-        await ctx.runMutation(internal.messages.updateMessageStatus, {
+        if (buffer.state.stopped) return;
+        await buffer.flush();
+        await finalizeSuccess(
+          ctx,
           messageId,
-          status: "done",
-        });
+          citationsRef.value,
+          timing,
+          { finishReason, usage, response, warnings },
+        );
       },
-      // AI SDK v6: Handle errors during streaming without crashing
+
       onError: async ({ error }) => {
-        console.error("Stream error in onError callback:", error);
-        stopped = true;
-        // Propagate error to UI
-        try {
-          const errorMessage = getUserFriendlyErrorMessage(error);
-          await ctx.runMutation(internal.messages.updateMessageError, {
-            messageId,
-            error: errorMessage,
-          });
-        } catch (updateError) {
-          console.error("Failed to update message with error:", updateError);
-        }
+        buffer.state.stopped = true;
+        await handleStreamError(ctx, messageId, error);
       },
-      // AI SDK v6: Handle stream abort for cleanup
+
       onAbort: async ({ steps }) => {
         console.log(`Stream aborted after ${steps.length} steps`);
-        userStopped = true;
-        stopped = true;
+        buffer.state.userStopped = true;
+        buffer.state.stopped = true;
       },
     });
 
     // If no chunks arrive quickly, ensure UI doesn't stay in "thinking"
-    // by preemptively marking as streaming once the request is in flight.
     if (!setStreaming) {
       try {
         await ctx.runMutation(internal.messages.updateMessageStatus, {
@@ -589,15 +273,9 @@ export async function streamLLMToMessage({
       } catch {}
     }
 
-    // Consume the stream to trigger onChunk/onFinish callbacks
+    // Consume the stream to trigger onChunk/onFinish callbacks.
     // Using consumeStream() instead of `for await (fullStream)` to avoid memory accumulation.
-    // The `for await` pattern buffers all chunks in memory (backpressure issue), which causes
-    // Gemini models to hit the 64MB Convex action limit due to:
-    // 1. Gemini returns larger chunks than other providers
-    // 2. Gemini thinking tokens can be up to 24K tokens
-    // 3. The eager iteration doesn't allow garbage collection until stream completes
-    // consumeStream() processes chunks without buffering, triggering callbacks as data arrives.
-    await result.consumeStream()
+    await result.consumeStream();
   } catch (error) {
     console.error("Stream error: stream failed", error);
     const errorMessage = getUserFriendlyErrorMessage(error);
@@ -606,56 +284,9 @@ export async function streamLLMToMessage({
       error: errorMessage,
     });
   } finally {
-    // If user requested stop, finalize the message with current content
-    if (userStopped) {
-      try {
-        // Check if a retry has been initiated - if so, skip finalization
-        // The retry resets the message to "thinking" status with empty content
-        const currentMessage = await ctx.runQuery(
-          internal.messages.internalGetByIdQuery,
-          { id: messageId }
-        );
-        const hasBeenReset =
-          currentMessage?.status === "thinking" && currentMessage?.content === "";
-
-        if (!hasBeenReset) {
-          // Flush any remaining content
-          await flushReasoning();
-          await flushContent();
-
-          // Calculate timing metrics
-          const endTime = Date.now();
-          const duration = endTime - startTime;
-          const timeToFirstTokenMs = firstTokenTime
-            ? firstTokenTime - startTime
-            : undefined;
-          const thinkingDurationMs =
-            reasoningStartTime && reasoningEndTime
-              ? reasoningEndTime - reasoningStartTime
-              : reasoningStartTime
-                ? endTime - reasoningStartTime
-                : undefined;
-
-          // Finalize with user_stopped reason
-          await ctx.runMutation(internal.messages.internalUpdate, {
-            id: messageId,
-            metadata: {
-              finishReason: "user_stopped",
-              stopped: true,
-              timeToFirstTokenMs,
-              thinkingDurationMs,
-              duration,
-            },
-          });
-          await ctx.runMutation(internal.messages.updateMessageStatus, {
-            messageId,
-            status: "done",
-          });
-        }
-      } catch (e) {
-        console.error("Stream error: failed to finalize user-stopped message", e);
-      }
+    if (buffer.state.userStopped) {
+      await finalizeUserStopped(ctx, messageId, buffer, timing);
     }
-    await stopAll();
+    await buffer.stopAll();
   }
 }
