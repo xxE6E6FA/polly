@@ -3,10 +3,8 @@ import { ConvexError, type Infer } from "convex/values";
 import type { Doc, Id } from "../../_generated/dataModel";
 import type { MutationCtx } from "../../_generated/server";
 import { withRetry } from "../../ai/error_handlers";
-import {
-  createUserFileEntriesHandler,
-  getStorageIdsSafeToDelete,
-} from "../../fileStorage";
+import { createUserFileEntriesHandler } from "../file_storage/mutation_handlers";
+import { getStorageIdsSafeToDelete } from "../file_storage/helpers";
 import {
   incrementUserMessageStats,
 } from "../conversation_utils";
@@ -463,7 +461,7 @@ export async function removeMultipleHandler(
             isStreaming: false,
             messageCount: Math.max(
               0,
-              (conversation.messageCount || deletedCount) - deletedCount
+              (conversation.messageCount || 0) - deletedCount
             ),
           });
         }
