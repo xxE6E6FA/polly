@@ -16,6 +16,14 @@ bun run test         # Run tests
 bunx <package>       # Instead of npx
 ```
 
+## Testing
+
+- Framework: **bun:test** (not jest/vitest)
+- `bun test <path>` — run a single test file
+- `bun test --watch` — watch mode
+- Test utils in `test/` directory (`test-utils.tsx`, `convex-test-utils.ts`, `TestProviders.tsx`)
+- Run targeted tests for what you changed, not the full suite
+
 ## Stack
 
 - **Frontend**: React 19 + TypeScript + Vite + React Router v7
@@ -103,6 +111,15 @@ All files use **kebab-case**: `chat-message.tsx`, `use-chat.ts`, `user-bubble.ts
 ## Imports
 
 Use barrel files: `@/components/ui`, `@/hooks`, `@/lib`. See JSDoc in each `index.ts`.
+
+## Gotchas
+
+- **Streaming coordination**: Use `currentStreamingMessageId` on the conversation to detect/guard streaming, not `isStreaming` alone
+- **OCC (Optimistic Concurrency Control)**: Mutations that touch hot documents must be idempotent. Use `withRetry(fn, 5, 25)` for OCC-prone mutations
+- **Model capabilities**: Resolved at query time from `modelsDevCache` table, NOT stored on model documents. See hydration in `convex/lib/model-hydration.ts`
+- **Route params**: May be `undefined` in React Router v7 — always handle the missing case
+- **File deletion**: Always verify `userFiles` ownership (`entry.userId === currentUserId`) before deleting
+- **Private mode**: Client-side only, no server storage. Uses `usePrivateChat` hook with user's own API keys
 
 ## Code Review (GitHub)
 
