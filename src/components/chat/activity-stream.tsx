@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { AssistantPhase } from "@/hooks";
 import { cn } from "@/lib/utils";
 import type { ReasoningPart, ToolCall } from "@/types";
@@ -63,51 +63,69 @@ export function ActivityStream({
 }: ActivityStreamProps) {
   const [expanded, setExpanded] = useState(false);
 
-  const hasParts = reasoningParts && reasoningParts.length > 0;
-  const hasLegacyReasoning = !hasParts && Boolean(reasoning?.trim());
-  const hasToolCalls = toolCalls && toolCalls.length > 0;
+  // Build unified list sorted by startedAt (hooks must run before early return)
+  const items = useMemo(() => {
+    const hasParts = reasoningParts && reasoningParts.length > 0;
+    const hasLegacy = !hasParts && Boolean(reasoning?.trim());
+    const hasTools = toolCalls && toolCalls.length > 0;
 
-  if (!(hasParts || hasLegacyReasoning || hasToolCalls)) {
+    if (!(hasParts || hasLegacy || hasTools)) {
+      return [];
+    }
+
+    const result: ActivityItem[] = [];
+
+    if (hasParts) {
+      for (let i = 0; i < reasoningParts.length; i++) {
+        const part = reasoningParts[i];
+        if (part?.text.trim()) {
+          result.push({ type: "reasoning", part, index: i });
+        }
+      }
+    } else if (hasLegacy) {
+      result.push({
+        type: "reasoning",
+        part: { text: reasoning || "", startedAt: 0 },
+        index: 0,
+      });
+    }
+
+    if (hasTools) {
+      for (const tc of toolCalls) {
+        result.push({ type: "tool", toolCall: tc });
+      }
+    }
+
+    result.sort((a, b) => {
+      const aTime =
+        a.type === "reasoning" ? a.part.startedAt : a.toolCall.startedAt;
+      const bTime =
+        b.type === "reasoning" ? b.part.startedAt : b.toolCall.startedAt;
+      return aTime - bTime;
+    });
+
+    return result;
+  }, [reasoningParts, reasoning, toolCalls]);
+
+  const { reasoningCount, toolCallCount } = useMemo(() => {
+    let rCount = 0;
+    let tCount = 0;
+    for (const item of items) {
+      if (item.type === "reasoning") {
+        rCount++;
+      } else {
+        tCount++;
+      }
+    }
+    return { reasoningCount: rCount, toolCallCount: tCount };
+  }, [items]);
+
+  if (items.length === 0) {
     return null;
   }
 
-  // Build unified list sorted by startedAt
-  const items: ActivityItem[] = [];
-
-  if (hasParts) {
-    for (let i = 0; i < reasoningParts.length; i++) {
-      const part = reasoningParts[i];
-      if (part?.text.trim()) {
-        items.push({ type: "reasoning", part, index: i });
-      }
-    }
-  } else if (hasLegacyReasoning) {
-    items.push({
-      type: "reasoning",
-      part: { text: reasoning || "", startedAt: 0 },
-      index: 0,
-    });
-  }
-
-  if (hasToolCalls) {
-    for (const tc of toolCalls) {
-      items.push({ type: "tool", toolCall: tc });
-    }
-  }
-
-  items.sort((a, b) => {
-    const aTime =
-      a.type === "reasoning" ? a.part.startedAt : a.toolCall.startedAt;
-    const bTime =
-      b.type === "reasoning" ? b.part.startedAt : b.toolCall.startedAt;
-    return aTime - bTime;
-  });
-
   const lastIndex = items.length - 1;
   const isComplete = phase === "complete";
-
-  const reasoningCount = items.filter(i => i.type === "reasoning").length;
-  const toolCallCount = items.filter(i => i.type === "tool").length;
   const summaryLabel = buildSummaryLabel(
     reasoningCount,
     toolCallCount,

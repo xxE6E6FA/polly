@@ -16,6 +16,15 @@ import { ZenModeDialog } from "./message/zen-mode-dialog";
 
 export type PersonaInfo = { icon: string; name: string } | null;
 
+const VIRTUOSO_STYLE: React.CSSProperties = {
+  height: "100%",
+  width: "100%",
+  overflowX: "clip",
+  overflowY: "auto",
+  contain: "layout style size",
+  WebkitOverflowScrolling: "touch",
+};
+
 type VirtualizedChatMessagesProps = {
   messages: ChatMessageType[];
   isStreaming?: boolean;
@@ -682,14 +691,7 @@ export const VirtualizedChatMessages = memo(
           scrollerRef={handleScrollerRef}
           initialTopMostItemIndex={processedMessages.length - 1}
           overscan={overscan * 100}
-          style={{
-            height: "100%",
-            width: "100%",
-            overflowX: "clip",
-            overflowY: "auto",
-            contain: "layout style size",
-            WebkitOverflowScrolling: "touch",
-          }}
+          style={VIRTUOSO_STYLE}
           className="overscroll-contain scrollbar-thin"
           topItemCount={0}
           context={virtuosoContext}

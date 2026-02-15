@@ -63,7 +63,11 @@ export function useBackgroundJobs(options: { suppressToasts?: boolean } = {}) {
   );
   const { suppressToasts = false } = options;
   const managedToast = useToast();
+  const toastRef = useRef(managedToast);
+  toastRef.current = managedToast;
   const convex = useConvex();
+  const convexRef = useRef(convex);
+  convexRef.current = convex;
 
   const jobStatuses = useQuery(api.backgroundJobs.listUserJobs, { limit: 100 });
 
@@ -161,7 +165,7 @@ export function useBackgroundJobs(options: { suppressToasts?: boolean } = {}) {
               label: "Download",
               onClick: () => {
                 void (async () => {
-                  const loadingToastId = managedToast.loading(
+                  const loadingToastId = toastRef.current.loading(
                     "Preparing download...",
                     {
                       id: `loading-download-${jobKey}`,
@@ -169,7 +173,7 @@ export function useBackgroundJobs(options: { suppressToasts?: boolean } = {}) {
                   );
 
                   try {
-                    const downloadData = await convex.query(
+                    const downloadData = await convexRef.current.query(
                       api.backgroundJobs.getExportDownloadUrl,
                       { jobId: jobKey }
                     );
@@ -197,19 +201,19 @@ export function useBackgroundJobs(options: { suppressToasts?: boolean } = {}) {
                         generateBackgroundExportFilename(manifest);
                       await downloadFromUrl(downloadData.downloadUrl, filename);
 
-                      managedToast.success("Download started", {
+                      toastRef.current.success("Download started", {
                         description: `Export file downloaded as ${filename}`,
                         id: `download-${jobKey}`,
                       });
                     } else {
-                      managedToast.error("Download failed", {
+                      toastRef.current.error("Download failed", {
                         description:
                           "Export file is not available for download",
                         id: `download-error-${jobKey}`,
                       });
                     }
                   } catch (error) {
-                    managedToast.error("Download failed", {
+                    toastRef.current.error("Download failed", {
                       description:
                         error instanceof Error
                           ? error.message
@@ -217,7 +221,7 @@ export function useBackgroundJobs(options: { suppressToasts?: boolean } = {}) {
                       id: `download-error-${jobKey}`,
                     });
                   } finally {
-                    managedToast.dismiss(loadingToastId);
+                    toastRef.current.dismiss(loadingToastId);
                   }
                 })();
               },
@@ -233,7 +237,7 @@ export function useBackgroundJobs(options: { suppressToasts?: boolean } = {}) {
           }
 
           if (message && !suppressToasts) {
-            managedToast.success(message, {
+            toastRef.current.success(message, {
               id: `job-${jobKey}`,
               action,
             });
@@ -251,14 +255,14 @@ export function useBackgroundJobs(options: { suppressToasts?: boolean } = {}) {
           }
 
           if (message && !suppressToasts) {
-            managedToast.error(message, { id: `job-error-${jobKey}` });
+            toastRef.current.error(message, { id: `job-error-${jobKey}` });
           }
         }
       }
     });
 
     previousJobStatuses.current = jobStatuses;
-  }, [jobStatuses, suppressToasts, managedToast, convex]);
+  }, [jobStatuses, suppressToasts]);
 
   const startExport = async (
     conversationIds: Id<"conversations">[],

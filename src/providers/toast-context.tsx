@@ -4,6 +4,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
 } from "react";
 import { toast } from "sonner";
@@ -179,13 +180,10 @@ export function ToastProvider({ children }: ToastProviderProps) {
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  const value: ToastContextValue = {
-    success,
-    error,
-    loading,
-    dismiss,
-    dismissAll,
-  };
+  const value = useMemo(
+    () => ({ success, error, loading, dismiss, dismissAll }),
+    [success, error, loading, dismiss, dismissAll]
+  );
 
   return (
     <ToastContext.Provider value={value}>{children}</ToastContext.Provider>

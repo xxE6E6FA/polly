@@ -502,7 +502,7 @@ export const UnifiedChatView = memo(
                     isArchived={isArchived}
                     onSavePrivateChat={onSavePrivateChat}
                     canSavePrivateChat={canSavePrivateChat}
-                    privateMessages={messages}
+                    privateMessages={conversationId ? undefined : messages}
                     privatePersonaId={currentPersonaId || undefined}
                   />
                 </div>
