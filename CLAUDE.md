@@ -25,7 +25,7 @@ bun run dev          # Start dev server (React Router + Convex)
 bun run build        # Production build
 bun run fix          # Auto-fix formatting/linting (Biome)
 bun run check        # Full verification: lint + types + build
-bun run check:json   # Same as check but with JSON reporter (structured errors)
+bun run check:json   # Biome lint with JSON reporter (structured errors)
 bun run typecheck    # TypeScript only
 bun run test         # Run tests
 bun run lint:file <path>   # Auto-fix a single file
