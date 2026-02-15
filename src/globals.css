@@ -2587,3 +2587,17 @@ pre {
 .switch-root[data-checked]:active .switch-thumb {
   transform: translateX(1rem) scale(0.95);
 }
+
+/* Search scroll-to-message highlight */
+@keyframes message-highlight {
+  0% {
+    background-color: hsl(var(--primary) / 0.15);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+.message-highlight {
+  animation: message-highlight 2s ease-out forwards;
+  border-radius: 0.75rem;
+}

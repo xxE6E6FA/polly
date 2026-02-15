@@ -71,6 +71,7 @@ export { useArchiveConversation } from "./use-archive-conversation";
 export { useConversationImport } from "./use-conversation-import";
 export { useDeleteConversation } from "./use-delete-conversation";
 export { usePaginatedConversations } from "./use-paginated-conversations";
+export { useScrollToMessage } from "./use-scroll-to-message";
 
 // =============================================================================
 // File Hooks

@@ -337,6 +337,26 @@ export type ChatStreamRequest = {
 export type WebSearchCitation = Infer<typeof webCitationSchema>;
 
 // ============================================================================
+// CONVERSATION SEARCH TYPES
+// ============================================================================
+
+export type MessageMatch = {
+  messageId: string;
+  snippet: string;
+  role: string;
+  createdAt: number;
+};
+
+export type ConversationSearchResult = {
+  conversationId: string;
+  title: string;
+  updatedAt: number;
+  isPinned: boolean;
+  matchedIn: "title" | "messages" | "both";
+  messageMatches: MessageMatch[];
+};
+
+// ============================================================================
 // API KEYS TYPES
 // ============================================================================
 

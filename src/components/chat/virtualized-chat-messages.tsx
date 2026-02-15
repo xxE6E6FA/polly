@@ -368,11 +368,63 @@ export const VirtualizedChatMessages = memo(
         }
       };
 
+      const handleSearchScroll = (event: Event) => {
+        const customEvent = event as CustomEvent<{
+          messageId?: string;
+          conversationId?: string | null;
+        }>;
+
+        const messageId = customEvent.detail?.messageId;
+        if (!messageId) {
+          return;
+        }
+
+        if (
+          conversationId &&
+          customEvent.detail?.conversationId &&
+          customEvent.detail.conversationId !== conversationId
+        ) {
+          return;
+        }
+
+        const targetIndex = processedMessages.findIndex(
+          msg => msg.id === messageId
+        );
+
+        if (targetIndex === -1) {
+          return;
+        }
+
+        if (virtuosoRef.current) {
+          virtuosoRef.current.scrollToIndex({
+            index: targetIndex,
+            align: "center",
+            behavior: "smooth",
+          });
+        }
+
+        // Highlight the message after scrolling
+        setTimeout(() => {
+          const el = document.getElementById(messageId);
+          if (el) {
+            el.classList.add("message-highlight");
+            setTimeout(() => {
+              el.classList.remove("message-highlight");
+            }, 2500);
+          }
+        }, 500);
+      };
+
       window.addEventListener("polly:zen-scroll-to-message", handleZenScroll);
+      window.addEventListener("polly:scroll-to-message", handleSearchScroll);
       return () => {
         window.removeEventListener(
           "polly:zen-scroll-to-message",
           handleZenScroll
+        );
+        window.removeEventListener(
+          "polly:scroll-to-message",
+          handleSearchScroll
         );
       };
     }, [conversationId, processedMessages]);
