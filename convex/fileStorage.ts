@@ -352,12 +352,10 @@ export async function getFileUrlHandler(
     // If no userFiles entries exist at all, the file may have just been uploaded
     // and the message hasn't been saved yet. Allow access if the file exists in storage.
     // This handles the race condition between file upload and message creation.
+    // Also handles the case where both the file and userFiles entries were deleted
+    // (e.g., during message retry cleanup) — return null instead of throwing.
     if (!hasAccess && allUserFileEntries.length === 0) {
-      const fileExists = await ctx.storage.getUrl(args.storageId);
-      if (fileExists) {
-        // File exists but no userFiles entry yet - likely a pending upload
-        return fileExists;
-      }
+      return await ctx.storage.getUrl(args.storageId);
     }
 
     if (!hasAccess) {

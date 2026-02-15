@@ -902,6 +902,13 @@ export const pollPrediction = internalAction({
         return;
       }
 
+      // Check if a retry has replaced this prediction with a newer one.
+      // Without this guard, a stale poll from the previous generation can
+      // overwrite the retry's in-progress state with old results.
+      if (messageDoc?.imageGeneration?.replicateId !== args.predictionId) {
+        return;
+      }
+
       // Get the model from the message metadata to check if it's a free built-in model
       const modelId = messageDoc?.imageGeneration?.metadata?.model;
       let isFreeBuiltInModel = false;
