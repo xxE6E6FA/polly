@@ -291,7 +291,7 @@ export async function streamLLMToMessage({
                 ctx,
                 messageId,
                 replicateApiKey!,
-                imageModels
+                imageModels,
               ),
             }
           : {}),

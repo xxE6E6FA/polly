@@ -278,6 +278,7 @@ export type Attachment = {
     source: string; // "replicate", etc.
     model?: string;
     prompt?: string;
+    toolCallId?: string; // Link to tool call for multi-image ordering
   };
 };
 
