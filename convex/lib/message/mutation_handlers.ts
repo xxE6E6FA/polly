@@ -461,7 +461,7 @@ export async function removeMultipleHandler(
             isStreaming: false,
             messageCount: Math.max(
               0,
-              (conversation.messageCount || deletedCount) - deletedCount
+              (conversation.messageCount || 0) - deletedCount
             ),
           });
         }

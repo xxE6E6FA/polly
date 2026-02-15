@@ -66,7 +66,6 @@ import type * as http from "../http.js";
 import type * as imageModels from "../imageModels.js";
 import type * as internal_ from "../internal.js";
 import type * as lib_api_keys_handlers from "../lib/api_keys/handlers.js";
-import type * as lib_auth_utils from "../lib/auth_utils.js";
 import type * as lib_background_jobs_helpers from "../lib/background_jobs/helpers.js";
 import type * as lib_background_jobs_mutation_handlers from "../lib/background_jobs/mutation_handlers.js";
 import type * as lib_background_jobs_query_handlers from "../lib/background_jobs/query_handlers.js";
@@ -222,7 +221,6 @@ declare const fullApi: ApiFromModules<{
   imageModels: typeof imageModels;
   internal: typeof internal_;
   "lib/api_keys/handlers": typeof lib_api_keys_handlers;
-  "lib/auth_utils": typeof lib_auth_utils;
   "lib/background_jobs/helpers": typeof lib_background_jobs_helpers;
   "lib/background_jobs/mutation_handlers": typeof lib_background_jobs_mutation_handlers;
   "lib/background_jobs/query_handlers": typeof lib_background_jobs_query_handlers;

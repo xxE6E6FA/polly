@@ -94,6 +94,8 @@ export async function initializeStreaming(
 /**
  * Determine which tools are available and inject tool-specific instructions
  * into the first system message.
+ *
+ * @mutates messages — replaces the system message element in place when tools are enabled.
  */
 export function configureTools(
   messages: ModelMessage[],
