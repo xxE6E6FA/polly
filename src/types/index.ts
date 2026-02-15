@@ -1,4 +1,12 @@
 import type { Doc, Id } from "@convex/_generated/dataModel";
+import type {
+  attachmentSchema,
+  messageRoleSchema,
+  reasoningPartSchema,
+  toolCallSchema,
+  webCitationSchema,
+} from "@convex/lib/schemas";
+import type { Infer } from "convex/values";
 
 // ============================================================================
 // CORE ENTITY TYPES
@@ -95,6 +103,10 @@ export type ModelCapability = {
 
 export type ReasoningEffortLevel = "low" | "medium" | "high";
 
+/**
+ * Reasoning configuration. Frontend version allows `effort` to be optional
+ * (schema requires it for DB storage, but UI may omit it before submission).
+ */
 export type ReasoningConfig = {
   enabled: boolean;
   effort?: ReasoningEffortLevel;
@@ -152,35 +164,21 @@ export type ImageGenerationResult = {
  */
 export type ChatStatus = "idle" | "loading" | "streaming";
 
-export type MessageRole = "user" | "assistant" | "system" | "context";
+export type MessageRole = Infer<typeof messageRoleSchema>;
 
 /**
  * A single reasoning segment for interleaved reasoning/tool-call streams.
  * Each segment corresponds to a continuous block of thinking before a tool call interrupts.
+ * Derived from `reasoningPartSchema` in `convex/lib/schemas.ts`.
  */
-export type ReasoningPart = {
-  text: string;
-  startedAt: number;
-};
+export type ReasoningPart = Infer<typeof reasoningPartSchema>;
 
 /**
  * Tool call tracking for reasoning UI.
  * Represents a tool invocation during interleaved thinking.
+ * Derived from `toolCallSchema` in `convex/lib/schemas.ts`.
  */
-export type ToolCall = {
-  id: string;
-  name: string; // "webSearch", "conversationSearch"
-  status: "running" | "completed" | "error";
-  startedAt: number;
-  completedAt?: number;
-  args?: {
-    query?: string;
-    mode?: string;
-    prompt?: string;
-    imageModel?: string;
-  };
-  error?: string;
-};
+export type ToolCall = Infer<typeof toolCallSchema>;
 
 export type ChatMessage = {
   id: string;
@@ -251,34 +249,16 @@ export type ChatMessage = {
   createdAt: number;
 };
 
-export type Attachment = {
-  type: "image" | "pdf" | "text" | "audio" | "video";
-  url: string;
-  name: string;
-  size: number;
-  content?: string;
-  thumbnail?: string;
-  storageId?: Id<"_storage">;
-  mimeType?: string;
-  // PDF-specific fields
-  textFileId?: Id<"_storage">; // Reference to stored extracted text (persistent)
-  extractedText?: string;
-  extractionError?: string; // For PDFs: error message if extraction failed
+/**
+ * Attachment type. Extends the schema with frontend-only `extractionMetadata`.
+ * The schema's `generatedImage.seed` field is backend-only (not used in UI).
+ * Derived from `attachmentSchema` in `convex/lib/schemas.ts`.
+ */
+export type Attachment = Infer<typeof attachmentSchema> & {
   extractionMetadata?: {
     extractedAt: number;
     wordCount: number;
     contentLength: number;
-  };
-  // Media dimensions for layout shift prevention
-  width?: number;
-  height?: number;
-  // Generated image metadata
-  generatedImage?: {
-    isGenerated: boolean;
-    source: string; // "replicate", etc.
-    model?: string;
-    prompt?: string;
-    toolCallId?: string; // Link to tool call for multi-image ordering
   };
 };
 
@@ -353,19 +333,8 @@ export type ChatStreamRequest = {
 // SEARCH & CITATION TYPES
 // ============================================================================
 
-export type WebSearchCitation = {
-  type: "url_citation";
-  url: string;
-  title: string;
-  cited_text?: string;
-  snippet?: string;
-  description?: string;
-  image?: string;
-  favicon?: string;
-  siteName?: string;
-  publishedDate?: string;
-  author?: string;
-};
+/** Derived from `webCitationSchema` in `convex/lib/schemas.ts`. */
+export type WebSearchCitation = Infer<typeof webCitationSchema>;
 
 // ============================================================================
 // API KEYS TYPES

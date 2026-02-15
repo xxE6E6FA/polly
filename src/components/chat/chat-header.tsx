@@ -206,9 +206,11 @@ const ChatHeaderComponent = ({
   );
 
   // Branch navigation: deferred until dropdown opens to avoid eager subscription.
-  // Auto-enable for conversations that are known branches (have rootConversationId).
+  // Auto-enable for conversations that are actual branch children (have parentConversationId).
+  // Note: rootConversationId is set on ALL conversations (including root), so it can't be
+  // used as a branch signal.
   const shouldLoadBranches =
-    branchesRequested || !!conversation?.rootConversationId;
+    branchesRequested || !!conversation?.parentConversationId;
   const branches = useQuery(
     api.branches.getBranches,
     shouldLoadBranches &&
