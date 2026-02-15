@@ -197,7 +197,6 @@ const ChatHeaderComponent = ({
   const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [branchesRequested, setBranchesRequested] = useState(false);
 
   // Check if conversation is shared
   const sharedStatus = useQuery(
@@ -205,17 +204,10 @@ const ChatHeaderComponent = ({
     conversationId ? { conversationId } : "skip"
   );
 
-  // Branch navigation: deferred until dropdown opens to avoid eager subscription.
-  // Auto-enable for conversations that are actual branch children (have parentConversationId).
-  // Note: rootConversationId is set on ALL conversations (including root), so it can't be
-  // used as a branch signal.
-  const shouldLoadBranches =
-    branchesRequested || !!conversation?.parentConversationId;
+  // Branch navigation: load all related branches using rootConversationId
   const branches = useQuery(
     api.branches.getBranches,
-    shouldLoadBranches &&
-      conversationId &&
-      (conversation?.rootConversationId || conversation?._id)
+    conversationId && (conversation?.rootConversationId || conversation?._id)
       ? {
           rootConversationId: (conversation?.rootConversationId ||
             conversationId) as Id<"conversations">,
@@ -417,15 +409,9 @@ const ChatHeaderComponent = ({
           </Button>
         )}
         <div className="flex min-w-0 flex-1 items-center gap-1">
-          {/* Branch selector — query deferred until dropdown first opens */}
+          {/* Branch selector */}
           {conversationId && Array.isArray(branches) && branches.length > 1 && (
-            <DropdownMenu
-              onOpenChange={open => {
-                if (open) {
-                  setBranchesRequested(true);
-                }
-              }}
-            >
+            <DropdownMenu>
               <DropdownMenuTrigger>
                 <Button variant="ghost" size="pill" className="h-5 mt-0">
                   <GitBranchIcon />
