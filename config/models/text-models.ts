@@ -24,8 +24,8 @@ export type TextModelConfig = {
  */
 export const builtInTextModels: TextModelConfig[] = [
   {
-    name: "Kimi K2",
-    modelId: "moonshotai/kimi-k2-0905",
+    name: "Kimi K2.5",
+    modelId: "moonshotai/kimi-k2.5",
     provider: "openrouter",
     free: true,
   },
