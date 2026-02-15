@@ -1,5 +1,5 @@
 import { api } from "@convex/_generated/api";
-import type { Id } from "@convex/_generated/dataModel";
+import type { Doc, Id } from "@convex/_generated/dataModel";
 import {
   ArchiveIcon,
   DotsThreeIcon,
@@ -63,7 +63,7 @@ import { ROUTES } from "@/lib/routes";
 import { cn, formatDate } from "@/lib/utils";
 import { useToast } from "@/providers/toast-context";
 import { useUI } from "@/providers/ui-provider";
-import { useUserDataContext } from "@/providers/user-data-context";
+import { useUserIdentity } from "@/providers/user-data-context";
 import type { ChatMessage, ConversationId } from "@/types";
 
 const isMac =
@@ -72,6 +72,7 @@ const isMac =
 
 type ChatHeaderProps = {
   conversationId?: ConversationId;
+  conversation?: Doc<"conversations"> | null;
   isPrivateMode?: boolean;
   isArchived?: boolean;
   onSavePrivateChat?: () => void;
@@ -176,13 +177,14 @@ function sortBranches(
 
 const ChatHeaderComponent = ({
   conversationId,
+  conversation,
   isPrivateMode,
   isArchived,
   onSavePrivateChat,
   canSavePrivateChat,
   privateMessages,
 }: ChatHeaderProps) => {
-  const { user } = useUserDataContext();
+  const { user } = useUserIdentity();
   const { isSidebarVisible, setSidebarVisible } = useUI();
   const managedToast = useToast();
   const online = useOnline();
@@ -195,11 +197,7 @@ const ChatHeaderComponent = ({
   const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-
-  const conversation = useQuery(
-    api.conversations.get,
-    conversationId ? { id: conversationId } : "skip"
-  );
+  const [branchesRequested, setBranchesRequested] = useState(false);
 
   // Check if conversation is shared
   const sharedStatus = useQuery(
@@ -207,10 +205,15 @@ const ChatHeaderComponent = ({
     conversationId ? { conversationId } : "skip"
   );
 
-  // Branch navigation: load all related branches using rootConversationId
+  // Branch navigation: deferred until dropdown opens to avoid eager subscription.
+  // Auto-enable for conversations that are known branches (have rootConversationId).
+  const shouldLoadBranches =
+    branchesRequested || !!conversation?.rootConversationId;
   const branches = useQuery(
     api.branches.getBranches,
-    conversationId && (conversation?.rootConversationId || conversation?._id)
+    shouldLoadBranches &&
+      conversationId &&
+      (conversation?.rootConversationId || conversation?._id)
       ? {
           rootConversationId: (conversation?.rootConversationId ||
             conversationId) as Id<"conversations">,
@@ -412,9 +415,15 @@ const ChatHeaderComponent = ({
           </Button>
         )}
         <div className="flex min-w-0 flex-1 items-center gap-1">
-          {/* Branch selector */}
+          {/* Branch selector — query deferred until dropdown first opens */}
           {conversationId && Array.isArray(branches) && branches.length > 1 && (
-            <DropdownMenu>
+            <DropdownMenu
+              onOpenChange={open => {
+                if (open) {
+                  setBranchesRequested(true);
+                }
+              }}
+            >
               <DropdownMenuTrigger>
                 <Button variant="ghost" size="pill" className="h-5 mt-0">
                   <GitBranchIcon />

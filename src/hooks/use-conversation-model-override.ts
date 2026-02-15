@@ -2,7 +2,7 @@ import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import { useMutation, useQuery } from "convex/react";
 import { useEffect, useRef } from "react";
-import { useUserDataContext } from "@/providers/user-data-context";
+import { useUserIdentity } from "@/providers/user-data-context";
 import { useChatInputStore } from "@/stores/chat-input-store";
 import type { ConversationId } from "@/types";
 
@@ -15,11 +15,20 @@ type LastUsedModel = {
   provider: string;
 } | null;
 
+type SelectedModel =
+  | {
+      modelId: string;
+      provider: string;
+    }
+  | null
+  | undefined;
+
 export function useConversationModelOverride(
   conversationId?: ConversationId,
-  initialModel?: LastUsedModel
+  initialModel?: LastUsedModel,
+  currentSelectedModel?: SelectedModel
 ) {
-  const { user } = useUserDataContext();
+  const { user } = useUserIdentity();
   const selectModelMutation = useMutation(api.userModels.selectModel);
   const lastAppliedKeyRef = useRef<string | null>(null);
   const setSelectedModel = useChatInputStore(s => s.setSelectedModel);
@@ -33,12 +42,6 @@ export function useConversationModelOverride(
   );
 
   const effectiveLastUsedModel = queryLastUsedModel ?? initialModel ?? null;
-
-  // Get the currently selected model
-  const currentSelectedModel = useQuery(
-    api.userModels.getUserSelectedModel,
-    {}
-  );
 
   const resolvedModel = useQuery(
     api.userModels.getModelByID,

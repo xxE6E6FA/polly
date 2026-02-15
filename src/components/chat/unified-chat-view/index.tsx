@@ -1,4 +1,4 @@
-import type { Id } from "@convex/_generated/dataModel";
+import type { Doc, Id } from "@convex/_generated/dataModel";
 import { CaretDownIcon } from "@phosphor-icons/react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AttachmentGalleryDialog } from "@/components/ui/attachment-gallery-dialog";
@@ -40,6 +40,7 @@ const ConversationZeroState = () => {
 
 type UnifiedChatViewProps = {
   conversationId?: ConversationId;
+  conversation?: Doc<"conversations"> | null;
   messages: ChatMessage[];
   status: ChatStatus;
   currentPersonaId: Id<"personas"> | null;
@@ -94,6 +95,7 @@ type UnifiedChatViewProps = {
 export const UnifiedChatView = memo(
   ({
     conversationId,
+    conversation,
     messages,
     status,
     currentPersonaId,
@@ -496,6 +498,7 @@ export const UnifiedChatView = memo(
                 <div className="flex w-full items-center">
                   <ChatHeader
                     conversationId={conversationId}
+                    conversation={conversation}
                     isPrivateMode={!conversationId}
                     isArchived={isArchived}
                     onSavePrivateChat={onSavePrivateChat}
