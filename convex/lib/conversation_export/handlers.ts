@@ -3,8 +3,8 @@ import JSZip from "jszip";
 import { api, internal } from "../../_generated/api";
 import type { Id } from "../../_generated/dataModel";
 import type { ActionCtx } from "../../_generated/server";
-import type { ExportAttachment, ExportConversation } from "../../backgroundJobs";
-import { createConvexExportData } from "../../backgroundJobs";
+import type { ExportAttachment, ExportConversation } from "../background_jobs/helpers";
+import { createConvexExportData } from "../background_jobs/helpers";
 import { scheduleRunAfter } from "../scheduler";
 import {
   arrayBufferToBase64,

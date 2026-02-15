@@ -1,7 +1,7 @@
 import type { Id } from "../../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../../_generated/server";
 import { withRetry } from "../../ai/error_handlers";
-import { getStorageIdsSafeToDelete } from "../../fileStorage";
+import { getStorageIdsSafeToDelete } from "../file_storage/helpers";
 
 export async function getAllInConversationInternalHandler(
   ctx: QueryCtx,

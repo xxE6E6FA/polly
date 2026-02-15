@@ -2,7 +2,7 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import type { Id } from "../../_generated/dataModel";
 import type { MutationCtx } from "../../_generated/server";
 import { withRetry } from "../../ai/error_handlers";
-import { getStorageIdsSafeToDelete } from "../../fileStorage";
+import { getStorageIdsSafeToDelete } from "../file_storage/helpers";
 import {
   getAuthenticatedUser,
   validateConversationAccess,

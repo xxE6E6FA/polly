@@ -1,4 +1,4 @@
-import type { ExportAttachment } from "../../backgroundJobs";
+import type { ExportAttachment } from "../background_jobs/helpers";
 
 const BASE64_CHARS =
   "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";

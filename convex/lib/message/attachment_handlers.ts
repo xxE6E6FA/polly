@@ -2,7 +2,7 @@ import { ConvexError } from "convex/values";
 import type { Id } from "../../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../../_generated/server";
 import { withRetry } from "../../ai/error_handlers";
-import { createUserFileEntriesHandler } from "../../fileStorage";
+import { createUserFileEntriesHandler } from "../file_storage/mutation_handlers";
 import type { Infer } from "convex/values";
 import type {
   attachmentSchema,

@@ -2,7 +2,7 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { api, internal } from "../../_generated/api";
 import type { Doc, Id } from "../../_generated/dataModel";
 import type { ActionCtx, MutationCtx } from "../../_generated/server";
-import { createUserFileEntriesHandler } from "../../fileStorage";
+import { createUserFileEntriesHandler } from "../file_storage/mutation_handlers";
 import {
   buildContextMessages,
   executeStreamingActionForRetry,
