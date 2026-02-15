@@ -39,7 +39,7 @@ export const DEFAULT_STREAM_CONFIG: StreamConfig = {
 export function humanizeReasoningText(text: string): string {
   return text
     .replace(/<thinking>|<\/thinking>/g, "")
-    .replace(/<think>|<\/think>/g, "") // Moonshot Kimi K2 format
+    .replace(/<think>|<\/think>/g, "") // Moonshot Kimi format
     .replace(/<reasoning>|<\/reasoning>/g, "")
     .replace(/\[reasoning]|\[\/reasoning]/gi, "")
     .replace(/^Thinking:\s*/i, "");
