@@ -59,16 +59,6 @@ export function useChatViewState({
     }
   }, [conversationId]);
 
-  // Handle outline navigation
-  const handleOutlineNavigate = useCallback(
-    (messageId: string, headingId?: string) => {
-      if (virtualizedMessagesRef.current) {
-        virtualizedMessagesRef.current.scrollToMessage(messageId, headingId);
-      }
-    },
-    []
-  );
-
   // Get current reasoning config from chat input
   const getCurrentReasoningConfig = useCallback(():
     | ReasoningConfig
@@ -178,7 +168,6 @@ export function useChatViewState({
     isEmpty,
 
     // Handlers
-    handleOutlineNavigate,
     handleSendMessage,
     handleDeleteMessage,
     handleQuoteSelection,

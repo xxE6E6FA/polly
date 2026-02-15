@@ -5,7 +5,7 @@
  * ## Domains
  *
  * ### General Utils
- * - cn (classnames), formatDate, generateHeadingId
+ * - cn (classnames), formatDate
  *
  * ### File Utils
  * - Image conversion, thumbnails, file reading
@@ -32,7 +32,6 @@ export {
   cn,
   formatDate,
   formatFileSize,
-  generateHeadingId,
   resizeGoogleImageUrl,
   stripCitations,
 } from "./utils";

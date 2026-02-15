@@ -1,10 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import {
-  formatDate,
-  generateHeadingId,
-  resizeGoogleImageUrl,
-  stripCitations,
-} from "./utils";
+import { formatDate, resizeGoogleImageUrl, stripCitations } from "./utils";
 
 describe("utils: formatDate", () => {
   test("today", () => {
@@ -46,13 +41,5 @@ describe("utils: stripCitations", () => {
   test("removes single and grouped citations and squashes spaces", () => {
     const text = "This is a test [1] with groups [2][3] and more [4].";
     expect(stripCitations(text)).toBe("This is a test with groups and more.");
-  });
-});
-
-describe("utils: generateHeadingId", () => {
-  test("generates stable kebab id", () => {
-    expect(generateHeadingId("Hello, World!", "msg123")).toBe(
-      "msg123-heading-hello-world"
-    );
   });
 });

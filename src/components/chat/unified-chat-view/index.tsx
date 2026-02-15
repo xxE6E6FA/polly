@@ -17,7 +17,6 @@ import type {
   ReasoningConfig,
 } from "@/types";
 import { ChatHeader } from "../chat-header";
-import { ChatOutline } from "../chat-outline";
 import { ChatInput } from "../input";
 import { WarningBanners } from "../input/warning-banners";
 import type { ImageRetryParams } from "../message/image-actions";
@@ -192,7 +191,6 @@ export const UnifiedChatView = memo(
       isEmpty,
 
       // Handlers
-      handleOutlineNavigate,
       handleSendMessage,
       handleDeleteMessage,
       handleQuoteSelection,
@@ -579,10 +577,6 @@ export const UnifiedChatView = memo(
             )}
           </div>
         </section>
-
-        {messages.length > 1 && !isStreaming && (
-          <ChatOutline messages={messages} onNavigate={handleOutlineNavigate} />
-        )}
 
         <ConfirmationDialog
           open={confirmationDialog.state.isOpen}

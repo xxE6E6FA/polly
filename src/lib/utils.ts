@@ -46,15 +46,6 @@ export function resizeGoogleImageUrl(url: string, size: number): string {
   return `${url}=s${size}-c`;
 }
 
-export function generateHeadingId(text: string, messageId: string): string {
-  const cleanedText = text
-    .toLowerCase()
-    .replace(/[^\da-z]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-
-  return `${messageId}-heading-${cleanedText}`;
-}
-
 /**
  * Strips citation markers like [1], [2], [3] from text to provide clean copy behavior
  * @param text - The text to clean
