@@ -181,6 +181,7 @@ export const attachmentSchema = v.object({
       model: v.optional(v.string()),
       prompt: v.optional(v.string()),
       seed: v.optional(v.number()),
+      toolCallId: v.optional(v.string()), // Link to tool call for multi-image ordering
     }),
   ),
 });

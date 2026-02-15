@@ -1,7 +1,7 @@
 import { api } from "@convex/_generated/api";
 import { IMAGE_GEN_MARKER } from "@shared/constants";
 import { useQuery } from "convex/react";
-import { useCallback, useMemo, useState } from "react";
+import { Fragment, useCallback, useMemo, useState } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { StreamingMarkdown } from "@/components/ui/streaming-markdown";
 import { useAssistantDisplayPhase } from "@/hooks";
@@ -161,21 +161,44 @@ const TextMessageBubble = ({
   const isLoading = phase === "loading";
   const showContent = phase === "streaming" || phase === "complete";
 
-  // Split content on the image-gen marker so images render inline.
-  // Before the marker = text the model wrote before calling generateImage.
-  // After the marker = text the model wrote after the image was generated.
-  const { beforeImage, afterImage } = useMemo(() => {
+  // Split content on image-gen markers so images render inline at each position.
+  // Each marker corresponds to one generateImage tool call.
+  const contentSegments = useMemo(() => {
     if (!displayContent?.includes(IMAGE_GEN_MARKER)) {
-      return { beforeImage: null, afterImage: null };
+      return null;
     }
-    const idx = displayContent.indexOf(IMAGE_GEN_MARKER);
-    return {
-      beforeImage: displayContent.slice(0, idx),
-      afterImage: displayContent.slice(idx + IMAGE_GEN_MARKER.length),
-    };
+    return displayContent.split(IMAGE_GEN_MARKER);
   }, [displayContent]);
 
-  const hasImageSplit = beforeImage !== null;
+  const hasImageSplit = contentSegments !== null;
+
+  // Ordered generateImage tool calls (sorted by startedAt timestamp)
+  const imageToolCalls = useMemo(
+    () =>
+      message.toolCalls
+        ?.filter(tc => tc.name === "generateImage")
+        .sort((a, b) => (a.startedAt ?? 0) - (b.startedAt ?? 0)) ?? [],
+    [message.toolCalls]
+  );
+
+  // Map tool calls to their corresponding attachments.
+  // Uses toolCallId for robust matching - each attachment has a toolCallId that links
+  // it to the specific tool call that created it. This handles duplicate prompts and
+  // out-of-order completion correctly.
+  const toolCallAttachments = useMemo(() => {
+    const allGeneratedAttachments =
+      message.attachments?.filter(
+        att => att.type === "image" && att.generatedImage?.isGenerated
+      ) ?? [];
+
+    return imageToolCalls.map(toolCall => {
+      // Match attachment to tool call by toolCallId
+      const matchingAttachment = allGeneratedAttachments.find(
+        att => att.generatedImage?.toolCallId === toolCall.id
+      );
+      return matchingAttachment;
+    });
+  }, [message.attachments, imageToolCalls]);
 
   const mdClass = "text-[15px] leading-[1.75] sm:text-[16px] sm:leading-[1.8]";
 
@@ -197,39 +220,31 @@ const TextMessageBubble = ({
             messageId={message.id}
           >
             {hasImageSplit ? (
-              <>
-                {/* Text before image generation */}
-                {beforeImage && (
-                  <StreamingMarkdown
-                    isStreaming={false}
-                    messageId={`${message.id}-before`}
-                    className={mdClass}
-                  >
-                    {beforeImage}
-                  </StreamingMarkdown>
-                )}
-
-                {/* Generated image(s) inline — extra vertical spacing between text blocks */}
-                <div className="my-4">
-                  <ToolGeneratedImages
-                    toolCalls={message.toolCalls}
-                    attachments={message.attachments}
-                    isActive={isActive}
-                    onPreviewFile={onPreviewFile}
-                  />
-                </div>
-
-                {/* Text after image generation */}
-                {afterImage && (
-                  <StreamingMarkdown
-                    isStreaming={isActive}
-                    messageId={`${message.id}-after`}
-                    className={mdClass}
-                  >
-                    {afterImage}
-                  </StreamingMarkdown>
-                )}
-              </>
+              contentSegments.map((segment, i) => (
+                <Fragment key={`${message.id}-seg-${i}`}>
+                  {segment && (
+                    <StreamingMarkdown
+                      isStreaming={i === contentSegments.length - 1 && isActive}
+                      messageId={`${message.id}-seg-${i}`}
+                      className={mdClass}
+                    >
+                      {segment}
+                    </StreamingMarkdown>
+                  )}
+                  {i < contentSegments.length - 1 && (
+                    <div className="my-4">
+                      <ToolGeneratedImages
+                        toolCalls={imageToolCalls[i] ? [imageToolCalls[i]] : []}
+                        attachments={
+                          toolCallAttachments[i] ? [toolCallAttachments[i]] : []
+                        }
+                        isActive={isActive}
+                        onPreviewFile={onPreviewFile}
+                      />
+                    </div>
+                  )}
+                </Fragment>
+              ))
             ) : (
               <StreamingMarkdown
                 isStreaming={isActive}

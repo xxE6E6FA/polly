@@ -65,7 +65,7 @@ export function createImageGenerationTool(
   ctx: ActionCtx,
   messageId: Id<"messages">,
   replicateApiKey: string,
-  availableModels: ImageModelInfo[]
+  availableModels: ImageModelInfo[],
 ) {
   // Build dynamic description listing available models
   const modelListStr = availableModels
@@ -92,7 +92,7 @@ Tips for good prompts:
       prompt,
       model,
       aspectRatio,
-    }): Promise<ImageGenerationToolResult> => {
+    }, { toolCallId }): Promise<ImageGenerationToolResult> => {
       // Validate the requested model is in the available list
       const validModel = availableModels.find((m) => m.modelId === model);
       if (!validModel) {
@@ -223,6 +223,7 @@ Tips for good prompts:
                 source: "replicate",
                 model,
                 prompt,
+                toolCallId,
               },
             });
           } catch (imgError) {
