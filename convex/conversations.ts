@@ -104,7 +104,6 @@ export const search = query({
 export const searchWithMatches = query({
   args: {
     searchQuery: v.string(),
-    includeArchived: v.optional(v.boolean()),
     limit: v.optional(v.number()),
     maxMatchesPerConversation: v.optional(v.number()),
   },

@@ -41,7 +41,6 @@ export const ConversationList = memo(
       }
       return {
         searchQuery,
-        includeArchived: false,
         limit: 20,
         maxMatchesPerConversation: 5,
       };

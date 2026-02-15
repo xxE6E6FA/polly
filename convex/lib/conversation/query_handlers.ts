@@ -418,7 +418,6 @@ export async function searchWithMatchesHandler(
   ctx: QueryCtx,
   args: {
     searchQuery: string;
-    includeArchived?: boolean;
     limit?: number;
     maxMatchesPerConversation?: number;
   }
