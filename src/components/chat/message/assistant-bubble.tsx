@@ -343,6 +343,7 @@ const TextMessageBubble = ({
           toolCalls={message.toolCalls?.filter(
             tc => tc.name !== "generateImage"
           )}
+          memoriesExtracted={message.memoriesExtracted}
           suppressSkeleton={message.toolCalls?.some(
             tc => tc.name === "generateImage"
           )}

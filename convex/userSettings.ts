@@ -71,6 +71,7 @@ export async function getUserSettingsHandler(ctx: QueryCtx) {
       ttsModelId: "eleven_v3",
       showMessageMetadata: false,
       showTemperaturePicker: true, // Default to enabled
+      memoryEnabled: false, // Default to disabled (opt-in)
     };
   }
 
@@ -87,6 +88,7 @@ export async function getUserSettingsHandler(ctx: QueryCtx) {
     ttsModelId: settings.ttsModelId ?? "eleven_v3",
     showMessageMetadata: settings.showMessageMetadata ?? false,
     showTemperaturePicker: settings.showTemperaturePicker ?? true, // Default to enabled
+    memoryEnabled: settings.memoryEnabled ?? false, // Default to disabled (opt-in)
   };
 }
 
@@ -107,6 +109,7 @@ type UpdateUserSettingsArgs = {
   ttsStabilityMode?: "creative" | "natural" | "robust";
   showMessageMetadata?: boolean;
   showTemperaturePicker?: boolean;
+  memoryEnabled?: boolean;
 };
 
 export async function updateUserSettingsHandler(
@@ -147,6 +150,9 @@ export async function updateUserSettingsHandler(
     }),
     ...(args.showTemperaturePicker !== undefined && {
       showTemperaturePicker: args.showTemperaturePicker,
+    }),
+    ...(args.memoryEnabled !== undefined && {
+      memoryEnabled: args.memoryEnabled,
     }),
   };
 
@@ -190,6 +196,7 @@ export const updateUserSettings = mutation({
     ttsStabilityMode: v.optional(
       v.union(v.literal("creative"), v.literal("natural"), v.literal("robust"))
     ),
+    memoryEnabled: v.optional(v.boolean()),
   },
   handler: updateUserSettingsHandler,
 });

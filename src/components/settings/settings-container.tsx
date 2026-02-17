@@ -1,5 +1,6 @@
 import {
   ArchiveIcon,
+  BrainIcon,
   ChatTextIcon,
   CloudArrowDownIcon,
   GearIcon,
@@ -31,6 +32,7 @@ const mainTabs: SettingsTabItem[] = [
   { path: ROUTES.SETTINGS.API_KEYS, label: "API Keys", icon: KeyIcon },
   { path: ROUTES.SETTINGS.TEXT_MODELS, label: "Models", icon: RobotIcon },
   { path: ROUTES.SETTINGS.PERSONAS, label: "Personas", icon: UsersIcon },
+  { path: ROUTES.SETTINGS.MEMORY, label: "Memory", icon: BrainIcon },
   {
     path: ROUTES.SETTINGS.SHARED_CONVERSATIONS,
     label: "Shares",

@@ -18,7 +18,8 @@ export type JobType =
   | "conversation_summary"
   | "data_migration"
   | "model_migration"
-  | "backup";
+  | "backup"
+  | "memory_scan";
 
 export interface BackgroundJob {
   id: string;
@@ -79,6 +80,9 @@ export function useBackgroundJobs(options: { suppressToasts?: boolean } = {}) {
   );
   const scheduleBackgroundBulkDelete = useAction(
     api.conversations.scheduleBackgroundBulkDelete
+  );
+  const scheduleMemoryScanAction = useAction(
+    api.memory_actions.scheduleMemoryScan
   );
 
   const deleteJobMutation = useMutation(api.backgroundJobs.deleteJob);
@@ -234,6 +238,8 @@ export function useBackgroundJobs(options: { suppressToasts?: boolean } = {}) {
             message = "Bulk delete completed successfully!";
             // Invalidate conversations cache to reflect deleted conversations
             del(CACHE_KEYS.conversations);
+          } else if (job.type === "memory_scan") {
+            message = "Memory scan complete!";
           }
 
           if (message && !suppressToasts) {
@@ -252,6 +258,8 @@ export function useBackgroundJobs(options: { suppressToasts?: boolean } = {}) {
             message = `Import failed: ${job.error}`;
           } else if (job.type === "bulk_delete") {
             message = `Bulk delete failed: ${job.error}`;
+          } else if (job.type === "memory_scan") {
+            message = `Memory scan failed: ${job.error}`;
           }
 
           if (message && !suppressToasts) {
@@ -375,6 +383,43 @@ export function useBackgroundJobs(options: { suppressToasts?: boolean } = {}) {
     }
   };
 
+  const startMemoryScan = async () => {
+    const jobId = crypto.randomUUID();
+
+    try {
+      const result = await scheduleMemoryScanAction({ jobId });
+
+      if (!result) {
+        managedToast.success("No eligible conversations found");
+        return null;
+      }
+
+      const newJob: BackgroundJob = {
+        id: jobId,
+        type: "memory_scan",
+        status: "scheduled",
+        progress: 0,
+        processed: 0,
+        total: result.totalConversations,
+        title: "Memory Scan",
+        createdAt: Date.now(),
+      };
+
+      setLocalJobs(prev => new Map(prev).set(jobId, newJob));
+      managedToast.success(
+        "Memory scan started. We'll notify you when it's done.",
+        { id: `start-memory-scan-${jobId}` }
+      );
+
+      return jobId;
+    } catch (error) {
+      managedToast.error(
+        error instanceof Error ? error.message : "Failed to start memory scan"
+      );
+      return null;
+    }
+  };
+
   const getJob = (jobId: string): BackgroundJob | undefined => {
     return activeJobs.get(jobId);
   };
@@ -412,6 +457,7 @@ export function useBackgroundJobs(options: { suppressToasts?: boolean } = {}) {
     startExport,
     startImport,
     startBulkDelete,
+    startMemoryScan,
     getJob,
     removeJob,
     getActiveJobs,

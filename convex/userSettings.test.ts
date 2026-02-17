@@ -87,6 +87,7 @@ describe("userSettings.getUserSettings", () => {
       ttsModelId: "eleven_v3",
       showMessageMetadata: false,
       showTemperaturePicker: true,
+      memoryEnabled: false,
     });
   });
 

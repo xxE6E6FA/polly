@@ -43,7 +43,8 @@ const jobTypeSchema = v.union(
   v.literal("conversation_summary"),
   v.literal("data_migration"),
   v.literal("model_migration"),
-  v.literal("backup")
+  v.literal("backup"),
+  v.literal("memory_scan")
 );
 
 const jobStatusSchema = v.union(

@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
 import type { AssistantPhase } from "@/hooks";
 import { cn } from "@/lib/utils";
-import type { ReasoningPart, ToolCall } from "@/types";
+import type { ExtractedMemory, ReasoningPart, ToolCall } from "@/types";
+import { MemoryIndicator } from "./memory-indicator";
 import { ReasoningSegment } from "./reasoning-segment";
 import { ToolCallBlock } from "./tool-call-block";
 
@@ -16,6 +17,7 @@ type ActivityStreamProps = {
   reasoning?: string;
   thinkingDurationMs?: number;
   toolCalls?: ToolCall[];
+  memoriesExtracted?: ExtractedMemory[];
   isActive: boolean;
   phase?: AssistantPhase;
 };
@@ -58,6 +60,7 @@ export function ActivityStream({
   reasoning,
   thinkingDurationMs,
   toolCalls,
+  memoriesExtracted,
   isActive,
   phase,
 }: ActivityStreamProps) {
@@ -120,7 +123,18 @@ export function ActivityStream({
     return { reasoningCount: rCount, toolCallCount: tCount };
   }, [items]);
 
+  const hasMemories =
+    memoriesExtracted && memoriesExtracted.length > 0 && !isActive;
+
   if (items.length === 0) {
+    // No activity but memories were extracted — show standalone indicator
+    if (hasMemories) {
+      return (
+        <div className="flex items-center gap-2 py-0.5">
+          <MemoryIndicator memories={memoriesExtracted} />
+        </div>
+      );
+    }
     return null;
   }
 
@@ -173,29 +187,37 @@ export function ActivityStream({
   // Complete: plain toggle + expandable card below
   return (
     <div className="mb-3">
-      <button
-        type="button"
-        onClick={() => setExpanded(prev => !prev)}
-        className="flex items-center gap-2 py-0.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
-      >
-        <svg
-          className={cn(
-            ICON_SIZE,
-            "shrink-0 transition-transform duration-200",
-            expanded ? "rotate-90" : "rotate-0"
-          )}
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
+      <div className="flex items-center gap-1">
+        <button
+          type="button"
+          onClick={() => setExpanded(prev => !prev)}
+          className="flex items-center gap-2 py-0.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
         >
-          <path d="M9 6l6 6-6 6" />
-        </svg>
-        <span>{summaryLabel}</span>
-      </button>
+          <svg
+            className={cn(
+              ICON_SIZE,
+              "shrink-0 transition-transform duration-200",
+              expanded ? "rotate-90" : "rotate-0"
+            )}
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M9 6l6 6-6 6" />
+          </svg>
+          <span>{summaryLabel}</span>
+        </button>
+        {hasMemories && (
+          <>
+            <span className="text-xs text-muted-foreground/50">·</span>
+            <MemoryIndicator memories={memoriesExtracted} />
+          </>
+        )}
+      </div>
 
       <div
         className="mx-0 sm:-mx-6 grid transition-[grid-template-rows] duration-200 ease-out"

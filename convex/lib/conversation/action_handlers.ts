@@ -310,6 +310,27 @@ export async function sendMessageHandler(
     imageModelsForTools = toImageModelInfos(userImageModels);
   }
 
+  // Retrieve relevant memories if enabled.
+  // Uses ctx.runAction because embedding generation requires Node.js (AI SDK),
+  // but this file runs in Convex's V8 runtime (no "use node").
+  let memories: Array<{ content: string; category: string }> | undefined;
+  let memoryEnabled = false;
+  try {
+    const settings = await ctx.runQuery(
+      internal.memory.getUserMemorySettings,
+      { userId },
+    );
+    memoryEnabled = settings?.memoryEnabled ?? false;
+    if (memoryEnabled) {
+      memories = await ctx.runAction(
+        internal.memory_actions.retrieveMemories,
+        { userId, messageContent: args.content },
+      );
+    }
+  } catch (error) {
+    console.warn("[sendMessageHandler] Memory retrieval failed:", error);
+  }
+
   // Build context messages
   const { contextMessages } = await buildContextMessages(ctx, {
     conversationId: args.conversationId,
@@ -320,6 +341,7 @@ export async function sendMessageHandler(
     },
     provider: fullModel.provider,
     modelId: fullModel.modelId,
+    memories,
   });
 
   // Schedule server-side streaming
@@ -337,6 +359,27 @@ export async function sendMessageHandler(
     imageModels: imageModelsForTools,
     userId,
   });
+
+  // Schedule memory extraction from the user message (non-blocking).
+  // Runs concurrently with streaming — no need to wait for assistant response.
+  if (memoryEnabled) {
+    try {
+      await ctx.scheduler.runAfter(
+        0,
+        internal.memory_actions.extractMemories,
+        {
+          conversationId: args.conversationId,
+          userId,
+          assistantMessageId,
+        }
+      );
+    } catch (error) {
+      console.warn(
+        "[sendMessageHandler] Failed to schedule memory extraction:",
+        error
+      );
+    }
+  }
 
   return { userMessageId, assistantMessageId };
 }
@@ -607,7 +650,28 @@ export async function startConversationHandler(
     }),
   ]);
 
-  // 5. Build context messages
+  // 5. Retrieve relevant memories if enabled.
+  // Uses ctx.runAction because embedding generation requires Node.js (AI SDK),
+  // but this file runs in Convex's V8 runtime (no "use node").
+  let startMemories: Array<{ content: string; category: string }> | undefined;
+  let startMemoryEnabled = false;
+  try {
+    const memSettings = await ctx.runQuery(
+      internal.memory.getUserMemorySettings,
+      { userId },
+    );
+    startMemoryEnabled = memSettings?.memoryEnabled ?? false;
+    if (startMemoryEnabled) {
+      startMemories = await ctx.runAction(
+        internal.memory_actions.retrieveMemories,
+        { userId, messageContent: args.content },
+      );
+    }
+  } catch (error) {
+    console.warn("[startConversationHandler] Memory retrieval failed:", error);
+  }
+
+  // 6. Build context messages
   const { contextMessages } = await buildContextMessages(ctx, {
     conversationId,
     personaId: args.personaId,
@@ -617,9 +681,10 @@ export async function startConversationHandler(
     },
     provider: fullModel.provider,
     modelId: fullModel.modelId,
+    memories: startMemories,
   });
 
-  // 6. Query image models if the text model supports tools
+  // 7. Query image models if the text model supports tools
   let imageModelsForTools: ImageModelInfo[] | undefined;
   if (fullModel.supportsTools) {
     const userImageModels = await ctx.runQuery(
@@ -629,7 +694,7 @@ export async function startConversationHandler(
     imageModelsForTools = toImageModelInfos(userImageModels);
   }
 
-  // 7. Schedule server-side streaming (runs in background)
+  // 8. Schedule server-side streaming (runs in background)
   await ctx.scheduler.runAfter(0, internal.streaming_actions.streamMessage, {
     messageId: assistantMessageId,
     conversationId,
@@ -646,7 +711,27 @@ export async function startConversationHandler(
     userId,
   });
 
-  // 8. Schedule title generation
+  // Schedule memory extraction from the user message (non-blocking).
+  if (startMemoryEnabled) {
+    try {
+      await ctx.scheduler.runAfter(
+        0,
+        internal.memory_actions.extractMemories,
+        {
+          conversationId,
+          userId,
+          assistantMessageId,
+        }
+      );
+    } catch (error) {
+      console.warn(
+        "[startConversationHandler] Failed to schedule memory extraction:",
+        error
+      );
+    }
+  }
+
+  // 9. Schedule title generation
   await scheduleRunAfter(ctx, 100, api.titleGeneration.generateTitle, {
     conversationId,
     message: args.content,

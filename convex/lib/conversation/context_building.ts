@@ -6,6 +6,7 @@ import {
   getPersonaPrompt,
   mergeSystemPrompts,
 } from "./message_handling";
+import { buildMemoryContext } from "@shared/system-prompts";
 import { getBaselineInstructions } from "../../constants";
 import { processAttachmentsForLLM } from "../process_attachments";
 import {
@@ -46,6 +47,8 @@ export const buildContextMessages = async (
     }>;
     /** Pre-resolved model info to avoid redundant queries */
     prefetchedModelInfo?: { contextLength?: number };
+    /** Retrieved memories to inject into system prompt */
+    memories?: Array<{ content: string; category: string }>;
   },
 ): Promise<{
   contextMessages: Array<{
@@ -92,9 +95,13 @@ export const buildContextMessages = async (
 
     // Add baseline instructions with persona
     const baselineInstructions = getBaselineInstructions("default", "UTC");
+    const memoryContext = args.memories
+      ? buildMemoryContext(args.memories)
+      : undefined;
     const mergedInstructions = mergeSystemPrompts(
       baselineInstructions,
       personaPrompt,
+      memoryContext,
     );
     systemMessages.push({
       role: "system" as const,

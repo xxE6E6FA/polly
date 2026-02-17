@@ -110,6 +110,8 @@ import type * as lib_image_models_replicate_actions from "../lib/image_models/re
 import type * as lib_image_models_replicate_utils from "../lib/image_models/replicate_utils.js";
 import type * as lib_image_models_schema_analysis from "../lib/image_models/schema_analysis.js";
 import type * as lib_image_models_types from "../lib/image_models/types.js";
+import type * as lib_memory_embedding from "../lib/memory/embedding.js";
+import type * as lib_memory_extraction from "../lib/memory/extraction.js";
 import type * as lib_message_action_handlers from "../lib/message/action_handlers.js";
 import type * as lib_message_attachment_handlers from "../lib/message/attachment_handlers.js";
 import type * as lib_message_branch_delete_handlers from "../lib/message/branch_delete_handlers.js";
@@ -140,6 +142,8 @@ import type * as lib_user_mutation_handlers from "../lib/user/mutation_handlers.
 import type * as lib_user_query_handlers from "../lib/user/query_handlers.js";
 import type * as lib_user_models_mutation_handlers from "../lib/user_models/mutation_handlers.js";
 import type * as lib_user_models_query_handlers from "../lib/user_models/query_handlers.js";
+import type * as memory from "../memory.js";
+import type * as memory_actions from "../memory_actions.js";
 import type * as messages from "../messages.js";
 import type * as migrations_addUserIdToMessages from "../migrations/addUserIdToMessages.js";
 import type * as migrations_populateUserFiles from "../migrations/populateUserFiles.js";
@@ -265,6 +269,8 @@ declare const fullApi: ApiFromModules<{
   "lib/image_models/replicate_utils": typeof lib_image_models_replicate_utils;
   "lib/image_models/schema_analysis": typeof lib_image_models_schema_analysis;
   "lib/image_models/types": typeof lib_image_models_types;
+  "lib/memory/embedding": typeof lib_memory_embedding;
+  "lib/memory/extraction": typeof lib_memory_extraction;
   "lib/message/action_handlers": typeof lib_message_action_handlers;
   "lib/message/attachment_handlers": typeof lib_message_attachment_handlers;
   "lib/message/branch_delete_handlers": typeof lib_message_branch_delete_handlers;
@@ -295,6 +301,8 @@ declare const fullApi: ApiFromModules<{
   "lib/user/query_handlers": typeof lib_user_query_handlers;
   "lib/user_models/mutation_handlers": typeof lib_user_models_mutation_handlers;
   "lib/user_models/query_handlers": typeof lib_user_models_query_handlers;
+  memory: typeof memory;
+  memory_actions: typeof memory_actions;
   messages: typeof messages;
   "migrations/addUserIdToMessages": typeof migrations_addUserIdToMessages;
   "migrations/populateUserFiles": typeof migrations_populateUserFiles;

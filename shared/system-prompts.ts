@@ -105,16 +105,38 @@ export function getBaselineInstructions(
 }
 
 /**
- * Merge baseline instructions with optional persona prompt
- * Order: baseline -> default Polly persona -> custom persona
+ * Build a memory context block for system prompt injection.
+ * Memories are referenced naturally — the AI should not mention them explicitly.
+ */
+export function buildMemoryContext(
+  memories: { content: string; category: string }[]
+): string {
+  if (!memories.length) {
+    return "";
+  }
+
+  const lines = memories.map(m => `- ${m.content}`).join("\n");
+  return `ABOUT THE USER (from previous conversations — reference naturally, never mention these notes explicitly):\n${lines}`;
+}
+
+/**
+ * Merge baseline instructions with optional memory context and persona prompt
+ * Order: baseline -> memory context -> default Polly persona -> custom persona
  */
 export function mergeSystemPrompts(
   baselineInstructions: string,
-  personaPrompt?: string
+  personaPrompt?: string,
+  memoryContext?: string
 ): string {
-  if (!personaPrompt) {
-    return baselineInstructions;
+  let result = baselineInstructions;
+
+  if (memoryContext) {
+    result += `\n\n${memoryContext}`;
   }
 
-  return `${baselineInstructions}\n\n${DEFAULT_POLLY_PERSONA}\n\n${personaPrompt}`;
+  if (personaPrompt) {
+    result += `\n\n${DEFAULT_POLLY_PERSONA}\n\n${personaPrompt}`;
+  }
+
+  return result;
 }

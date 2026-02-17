@@ -1,5 +1,6 @@
 import {
   ArchiveIcon,
+  BrainIcon,
   CloudArrowDownIcon,
   GearIcon,
   KeyIcon,
@@ -49,6 +50,7 @@ const ChatHistoryPage = lazy(
   () => import("@/pages/settings/chat-history-page")
 );
 const AttachmentsPage = lazy(() => import("@/pages/settings/attachments-page"));
+const MemoryPage = lazy(() => import("@/pages/settings/memory-page"));
 
 // Define settings routes with their components
 const settingsRoutes: (SettingsTabItem & {
@@ -77,6 +79,12 @@ const settingsRoutes: (SettingsTabItem & {
     label: "Personas",
     icon: UsersIcon,
     component: PersonasTab,
+  },
+  {
+    path: ROUTES.SETTINGS.MEMORY,
+    label: "Memory",
+    icon: BrainIcon,
+    component: MemoryPage,
   },
   {
     path: ROUTES.SETTINGS.SHARED_CONVERSATIONS,

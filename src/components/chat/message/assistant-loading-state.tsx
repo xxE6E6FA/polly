@@ -1,6 +1,6 @@
 import { SkeletonText } from "@/components/ui/skeleton-text";
 import type { AssistantPhase } from "@/hooks";
-import type { ReasoningPart, ToolCall } from "@/types";
+import type { ExtractedMemory, ReasoningPart, ToolCall } from "@/types";
 import { ActivityStream } from "../activity-stream";
 
 type AssistantLoadingStateProps = {
@@ -10,6 +10,7 @@ type AssistantLoadingStateProps = {
   reasoningParts?: ReasoningPart[];
   thinkingDurationMs?: number;
   toolCalls?: ToolCall[];
+  memoriesExtracted?: ExtractedMemory[];
   /** Suppress the text skeleton when another loading indicator is visible (e.g. image gen). */
   suppressSkeleton?: boolean;
 };
@@ -26,6 +27,7 @@ export function AssistantLoadingState({
   reasoningParts,
   thinkingDurationMs,
   toolCalls,
+  memoriesExtracted,
   suppressSkeleton,
 }: AssistantLoadingStateProps) {
   const hasActivity =
@@ -46,6 +48,7 @@ export function AssistantLoadingState({
         reasoning={reasoning}
         thinkingDurationMs={thinkingDurationMs}
         toolCalls={toolCalls}
+        memoriesExtracted={memoriesExtracted}
         isActive={reasoningIsActive}
         phase={phase}
       />
