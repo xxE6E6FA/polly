@@ -19,6 +19,7 @@ export const ROUTES = {
     ARCHIVED_CONVERSATIONS: "/settings/archived-conversations",
     CHAT_HISTORY: "/settings/chat-history",
     ATTACHMENTS: "/settings/attachments",
+    MEMORY: "/settings/memory",
     GENERAL: "/settings/general",
   },
   FAVORITES: "/chat/favorites",

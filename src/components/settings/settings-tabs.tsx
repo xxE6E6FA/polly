@@ -130,7 +130,7 @@ export function SettingsTabs({
             );
 
             const tabClassName = cn(
-              "relative z-10 flex items-center justify-center gap-1.5 whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium transition-colors duration-200",
+              "relative z-10 flex items-center justify-center gap-1.5 whitespace-nowrap rounded-md px-2 py-2 text-sm font-medium transition-colors duration-200",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-muted",
               "sm:flex-1",
               isActive ? "text-foreground" : "text-muted-foreground"

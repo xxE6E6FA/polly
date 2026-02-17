@@ -48,6 +48,8 @@ export function convertServerMessage(msg: Doc<"messages">): ChatMessage {
     error: msg.error,
     personaName: msg.personaName,
     personaIcon: msg.personaIcon,
+    memoriesExtracted:
+      msg.memoriesExtracted as ChatMessage["memoriesExtracted"],
     metadata: isMessageMetadata(msg.metadata)
       ? (msg.metadata as ChatMessage["metadata"])
       : undefined,

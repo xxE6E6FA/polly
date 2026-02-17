@@ -17,9 +17,9 @@ import {
   VirtualizedDataList,
   type VirtualizedDataListColumn,
 } from "@/components/data-list";
-import { ActivitySection } from "@/components/settings/chat-history-tab/activity-section";
 import { ImportExportActions } from "@/components/settings/chat-history-tab/import-export-actions";
 import { SettingsHeader } from "@/components/settings/settings-header";
+import { ActivitySection } from "@/components/settings/ui/activity-section";
 import { SettingsPageLayout } from "@/components/settings/ui/settings-page-layout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

@@ -1,5 +1,6 @@
 import { Progress as ProgressPrimitive } from "@base-ui/react/progress";
 import {
+  BrainIcon,
   CheckCircleIcon,
   ClockIcon,
   DownloadIcon,
@@ -90,6 +91,9 @@ function JobProgressCard({ job, onRemove, ref }: JobProgressCardProps) {
     if (job.type === "bulk_delete") {
       return <TrashIcon className="size-3.5" />;
     }
+    if (job.type === "memory_scan") {
+      return <BrainIcon className="size-3.5" />;
+    }
     return <UploadIcon className="size-3.5" />;
   };
 
@@ -116,6 +120,8 @@ function JobProgressCard({ job, onRemove, ref }: JobProgressCardProps) {
       action = "Importing";
     } else if (job.type === "bulk_delete") {
       action = "Deleting";
+    } else if (job.type === "memory_scan") {
+      action = "Scanning";
     }
 
     const itemText = job.total === 1 ? "conversation" : "conversations";

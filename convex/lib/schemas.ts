@@ -510,6 +510,7 @@ export const backgroundJobTypeSchema = v.union(
   v.literal("data_migration"),
   v.literal("model_migration"),
   v.literal("backup"),
+  v.literal("memory_scan"),
 );
 
 // Background job category schema
@@ -750,6 +751,7 @@ export const userSettingsSchema = v.object({
   ),
   showMessageMetadata: v.optional(v.boolean()),
   showTemperaturePicker: v.optional(v.boolean()),
+  memoryEnabled: v.optional(v.boolean()),
   createdAt: v.number(),
   updatedAt: v.number(),
 });
@@ -785,6 +787,34 @@ export const toolCallSchema = v.object({
   ),
   error: v.optional(v.string()),
 });
+
+// Memory category schema
+export const memoryCategorySchema = v.union(
+  v.literal("preference"),
+  v.literal("fact"),
+  v.literal("instruction"),
+);
+
+// User memory schema for cross-conversation memory
+export const userMemorySchema = v.object({
+  userId: v.id("users"),
+  content: v.string(),
+  category: memoryCategorySchema,
+  sourceConversationId: v.optional(v.id("conversations")),
+  sourceConversationTitle: v.optional(v.string()),
+  embedding: v.array(v.float64()),
+  isActive: v.boolean(),
+  createdAt: v.number(),
+  updatedAt: v.number(),
+});
+
+// Extracted memory summary stored on assistant messages
+export const memoriesExtractedSchema = v.array(
+  v.object({
+    content: v.string(),
+    category: memoryCategorySchema,
+  }),
+);
 
 // Image generation schema
 export const imageGenerationSchema = v.object({
@@ -841,6 +871,7 @@ export const messageSchema = v.object({
   // doesn't retroactively update existing messages.
   personaName: v.optional(v.string()),
   personaIcon: v.optional(v.string()),
+  memoriesExtracted: v.optional(memoriesExtractedSchema),
   createdAt: v.number(),
   completedAt: v.optional(v.number()),
 });

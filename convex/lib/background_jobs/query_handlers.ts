@@ -51,7 +51,8 @@ export async function handleListUserJobs(
       | "conversation_summary"
       | "data_migration"
       | "model_migration"
-      | "backup";
+      | "backup"
+      | "memory_scan";
     status?:
       | "scheduled"
       | "processing"

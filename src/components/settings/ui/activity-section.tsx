@@ -21,30 +21,6 @@ interface ActivitySectionProps {
   showDetailed?: boolean;
   title?: string;
   description?: string;
-  confirmDialog?: {
-    isOpen: boolean;
-    options: {
-      title: string;
-      description: string;
-      confirmText?: string;
-      cancelText?: string;
-      variant?: "default" | "destructive";
-    };
-    confirm: (
-      opts: {
-        title: string;
-        description: string;
-        confirmText?: string;
-        cancelText?: string;
-        variant?: "default" | "destructive";
-      },
-      onConfirm: () => void,
-      onCancel?: () => void
-    ) => void;
-    handleConfirm: () => void;
-    handleCancel: () => void;
-    handleOpenChange: (open: boolean) => void;
-  };
 }
 
 function DetailedJobCard({
@@ -66,6 +42,7 @@ function DetailedJobCard({
   const isExport = job.type === "export";
   const isImport = job.type === "import";
   const isBulkDelete = job.type === "bulk_delete";
+  const isMemoryScan = job.type === "memory_scan";
 
   const getStatusIcon = () => {
     if (isCompleted) {
@@ -89,6 +66,8 @@ function DetailedJobCard({
         action = "Importing";
       } else if (isBulkDelete) {
         action = "Deleting";
+      } else if (isMemoryScan) {
+        action = "Scanning";
       }
 
       return `${action} ${job.processed} of ${job.total} conversations...`;
@@ -97,6 +76,10 @@ function DetailedJobCard({
     if (isCompleted) {
       if (isExport && job.manifest) {
         return `Exported ${job.manifest.totalConversations} conversation${job.manifest.totalConversations === 1 ? "" : "s"}`;
+      }
+      if (isMemoryScan) {
+        const total = job.result?.totalProcessed ?? job.total;
+        return `Scanned ${total} conversation${total === 1 ? "" : "s"}`;
       }
       if ((isImport || isBulkDelete) && job.result) {
         const processed = job.result.totalImported || 0;
@@ -127,6 +110,8 @@ function DetailedJobCard({
         action = "import";
       } else if (isBulkDelete) {
         action = "delete";
+      } else if (isMemoryScan) {
+        action = "scan";
       }
 
       return `Failed to ${action} conversations`;
@@ -139,6 +124,8 @@ function DetailedJobCard({
       action = "Import";
     } else if (isBulkDelete) {
       action = "Deletion";
+    } else if (isMemoryScan) {
+      action = "Memory scan";
     }
 
     return `${action} scheduled`;
@@ -268,7 +255,8 @@ export function ActivitySection({
               | "export"
               | "import"
               | "bulk_archive"
-              | "bulk_delete",
+              | "bulk_delete"
+              | "memory_scan",
             status: job.status as
               | "scheduled"
               | "processing"

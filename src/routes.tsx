@@ -56,6 +56,7 @@ const SettingsChatHistoryPage = lazy(
   () => import("./pages/settings/chat-history-page")
 );
 const SettingsGeneralPage = lazy(() => import("./pages/settings/general-page"));
+const SettingsMemoryPage = lazy(() => import("./pages/settings/memory-page"));
 const SettingsNewPersonaPage = lazy(
   () => import("./pages/settings/new-persona-page")
 );
@@ -231,6 +232,11 @@ export const routes: RouteObject[] = [
           {
             path: "attachments",
             element: withSuspense(<SettingsAttachmentsPage />, "partial"),
+            errorElement: routeErrorElement,
+          },
+          {
+            path: "memory",
+            element: withSuspense(<SettingsMemoryPage />, "partial"),
             errorElement: routeErrorElement,
           },
           {

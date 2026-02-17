@@ -48,6 +48,8 @@ export function mapServerMessageToChatMessage(
     error: msg.error,
     personaName: msg.personaName,
     personaIcon: msg.personaIcon,
+    memoriesExtracted:
+      msg.memoriesExtracted as ChatMessage["memoriesExtracted"],
     metadata: msg.metadata,
     imageGeneration: msg.imageGeneration
       ? {

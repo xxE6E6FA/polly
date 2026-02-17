@@ -72,7 +72,8 @@ export type CreateJobArgs = {
     | "conversation_summary"
     | "data_migration"
     | "model_migration"
-    | "backup";
+    | "backup"
+    | "memory_scan";
   category?:
     | "data_transfer"
     | "bulk_operations"
@@ -102,7 +103,8 @@ export async function handleCreateBackgroundJob(
       category = "bulk_operations";
     } else if (
       args.type === "conversation_summary" ||
-      args.type === "model_migration"
+      args.type === "model_migration" ||
+      args.type === "memory_scan"
     ) {
       category = "ai_processing";
     } else {

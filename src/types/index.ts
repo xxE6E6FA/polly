@@ -22,6 +22,17 @@ export type MessageId = Id<"messages">;
 export type UserId = Id<"users">;
 
 // ============================================================================
+// MEMORY TYPES
+// ============================================================================
+
+export type MemoryCategory = "preference" | "fact" | "instruction";
+
+export type ExtractedMemory = {
+  content: string;
+  category: MemoryCategory;
+};
+
+// ============================================================================
 // AI & MODEL TYPES
 // ============================================================================
 
@@ -213,6 +224,7 @@ export type ChatMessage = {
   // Persona snapshot — frozen at message creation time
   personaName?: string;
   personaIcon?: string;
+  memoriesExtracted?: ExtractedMemory[];
   metadata?: {
     tokenCount?: number;
     finishReason?: string;

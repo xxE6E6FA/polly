@@ -18,6 +18,7 @@ import {
   userApiKeySchema,
   userFileSchema,
   userImageModelSchema,
+  userMemorySchema,
   userModelSchema,
   userPersonaSettingsSchema,
   userSchema,
@@ -162,6 +163,20 @@ export default defineSchema({
     .index("by_user_created", ["userId", "createdAt"])
     .index("by_user_message", ["userId", "messageId"])
     .index("by_user_conversation", ["userId", "conversationId", "createdAt"]),
+
+  userMemories: defineTable(userMemorySchema)
+    .index("by_user", ["userId"])
+    .index("by_user_active", ["userId", "isActive"])
+    .index("by_user_category", ["userId", "category"])
+    .searchIndex("search_content", {
+      searchField: "content",
+      filterFields: ["userId"],
+    })
+    .vectorIndex("by_embedding", {
+      vectorField: "embedding",
+      dimensions: 1536,
+      filterFields: ["userId"],
+    }),
 
   userFiles: defineTable(userFileSchema)
     .index("by_user_created", ["userId", "createdAt"])
