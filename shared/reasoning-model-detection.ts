@@ -51,8 +51,6 @@ export const OPTIONAL_REASONING_PATTERNS = [
   // Google Gemini 2.5 Flash series (reasoning supported but can be disabled)
   "gemini-2.5-flash",
   "gemini-2.5-flash-lite",
-  "gemini-2.0-flash",
-  "gemini-2.0-flash-lite",
   "gemini-1.5-pro",
   "gemini-1.5-flash",
 

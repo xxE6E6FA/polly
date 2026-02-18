@@ -70,9 +70,9 @@ describe("hasOptionalReasoning", () => {
     expect(hasOptionalReasoning("google", "gemini-3-flash")).toBe(true);
   });
 
-  test("detects Google Gemini 2.x Flash models", () => {
+  test("detects Google Gemini 2.5 Flash models", () => {
     expect(hasOptionalReasoning("google", "gemini-2.5-flash")).toBe(true);
-    expect(hasOptionalReasoning("google", "gemini-2.0-flash-exp")).toBe(true);
+    expect(hasOptionalReasoning("google", "gemini-2.5-flash-lite")).toBe(true);
     expect(hasOptionalReasoning("google", "gemini-1.5-pro")).toBe(true);
   });
 
@@ -148,7 +148,7 @@ describe("isGemini3Model", () => {
   test("returns false for Gemini 2.x models", () => {
     expect(isGemini3Model("gemini-2.5-pro")).toBe(false);
     expect(isGemini3Model("gemini-2.5-flash")).toBe(false);
-    expect(isGemini3Model("gemini-2.0-flash")).toBe(false);
+    expect(isGemini3Model("gemini-2.5-flash-lite")).toBe(false);
   });
 
   test("returns false for other models", () => {
