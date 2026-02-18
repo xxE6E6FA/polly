@@ -175,10 +175,7 @@ export const ImageModelsTab = () => {
 
   const { user } = useUserDataContext();
   const { success, error: showError } = useToast();
-  const apiKeysRaw = useQuery(
-    api.apiKeys.getUserApiKeys,
-    user && !user.isAnonymous ? {} : "skip"
-  );
+  const apiKeysRaw = useQuery(api.apiKeys.getUserApiKeys, user ? {} : "skip");
   const enabledImageModelsRaw = useQuery(
     api.imageModels.getUserImageModels,
     user?._id ? {} : "skip"

@@ -85,29 +85,18 @@ const UserSectionContent = ({
 };
 
 export const UserSection = () => {
-  const { user } = useUserDataContext();
+  const { user, isAuthenticated, isLoading } = useUserDataContext();
   const userSettings = useUserSettings();
 
-  const isAuthenticated = user && !user.isAnonymous;
   const shouldAnonymize = userSettings?.anonymizeForDemo ?? false;
 
-  if (user === undefined) {
+  if (isLoading) {
     return <UserSectionSkeleton />;
-  }
-
-  if (user === null) {
-    return (
-      <UserSectionContent
-        isAuthenticated={false}
-        user={null}
-        shouldAnonymize={false}
-      />
-    );
   }
 
   return (
     <UserSectionContent
-      isAuthenticated={Boolean(isAuthenticated)}
+      isAuthenticated={isAuthenticated}
       user={user}
       shouldAnonymize={shouldAnonymize}
     />

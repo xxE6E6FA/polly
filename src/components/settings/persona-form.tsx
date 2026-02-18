@@ -117,10 +117,7 @@ export const PersonaForm = ({
 
   // Check if user has ElevenLabs API key to show TTS section
   const { user } = useUserDataContext();
-  const apiKeysRaw = useQuery(
-    api.apiKeys.getUserApiKeys,
-    user && !user.isAnonymous ? {} : "skip"
-  );
+  const apiKeysRaw = useQuery(api.apiKeys.getUserApiKeys, user ? {} : "skip");
   const apiKeys = isApiKeysArray(apiKeysRaw) ? apiKeysRaw : [];
   const hasElevenLabs = useMemo(() => {
     return apiKeys.some(k => {

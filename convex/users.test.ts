@@ -1,117 +1,12 @@
 import { describe, expect, mock, test } from "bun:test";
 import { makeConvexCtx } from "../test/convex-ctx";
-import { createConvexTestInstance } from "../test/convex-test-utils";
 import type { Id } from "./_generated/dataModel";
-import type { MutationCtx, QueryCtx } from "./_generated/server";
+import type { QueryCtx } from "./_generated/server";
 import {
   currentHandler,
   getMessageSentCountHandler,
-  handleCreateAnonymousUser,
   handleGetUserById,
 } from "./users";
-
-// Demonstration of testing Convex functions using convex-test.
-// This test auto-skips if convex-test isn't installed yet.
-
-describe("convex: users", () => {
-  test("createAnonymous + getById roundtrip", async () => {
-    const t = await createConvexTestInstance();
-    if (!t) {
-      return;
-    }
-
-    try {
-      const { api } = await import("@convex/_generated/api");
-
-      const id = await t.mutation(api.users.createAnonymous, {});
-      expect(id).toBeTruthy();
-
-      const user = await t.query(api.users.getById, { id });
-      expect(user?.isAnonymous).toBe(true);
-    } catch (error: unknown) {
-      if (
-        error instanceof Error &&
-        error.message?.includes("import.meta.glob")
-      ) {
-        return;
-      }
-      throw error;
-    }
-  });
-
-  test("internalPatch updates user fields (internal only)", async () => {
-    const t = await createConvexTestInstance();
-    if (!t) {
-      return;
-    }
-
-    try {
-      const { api, internal } = await import("@convex/_generated/api");
-
-      const id = await t.mutation(api.users.createAnonymous, {});
-      // Note: internalPatch is only accessible via internal API, not exposed to clients
-      await t.mutation(internal.users.internalPatch, {
-        id,
-        updates: { name: "Test User" },
-      });
-      const user = await t.query(api.users.getById, { id });
-      expect(user?.name).toBe("Test User");
-    } catch (error: unknown) {
-      if (
-        error instanceof Error &&
-        error.message?.includes("import.meta.glob")
-      ) {
-        return;
-      }
-      throw error;
-    }
-  });
-
-  test("incrementMessage updates counters with monthly flag", async () => {
-    const t = await createConvexTestInstance();
-    if (!t) {
-      return;
-    }
-
-    try {
-      const { api } = await import("@convex/_generated/api");
-
-      const id = await t.mutation(api.users.createAnonymous, {});
-
-      await t.mutation(api.users.incrementMessage, {
-        userId: id,
-        model: "test",
-        provider: "openai",
-        countTowardsMonthly: true,
-      });
-
-      let user = await t.query(api.users.getById, { id });
-      expect(user?.messagesSent).toBe(1);
-      expect(user?.monthlyMessagesSent).toBe(1);
-      expect(user?.totalMessageCount).toBe(1);
-
-      await t.mutation(api.users.incrementMessage, {
-        userId: id,
-        model: "test",
-        provider: "openai",
-        countTowardsMonthly: false,
-      });
-
-      user = await t.query(api.users.getById, { id });
-      expect(user?.messagesSent).toBe(2);
-      expect(user?.monthlyMessagesSent).toBe(1);
-      expect(user?.totalMessageCount).toBe(2);
-    } catch (error: unknown) {
-      if (
-        error instanceof Error &&
-        error.message?.includes("import.meta.glob")
-      ) {
-        return;
-      }
-      throw error;
-    }
-  });
-});
 
 describe("users.current", () => {
   test("returns user data for authenticated user", async () => {
@@ -121,22 +16,38 @@ describe("users.current", () => {
       _id: userId,
       _creationTime: Date.now(),
       name: "Test User",
-      isAnonymous: false,
       messagesSent: 42,
       monthlyMessagesSent: 10,
       totalMessageCount: 42,
     };
 
+    // getAuthUserId now looks up user via query chain (byExternalId index)
+    const queryChain = {
+      withIndex: mock(() => queryChain),
+      filter: mock(() => queryChain),
+      order: mock(() => queryChain),
+      first: mock(() => Promise.resolve(mockUser)),
+      unique: mock(() => Promise.resolve(mockUser)),
+      collect: mock(() => Promise.resolve([mockUser])),
+      take: mock(() => Promise.resolve([mockUser])),
+      paginate: mock(() =>
+        Promise.resolve({ page: [], isDone: true, continueCursor: "" })
+      ),
+    };
+
     const ctx = makeConvexCtx({
       auth: {
-        getUserIdentity: mock(() => Promise.resolve({ subject: userId })),
+        getUserIdentity: mock(() =>
+          Promise.resolve({ subject: "clerk_user_abc" })
+        ),
       },
       db: {
+        query: mock(() => queryChain),
         get: mock(() => Promise.resolve(mockUser)),
       },
     });
 
-    const result = await currentHandler(ctx as QueryCtx);
+    const result = await currentHandler(ctx as unknown as QueryCtx);
 
     expect(result).toEqual(mockUser);
   });
@@ -148,7 +59,7 @@ describe("users.current", () => {
       },
     });
 
-    const result = await currentHandler(ctx as QueryCtx);
+    const result = await currentHandler(ctx as unknown as QueryCtx);
 
     expect(result).toBeNull();
   });
@@ -162,7 +73,6 @@ describe("users.getById", () => {
       _id: userId,
       _creationTime: Date.now(),
       name: "Test User",
-      isAnonymous: false,
     };
 
     const ctx = makeConvexCtx({
@@ -171,7 +81,7 @@ describe("users.getById", () => {
       },
     });
 
-    const result = await handleGetUserById(ctx as QueryCtx, userId);
+    const result = await handleGetUserById(ctx as unknown as QueryCtx, userId);
 
     expect(result).toEqual(mockUser);
   });
@@ -185,7 +95,7 @@ describe("users.getById", () => {
       },
     });
 
-    const result = await handleGetUserById(ctx as QueryCtx, userId);
+    const result = await handleGetUserById(ctx as unknown as QueryCtx, userId);
 
     expect(result).toBeNull();
   });
@@ -202,16 +112,32 @@ describe("users.getMessageSentCount", () => {
       totalMessageCount: 200,
     };
 
+    const queryChain = {
+      withIndex: mock(() => queryChain),
+      filter: mock(() => queryChain),
+      order: mock(() => queryChain),
+      first: mock(() => Promise.resolve(mockUser)),
+      unique: mock(() => Promise.resolve(mockUser)),
+      collect: mock(() => Promise.resolve([mockUser])),
+      take: mock(() => Promise.resolve([mockUser])),
+      paginate: mock(() =>
+        Promise.resolve({ page: [], isDone: true, continueCursor: "" })
+      ),
+    };
+
     const ctx = makeConvexCtx({
       auth: {
-        getUserIdentity: mock(() => Promise.resolve({ subject: userId })),
+        getUserIdentity: mock(() =>
+          Promise.resolve({ subject: "clerk_user_abc" })
+        ),
       },
       db: {
+        query: mock(() => queryChain),
         get: mock(() => Promise.resolve(mockUser)),
       },
     });
 
-    const result = await getMessageSentCountHandler(ctx as QueryCtx);
+    const result = await getMessageSentCountHandler(ctx as unknown as QueryCtx);
 
     expect(result).toEqual({
       messagesSent: 150,
@@ -226,32 +152,8 @@ describe("users.getMessageSentCount", () => {
       },
     });
 
-    const result = await getMessageSentCountHandler(ctx as QueryCtx);
+    const result = await getMessageSentCountHandler(ctx as unknown as QueryCtx);
 
     expect(result).toBeNull();
-  });
-});
-
-describe("users.createAnonymous", () => {
-  test("creates anonymous user and returns ID", async () => {
-    const newUserId = "user-456" as Id<"users">;
-
-    const ctx = makeConvexCtx({
-      db: {
-        insert: mock(() => Promise.resolve(newUserId)),
-      },
-    });
-
-    const result = await handleCreateAnonymousUser(ctx as MutationCtx);
-
-    expect(result).toBe(newUserId);
-    expect(ctx.db.insert).toHaveBeenCalledWith("users", {
-      isAnonymous: true,
-      createdAt: expect.any(Number),
-      messagesSent: 0,
-      monthlyMessagesSent: 0,
-      conversationCount: 0,
-      totalMessageCount: 0,
-    });
   });
 });

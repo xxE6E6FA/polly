@@ -8,22 +8,6 @@ import {
 } from "../shared_utils";
 
 /**
- * Handler for creating anonymous users.
- */
-export async function handleCreateAnonymousUser(ctx: MutationCtx) {
-  const now = Date.now();
-
-  return await ctx.db.insert("users", {
-    isAnonymous: true,
-    createdAt: now,
-    messagesSent: 0,
-    monthlyMessagesSent: 0,
-    conversationCount: 0,
-    totalMessageCount: 0,
-  });
-}
-
-/**
  * Handler for incrementing user message statistics.
  */
 export async function incrementMessageHandler(
@@ -61,110 +45,6 @@ export async function incrementMessageHandler(
     5,
     25
   );
-}
-
-/**
- * Handler for graduating an anonymous user to a registered account.
- */
-export async function graduateAnonymousUserHandler(
-  ctx: MutationCtx,
-  args: {
-    anonymousUserId: Id<"users">;
-    newUserId: Id<"users">;
-  }
-) {
-  const { anonymousUserId, newUserId } = args;
-
-  // If the anonymous user and new user are the same, no graduation needed
-  // This happens when Convex Auth updates the anonymous user in-place
-  if (anonymousUserId === newUserId) {
-    return {
-      success: true,
-      conversationsTransferred: 0,
-      messagesTransferred: 0,
-    };
-  }
-
-  // Get both users
-  const anonymousUser = await ctx.db.get("users", anonymousUserId);
-  const newUser = await ctx.db.get("users", newUserId);
-
-  // If anonymous user doesn't exist, it might have already been graduated
-  // (e.g., in React StrictMode or due to a race condition)
-  if (!anonymousUser) {
-    console.warn(
-      `Anonymous user ${anonymousUserId} not found - may have already been graduated`
-    );
-    return {
-      success: true,
-      conversationsTransferred: 0,
-      messagesTransferred: 0,
-    };
-  }
-
-  if (!newUser) {
-    throw new Error("New user not found");
-  }
-
-  if (!anonymousUser.isAnonymous) {
-    // User is not anonymous anymore - might have been graduated already
-    console.warn(
-      `User ${anonymousUserId} is not anonymous - may have already been graduated`
-    );
-    return {
-      success: true,
-      conversationsTransferred: 0,
-      messagesTransferred: 0,
-    };
-  }
-
-  try {
-    // Transfer conversations from anonymous user to new user
-    const anonymousConversations = await ctx.db
-      .query("conversations")
-      .withIndex("by_user_recent", q => q.eq("userId", anonymousUserId))
-      .collect();
-
-    for (const conversation of anonymousConversations) {
-      await ctx.db.patch("conversations", conversation._id, {
-        userId: newUserId,
-      });
-    }
-
-    // Update the new user with anonymous user's message counts
-    const updatedMessagesSent =
-      (newUser.messagesSent || 0) + (anonymousUser.messagesSent || 0);
-    const updatedMonthlyMessagesSent =
-      (newUser.monthlyMessagesSent || 0) +
-      (anonymousUser.monthlyMessagesSent || 0);
-    const updatedTotalMessageCount =
-      (newUser.totalMessageCount || 0) +
-      (anonymousUser.totalMessageCount || 0);
-    const updatedConversationCount = Math.max(
-      0,
-      (newUser.conversationCount || 0) +
-        (anonymousUser.conversationCount || 0)
-    );
-
-    await ctx.db.patch("users", newUserId, {
-      messagesSent: Math.max(0, updatedMessagesSent),
-      monthlyMessagesSent: Math.max(0, updatedMonthlyMessagesSent),
-      totalMessageCount: Math.max(0, updatedTotalMessageCount),
-      conversationCount: updatedConversationCount,
-    });
-
-    // Delete the anonymous user
-    await ctx.db.delete("users", anonymousUserId);
-
-    return {
-      success: true,
-      conversationsTransferred: anonymousConversations.length,
-      messagesTransferred: anonymousUser.totalMessageCount || 0,
-    };
-  } catch (error) {
-    console.error("Failed to graduate anonymous user:", error);
-    throw new Error("Failed to graduate anonymous user");
-  }
 }
 
 /**
@@ -379,59 +259,13 @@ export async function deleteAccountHandler(ctx: MutationCtx) {
       await ctx.db.delete("userApiKeys", key._id);
     }
 
-    const customAccounts = await ctx.db
-      .query("accounts")
-      .filter(q => q.eq(q.field("userId"), userId))
+    // User memories
+    const userMemories = await ctx.db
+      .query("userMemories")
+      .withIndex("by_user", q => q.eq("userId", userId))
       .collect();
-    for (const account of customAccounts) {
-      await ctx.db.delete("accounts", account._id);
-    }
-
-    const customSessions = await ctx.db
-      .query("sessions")
-      .filter(q => q.eq(q.field("userId"), userId))
-      .collect();
-    for (const session of customSessions) {
-      await ctx.db.delete("sessions", session._id);
-    }
-
-    const authAccounts = await ctx.db
-      .query("authAccounts")
-      .withIndex("userIdAndProvider", q => q.eq("userId", userId))
-      .collect();
-    for (const authAccount of authAccounts) {
-      const verificationCodes = await ctx.db
-        .query("authVerificationCodes")
-        .withIndex("accountId", q => q.eq("accountId", authAccount._id))
-        .collect();
-      for (const code of verificationCodes) {
-        await ctx.db.delete("authVerificationCodes", code._id);
-      }
-      await ctx.db.delete("authAccounts", authAccount._id);
-    }
-
-    const authSessions = await ctx.db
-      .query("authSessions")
-      .withIndex("userId", q => q.eq("userId", userId))
-      .collect();
-    for (const authSession of authSessions) {
-      const refreshTokens = await ctx.db
-        .query("authRefreshTokens")
-        .withIndex("sessionId", q => q.eq("sessionId", authSession._id))
-        .collect();
-      for (const refreshToken of refreshTokens) {
-        await ctx.db.delete("authRefreshTokens", refreshToken._id);
-      }
-
-      const verifiers = await ctx.db
-        .query("authVerifiers")
-        .filter(q => q.eq(q.field("sessionId"), authSession._id))
-        .collect();
-      for (const verifier of verifiers) {
-        await ctx.db.delete("authVerifiers", verifier._id);
-      }
-
-      await ctx.db.delete("authSessions", authSession._id);
+    for (const memory of userMemories) {
+      await ctx.db.delete("userMemories", memory._id);
     }
 
     await ctx.db.delete("users", userId);

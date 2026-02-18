@@ -1,85 +1,98 @@
-import { useAuthActions } from "@convex-dev/auth/react";
-import { useCallback, useState } from "react";
+import { SignedIn, SignedOut, SignIn } from "@clerk/clerk-react";
+import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { AnimatedLogo } from "@/components/ui/animated-logo";
-import { Button } from "@/components/ui/button";
-import { CACHE_KEYS, set } from "@/lib/local-storage";
+import { useTheme } from "@/hooks/use-theme";
 import { ROUTES } from "@/lib/routes";
-import { useToast } from "@/providers/toast-context";
-import { useUserDataContext } from "@/providers/user-data-context";
+
+/**
+ * Clerk appearance that maps to CSS custom properties so it
+ * follows the app's light / dark theme automatically.
+ */
+function useClerkAppearance() {
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
+
+  // Clerk variables integrate with the app's CSS custom properties.
+  // We read the computed values at render so they reflect the active theme.
+  return {
+    variables: {
+      colorPrimary: isDark ? "hsl(0 0% 95%)" : "hsl(0 0% 10%)",
+      colorText: isDark ? "hsl(0 0% 98%)" : "hsl(0 0% 5%)",
+      colorTextSecondary: isDark ? "hsl(0 0% 75%)" : "hsl(0 0% 40%)",
+      colorBackground: isDark ? "hsl(0 0% 10%)" : "hsl(0 0% 100%)",
+      colorInputBackground: isDark ? "hsl(0 0% 12%)" : "hsl(0 0% 100%)",
+      colorInputText: isDark ? "hsl(0 0% 98%)" : "hsl(0 0% 5%)",
+      colorNeutral: isDark ? "hsl(0 0% 98%)" : "hsl(0 0% 10%)",
+      borderRadius: "0.375rem",
+    },
+    elements: {
+      rootBox: "!w-full !overflow-visible",
+      cardBox: "!w-full !shadow-none !overflow-visible",
+      card: "!bg-transparent !shadow-none !border-0 !p-0 !w-full !max-w-none !overflow-visible",
+      main: "!w-full",
+      socialButtons: "!w-full",
+      headerTitle: "hidden",
+      headerSubtitle: "hidden",
+      socialButtonsBlockButton:
+        "!border-border !text-foreground hover:!bg-muted/60 !rounded-md !transition-colors",
+      socialButtonsBlockButtonText: "!font-medium",
+      dividerLine: "!bg-border",
+      dividerText: "!text-muted-foreground",
+      formButtonPrimary:
+        "!bg-primary !text-primary-foreground hover:!bg-primary-hover !rounded-md !shadow-none !transition-colors",
+      formFieldLabel: "!text-foreground",
+      formFieldInput:
+        "!bg-input !border-border !text-foreground !rounded-md focus:!ring-2 focus:!ring-ring focus:!border-transparent",
+      footer: "hidden",
+      identityPreview: "!bg-muted/40 !border-border",
+      identityPreviewText: "!text-foreground",
+      identityPreviewEditButton: "!text-muted-foreground",
+      formFieldAction: "!text-muted-foreground hover:!text-foreground",
+      alert: "!bg-muted/40 !border-border !text-foreground",
+    },
+  };
+}
 
 export default function AuthPage() {
-  const { signIn } = useAuthActions();
-  const { user } = useUserDataContext();
-  const managedToast = useToast();
-  const [isLoading, setIsLoading] = useState(false);
-
-  const handleSignIn = useCallback(async () => {
-    try {
-      setIsLoading(true);
-
-      // Store the anonymous user ID for graduation
-      if (user?._id && user.isAnonymous) {
-        set(CACHE_KEYS.anonymousUserGraduation, user._id);
-      }
-
-      // Set flag to indicate we're starting OAuth flow
-      // This will be used to clear old tokens when we return
-      sessionStorage.setItem("polly:oauth-flow-active", "true");
-
-      await signIn("google", {
-        redirectTo: ROUTES.HOME,
-      });
-    } catch (_error) {
-      managedToast.error("Failed to sign in. Please try again.");
-      sessionStorage.removeItem("polly:oauth-flow-active");
-      setIsLoading(false);
-    }
-  }, [signIn, user, managedToast]);
+  const clerkAppearance = useClerkAppearance();
 
   return (
     <div className="flex min-h-[100dvh] items-center justify-center bg-background">
-      <div className="w-full max-w-md stack-xl p-6">
-        <div className="text-center">
-          <div className="mb-6 flex justify-center">
-            <AnimatedLogo size={96} alt="Polly logo" />
+      <SignedIn>
+        <AlreadySignedIn />
+      </SignedIn>
+      <SignedOut>
+        <div className="w-full max-w-[400px] stack-lg px-6 py-12">
+          <div className="text-center stack-sm">
+            <div className="flex justify-center">
+              <AnimatedLogo size={64} alt="Polly logo" />
+            </div>
+            <div>
+              <h1 className="text-xl font-semibold tracking-tight text-foreground">
+                Sign in to Polly
+              </h1>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Your AI conversations, models, and settings in one place
+              </p>
+            </div>
           </div>
-          <h1 className="mb-2 text-3xl font-bold text-foreground">
-            Welcome to Polly
-          </h1>
-          <p className="text-muted-foreground">
-            Sign in to continue with your AI conversations
-          </p>
-        </div>
 
-        <div className="stack-lg">
-          <Button
-            className="flex w-full items-center justify-center gap-3 py-6"
-            loading={isLoading}
-            variant="outline"
-            onClick={handleSignIn}
-          >
-            <svg className="h-5 w-5" viewBox="0 0 24 24">
-              <path
-                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                fill="currentColor"
-              />
-              <path
-                d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                fill="currentColor"
-              />
-              <path
-                d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-                fill="currentColor"
-              />
-              <path
-                d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                fill="currentColor"
-              />
-            </svg>
-            Continue with Google
-          </Button>
+          <SignIn
+            routing="hash"
+            forceRedirectUrl={ROUTES.HOME}
+            appearance={clerkAppearance}
+          />
         </div>
-      </div>
+      </SignedOut>
     </div>
   );
+}
+
+function AlreadySignedIn() {
+  const navigate = useNavigate();
+  useEffect(() => {
+    navigate(ROUTES.HOME, { replace: true });
+  }, [navigate]);
+  return null;
 }

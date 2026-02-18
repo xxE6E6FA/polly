@@ -497,7 +497,7 @@ const ChatHeaderComponent = ({
         </div>
 
         {/* Only show actions for authenticated users */}
-        {user && !user.isAnonymous && (
+        {user && (
           <div className="flex items-center gap-1 sm:gap-1.5">
             {/* Desktop menu */}
             <div className="hidden sm:block">

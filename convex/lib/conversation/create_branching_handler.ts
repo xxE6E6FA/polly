@@ -62,11 +62,7 @@ export async function createBranchingConversationHandler(
     // Use authenticated user ID
     actualUserId = authenticatedUserId;
   } else {
-    // Create anonymous user as fallback
-    actualUserId = await ctx.runMutation(
-      internal.users.internalCreateAnonymous
-    );
-    isNewUser = true;
+    throw new Error("Not authenticated");
   }
 
   const [selectedModel, user] = await Promise.all([

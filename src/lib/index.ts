@@ -86,6 +86,19 @@ export type { ImportResult, ParsedConversation } from "./import-parsers";
 export { detectAndParseImportData } from "./import-parsers";
 
 // =============================================================================
+// Auth Utils
+// =============================================================================
+
+export {
+  clearAnonymousSession,
+  fetchAnonymousToken,
+  getAnonymousSession,
+  isSessionExpired,
+  refreshAnonymousToken,
+  setAnonymousSession,
+} from "./anonymous-auth";
+
+// =============================================================================
 // Storage Utils
 // =============================================================================
 

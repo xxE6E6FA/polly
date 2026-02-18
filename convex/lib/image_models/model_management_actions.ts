@@ -1,4 +1,4 @@
-import { getAuthUserId } from "@convex-dev/auth/server";
+import { getAuthUserId } from "../auth";
 import Replicate from "replicate";
 import { api, internal } from "../../_generated/api";
 import type { ActionCtx } from "../../_generated/server";
@@ -77,7 +77,7 @@ export async function refreshModelCapabilitiesHandler(ctx: ActionCtx) {
         continue;
       }
 
-      const modelData = await modelResponse.json();
+      const modelData = await modelResponse.json() as { latest_version?: { id: string } };
       const latestVersion = modelData.latest_version;
 
       if (!latestVersion) {

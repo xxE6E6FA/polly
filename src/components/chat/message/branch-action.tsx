@@ -1,9 +1,8 @@
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
-import { useAuthToken } from "@convex-dev/auth/react";
 import { GitBranchIcon } from "@phosphor-icons/react";
 import { useAction } from "convex/react";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -30,11 +29,6 @@ export function BranchActionButton({
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const managedToast = useToast();
-  const authToken = useAuthToken();
-  const authRef = useRef<string | null | undefined>(authToken);
-  useEffect(() => {
-    authRef.current = authToken;
-  }, [authToken]);
 
   const handleConfirm = async () => {
     try {
@@ -43,7 +37,6 @@ export function BranchActionButton({
         conversationId: conversationId as Id<"conversations">,
         messageId: messageId as Id<"messages">,
       });
-      // Server-side streaming is now handled automatically by the Convex action
       onSuccess(res.conversationId, res.assistantMessageId);
       managedToast.success("Branched conversation");
     } catch (_e) {
@@ -104,11 +97,6 @@ export function BranchActionDrawerItem({
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const managedToast = useToast();
-  const authToken = useAuthToken();
-  const authRef = useRef<string | null | undefined>(authToken);
-  useEffect(() => {
-    authRef.current = authToken;
-  }, [authToken]);
 
   const handleConfirm = async () => {
     try {

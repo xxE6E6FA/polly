@@ -1,7 +1,7 @@
 import type { ActionCtx, MutationCtx, QueryCtx } from "../../_generated/server";
 import type { Doc, Id } from "../../_generated/dataModel";
 import { ConvexError } from "convex/values";
-import { getAuthUserId } from "@convex-dev/auth/server";
+import { getAuthUserId } from "../auth";
 import type { CreateMessageArgs } from "../schemas";
 import { api } from "../../_generated/api";
 import { mergeSystemPrompts } from "@shared/system-prompts";

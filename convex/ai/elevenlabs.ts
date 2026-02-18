@@ -4,7 +4,7 @@ import { action, httpAction, internalAction } from "../_generated/server";
 import type { Doc, Id } from "../_generated/dataModel";
 import { getApiKey } from "./encryption";
 import { DEFAULT_BUILTIN_MODEL_ID } from "../../shared/constants";
-import { getAuthUserId } from "@convex-dev/auth/server";
+import { getAuthUserId } from "../lib/auth";
 import dedent from "dedent";
 
 export function stripCodeAndAssets(input: string): string {

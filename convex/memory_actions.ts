@@ -5,13 +5,13 @@
  * Scheduled after streaming completes to extract durable user facts.
  */
 
-import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import type { ActionCtx } from "./_generated/server";
 import { action, internalAction } from "./_generated/server";
 import { generateArrayWithProvider } from "./ai/text_generation";
+import { getAuthUserId } from "./lib/auth";
 import { generateEmbedding } from "./lib/memory/embedding";
 import {
   buildExtractionPrompt,

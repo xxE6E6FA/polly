@@ -155,10 +155,7 @@ export const TextModelsTab = () => {
   );
 
   const { user } = useUserDataContext();
-  const apiKeysRaw = useQuery(
-    api.apiKeys.getUserApiKeys,
-    user && !user.isAnonymous ? {} : "skip"
-  );
+  const apiKeysRaw = useQuery(api.apiKeys.getUserApiKeys, user ? {} : "skip");
   const enabledModelsRaw = useQuery(
     api.userModels.getUserModels,
     user?._id ? {} : "skip"

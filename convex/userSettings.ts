@@ -1,4 +1,3 @@
-import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import {
@@ -7,6 +6,7 @@ import {
   type QueryCtx,
   query,
 } from "./_generated/server";
+import { getAuthUserId } from "./lib/auth";
 import { userSettingsUpdateSchema } from "./lib/schemas";
 import { getAuthenticatedUser } from "./lib/shared_utils";
 

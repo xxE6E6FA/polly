@@ -554,6 +554,7 @@ export const userSchema = v.object({
   emailVerificationTime: v.optional(v.number()),
   image: v.optional(v.string()),
   isAnonymous: v.optional(v.boolean()),
+  externalId: v.optional(v.string()), // Clerk user ID for auth identity mapping
   messagesSent: v.optional(v.number()), // Lifetime counter of all messages ever sent (never decremented)
   createdAt: v.optional(v.number()),
   monthlyMessagesSent: v.optional(v.number()), // Monthly messages for limit tracking (reset monthly, only counts built-in models)

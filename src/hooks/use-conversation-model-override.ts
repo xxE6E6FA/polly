@@ -90,7 +90,7 @@ export function useConversationModelOverride(
       currentSelectedModel.modelId !== effectiveLastUsedModel.modelId ||
       currentSelectedModel.provider !== effectiveLastUsedModel.provider;
 
-    if (user && !user.isAnonymous && hasModelMismatch) {
+    if (user && hasModelMismatch) {
       selectModelMutation({
         modelId: effectiveLastUsedModel.modelId,
         provider: effectiveLastUsedModel.provider,

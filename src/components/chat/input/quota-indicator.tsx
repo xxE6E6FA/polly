@@ -1,4 +1,3 @@
-import type { Doc } from "@convex/_generated/dataModel";
 import {
   Tooltip,
   TooltipContent,
@@ -23,7 +22,7 @@ function getTooltipMessage(
 ): string {
   if (isExhausted) {
     return isAnonymous
-      ? "Sign in for more messages"
+      ? "Sign up for more messages"
       : "Add API keys for unlimited messages";
   }
   return `${remaining} free messages remaining this month`;
@@ -74,7 +73,7 @@ export function QuotaIndicator({
 
   const tooltipMessage = getTooltipMessage(
     isExhausted,
-    user.isAnonymous ?? false,
+    !!user?.isAnonymous,
     remaining
   );
 

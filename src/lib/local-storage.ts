@@ -16,10 +16,12 @@ export const CACHE_KEYS = {
   userSettings: "user-settings",
   setupChecklistDismissed: "setup-checklist-dismissed",
   userData: "user-data",
-  anonymousUserGraduation: "anonymous-user-graduation",
   recentModels: "recent-models",
   zenDisplayPreferences: "zen-display-preferences",
   apiKeysPromptDismissed: "api-keys-prompt-dismissed",
+  anonymousSession: "anonymous-session",
+  anonymousUserGraduation: "anonymous-user-graduation",
+  anonymousGraduationToken: "anonymous-graduation-token",
 } as const;
 
 export type CacheKey = (typeof CACHE_KEYS)[keyof typeof CACHE_KEYS];
@@ -143,7 +145,6 @@ export function clearUserData() {
     CACHE_KEYS.userSettings,
     CACHE_KEYS.setupChecklistDismissed,
     CACHE_KEYS.userData,
-    CACHE_KEYS.anonymousUserGraduation,
     CACHE_KEYS.recentModels,
   ];
 

@@ -1,4 +1,3 @@
-import { getAuthUserId } from "@convex-dev/auth/server";
 import { generateText, streamText } from "ai";
 import { httpRouter } from "convex/server";
 import type { Prediction } from "replicate";
@@ -26,9 +25,15 @@ import {
   getProviderStreamOptions,
 } from "./ai/server_streaming.js";
 import { processUrlsInMessage } from "./ai/url_processing.js";
-import { auth } from "./auth.js";
 import { chatStream } from "./chat.js";
 import { getBaselineInstructions } from "./constants.js";
+import {
+  buildJwks,
+  mintAnonymousToken,
+  verifyAnonymousToken,
+} from "./lib/anonymous_auth.js";
+import { getAuthUserId } from "./lib/auth.js";
+import { verifyClerkWebhook } from "./lib/clerk_webhook.js";
 import {
   getPersonaPrompt,
   mergeSystemPrompts,
@@ -60,7 +65,73 @@ function _rateLimitCheck(userId: string): boolean {
   return true;
 }
 
-auth.addHttpRoutes(http);
+// Clerk webhook endpoint for user sync
+const clerkWebhook = httpAction(async (ctx, request): Promise<Response> => {
+  try {
+    const rawBody = await request.text();
+    if (!rawBody) {
+      return new Response("Bad Request", { status: 400 });
+    }
+
+    // Verify webhook signature using svix
+    let event;
+    try {
+      event = verifyClerkWebhook(rawBody, {
+        "svix-id": request.headers.get("svix-id"),
+        "svix-timestamp": request.headers.get("svix-timestamp"),
+        "svix-signature": request.headers.get("svix-signature"),
+      });
+    } catch {
+      console.error("[Clerk Webhook] Invalid signature");
+      return new Response("Unauthorized", { status: 401 });
+    }
+
+    const { type, data } = event;
+
+    if (type === "user.created") {
+      await ctx.runMutation(internal.clerk.handleWebhookUserCreated, {
+        clerkUserId: data.id,
+        email: undefined,
+        firstName: data.first_name ?? undefined,
+        lastName: data.last_name ?? undefined,
+        imageUrl: data.image_url ?? undefined,
+        primaryEmailAddressId: data.primary_email_address_id ?? undefined,
+        emailAddresses: data.email_addresses?.map(e => ({
+          email_address: e.email_address,
+          id: e.id,
+        })),
+      });
+    } else if (type === "user.updated") {
+      await ctx.runMutation(internal.clerk.handleWebhookUserUpdated, {
+        clerkUserId: data.id,
+        email: undefined,
+        firstName: data.first_name ?? undefined,
+        lastName: data.last_name ?? undefined,
+        imageUrl: data.image_url ?? undefined,
+        primaryEmailAddressId: data.primary_email_address_id ?? undefined,
+        emailAddresses: data.email_addresses?.map(e => ({
+          email_address: e.email_address,
+          id: e.id,
+        })),
+      });
+    } else if (type === "user.deleted") {
+      await ctx.runMutation(internal.clerk.handleWebhookUserDeleted, {
+        clerkUserId: data.id,
+      });
+    }
+
+    return new Response("OK", { status: 200 });
+  } catch (error) {
+    console.error("[Clerk Webhook] Error:", error);
+    return new Response("Internal Server Error", { status: 500 });
+  }
+});
+
+http.route({
+  path: "/clerk-users-webhook",
+  method: "POST",
+  handler: clerkWebhook,
+});
 
 // Add chat streaming endpoint for AI SDK
 http.route({
@@ -240,6 +311,125 @@ http.route({
       })
     );
   }),
+});
+
+// ---------------------------------------------------------------------------
+// Anonymous auth endpoints
+// ---------------------------------------------------------------------------
+
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
+};
+
+// JWKS endpoint — serves the public key so Convex can validate anonymous JWTs
+const jwksEndpoint = httpAction(async () => {
+  const publicKeyPem = process.env.ANON_AUTH_PUBLIC_KEY;
+  if (!publicKeyPem) {
+    return new Response("JWKS not configured", { status: 500 });
+  }
+
+  const jwks = await buildJwks(publicKeyPem);
+
+  return new Response(JSON.stringify(jwks), {
+    status: 200,
+    headers: {
+      ...CORS_HEADERS,
+      "Content-Type": "application/json",
+      "Cache-Control": "public, max-age=3600",
+    },
+  });
+});
+
+http.route({
+  path: "/.well-known/jwks.json",
+  method: "GET",
+  handler: jwksEndpoint,
+});
+
+http.route({
+  path: "/.well-known/jwks.json",
+  method: "OPTIONS",
+  handler: httpAction(() =>
+    Promise.resolve(new Response(null, { status: 200, headers: CORS_HEADERS }))
+  ),
+});
+
+// POST /auth/anonymous — create anonymous user + mint JWT (or refresh)
+const anonymousAuthEndpoint = httpAction(
+  async (ctx, request): Promise<Response> => {
+    const privateKeyPem = process.env.ANON_AUTH_PRIVATE_KEY;
+    const issuer = process.env.ANON_AUTH_ISSUER;
+
+    if (!(privateKeyPem && issuer)) {
+      return new Response("Anonymous auth not configured", { status: 500 });
+    }
+
+    const publicKeyPem = process.env.ANON_AUTH_PUBLIC_KEY;
+    let externalId: string | null = null;
+
+    // Check for refresh: if a token is provided, verify its signature and
+    // extract the subject. This prevents forged tokens from being used to
+    // impersonate other users.
+    try {
+      const body = await request.text();
+      if (body && publicKeyPem) {
+        const parsed = JSON.parse(body);
+        if (parsed.token) {
+          externalId = await verifyAnonymousToken(
+            parsed.token,
+            publicKeyPem,
+            issuer
+          );
+        }
+      }
+    } catch {
+      // No valid body or token — create a new user
+    }
+
+    // If refreshing, verify the user still exists and is anonymous
+    if (externalId) {
+      const isValidAnon = await ctx.runQuery(
+        internal.users.internalIsAnonymousUser,
+        { externalId }
+      );
+      if (!isValidAnon) {
+        // User was deleted, doesn't exist, or isn't anonymous — create a new one
+        externalId = null;
+      }
+    }
+
+    // Create new anonymous user if needed
+    if (!externalId) {
+      externalId = `anon_${crypto.randomUUID()}`;
+      await ctx.runMutation(internal.users.createAnonymousUser, { externalId });
+    }
+
+    const token = await mintAnonymousToken(privateKeyPem, issuer, externalId);
+
+    return new Response(JSON.stringify({ token, externalId }), {
+      status: 200,
+      headers: {
+        ...CORS_HEADERS,
+        "Content-Type": "application/json",
+      },
+    });
+  }
+);
+
+http.route({
+  path: "/auth/anonymous",
+  method: "POST",
+  handler: anonymousAuthEndpoint,
+});
+
+http.route({
+  path: "/auth/anonymous",
+  method: "OPTIONS",
+  handler: httpAction(() =>
+    Promise.resolve(new Response(null, { status: 200, headers: CORS_HEADERS }))
+  ),
 });
 
 export default http;

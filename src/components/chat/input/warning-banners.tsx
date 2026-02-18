@@ -27,12 +27,13 @@ export function WarningBanners({ hasExistingMessages }: WarningBannersProps) {
   const { user } = useUserIdentity();
   const { canSendMessage, hasUserApiKeys } = useUserCapabilities();
 
-  const isNoUser = user === null;
+  const isAnonymous = !!user?.isAnonymous;
 
   const [dismissedWarning, setDismissedWarning] = useState<string | null>(null);
 
   const warningState = useMemo((): WarningState => {
-    if (isNoUser) {
+    // No user record yet (still loading)
+    if (!user) {
       return null;
     }
 
@@ -57,12 +58,12 @@ export function WarningBanners({ hasExistingMessages }: WarningBannersProps) {
 
     // Limit reached (error state)
     if (isLimitReached) {
-      if (user?.isAnonymous) {
+      if (isAnonymous) {
         return {
           type: "error",
           message: {
             text: "Message limit reached.",
-            link: { text: "Sign in", href: "/auth" },
+            link: { text: "Sign up", href: "/auth" },
             suffix: "to continue chatting without limits.",
           },
           isDismissed: false,
@@ -82,14 +83,14 @@ export function WarningBanners({ hasExistingMessages }: WarningBannersProps) {
 
     // Limit warning (warning state) - only show if remaining messages < 10
     if (remainingMessages < 10 && remainingMessages > 0) {
-      if (user?.isAnonymous) {
+      if (isAnonymous) {
         return {
           type: "warning",
           message: {
             text: `${remainingMessages} message${
               remainingMessages === 1 ? "" : "s"
             } remaining.`,
-            link: { text: "Sign in", href: "/auth" },
+            link: { text: "Sign up", href: "/auth" },
             suffix: " for higher limits.",
           },
           isDismissed: false,
@@ -111,13 +112,13 @@ export function WarningBanners({ hasExistingMessages }: WarningBannersProps) {
 
     return null;
   }, [
-    isNoUser,
     hasMessageLimit,
     canSendMessage,
     hasUnlimitedCalls,
     monthlyUsage,
     hasUserApiKeys,
-    user?.isAnonymous,
+    user,
+    isAnonymous,
     dismissedWarning,
   ]);
 

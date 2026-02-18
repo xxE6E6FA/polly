@@ -1,11 +1,10 @@
 import { api } from "@convex/_generated/api";
-import type { Doc, Id } from "@convex/_generated/dataModel";
-import { useAuthActions, useAuthToken } from "@convex-dev/auth/react";
+import type { Doc } from "@convex/_generated/dataModel";
 import {
   ANONYMOUS_MESSAGE_LIMIT,
   MONTHLY_MESSAGE_LIMIT,
 } from "@shared/constants";
-import { useMutation, useQuery } from "convex/react";
+import { useAction, useConvexAuth, useMutation, useQuery } from "convex/react";
 import type React from "react";
 import {
   createContext,
@@ -15,16 +14,11 @@ import {
   useRef,
   useState,
 } from "react";
-import { useLocation } from "react-router-dom";
 import { CACHE_KEYS, get, set } from "@/lib/local-storage";
 import { isApiKeysArray } from "@/lib/type-guards";
 import { useToast } from "@/providers/toast-context";
 
-type AuthState =
-  | "initializing"
-  | "anonymous"
-  | "authenticated"
-  | "transitioning";
+type AuthState = "initializing" | "anonymous" | "authenticated";
 
 interface MonthlyUsage {
   monthlyLimit: number;
@@ -148,27 +142,14 @@ function buildUserData(
 export const UserDataProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const { signIn } = useAuthActions();
-  const authToken = useAuthToken();
-  const location = useLocation();
-  const hasAttemptedSignIn = useRef(false);
-  const [isSigningIn, setIsSigningIn] = useState(false);
-  const [authState, setAuthState] = useState<AuthState>("initializing");
   const [isGraduating, setIsGraduating] = useState(false);
-  const graduateAnonymousUser = useMutation(api.users.graduateAnonymousUser);
+  const graduateAnonymousUser = useAction(api.users.graduateAnonymousUser);
+  const ensureUser = useMutation(api.users.ensureUser);
   const managedToast = useToast();
+  const { isAuthenticated: isConvexAuthenticated } = useConvexAuth();
+  const ensuringUserRef = useRef(false);
 
-  const userRecordRaw = useQuery(api.users.current);
-  const userRecord = userRecordRaw;
-
-  const isOAuthCallback = useMemo(() => {
-    const searchParams = new URLSearchParams(location.search);
-    return (
-      searchParams.has("code") ||
-      searchParams.has("state") ||
-      searchParams.has("error")
-    );
-  }, [location.search]);
+  const userRecord = useQuery(api.users.current);
 
   const apiKeysRaw = useQuery(
     api.apiKeys.getUserApiKeys,
@@ -181,17 +162,51 @@ export const UserDataProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   // Read cached value once on mount using useState initializer for stability
-  // This prevents re-reading from localStorage on every render
   const [initialCachedValue] = useState(() => {
     return get(CACHE_KEYS.userData, null) as UserDataProviderValue | null;
   });
   const hasCachedData = initialCachedValue && !initialCachedValue.isLoading;
 
-  const isLoading =
-    !hasCachedData &&
-    (authState === "initializing" ||
-      authState === "transitioning" ||
-      isSigningIn);
+  // JIT user creation: when Convex auth validates (Clerk JWT) but no user
+  // record exists yet, call ensureUser to create/link the user document.
+  // The reactive query will then pick up the new record automatically.
+  useEffect(() => {
+    if (
+      isConvexAuthenticated &&
+      userRecord === null &&
+      !ensuringUserRef.current
+    ) {
+      ensuringUserRef.current = true;
+      ensureUser()
+        .catch(err => {
+          console.error("[UserData] ensureUser failed:", err);
+        })
+        .finally(() => {
+          ensuringUserRef.current = false;
+        });
+    }
+  }, [isConvexAuthenticated, userRecord, ensureUser]);
+
+  const authState = useMemo<AuthState>(() => {
+    // undefined = query still loading
+    if (userRecord === undefined) {
+      return "initializing";
+    }
+    // null = query loaded but no user record; if Convex auth validated,
+    // ensureUser is in flight — keep showing loading state
+    if (userRecord === null) {
+      if (isConvexAuthenticated) {
+        return "initializing";
+      }
+      return "anonymous";
+    }
+    if (userRecord.isAnonymous) {
+      return "anonymous";
+    }
+    return "authenticated";
+  }, [userRecord, isConvexAuthenticated]);
+
+  const isLoading = !hasCachedData && authState === "initializing";
 
   const apiKeysData = isApiKeysArray(apiKeysRaw) ? apiKeysRaw : [];
   const hasUserApiKeysRaw = apiKeysData.length > 0;
@@ -211,129 +226,63 @@ export const UserDataProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // Determine when capability data (api keys/models) is reliable for UI gating.
   const capabilitiesReady = useMemo(() => {
-    // Anonymous users don't need capability checks for the checklist
     if (userRecord?.isAnonymous) {
       return true;
     }
-    // Authenticated users: wait until both queries resolve to avoid stale cache flashes
     const apiKeysResolved = apiKeysRaw !== undefined;
     const modelsResolved = hasUserModelsRaw !== undefined;
     return apiKeysResolved && modelsResolved;
   }, [userRecord?.isAnonymous, apiKeysRaw, hasUserModelsRaw]);
 
-  // Handle anonymous user graduation
+  // Handle anonymous user graduation when Clerk user signs in
   useEffect(() => {
-    const handleUserGraduation = async () => {
-      const anonymousUserId = get(CACHE_KEYS.anonymousUserGraduation, null);
-
-      if (
-        anonymousUserId &&
-        userRecord &&
-        !userRecord.isAnonymous &&
-        !isGraduating
-      ) {
-        setIsGraduating(true);
-
-        try {
-          // Graduate the anonymous user by transferring their data
-          const result = await graduateAnonymousUser({
-            anonymousUserId: anonymousUserId as Id<"users">,
-            newUserId: userRecord._id,
-          });
-
-          // Clear the stored anonymous user ID
-          set(CACHE_KEYS.anonymousUserGraduation, null);
-
-          // Only show success toast if there was actually data to graduate
-          if (result && result.conversationsTransferred > 0) {
-            managedToast.success("Welcome back!", {
-              description: "Your anonymous conversations have been preserved.",
-            });
-          }
-        } catch (_error) {
-          // Clear the stored ID even if graduation failed
-          set(CACHE_KEYS.anonymousUserGraduation, null);
-          managedToast.error("Failed to preserve conversations", {
-            description: "Your conversations may not have been transferred.",
-          });
-        } finally {
-          setIsGraduating(false);
-        }
-      }
-    };
-
-    // Only handle graduation if this is an OAuth callback and we have a user
-    if (isOAuthCallback && userRecord && authState === "authenticated") {
-      handleUserGraduation();
-    }
-  }, [
-    userRecord,
-    isOAuthCallback,
-    graduateAnonymousUser,
-    isGraduating,
-    authState,
-    managedToast.success,
-    managedToast.error,
-  ]);
-
-  useEffect(() => {
-    if (authToken === null && userRecord === null) {
-      setAuthState("initializing");
-    } else if (authToken !== null && userRecord === null) {
-      setAuthState("transitioning");
-    } else if (userRecord?.isAnonymous) {
-      setAuthState("anonymous");
-    } else if (userRecord && !userRecord.isAnonymous) {
-      setAuthState("authenticated");
-    }
-  }, [authToken, userRecord]);
-
-  useEffect(() => {
-    const shouldSignInAnonymously =
-      authState === "initializing" && authToken === null && userRecord === null;
-
-    if (
-      isOAuthCallback ||
-      hasAttemptedSignIn.current ||
-      isSigningIn ||
-      !shouldSignInAnonymously
-    ) {
+    if (authState !== "authenticated" || !userRecord || isGraduating) {
       return;
     }
 
-    hasAttemptedSignIn.current = true;
-    setIsSigningIn(true);
+    const storedAnonToken = get(CACHE_KEYS.anonymousGraduationToken, null) as
+      | string
+      | null;
 
-    signIn("anonymous")
-      .then(result => {
-        if (!result.signingIn) {
-          hasAttemptedSignIn.current = false;
-        }
-      })
-      .catch(_error => {
-        hasAttemptedSignIn.current = false;
-      })
-      .finally(() => {
-        setIsSigningIn(false);
-      });
-  }, [authState, authToken, userRecord, isOAuthCallback, signIn, isSigningIn]);
-
-  useEffect(() => {
-    if (authState === "authenticated" || authState === "anonymous") {
-      hasAttemptedSignIn.current = false;
-
-      // Clear anonymous user graduation cache if we're authenticated but not from an OAuth callback
-      // This prevents stale graduation attempts for existing users signing in
-      if (authState === "authenticated" && !isOAuthCallback) {
-        const anonymousUserId = get(CACHE_KEYS.anonymousUserGraduation, null);
-        if (anonymousUserId) {
-          set(CACHE_KEYS.anonymousUserGraduation, null);
-        }
-      }
-    } else if (authState === "transitioning" || isOAuthCallback) {
-      hasAttemptedSignIn.current = true;
+    if (!storedAnonToken) {
+      return;
     }
-  }, [authState, isOAuthCallback]);
+
+    const handleGraduation = async () => {
+      setIsGraduating(true);
+      try {
+        const result = await graduateAnonymousUser({
+          anonymousToken: storedAnonToken,
+        });
+
+        set(CACHE_KEYS.anonymousGraduationToken, null);
+        set(CACHE_KEYS.anonymousUserGraduation, null);
+
+        if (result && result.conversationsTransferred > 0) {
+          managedToast.success("Welcome back!", {
+            description: "Your anonymous conversations have been preserved.",
+          });
+        }
+      } catch (_error) {
+        set(CACHE_KEYS.anonymousGraduationToken, null);
+        set(CACHE_KEYS.anonymousUserGraduation, null);
+        managedToast.error("Failed to preserve conversations", {
+          description: "Your conversations may not have been transferred.",
+        });
+      } finally {
+        setIsGraduating(false);
+      }
+    };
+
+    handleGraduation();
+  }, [
+    authState,
+    userRecord,
+    graduateAnonymousUser,
+    isGraduating,
+    managedToast.success,
+    managedToast.error,
+  ]);
 
   const combinedValue = useMemo(() => {
     // Priority 1: Use fresh data from Convex query

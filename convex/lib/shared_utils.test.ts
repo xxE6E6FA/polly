@@ -50,7 +50,6 @@ describe("getAuthenticatedUserWithData", () => {
     const mockUser = {
       _id: "user-123" as Id<"users">,
       _creationTime: Date.now(),
-      isAnonymous: false,
     };
 
     const ctx = makeConvexCtx({
@@ -88,7 +87,6 @@ describe("validateAuthenticatedUser", () => {
     const mockUser = {
       _id: "user-123" as Id<"users">,
       _creationTime: Date.now(),
-      isAnonymous: false,
     };
 
     const ctx = makeConvexCtx({
@@ -130,8 +128,9 @@ describe("hasConversationAccess", () => {
       isArchived: false,
     };
 
-    const mockQuery = {
-      withIndex: mock(function() { return this; }),
+    // Shared conversations query chain
+    const sharedQueryChain = {
+      withIndex: mock(() => sharedQueryChain),
       first: mock(() => Promise.resolve(null)),
     };
 
@@ -141,7 +140,7 @@ describe("hasConversationAccess", () => {
       },
       db: {
         get: mock(() => Promise.resolve(mockConversation)),
-        query: mock(() => mockQuery),
+        query: mock(() => sharedQueryChain),
       },
     });
 
@@ -180,8 +179,9 @@ describe("hasConversationAccess", () => {
       originalConversationId: conversationId,
     };
 
-    const mockQuery = {
-      withIndex: mock(function() { return this; }),
+    // Shared conversations query chain (for non-"users" tables)
+    const sharedQueryChain = {
+      withIndex: mock(() => sharedQueryChain),
       first: mock(() => Promise.resolve(mockSharedConversation)),
     };
 
@@ -191,7 +191,7 @@ describe("hasConversationAccess", () => {
       },
       db: {
         get: mock(() => Promise.resolve(mockConversation)),
-        query: mock(() => mockQuery),
+        query: mock(() => sharedQueryChain),
       },
     });
 
@@ -218,8 +218,9 @@ describe("validateConversationAccess", () => {
       isArchived: false,
     };
 
-    const mockQuery = {
-      withIndex: mock(function() { return this; }),
+    // Shared conversations query chain (for non-"users" tables)
+    const sharedQueryChain = {
+      withIndex: mock(() => sharedQueryChain),
       first: mock(() => Promise.resolve(null)),
     };
 
@@ -229,7 +230,7 @@ describe("validateConversationAccess", () => {
       },
       db: {
         get: mock(() => Promise.resolve(mockConversation)),
-        query: mock(() => mockQuery),
+        query: mock(() => sharedQueryChain),
       },
     });
 

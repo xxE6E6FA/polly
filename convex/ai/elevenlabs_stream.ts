@@ -2,7 +2,7 @@ import { api, internal } from "../_generated/api";
 import type { Doc, Id } from "../_generated/dataModel";
 import { httpAction } from "../_generated/server";
 import { getApiKey } from "./encryption";
-import { getAuthUserId } from "@convex-dev/auth/server";
+import { getAuthUserId } from "../lib/auth";
 import {
   stripCodeAndAssets,
   chunkTextForStreaming,

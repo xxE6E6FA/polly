@@ -32,11 +32,6 @@ async function clearTable(
 async function clearDatabase() {
   const CLEAR_OPERATIONS = [
     { name: "users", mutation: "clearUsers" },
-    { name: "authAccounts", mutation: "clearAuthAccounts" },
-    { name: "authSessions", mutation: "clearAuthSessions" },
-    { name: "authVerificationCodes", mutation: "clearAuthVerificationCodes" },
-    { name: "authRefreshTokens", mutation: "clearAuthRefreshTokens" },
-    { name: "authRateLimits", mutation: "clearAuthRateLimits" },
     { name: "conversations", mutation: "clearConversations" },
     { name: "sharedConversations", mutation: "clearSharedConversations" },
     { name: "messages", mutation: "clearMessages" },

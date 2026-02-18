@@ -1,6 +1,6 @@
+import { useAuth } from "@clerk/clerk-react";
 import { api } from "@convex/_generated/api";
 import type { Doc } from "@convex/_generated/dataModel";
-import { useAuthToken } from "@convex-dev/auth/react";
 import { DEFAULT_BUILTIN_MODEL_ID } from "@shared/constants";
 import { useAction, useMutation, useQuery } from "convex/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -169,11 +169,20 @@ export function useChat({ conversationId, initialMessages }: UseChatParams) {
   }, [selectedModel]);
 
   // --- Chat Handlers ---
-  const authToken = useAuthToken();
-  const authRef = useRef<string | null | undefined>(authToken);
+  const { getToken } = useAuth();
+  const authRef = useRef<string | null | undefined>(null);
+  // Keep authRef updated with latest token
   useEffect(() => {
-    authRef.current = authToken;
-  }, [authToken]);
+    let cancelled = false;
+    getToken({ template: "convex" }).then(token => {
+      if (!cancelled) {
+        authRef.current = token;
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [getToken]);
 
   useEffect(() => {
     setMessages(initialMessages ?? []);
@@ -386,7 +395,7 @@ export function useChat({ conversationId, initialMessages }: UseChatParams) {
 
   // Check if we can save (private mode only)
   const canSave = useMemo(() => {
-    return !conversationId && messages.length > 0 && !user?.isAnonymous;
+    return !conversationId && messages.length > 0 && !!user;
   }, [conversationId, messages, user]);
 
   return {

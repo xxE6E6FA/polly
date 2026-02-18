@@ -258,7 +258,7 @@ export const UserIdCard = () => {
     [selectedImage]
   );
 
-  if (isLoading || !user || user.isAnonymous) {
+  if (isLoading || !user) {
     return null;
   }
 
