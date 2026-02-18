@@ -3,7 +3,7 @@ import type { Doc, Id } from "../../_generated/dataModel";
 import { ConvexError } from "convex/values";
 import { getAuthUserId } from "../auth";
 import type { CreateMessageArgs } from "../schemas";
-import { api } from "../../_generated/api";
+import { api, internal } from "../../_generated/api";
 import { mergeSystemPrompts } from "@shared/system-prompts";
 import { scheduleRunAfter } from "../scheduler";
 
@@ -122,7 +122,7 @@ export async function incrementUserMessageStats(
     }
 
     // Schedule increment off the critical path to reduce contention
-    await scheduleRunAfter(ctx, 50, api.users.incrementMessage, {
+    await scheduleRunAfter(ctx, 50, internal.users.incrementMessage, {
       userId,
       model,
       provider,

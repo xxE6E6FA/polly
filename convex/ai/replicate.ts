@@ -832,7 +832,7 @@ export const generateImage = action({
           { id: args.conversationId },
         );
         if (conversation?.userId) {
-          await scheduleRunAfter(ctx, 50, api.users.incrementMessage, {
+          await scheduleRunAfter(ctx, 50, internal.users.incrementMessage, {
             userId: conversation.userId,
             model: args.model,
             provider: "replicate",

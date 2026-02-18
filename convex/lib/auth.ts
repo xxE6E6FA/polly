@@ -17,8 +17,18 @@ export async function getAuthUserId(
 		return null;
 	}
 
-	// Clerk sets `subject` to the Clerk user ID (e.g. "user_2abc...")
 	const externalId = identity.subject;
+
+	// Enforce issuer-based namespace separation: tokens from the anonymous
+	// auth issuer must only resolve to anonymous users (externalId starts
+	// with "anon_"). This prevents a compromised anonymous auth key from
+	// being used to impersonate Clerk-authenticated users.
+	const anonIssuer = process.env.ANON_AUTH_ISSUER;
+	if (anonIssuer && identity.issuer === anonIssuer) {
+		if (!externalId.startsWith("anon_")) {
+			return null;
+		}
+	}
 
 	// For queries/mutations we can use ctx.db directly.
 	// For actions, ctx.db doesn't exist — use ctx.runQuery instead.

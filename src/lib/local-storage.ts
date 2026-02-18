@@ -146,6 +146,9 @@ export function clearUserData() {
     CACHE_KEYS.setupChecklistDismissed,
     CACHE_KEYS.userData,
     CACHE_KEYS.recentModels,
+    CACHE_KEYS.anonymousSession,
+    CACHE_KEYS.anonymousGraduationToken,
+    CACHE_KEYS.anonymousUserGraduation,
   ];
 
   userSpecificKeys.forEach(key => {

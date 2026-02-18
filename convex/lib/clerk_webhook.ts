@@ -98,7 +98,10 @@ export async function handleClerkUserCreated(
 			.withIndex("email", (q) => q.eq("email", email))
 			.first();
 
-		if (existingByEmail) {
+		if (existingByEmail && !existingByEmail.externalId) {
+			// Only merge if the existing user has no Clerk identity yet.
+			// Prevents account takeover if an attacker registers with a
+			// matching email address.
 			await ctx.db.patch(existingByEmail._id, {
 				externalId,
 				name: existingByEmail.name || name,

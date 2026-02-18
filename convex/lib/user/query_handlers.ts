@@ -8,15 +8,6 @@ import { getAuthenticatedUser } from "../shared_utils";
  * Handler for getting the current authenticated user.
  */
 export async function currentHandler(ctx: QueryCtx) {
-  // First try to get the authenticated user ID (works for both anonymous and regular users)
-  const identity = await ctx.auth.getUserIdentity();
-  // TODO: Remove after auth migration verified
-  if (!identity) {
-    console.warn("[currentHandler] No identity from getUserIdentity — JWT may not be validating");
-  } else {
-    console.log("[currentHandler] identity subject:", identity.subject);
-  }
-
   const userId = await getAuthUserId(ctx);
 
   if (userId) {

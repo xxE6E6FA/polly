@@ -39,7 +39,7 @@ export const current = query({
   handler: currentHandler,
 });
 
-export const incrementMessage = mutation({
+export const incrementMessage = internalMutation({
   args: {
     userId: v.id("users"),
     model: v.string(),
@@ -134,6 +134,12 @@ export const ensureUser = mutation({
 
     const externalId = identity.subject;
 
+    // Only Clerk-authenticated users can call ensureUser. Reject anonymous
+    // users to prevent them from self-promoting to bypass message limits.
+    if (externalId.startsWith("anon_")) {
+      throw new Error("Anonymous users cannot call ensureUser");
+    }
+
     // Check if user already exists by Clerk ID (webhook may have created it)
     const existingByExternalId = await ctx.db
       .query("users")
@@ -154,13 +160,20 @@ export const ensureUser = mutation({
         .unique();
 
       if (existingByEmail) {
-        await ctx.db.patch(existingByEmail._id, {
-          externalId,
-          name: identity.name ?? existingByEmail.name,
-          image: identity.pictureUrl ?? existingByEmail.image,
-          isAnonymous: false,
-        });
-        return await ctx.db.get(existingByEmail._id);
+        // Only merge if the existing user has no Clerk identity yet.
+        // This prevents an attacker with a matching email from hijacking
+        // an account that is already linked to a different Clerk user.
+        if (!existingByEmail.externalId) {
+          await ctx.db.patch(existingByEmail._id, {
+            externalId,
+            name: identity.name ?? existingByEmail.name,
+            image: identity.pictureUrl ?? existingByEmail.image,
+            isAnonymous: false,
+          });
+          return await ctx.db.get(existingByEmail._id);
+        }
+        // Existing user already has a different identity — don't merge,
+        // fall through to create a new user.
       }
     }
 
