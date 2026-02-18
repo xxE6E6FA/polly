@@ -5,7 +5,7 @@
 
 import { api } from "../_generated/api";
 import type { ActionCtx, MutationCtx, QueryCtx } from "../_generated/server";
-import { getAuthUserId } from "@convex-dev/auth/server";
+import { getAuthUserId } from "./auth";
 import { DEFAULT_BUILTIN_MODEL_ID } from "../../shared/constants";
 import { resolveModelCapabilities } from "./capability_resolver";
 

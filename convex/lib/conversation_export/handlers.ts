@@ -1,4 +1,4 @@
-import { getAuthUserId } from "@convex-dev/auth/server";
+import { getAuthUserId } from "../auth";
 import JSZip from "jszip";
 import { api, internal } from "../../_generated/api";
 import type { Id } from "../../_generated/dataModel";

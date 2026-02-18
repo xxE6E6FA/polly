@@ -1,5 +1,4 @@
 import { mock } from "bun:test";
-import type { GenericDatabaseReader, GenericDatabaseWriter } from "convex/server";
 
 /**
  * Minimal Convex context stub for testing backend functions.
@@ -66,15 +65,19 @@ type ConvexCtxOverrides = {
  * Create a mock query chain that mimics Convex query builder.
  * Provides minimal implementation for common query patterns.
  */
-function createQueryChain() {
+function createQueryChain(overrides?: {
+  uniqueResult?: unknown;
+  firstResult?: unknown;
+  collectResult?: unknown[];
+}) {
   const chain = {
     withIndex: mock(() => chain),
     filter: mock(() => chain),
     order: mock(() => chain),
     paginate: mock(() => Promise.resolve({ page: [], isDone: true, continueCursor: "" })),
-    first: mock(() => Promise.resolve(null)),
-    unique: mock(() => Promise.resolve(null)),
-    collect: mock(() => Promise.resolve([])),
+    first: mock(() => Promise.resolve(overrides?.firstResult ?? null)),
+    unique: mock(() => Promise.resolve(overrides?.uniqueResult ?? null)),
+    collect: mock(() => Promise.resolve(overrides?.collectResult ?? [])),
     take: mock(() => Promise.resolve([])),
   };
 
@@ -82,33 +85,88 @@ function createQueryChain() {
 }
 
 /**
+ * Create a table-aware query mock that handles auth + custom domain queries.
+ *
+ * Use this when your test overrides `db.query` for a specific domain table
+ * but still needs `getAuthUserId` to work (which queries "users").
+ *
+ * @param domainMock - Function handling non-"users" table queries
+ * @param userId - The user `_id` to return from auth lookup (default: "test-user-id")
+ */
+export function createAuthAwareQueryMock(
+  domainMock: (table: string) => unknown,
+  userId = "test-user-id" as unknown,
+) {
+  const authChain = createQueryChain({ uniqueResult: { _id: userId } });
+  return mock((table: string) => (table === "users" ? authChain : domainMock(table)));
+}
+
+/**
  * Create a minimal Convex context for testing.
  * All database and auth operations are mocked by default.
+ *
+ * The `db.query` mock is automatically table-aware:
+ * - Queries on "users" return a mock user so `getAuthUserId` works.
+ * - The returned `_id` matches the `subject` from the auth identity.
+ * - If you override `db.query`, it's automatically wrapped to still handle
+ *   the "users" table for auth. To opt out, also override `auth`.
  *
  * @param overrides - Override default mock implementations
  * @returns Mock Convex context
  */
 export function makeConvexCtx(overrides: ConvexCtxOverrides = {}): MockConvexContext {
-  const queryChain = createQueryChain();
+  // Build auth mock first so we can reference it in the query mock
+  const authMock: MockAuth = {
+    getUserIdentity: mock(() => Promise.resolve({
+      subject: "test-user-id",
+      name: "Test User",
+      email: "test@example.com",
+    })),
+    ...overrides.auth,
+  };
+
+  // Auth chain for getAuthUserId — dynamically resolves the user `_id` from
+  // whatever `subject` the auth identity returns, so tests that override
+  // `auth.getUserIdentity` with a custom `subject` still work correctly.
+  const authChain = createQueryChain();
+  authChain.unique = mock(async () => {
+    const identity = await authMock.getUserIdentity();
+    if (!identity) {
+      return null;
+    }
+    return { _id: identity.subject };
+  });
+
+  const defaultChain = createQueryChain();
+
+  // If the caller provides a custom db.query, wrap it to also handle "users" for auth.
+  // If they don't, use our default table-aware mock.
+  let queryMock: MockFn;
+  if (overrides.db?.query) {
+    const originalQuery = overrides.db.query;
+    queryMock = mock((table: string) => {
+      if (table === "users") {
+        return authChain;
+      }
+      return (originalQuery as (...args: unknown[]) => unknown)(table);
+    });
+  } else {
+    queryMock = mock((table: string) => (table === "users" ? authChain : defaultChain));
+  }
 
   const ctx: MockConvexContext = {
     db: {
       get: mock(() => Promise.resolve(null)),
-      query: mock(() => queryChain),
+      query: queryMock,
       insert: mock(() => Promise.resolve("mock-id" as any)),
       patch: mock(() => Promise.resolve(undefined)),
       replace: mock(() => Promise.resolve(undefined)),
       delete: mock(() => Promise.resolve(undefined)),
       ...overrides.db,
+      // Re-apply queryMock after spread since overrides.db.query would overwrite it
+      ...(overrides.db?.query ? { query: queryMock } : {}),
     },
-    auth: {
-      getUserIdentity: mock(() => Promise.resolve({
-        subject: "test-user-id",
-        name: "Test User",
-        email: "test@example.com",
-      })),
-      ...overrides.auth,
-    },
+    auth: authMock,
     storage: {
       generateUploadUrl: mock(() => Promise.resolve("mock-upload-url")),
       getUrl: mock(() => Promise.resolve("mock-file-url")),

@@ -352,7 +352,7 @@ export function ModelDrawerTabs({
               <SignInIcon className="size-4" />
               <span>
                 <span className="font-medium text-foreground group-hover:underline">
-                  Sign in
+                  Sign up
                 </span>{" "}
                 for higher limits, BYOK & more
               </span>

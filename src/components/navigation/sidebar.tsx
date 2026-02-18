@@ -453,7 +453,7 @@ export const Sidebar = ({ forceHidden = false }: { forceHidden?: boolean }) => {
                 </div>
 
                 <div className="flex items-center gap-1">
-                  {user && !user.isAnonymous && (
+                  {user && (
                     <Link to={ROUTES.FAVORITES}>
                       <Button
                         size="icon-sm"

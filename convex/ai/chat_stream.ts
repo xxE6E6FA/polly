@@ -1,4 +1,4 @@
-import { getAuthUserId } from "@convex-dev/auth/server";
+import { getAuthUserId } from "../lib/auth";
 import {
   convertToModelMessages,
   type ModelMessage,
@@ -14,6 +14,8 @@ import { mergeSystemPrompts } from "../../shared/system-prompts";
 import { api } from "../_generated/api";
 import { httpAction } from "../_generated/server";
 import { getBaselineInstructions } from "../constants";
+import type { Id } from "../_generated/dataModel";
+import type { ProviderType } from "../types";
 import {
   type IncomingUIMessage,
   buildCorsHeaders,
@@ -49,7 +51,24 @@ export const chatStream = httpAction(
     }
 
     try {
-      const body = await request.json();
+      const body = (await request.json()) as {
+        messages?: unknown[];
+        modelId?: string;
+        provider?: string;
+        temperature?: number;
+        _temperature?: number;
+        maxTokens?: number;
+        _maxTokens?: number;
+        topP?: number;
+        _topP?: number;
+        frequencyPenalty?: number;
+        _frequencyPenalty?: number;
+        presencePenalty?: number;
+        _presencePenalty?: number;
+        reasoningConfig?: Record<string, unknown>;
+        _reasoningConfig?: Record<string, unknown>;
+        personaId?: string;
+      };
       const {
         messages: rawMessages,
         modelId,
@@ -175,7 +194,7 @@ export const chatStream = httpAction(
       if (personaId) {
         try {
           const persona = await ctx.runQuery(api.personas.get, {
-            id: personaId,
+            id: personaId as Id<"personas">,
           });
           if (persona?.prompt) {
             personaPrompt = persona.prompt;
@@ -230,7 +249,7 @@ export const chatStream = httpAction(
       try {
         const languageModel = await createLanguageModel(
           ctx,
-          provider,
+          provider as ProviderType,
           modelId,
           apiKey,
           userId ?? undefined
@@ -319,14 +338,14 @@ export const chatStream = httpAction(
       // Enhanced error logging for debugging
       let requestInfo = {};
       try {
-        const requestBody = await request.json();
+        const requestBody = (await request.json()) as Record<string, unknown>;
         requestInfo = {
           provider: requestBody.provider,
           modelId: requestBody.modelId,
           hasTemperature: requestBody._temperature !== undefined,
           hasMaxTokens: requestBody._maxTokens !== undefined,
           hasReasoningConfig: requestBody._reasoningConfig !== undefined,
-          messageCount: requestBody.messages?.length,
+          messageCount: Array.isArray(requestBody.messages) ? requestBody.messages.length : undefined,
           personaId: requestBody.personaId,
         };
       } catch {

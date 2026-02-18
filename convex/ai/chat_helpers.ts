@@ -30,6 +30,7 @@ import {
   parseSearchNeedAssessment,
   parseSearchStrategy,
 } from "./search_detection";
+import { getAllowedOrigin } from "../lib/cors";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -48,14 +49,11 @@ export type IncomingFilePart =
 // ---------------------------------------------------------------------------
 
 export function buildCorsHeaders(request: Request): Record<string, string> {
-  const origin = request.headers.get("origin") || "*";
-  const reqAllowed =
-    request.headers.get("access-control-request-headers") ||
-    "Content-Type, Authorization";
+  const origin = getAllowedOrigin(request);
   const headers: Record<string, string> = {
     "Access-Control-Allow-Origin": origin,
     "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Access-Control-Allow-Headers": reqAllowed,
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
     "Access-Control-Allow-Credentials": "true",
     Vary: "Origin",
   };

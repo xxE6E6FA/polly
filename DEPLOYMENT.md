@@ -17,7 +17,7 @@ This guide covers deploying the Polly app to Vercel.
 3. Import your Git repository
 4. Configure environment variables:
    - `VITE_CONVEX_URL`: Your Convex deployment URL
-   - `GEMINI_API_KEY`: Google Gemini API key for PDF text extraction
+   - `VITE_CLERK_PUBLISHABLE_KEY`: Clerk publishable key (from Clerk Dashboard → API Keys)
 5. Click "Deploy"
 
 ### Option 2: Deploy via CLI
@@ -26,14 +26,16 @@ This guide covers deploying the Polly app to Vercel.
 2. Follow the prompts
 3. Set environment variables when prompted:
    - `VITE_CONVEX_URL`: Your Convex deployment URL
-   - `GEMINI_API_KEY`: Google Gemini API key for PDF text extraction
+   - `VITE_CLERK_PUBLISHABLE_KEY`: Clerk publishable key
 
 ## Environment Variables
 
 Required environment variables for production:
 
 - `VITE_CONVEX_URL`: Your Convex deployment URL (e.g., https://your-app.convex.cloud)
-- `GEMINI_API_KEY`: Google Gemini API key for PDF text extraction (required for PDF upload support)
+- `VITE_CLERK_PUBLISHABLE_KEY`: Clerk publishable key (`pk_live_...` for production)
+
+See [Environment Setup](docs/environment.md) for the full list including Convex backend variables.
 
 ## Post-Deployment
 
@@ -70,7 +72,7 @@ Required environment variables for production:
 
 ### Build Configuration
 
-The app uses Bun's bundler (configured in `scripts/build-frontend.ts`) which handles all dependencies correctly, including `@convex-dev/auth`. The frontend only imports from `@convex-dev/auth/react` (client-side code), while server-side auth code runs on Convex servers.
+The app uses Bun's bundler (configured in `scripts/build-frontend.ts`) which handles all dependencies correctly. Authentication is handled by Clerk (frontend) and validated via JWT on the Convex backend.
 
 ### Routing Issues
 

@@ -4,7 +4,7 @@ import type { Citation, ProviderType } from "../../types";
 import { ConvexError } from "convex/values";
 import { api, internal } from "../../_generated/api";
 
-import { getAuthUserId } from "@convex-dev/auth/server";
+import { getAuthUserId } from "../auth";
 import type { StreamingActionResult, MessageActionArgs } from "./types";
 import {
   createMessage,

@@ -1,8 +1,6 @@
-import { authTables } from "@convex-dev/auth/server";
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 import {
-  accountSchema,
   backgroundJobSchema,
   builtInImageModelSchema,
   builtInModelSchema,
@@ -13,7 +11,6 @@ import {
   modelsDevCacheSchema,
   pdfTextCacheSchema,
   personaSchema,
-  sessionSchema,
   sharedConversationSchema,
   userApiKeySchema,
   userFileSchema,
@@ -26,18 +23,9 @@ import {
 } from "./lib/schemas";
 
 export default defineSchema({
-  ...authTables,
-
-  users: defineTable(userSchema).index("email", ["email"]),
-
-  accounts: defineTable(accountSchema).index("by_provider_account", [
-    "provider",
-    "providerAccountId",
-  ]),
-
-  sessions: defineTable(sessionSchema).index("by_session_token", [
-    "sessionToken",
-  ]),
+  users: defineTable(userSchema)
+    .index("email", ["email"])
+    .index("byExternalId", ["externalId"]),
 
   conversations: defineTable(conversationSchema)
     .index("by_user_recent", ["userId", "updatedAt"])

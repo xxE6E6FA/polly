@@ -27,10 +27,7 @@ export const TTSTab = () => {
   const userSettings = useUserSettings();
   const updateUserSettings = useMutation(api.userSettings.updateUserSettings);
   const { user } = useUserDataContext();
-  const apiKeysRaw = useQuery(
-    api.apiKeys.getUserApiKeys,
-    user && !user.isAnonymous ? {} : "skip"
-  );
+  const apiKeysRaw = useQuery(api.apiKeys.getUserApiKeys, user ? {} : "skip");
   const apiKeys = isApiKeysArray(apiKeysRaw) ? apiKeysRaw : [];
 
   const hasElevenLabs = useMemo(() => {

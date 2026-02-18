@@ -123,7 +123,7 @@ export function ChatInputBottomBar({
     selectedModel,
     selectedImageModelSupportsInput: selectedImageModel?.supportsImageToImage,
     selectedImageModelIsFree: selectedImageModel?.free,
-    isAnonymous: user?.isAnonymous,
+    isAnonymous: !user,
     hideTemperaturePicker: userSettings?.showTemperaturePicker === false,
   });
 

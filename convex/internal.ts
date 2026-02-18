@@ -21,16 +21,6 @@ export const clearUsers = mutation({
   handler: async ctx => clearTable("users", ctx),
 });
 
-export const clearAccounts = mutation({
-  args: {},
-  handler: async ctx => clearTable("accounts", ctx),
-});
-
-export const clearSessions = mutation({
-  args: {},
-  handler: async ctx => clearTable("sessions", ctx),
-});
-
 export const clearConversations = mutation({
   args: {},
   handler: async ctx => clearTable("conversations", ctx),
@@ -114,55 +104,4 @@ export const clearUserPersonaSettings = mutation({
 export const clearUserSettings = mutation({
   args: {},
   handler: async ctx => clearTable("userSettings", ctx),
-});
-
-export const cleanupOrphanedAccounts = mutation({
-  args: {},
-  handler: async ctx => {
-    const accounts = await ctx.db.query("accounts").collect();
-    let deletedCount = 0;
-
-    for (const account of accounts) {
-      const user = await ctx.db.get("users", account.userId);
-      if (!user) {
-        // User doesn't exist, delete the orphaned account
-        await ctx.db.delete("accounts", account._id);
-        deletedCount++;
-        console.warn(
-          `Deleted orphaned account ${account._id} for non-existent user ${account.userId}`
-        );
-      }
-    }
-
-    return {
-      deletedCount,
-      message: `Cleaned up ${deletedCount} orphaned accounts`,
-    };
-  },
-});
-
-// Clear auth-related tables (with correct table names)
-export const clearAuthAccounts = mutation({
-  args: {},
-  handler: async ctx => clearTable("authAccounts", ctx),
-});
-
-export const clearAuthSessions = mutation({
-  args: {},
-  handler: async ctx => clearTable("authSessions", ctx),
-});
-
-export const clearAuthVerificationCodes = mutation({
-  args: {},
-  handler: async ctx => clearTable("authVerificationCodes", ctx),
-});
-
-export const clearAuthRefreshTokens = mutation({
-  args: {},
-  handler: async ctx => clearTable("authRefreshTokens", ctx),
-});
-
-export const clearAuthRateLimits = mutation({
-  args: {},
-  handler: async ctx => clearTable("authRateLimits", ctx),
 });

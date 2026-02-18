@@ -4,7 +4,8 @@ import { action, httpAction, internalAction } from "../_generated/server";
 import type { Doc, Id } from "../_generated/dataModel";
 import { getApiKey } from "./encryption";
 import { DEFAULT_BUILTIN_MODEL_ID } from "../../shared/constants";
-import { getAuthUserId } from "@convex-dev/auth/server";
+import { getAuthUserId } from "../lib/auth";
+import { getAllowedOrigin } from "../lib/cors";
 import dedent from "dedent";
 
 export function stripCodeAndAssets(input: string): string {
@@ -680,7 +681,7 @@ export const fetchAllTTSData = action({
 // Removed LLM→TTS legacy endpoint
 
 export const streamTTS = httpAction(async (ctx, request) => {
-  const origin = request.headers.get("Origin") || "*";
+  const origin = getAllowedOrigin(request);
   const corsHeadersBase: Record<string, string> = {
     "Access-Control-Allow-Origin": origin,
     "Access-Control-Allow-Methods": "GET, OPTIONS",
@@ -732,7 +733,7 @@ export const streamTTS = httpAction(async (ctx, request) => {
     if (exp && sig) {
       const signingSecret = process.env.API_KEY_ENCRYPTION_SECRET;
       if (!signingSecret) {
-        const origin = request.headers.get("Origin") || "*";
+        const origin = getAllowedOrigin(request);
         return new Response(JSON.stringify({ error: "Signing not configured" }), {
           status: 500,
           headers: {
@@ -745,7 +746,7 @@ export const streamTTS = httpAction(async (ctx, request) => {
       const now = Math.floor(Date.now() / 1000);
       const expNum = Number(exp);
       if (!Number.isFinite(expNum) || expNum < now) {
-        const origin = request.headers.get("Origin") || "*";
+        const origin = getAllowedOrigin(request);
         return new Response(JSON.stringify({ error: "URL expired" }), {
           status: 401,
           headers: {
@@ -769,7 +770,7 @@ export const streamTTS = httpAction(async (ctx, request) => {
         .map(b => b.toString(16).padStart(2, "0"))
         .join("");
       if (expectedHex !== sig) {
-        const origin = request.headers.get("Origin") || "*";
+        const origin = getAllowedOrigin(request);
         return new Response(JSON.stringify({ error: "Invalid signature" }), {
           status: 401,
           headers: {
@@ -823,7 +824,7 @@ export const streamTTS = httpAction(async (ctx, request) => {
 
     const messageDoc = message as Doc<"messages">;
     if (messageDoc.role !== "assistant") {
-      const origin = request.headers.get("Origin") || "*";
+      const origin = getAllowedOrigin(request);
       return new Response(JSON.stringify({ error: "TTS only for assistant messages" }), {
         status: 400,
         headers: {
@@ -842,7 +843,7 @@ export const streamTTS = httpAction(async (ctx, request) => {
     const conversationId = messageDoc.conversationId as Id<"conversations">;
     const apiKey = await getApiKey(ctx, "elevenlabs", undefined, conversationId);
     if (!apiKey) {
-      const origin = request.headers.get("Origin") || "*";
+      const origin = getAllowedOrigin(request);
       return new Response(JSON.stringify({ error: "No ElevenLabs API key configured" }), {
         status: 401,
         headers: {
@@ -890,7 +891,7 @@ export const streamTTS = httpAction(async (ctx, request) => {
     const normalizedOutputFormat = ensureOutputFormat(outputFormatParam || undefined, "mp3_44100_128");
 
     // Request Stitching: split text and sequentially stream stitched requests
-    const origin = request.headers.get("Origin") || "*";
+    const origin = getAllowedOrigin(request);
 
     // Join chunked text back together to keep payload within API limits while preserving pacing
     const scriptSegments = chunkTextForStreaming(prepared.text, {
@@ -1127,7 +1128,7 @@ export const streamTTS = httpAction(async (ctx, request) => {
       },
     });
   } catch (error) {
-    const origin = request.headers.get("Origin") || "*";
+    const origin = getAllowedOrigin(request);
     console.error("streamTTS error", {
       error: error instanceof Error ? error.message : String(error),
     });

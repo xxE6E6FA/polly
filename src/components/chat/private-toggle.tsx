@@ -6,11 +6,12 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { cn } from "@/lib/utils";
 import { usePrivateMode } from "@/providers/private-mode-context";
+import { useUserDataContext } from "@/providers/user-data-context";
 
 export const PrivateToggle = () => {
   const { isPrivateMode, togglePrivateMode } = usePrivateMode();
+  const { user } = useUserDataContext();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -20,6 +21,11 @@ export const PrivateToggle = () => {
     }
     togglePrivateMode();
   };
+
+  // Hide for anonymous users (no API keys for private mode)
+  if (user?.isAnonymous) {
+    return null;
+  }
 
   // Only show on home page when private mode is OFF
   // (can't make existing Convex conversations private)

@@ -120,7 +120,7 @@ describe("useVisibleControls", () => {
     expect(result.showReasoningPicker).toBe(true);
   });
 
-  it("should hide temperature picker for anonymous users", () => {
+  it("should hide temperature picker for guest users", () => {
     const result = useVisibleControls({
       generationMode: "text",
       isPrivateMode: false,
@@ -146,7 +146,7 @@ describe("useVisibleControls", () => {
     expect(result.showTemperaturePicker).toBe(false);
   });
 
-  it("should show temperature picker when user setting is enabled and not anonymous", () => {
+  it("should show temperature picker when user setting is enabled and authenticated", () => {
     const result = useVisibleControls({
       generationMode: "text",
       isPrivateMode: false,

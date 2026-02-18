@@ -270,7 +270,7 @@ export async function suggestSamplingHandler(
       content?: { parts?: Array<{ text?: string }> };
     }>;
   };
-  const data: GeminiResponse = await res.json();
+  const data = (await res.json()) as GeminiResponse;
   const raw = data?.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
   const cleaned = raw
     .replace(/^```(?:json)?/i, "")
@@ -379,7 +379,7 @@ ${args.prompt}`;
     throw new Error(`Gemini API error: ${response.status}`);
   }
 
-  const data = await response.json();
+  const data = (await response.json()) as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
   const improvedPrompt =
     data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
 

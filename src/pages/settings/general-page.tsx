@@ -1,6 +1,6 @@
+import { useClerk } from "@clerk/clerk-react";
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
-import { useAuthActions } from "@convex-dev/auth/react";
 import {
   DownloadSimpleIcon,
   GithubLogoIcon,
@@ -57,7 +57,7 @@ export default function GeneralPage() {
   const backgroundJobs = useBackgroundJobs();
   const managedToast = useToast();
   const convex = useConvex();
-  const { signOut } = useAuthActions();
+  const { signOut } = useClerk();
   const navigate = useNavigate();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isExportingData, startExportTransition] = useTransition();

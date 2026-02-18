@@ -1,5 +1,5 @@
 import { ConvexError } from "convex/values";
-import { getAuthUserId } from "@convex-dev/auth/server";
+import { getAuthUserId } from "./auth";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx, ActionCtx } from "../_generated/server";
 import { api } from "../_generated/api";

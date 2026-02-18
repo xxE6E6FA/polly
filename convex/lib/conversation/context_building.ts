@@ -1,7 +1,7 @@
 import type { ActionCtx } from "../../_generated/server";
 import type { Id } from "../../_generated/dataModel";
 import { api } from "../../_generated/api";
-import { getAuthUserId } from "@convex-dev/auth/server";
+import { getAuthUserId } from "../auth";
 import {
   getPersonaPrompt,
   mergeSystemPrompts,

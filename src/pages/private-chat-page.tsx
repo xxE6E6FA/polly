@@ -118,7 +118,7 @@ export default function PrivateChatPage() {
   }, [navigationState, privateChat, selectedModel, location.key, managedToast]);
 
   const canSave = useMemo(() => {
-    return privateChat.messages.length > 0 && !user?.isAnonymous && user?._id;
+    return privateChat.messages.length > 0 && !!user;
   }, [privateChat.messages, user]);
 
   const handleSavePrivateChat = useCallback(async () => {

@@ -187,12 +187,12 @@ export const extractPdfText = action({
     );
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
+      const errorData = await response.json().catch(() => ({})) as { error?: { message?: string } };
       const errorMessage = errorData.error?.message || `PDF extraction failed (HTTP ${response.status})`;
       throw new Error(errorMessage);
     }
 
-    const geminiResponse = await response.json();
+    const geminiResponse = await response.json() as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
 
     const firstCandidate = geminiResponse?.candidates?.[0];
     const parts = firstCandidate?.content?.parts ?? [];

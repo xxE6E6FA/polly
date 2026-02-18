@@ -1,6 +1,5 @@
 import { api } from "@convex/_generated/api";
 import type { Doc } from "@convex/_generated/dataModel";
-import { useAuthToken } from "@convex-dev/auth/react";
 import { DEFAULT_BUILTIN_MODEL_ID } from "@shared/constants";
 import { useAction, useMutation, useQuery } from "convex/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -169,11 +168,6 @@ export function useChat({ conversationId, initialMessages }: UseChatParams) {
   }, [selectedModel]);
 
   // --- Chat Handlers ---
-  const authToken = useAuthToken();
-  const authRef = useRef<string | null | undefined>(authToken);
-  useEffect(() => {
-    authRef.current = authToken;
-  }, [authToken]);
 
   useEffect(() => {
     setMessages(initialMessages ?? []);
@@ -203,7 +197,7 @@ export function useChat({ conversationId, initialMessages }: UseChatParams) {
         deleteMessage: deleteMessageMutation,
         stopGeneration: stopGenerationMutation,
       },
-      getAuthToken: () => authRef.current || null,
+      getAuthToken: () => null,
     };
     return createChatHandlers(mode, modelOptions);
   }, [
@@ -386,7 +380,7 @@ export function useChat({ conversationId, initialMessages }: UseChatParams) {
 
   // Check if we can save (private mode only)
   const canSave = useMemo(() => {
-    return !conversationId && messages.length > 0 && !user?.isAnonymous;
+    return !conversationId && messages.length > 0 && !!user;
   }, [conversationId, messages, user]);
 
   return {

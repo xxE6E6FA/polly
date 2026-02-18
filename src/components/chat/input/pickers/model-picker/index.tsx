@@ -87,7 +87,6 @@ const ModelPickerComponent = ({
     () =>
       Boolean(
         user &&
-          !user.isAnonymous &&
           monthlyUsage &&
           monthlyUsage.remainingMessages === 0 &&
           !hasUnlimitedCalls
@@ -182,7 +181,7 @@ const ModelPickerComponent = ({
   }
 
   // For anonymous users, show model picker with upsell banner
-  const isAnonymous = user?.isAnonymous ?? false;
+  const isAnonymous = !!user?.isAnonymous;
 
   // Model picker content (shared between mobile and desktop)
   const modelPickerContent = (

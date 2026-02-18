@@ -79,7 +79,7 @@ function createStub<T extends (...args: any[]) => any>(impl: T): Stub<T> {
 }
 
 setUserDataMock({
-  user: { _id: "user-1", isAnonymous: false },
+  user: { _id: "user-1" },
   canSendMessage: true,
 });
 

@@ -83,7 +83,7 @@ export default function FavoritesPage() {
   // Use Convex's native pagination for efficient data loading
   const { results, status, loadMore } = usePaginatedQuery(
     api.messages.listFavoritesPaginated,
-    user && !user.isAnonymous ? {} : "skip",
+    user ? {} : "skip",
     { initialNumItems: ITEMS_PER_PAGE }
   );
 
@@ -237,7 +237,7 @@ export default function FavoritesPage() {
         <div className="p-6 max-w-4xl mx-auto">
           <h1 className="text-lg font-semibold mb-2">Favorites</h1>
           <div className="text-sm text-muted-foreground">
-            Sign in to view your favorites.
+            Sign up to view your favorites.
           </div>
         </div>
       </div>

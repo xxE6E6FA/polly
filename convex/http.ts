@@ -1,4 +1,3 @@
-import { getAuthUserId } from "@convex-dev/auth/server";
 import { generateText, streamText } from "ai";
 import { httpRouter } from "convex/server";
 import type { Prediction } from "replicate";
@@ -26,13 +25,20 @@ import {
   getProviderStreamOptions,
 } from "./ai/server_streaming.js";
 import { processUrlsInMessage } from "./ai/url_processing.js";
-import { auth } from "./auth.js";
 import { chatStream } from "./chat.js";
 import { getBaselineInstructions } from "./constants.js";
+import {
+  buildJwks,
+  mintAnonymousToken,
+  verifyAnonymousToken,
+} from "./lib/anonymous_auth.js";
+import { getAuthUserId } from "./lib/auth.js";
+import { verifyClerkWebhook } from "./lib/clerk_webhook.js";
 import {
   getPersonaPrompt,
   mergeSystemPrompts,
 } from "./lib/conversation/message_handling.js";
+import { getAllowedOrigin } from "./lib/cors.js";
 import { processAttachmentsForLLM } from "./lib/process_attachments.js";
 import { scheduleRunAfter } from "./lib/scheduler.js";
 import { humanizeReasoningText } from "./lib/shared/stream_utils.js";
@@ -41,26 +47,103 @@ import { humanizeReasoningText } from "./lib/shared/stream_utils.js";
 
 const http = httpRouter();
 
-// Simple in-memory rate limiter (per user per minute)
+// Simple in-memory rate limiter (per key per minute).
+// Used for anonymous auth endpoint to prevent abuse.
 const RATE = new Map<string, { count: number; windowStart: number }>();
-const RATE_LIMIT_PER_MINUTE = 20;
+const ANON_AUTH_RATE_LIMIT = 10; // anonymous user creations per IP per minute
 
-function _rateLimitCheck(userId: string): boolean {
+function rateLimitCheck(key: string, limit: number): boolean {
   const now = Date.now();
-  const windowStart = Math.floor(now / 60000) * 60000; // current minute
-  const entry = RATE.get(userId);
+  const windowStart = Math.floor(now / 60000) * 60000;
+
+  // Evict stale entries periodically to prevent unbounded growth
+  if (RATE.size > 10_000) {
+    for (const [k, entry] of RATE) {
+      if (entry.windowStart < windowStart) {
+        RATE.delete(k);
+      }
+    }
+  }
+
+  const entry = RATE.get(key);
   if (!entry || entry.windowStart !== windowStart) {
-    RATE.set(userId, { count: 1, windowStart });
+    RATE.set(key, { count: 1, windowStart });
     return true;
   }
-  if (entry.count >= RATE_LIMIT_PER_MINUTE) {
+  if (entry.count >= limit) {
     return false;
   }
   entry.count++;
   return true;
 }
 
-auth.addHttpRoutes(http);
+// Clerk webhook endpoint for user sync
+const clerkWebhook = httpAction(async (ctx, request): Promise<Response> => {
+  try {
+    const rawBody = await request.text();
+    if (!rawBody) {
+      return new Response("Bad Request", { status: 400 });
+    }
+
+    // Verify webhook signature using svix
+    let event;
+    try {
+      event = verifyClerkWebhook(rawBody, {
+        "svix-id": request.headers.get("svix-id"),
+        "svix-timestamp": request.headers.get("svix-timestamp"),
+        "svix-signature": request.headers.get("svix-signature"),
+      });
+    } catch {
+      console.error("[Clerk Webhook] Invalid signature");
+      return new Response("Unauthorized", { status: 401 });
+    }
+
+    const { type, data } = event;
+
+    if (type === "user.created") {
+      await ctx.runMutation(internal.clerk.handleWebhookUserCreated, {
+        clerkUserId: data.id,
+        email: undefined,
+        firstName: data.first_name ?? undefined,
+        lastName: data.last_name ?? undefined,
+        imageUrl: data.image_url ?? undefined,
+        primaryEmailAddressId: data.primary_email_address_id ?? undefined,
+        emailAddresses: data.email_addresses?.map(e => ({
+          email_address: e.email_address,
+          id: e.id,
+        })),
+      });
+    } else if (type === "user.updated") {
+      await ctx.runMutation(internal.clerk.handleWebhookUserUpdated, {
+        clerkUserId: data.id,
+        email: undefined,
+        firstName: data.first_name ?? undefined,
+        lastName: data.last_name ?? undefined,
+        imageUrl: data.image_url ?? undefined,
+        primaryEmailAddressId: data.primary_email_address_id ?? undefined,
+        emailAddresses: data.email_addresses?.map(e => ({
+          email_address: e.email_address,
+          id: e.id,
+        })),
+      });
+    } else if (type === "user.deleted") {
+      await ctx.runMutation(internal.clerk.handleWebhookUserDeleted, {
+        clerkUserId: data.id,
+      });
+    }
+
+    return new Response("OK", { status: 200 });
+  } catch (error) {
+    console.error("[Clerk Webhook] Error:", error);
+    return new Response("Internal Server Error", { status: 500 });
+  }
+});
+
+http.route({
+  path: "/clerk-users-webhook",
+  method: "POST",
+  handler: clerkWebhook,
+});
 
 // Add chat streaming endpoint for AI SDK
 http.route({
@@ -156,19 +239,17 @@ const replicateWebhook = httpAction(async (ctx, request): Promise<Response> => {
       return new Response("Bad Request", { status: 400 });
     }
 
-    // Verify webhook signature for security
+    // Verify webhook signature — always required.
+    // Without this, any caller who knows the endpoint URL can inject
+    // arbitrary prediction payloads.
     const signature = request.headers.get("replicate-signature");
-    if (signature) {
-      const isValid = await verifyReplicateSignature(rawBody, signature);
-      if (!isValid) {
-        console.error("[Replicate Webhook] Invalid signature");
-        return new Response("Unauthorized", { status: 401 });
-      }
-    } else if (process.env.REPLICATE_WEBHOOK_SECRET) {
-      // If secret is configured but no signature provided, reject
-      console.error(
-        "[Replicate Webhook] Missing signature when secret is configured"
-      );
+    if (!signature) {
+      console.error("[Replicate Webhook] Missing signature");
+      return new Response("Unauthorized", { status: 401 });
+    }
+    const isValid = await verifyReplicateSignature(rawBody, signature);
+    if (!isValid) {
+      console.error("[Replicate Webhook] Invalid signature");
       return new Response("Unauthorized", { status: 401 });
     }
 
@@ -224,22 +305,149 @@ http.route({
   handler: replicateWebhook,
 });
 
-// Add OPTIONS support for Replicate webhook CORS
+// No CORS preflight needed for Replicate webhook — server-to-server only.
+
+// ---------------------------------------------------------------------------
+// Anonymous auth endpoints
+// ---------------------------------------------------------------------------
+
+function buildAuthCorsHeaders(request: Request) {
+  return {
+    "Access-Control-Allow-Origin": getAllowedOrigin(request),
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type",
+    Vary: "Origin",
+  };
+}
+
+// JWKS endpoint — serves the public key so Convex can validate anonymous JWTs
+const jwksEndpoint = httpAction(async (_ctx, request) => {
+  const publicKeyPem = process.env.ANON_AUTH_PUBLIC_KEY;
+  if (!publicKeyPem) {
+    return new Response("JWKS not configured", { status: 500 });
+  }
+
+  const jwks = await buildJwks(publicKeyPem);
+
+  return new Response(JSON.stringify(jwks), {
+    status: 200,
+    headers: {
+      ...buildAuthCorsHeaders(request),
+      "Content-Type": "application/json",
+      "Cache-Control": "public, max-age=3600",
+    },
+  });
+});
+
 http.route({
-  path: "/webhooks/replicate",
+  path: "/.well-known/jwks.json",
+  method: "GET",
+  handler: jwksEndpoint,
+});
+
+http.route({
+  path: "/.well-known/jwks.json",
   method: "OPTIONS",
-  handler: httpAction(() => {
-    return Promise.resolve(
+  handler: httpAction((_ctx, request) =>
+    Promise.resolve(
       new Response(null, {
         status: 200,
-        headers: {
-          "Access-Control-Allow-Origin": "*",
-          "Access-Control-Allow-Methods": "POST, OPTIONS",
-          "Access-Control-Allow-Headers": "Content-Type, Replicate-Signature",
-        },
+        headers: buildAuthCorsHeaders(request),
       })
-    );
-  }),
+    )
+  ),
+});
+
+// POST /auth/anonymous — create anonymous user + mint JWT (or refresh)
+const anonymousAuthEndpoint = httpAction(
+  async (ctx, request): Promise<Response> => {
+    // Rate-limit by IP to prevent abuse (anonymous creation is unauthenticated)
+    const clientIp =
+      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+      "unknown";
+    if (!rateLimitCheck(`anon:${clientIp}`, ANON_AUTH_RATE_LIMIT)) {
+      return new Response("Too Many Requests", {
+        status: 429,
+        headers: buildAuthCorsHeaders(request),
+      });
+    }
+
+    const privateKeyPem = process.env.ANON_AUTH_PRIVATE_KEY;
+    const issuer = process.env.ANON_AUTH_ISSUER;
+
+    if (!(privateKeyPem && issuer)) {
+      return new Response("Anonymous auth not configured", { status: 500 });
+    }
+
+    const publicKeyPem = process.env.ANON_AUTH_PUBLIC_KEY;
+    let externalId: string | null = null;
+
+    // Check for refresh: if a token is provided, verify its signature and
+    // extract the subject. This prevents forged tokens from being used to
+    // impersonate other users.
+    try {
+      const body = await request.text();
+      if (body && publicKeyPem) {
+        const parsed = JSON.parse(body);
+        if (parsed.token) {
+          externalId = await verifyAnonymousToken(
+            parsed.token,
+            publicKeyPem,
+            issuer
+          );
+        }
+      }
+    } catch {
+      // No valid body or token — create a new user
+    }
+
+    // If refreshing, verify the user still exists and is anonymous
+    if (externalId) {
+      const isValidAnon = await ctx.runQuery(
+        internal.users.internalIsAnonymousUser,
+        { externalId }
+      );
+      if (!isValidAnon) {
+        // User was deleted, doesn't exist, or isn't anonymous — create a new one
+        externalId = null;
+      }
+    }
+
+    // Create new anonymous user if needed
+    if (!externalId) {
+      externalId = `anon_${crypto.randomUUID()}`;
+      await ctx.runMutation(internal.users.createAnonymousUser, { externalId });
+    }
+
+    const token = await mintAnonymousToken(privateKeyPem, issuer, externalId);
+
+    return new Response(JSON.stringify({ token, externalId }), {
+      status: 200,
+      headers: {
+        ...buildAuthCorsHeaders(request),
+        "Content-Type": "application/json",
+      },
+    });
+  }
+);
+
+http.route({
+  path: "/auth/anonymous",
+  method: "POST",
+  handler: anonymousAuthEndpoint,
+});
+
+http.route({
+  path: "/auth/anonymous",
+  method: "OPTIONS",
+  handler: httpAction((_ctx, request) =>
+    Promise.resolve(
+      new Response(null, {
+        status: 200,
+        headers: buildAuthCorsHeaders(request),
+      })
+    )
+  ),
 });
 
 export default http;

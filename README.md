@@ -14,9 +14,11 @@ Modern AI chat application built with React Router v7, Convex, and Vercel's AI S
 2. **Environment Setup**
 
    ```bash
-   cp .env .env.local
-   # Edit .env.local and set VITE_CONVEX_URL
+   cp .env.example .env.local
+   # Edit .env.local and set VITE_CONVEX_URL + VITE_CLERK_PUBLISHABLE_KEY
    ```
+
+   See [Environment Setup](docs/environment.md) for Clerk and Convex backend variables.
 
 3. **Start Development**
 

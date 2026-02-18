@@ -88,7 +88,7 @@ type UserDataMockRegistry = {
 };
 
 const userDataMockRegistry: UserDataMockRegistry = {
-  user: { _id: "test-user", isAnonymous: false },
+  user: { _id: "test-user" },
   canSendMessage: true,
   hasMessageLimit: false,
   hasUnlimitedCalls: true,
@@ -112,7 +112,7 @@ export function setUserDataMock(data: Partial<UserDataMockRegistry>) {
  * Reset user data mock to defaults
  */
 export function resetUserDataMock() {
-  userDataMockRegistry.user = { _id: "test-user", isAnonymous: false };
+  userDataMockRegistry.user = { _id: "test-user" };
   userDataMockRegistry.canSendMessage = true;
   userDataMockRegistry.hasMessageLimit = false;
   userDataMockRegistry.hasUnlimitedCalls = true;

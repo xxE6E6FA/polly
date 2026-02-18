@@ -15,11 +15,14 @@ const mockUseSelectedModel = mock(() => ({
 // Import the module to spy on
 const selectedModelModule = await import("@/hooks/use-selected-model");
 
-// Mock the useAuthToken hook using spyOn instead of mock.module
-const mockUseAuthToken = mock(() => "test-auth-token");
+// Mock the useAuth hook from Clerk using spyOn
+const mockUseAuth = mock(() => ({
+  getToken: mock(async () => "test-auth-token"),
+  isSignedIn: true,
+}));
 
 // Import the module to spy on
-const authModule = await import("@convex-dev/auth/react");
+const authModule = await import("@clerk/clerk-react");
 
 describe("mapServerMessageToChatMessage", () => {
   test("converts Convex message to chat message", () => {
@@ -85,7 +88,7 @@ describe("mapServerMessageToChatMessage", () => {
 describe("useChat", () => {
   beforeEach(() => {
     setUserDataMock({
-      user: { _id: "user-123", isAnonymous: false },
+      user: { _id: "user-123" },
       canSendMessage: true,
     });
 
@@ -93,7 +96,7 @@ describe("useChat", () => {
     spyOn(selectedModelModule, "useSelectedModel").mockReturnValue(
       mockUseSelectedModel()
     );
-    spyOn(authModule, "useAuthToken").mockReturnValue(mockUseAuthToken());
+    spyOn(authModule, "useAuth").mockReturnValue(mockUseAuth());
   });
 
   describe("initialization", () => {
@@ -260,9 +263,9 @@ describe("useChat", () => {
       expect(result.current.canSave).toBe(true);
     });
 
-    test("disables save for anonymous users", () => {
+    test("disables save for unauthenticated users", () => {
       setUserDataMock({
-        user: { _id: "user-123", isAnonymous: true },
+        user: null,
       });
       setConvexMock({});
 

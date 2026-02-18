@@ -3,7 +3,6 @@
  * The extraction action lives in memory_actions.ts (requires "use node").
  */
 
-import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import {
   internalMutation,
@@ -11,6 +10,7 @@ import {
   mutation,
   query,
 } from "./_generated/server";
+import { getAuthUserId } from "./lib/auth";
 import {
   createEmptyPaginationResult,
   paginationOptsSchema,
