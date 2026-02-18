@@ -2,6 +2,7 @@ import { Webhook } from "svix";
 import type { Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
 import { MONTHLY_MESSAGE_LIMIT } from "../../shared/constants";
+import { cascadeDeleteUserData } from "./user/mutation_handlers";
 
 /**
  * Clerk webhook event types we handle.
@@ -195,11 +196,6 @@ export async function handleClerkUserDeleted(
 		return;
 	}
 
-	// Reuse the existing deleteAccountHandler logic by importing it
-	// We can't call it directly since it uses getAuthenticatedUser which checks auth.
-	// Instead, we'll delete the user document. Full cascade delete can be
-	// handled by a scheduled cleanup or by calling the internal mutation.
-	// For now, just delete the user document — account deletion via settings
-	// page already handles full cascade.
-	await ctx.db.delete(user._id);
+	// Cascade-delete all user data (conversations, messages, settings, etc.)
+	await cascadeDeleteUserData(ctx, user._id);
 }

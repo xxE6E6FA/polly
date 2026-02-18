@@ -13,7 +13,7 @@ import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { createInterface } from "node:readline";
-import { exportPKCS8, exportSPKI, generateKeyPair } from "jose";
+import { exportJWK, exportPKCS8, exportSPKI, generateKeyPair } from "jose";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -100,6 +100,7 @@ const ANON_AUTH_VARS = [
   "ANON_AUTH_PRIVATE_KEY",
   "ANON_AUTH_PUBLIC_KEY",
   "ANON_AUTH_ISSUER",
+  "ANON_AUTH_JWKS_BASE64",
 ] as const;
 
 const OPTIONAL_VARS = [
@@ -191,6 +192,17 @@ async function main() {
 
       console.log("  Setting ANON_AUTH_ISSUER...");
       envSet("ANON_AUTH_ISSUER", issuer);
+
+      // Build JWKS and store as base64 for auth.config.ts data URI.
+      // Convex can't fetch JWKS from its own HTTP endpoints (loopback).
+      const jwk = await exportJWK(publicKey);
+      const jwks = JSON.stringify({
+        keys: [{ ...jwk, alg: "RS256", use: "sig", kid: "anon-auth-1" }],
+      });
+      const jwksBase64 = Buffer.from(jwks).toString("base64");
+
+      console.log("  Setting ANON_AUTH_JWKS_BASE64...");
+      envSet("ANON_AUTH_JWKS_BASE64", jwksBase64);
 
       console.log("  ✓ Anonymous auth configured");
     }

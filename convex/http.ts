@@ -38,6 +38,7 @@ import {
   getPersonaPrompt,
   mergeSystemPrompts,
 } from "./lib/conversation/message_handling.js";
+import { getAllowedOrigin } from "./lib/cors.js";
 import { processAttachmentsForLLM } from "./lib/process_attachments.js";
 import { scheduleRunAfter } from "./lib/scheduler.js";
 import { humanizeReasoningText } from "./lib/shared/stream_utils.js";
@@ -317,14 +318,17 @@ http.route({
 // Anonymous auth endpoints
 // ---------------------------------------------------------------------------
 
-const CORS_HEADERS = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type",
-};
+function buildAuthCorsHeaders(request: Request) {
+  return {
+    "Access-Control-Allow-Origin": getAllowedOrigin(request),
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type",
+    Vary: "Origin",
+  };
+}
 
 // JWKS endpoint — serves the public key so Convex can validate anonymous JWTs
-const jwksEndpoint = httpAction(async () => {
+const jwksEndpoint = httpAction(async (_ctx, request) => {
   const publicKeyPem = process.env.ANON_AUTH_PUBLIC_KEY;
   if (!publicKeyPem) {
     return new Response("JWKS not configured", { status: 500 });
@@ -335,7 +339,7 @@ const jwksEndpoint = httpAction(async () => {
   return new Response(JSON.stringify(jwks), {
     status: 200,
     headers: {
-      ...CORS_HEADERS,
+      ...buildAuthCorsHeaders(request),
       "Content-Type": "application/json",
       "Cache-Control": "public, max-age=3600",
     },
@@ -351,8 +355,13 @@ http.route({
 http.route({
   path: "/.well-known/jwks.json",
   method: "OPTIONS",
-  handler: httpAction(() =>
-    Promise.resolve(new Response(null, { status: 200, headers: CORS_HEADERS }))
+  handler: httpAction((_ctx, request) =>
+    Promise.resolve(
+      new Response(null, {
+        status: 200,
+        headers: buildAuthCorsHeaders(request),
+      })
+    )
   ),
 });
 
@@ -411,7 +420,7 @@ const anonymousAuthEndpoint = httpAction(
     return new Response(JSON.stringify({ token, externalId }), {
       status: 200,
       headers: {
-        ...CORS_HEADERS,
+        ...buildAuthCorsHeaders(request),
         "Content-Type": "application/json",
       },
     });
@@ -427,8 +436,13 @@ http.route({
 http.route({
   path: "/auth/anonymous",
   method: "OPTIONS",
-  handler: httpAction(() =>
-    Promise.resolve(new Response(null, { status: 200, headers: CORS_HEADERS }))
+  handler: httpAction((_ctx, request) =>
+    Promise.resolve(
+      new Response(null, {
+        status: 200,
+        headers: buildAuthCorsHeaders(request),
+      })
+    )
   ),
 });
 

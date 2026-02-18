@@ -25,6 +25,7 @@ import { createDefaultConversationFields } from "./lib/shared_utils";
 import {
   deleteAccountHandler,
   incrementMessageHandler,
+  internalDeleteUserDataHandler,
   internalPatchHandler,
   updateProfileHandler,
 } from "./lib/user/mutation_handlers";
@@ -65,6 +66,14 @@ export const internalPatch = internalMutation({
     updates: v.any(),
   },
   handler: internalPatchHandler,
+});
+
+/**
+ * Cascade-delete all user data. Used by Clerk user.deleted webhook.
+ */
+export const internalDeleteUserData = internalMutation({
+  args: { userId: v.id("users") },
+  handler: internalDeleteUserDataHandler,
 });
 
 export const internalGetById = internalQuery({
@@ -154,10 +163,12 @@ export const ensureUser = mutation({
     // If found, link the existing user to the new Clerk identity.
     const email = identity.email;
     if (email) {
+      // Use .first() — email is not a unique constraint, duplicates are possible
+      // (e.g. old auth migration). .unique() would throw on duplicates.
       const existingByEmail = await ctx.db
         .query("users")
         .withIndex("email", q => q.eq("email", email))
-        .unique();
+        .first();
 
       if (existingByEmail) {
         // Only merge if the existing user has no Clerk identity yet.
@@ -283,6 +294,46 @@ export const internalGraduateAnonymousUser = internalMutation({
       await ctx.db.patch(msg._id, { userId: callerUser._id });
     }
 
+    // Transfer user files
+    const userFiles = await ctx.db
+      .query("userFiles")
+      .withIndex("by_user_created", q => q.eq("userId", anonymousUserId))
+      .collect();
+
+    for (const file of userFiles) {
+      await ctx.db.patch(file._id, { userId: callerUser._id });
+    }
+
+    // Merge message counters
+    await ctx.db.patch(callerUser._id, {
+      messagesSent:
+        (callerUser.messagesSent || 0) + (anonUser.messagesSent || 0),
+      monthlyMessagesSent:
+        (callerUser.monthlyMessagesSent || 0) +
+        (anonUser.monthlyMessagesSent || 0),
+      totalMessageCount:
+        (callerUser.totalMessageCount || 0) + (anonUser.totalMessageCount || 0),
+      conversationCount:
+        (callerUser.conversationCount || 0) + conversations.length,
+    });
+
+    // Clean up orphaned anonymous user data (settings, memories)
+    const anonSettings = await ctx.db
+      .query("userSettings")
+      .withIndex("by_user", q => q.eq("userId", anonymousUserId))
+      .collect();
+    for (const s of anonSettings) {
+      await ctx.db.delete(s._id);
+    }
+
+    const anonMemories = await ctx.db
+      .query("userMemories")
+      .withIndex("by_user", q => q.eq("userId", anonymousUserId))
+      .collect();
+    for (const m of anonMemories) {
+      await ctx.db.delete(m._id);
+    }
+
     // Delete the anonymous user
     await ctx.db.delete(anonymousUserId);
 
@@ -329,7 +380,7 @@ export const graduateAnonymousUser = action({
       issuer
     );
     if (!anonymousExternalId) {
-      return { conversationsTransferred: 0, messagesTransferred: 0 };
+      throw new Error("Invalid or expired anonymous token");
     }
 
     return ctx.runMutation(internal.users.internalGraduateAnonymousUser, {
@@ -362,16 +413,49 @@ export const importGuestConversations = mutation({
     ),
   },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+
+    // Reject anonymous users — import is for Clerk-authenticated users only
+    if (identity.subject.startsWith("anon_")) {
+      throw new Error("Anonymous users cannot import conversations");
+    }
+
     const userId = await getAuthUserId(ctx);
     if (!userId) {
       throw new Error("Not authenticated");
     }
 
+    // Input bounds to prevent abuse
+    const MAX_CONVERSATIONS = 50;
+    const MAX_MESSAGES_PER_CONVERSATION = 200;
+    const MAX_CONTENT_LENGTH = 100_000;
+
+    if (args.conversations.length > MAX_CONVERSATIONS) {
+      throw new Error(`Too many conversations (max ${MAX_CONVERSATIONS})`);
+    }
+
     const importedIds: string[] = [];
 
     for (const conv of args.conversations) {
+      if (conv.messages.length > MAX_MESSAGES_PER_CONVERSATION) {
+        throw new Error(
+          `Too many messages in conversation (max ${MAX_MESSAGES_PER_CONVERSATION})`
+        );
+      }
+
+      for (const msg of conv.messages) {
+        if (msg.content.length > MAX_CONTENT_LENGTH) {
+          throw new Error(
+            `Message content too long (max ${MAX_CONTENT_LENGTH})`
+          );
+        }
+      }
+
       const fields = createDefaultConversationFields(userId, {
-        title: conv.title,
+        title: conv.title.slice(0, 500),
       });
 
       const conversationId = await ctx.db.insert("conversations", fields);

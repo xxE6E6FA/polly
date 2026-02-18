@@ -1,4 +1,3 @@
-import { useAuth } from "@clerk/clerk-react";
 import { api } from "@convex/_generated/api";
 import type { Doc } from "@convex/_generated/dataModel";
 import { DEFAULT_BUILTIN_MODEL_ID } from "@shared/constants";
@@ -169,20 +168,6 @@ export function useChat({ conversationId, initialMessages }: UseChatParams) {
   }, [selectedModel]);
 
   // --- Chat Handlers ---
-  const { getToken } = useAuth();
-  const authRef = useRef<string | null | undefined>(null);
-  // Keep authRef updated with latest token
-  useEffect(() => {
-    let cancelled = false;
-    getToken({ template: "convex" }).then(token => {
-      if (!cancelled) {
-        authRef.current = token;
-      }
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [getToken]);
 
   useEffect(() => {
     setMessages(initialMessages ?? []);
@@ -212,7 +197,7 @@ export function useChat({ conversationId, initialMessages }: UseChatParams) {
         deleteMessage: deleteMessageMutation,
         stopGeneration: stopGenerationMutation,
       },
-      getAuthToken: () => authRef.current || null,
+      getAuthToken: () => null,
     };
     return createChatHandlers(mode, modelOptions);
   }, [

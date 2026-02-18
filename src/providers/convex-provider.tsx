@@ -188,7 +188,9 @@ function useAuthWithAnonymous() {
             scheduleRefresh(newSession.expiresAt);
             return newSession.token;
           } catch {
-            // Return existing token and hope for the best
+            // Refresh failed — clear session so initAnonymousAuth re-runs
+            clearAnonymousSession();
+            return null;
           }
         }
         return anonToken;
