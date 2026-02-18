@@ -268,6 +268,19 @@ export async function cascadeDeleteUserData(
     await ctx.db.delete("userMemories", memory._id);
   }
 
+  const userFiles = await ctx.db
+    .query("userFiles")
+    .withIndex("by_user_created", q => q.eq("userId", userId))
+    .collect();
+  for (const file of userFiles) {
+    try {
+      await ctx.storage.delete(file.storageId);
+    } catch (error) {
+      console.warn(`Failed to delete storage for file ${file.name}:`, error);
+    }
+    await ctx.db.delete("userFiles", file._id);
+  }
+
   await ctx.db.delete("users", userId);
 
   return { deletedConversations: conversations.length };

@@ -14,7 +14,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { CACHE_KEYS, get, set } from "@/lib/local-storage";
+import { CACHE_KEYS, del, get, set } from "@/lib/local-storage";
 import { isApiKeysArray } from "@/lib/type-guards";
 import { useToast } from "@/providers/toast-context";
 
@@ -248,6 +248,11 @@ export const UserDataProvider: React.FC<{ children: React.ReactNode }> = ({
       return;
     }
 
+    // Clear token immediately before the async call to minimize the window
+    // where it's readable from localStorage (reduces XSS exposure).
+    del(CACHE_KEYS.anonymousGraduationToken);
+    del(CACHE_KEYS.anonymousUserGraduation);
+
     const handleGraduation = async () => {
       setIsGraduating(true);
       try {
@@ -255,17 +260,12 @@ export const UserDataProvider: React.FC<{ children: React.ReactNode }> = ({
           anonymousToken: storedAnonToken,
         });
 
-        set(CACHE_KEYS.anonymousGraduationToken, null);
-        set(CACHE_KEYS.anonymousUserGraduation, null);
-
         if (result && result.conversationsTransferred > 0) {
           managedToast.success("Welcome back!", {
             description: "Your anonymous conversations have been preserved.",
           });
         }
       } catch (_error) {
-        set(CACHE_KEYS.anonymousGraduationToken, null);
-        set(CACHE_KEYS.anonymousUserGraduation, null);
         managedToast.error("Failed to preserve conversations", {
           description: "Your conversations may not have been transferred.",
         });

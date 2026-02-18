@@ -36,7 +36,9 @@ function parseTokenExpiry(token: string): number {
   try {
     const parts = token.split(".");
     if (parts.length === 3 && parts[1]) {
-      const payload = JSON.parse(atob(parts[1]));
+      // JWT uses base64url encoding — convert to standard base64 for atob
+      const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+      const payload = JSON.parse(atob(base64));
       if (typeof payload.exp === "number") {
         return payload.exp * 1000; // Convert seconds to ms
       }

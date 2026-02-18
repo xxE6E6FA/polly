@@ -47,19 +47,30 @@ import { humanizeReasoningText } from "./lib/shared/stream_utils.js";
 
 const http = httpRouter();
 
-// Simple in-memory rate limiter (per user per minute)
+// Simple in-memory rate limiter (per key per minute).
+// Used for anonymous auth endpoint to prevent abuse.
 const RATE = new Map<string, { count: number; windowStart: number }>();
-const RATE_LIMIT_PER_MINUTE = 20;
+const ANON_AUTH_RATE_LIMIT = 10; // anonymous user creations per IP per minute
 
-function _rateLimitCheck(userId: string): boolean {
+function rateLimitCheck(key: string, limit: number): boolean {
   const now = Date.now();
-  const windowStart = Math.floor(now / 60000) * 60000; // current minute
-  const entry = RATE.get(userId);
+  const windowStart = Math.floor(now / 60000) * 60000;
+
+  // Evict stale entries periodically to prevent unbounded growth
+  if (RATE.size > 10_000) {
+    for (const [k, entry] of RATE) {
+      if (entry.windowStart < windowStart) {
+        RATE.delete(k);
+      }
+    }
+  }
+
+  const entry = RATE.get(key);
   if (!entry || entry.windowStart !== windowStart) {
-    RATE.set(userId, { count: 1, windowStart });
+    RATE.set(key, { count: 1, windowStart });
     return true;
   }
-  if (entry.count >= RATE_LIMIT_PER_MINUTE) {
+  if (entry.count >= limit) {
     return false;
   }
   entry.count++;
@@ -228,19 +239,17 @@ const replicateWebhook = httpAction(async (ctx, request): Promise<Response> => {
       return new Response("Bad Request", { status: 400 });
     }
 
-    // Verify webhook signature for security
+    // Verify webhook signature — always required.
+    // Without this, any caller who knows the endpoint URL can inject
+    // arbitrary prediction payloads.
     const signature = request.headers.get("replicate-signature");
-    if (signature) {
-      const isValid = await verifyReplicateSignature(rawBody, signature);
-      if (!isValid) {
-        console.error("[Replicate Webhook] Invalid signature");
-        return new Response("Unauthorized", { status: 401 });
-      }
-    } else if (process.env.REPLICATE_WEBHOOK_SECRET) {
-      // If secret is configured but no signature provided, reject
-      console.error(
-        "[Replicate Webhook] Missing signature when secret is configured"
-      );
+    if (!signature) {
+      console.error("[Replicate Webhook] Missing signature");
+      return new Response("Unauthorized", { status: 401 });
+    }
+    const isValid = await verifyReplicateSignature(rawBody, signature);
+    if (!isValid) {
+      console.error("[Replicate Webhook] Invalid signature");
       return new Response("Unauthorized", { status: 401 });
     }
 
@@ -296,23 +305,7 @@ http.route({
   handler: replicateWebhook,
 });
 
-// Add OPTIONS support for Replicate webhook CORS
-http.route({
-  path: "/webhooks/replicate",
-  method: "OPTIONS",
-  handler: httpAction(() => {
-    return Promise.resolve(
-      new Response(null, {
-        status: 200,
-        headers: {
-          "Access-Control-Allow-Origin": "*",
-          "Access-Control-Allow-Methods": "POST, OPTIONS",
-          "Access-Control-Allow-Headers": "Content-Type, Replicate-Signature",
-        },
-      })
-    );
-  }),
-});
+// No CORS preflight needed for Replicate webhook — server-to-server only.
 
 // ---------------------------------------------------------------------------
 // Anonymous auth endpoints
@@ -368,6 +361,17 @@ http.route({
 // POST /auth/anonymous — create anonymous user + mint JWT (or refresh)
 const anonymousAuthEndpoint = httpAction(
   async (ctx, request): Promise<Response> => {
+    // Rate-limit by IP to prevent abuse (anonymous creation is unauthenticated)
+    const clientIp =
+      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+      "unknown";
+    if (!rateLimitCheck(`anon:${clientIp}`, ANON_AUTH_RATE_LIMIT)) {
+      return new Response("Too Many Requests", {
+        status: 429,
+        headers: buildAuthCorsHeaders(request),
+      });
+    }
+
     const privateKeyPem = process.env.ANON_AUTH_PRIVATE_KEY;
     const issuer = process.env.ANON_AUTH_ISSUER;
 

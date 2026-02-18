@@ -92,7 +92,9 @@ export async function handleClerkUserCreated(
 		return existingByExternalId._id;
 	}
 
-	// Try email-based merge for existing users (Phase 4 existing user migration)
+	// Try email-based merge for existing users (Phase 4 existing user migration).
+	// Uses .first() deliberately — email is not a unique constraint and duplicates
+	// are possible from the old auth system. .unique() would throw on duplicates.
 	if (email) {
 		const existingByEmail = await ctx.db
 			.query("users")
