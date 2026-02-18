@@ -1,6 +1,6 @@
 import type { Id } from "../../_generated/dataModel";
 import type { MutationCtx } from "../../_generated/server";
-import { api, internal } from "../../_generated/api";
+import { internal } from "../../_generated/api";
 import { withRetry } from "../../ai/error_handlers";
 import {
   getAuthenticatedUser,
@@ -192,24 +192,24 @@ export async function cascadeDeleteUserData(
     await ctx.db.delete("sharedConversations", shared._id);
   }
 
+  // Delete background jobs directly (not via auth-gated public mutation,
+  // since this may run from webhook context without authenticated user).
   const backgroundJobs = await ctx.db
     .query("backgroundJobs")
     .withIndex("by_user_id", q => q.eq("userId", userId))
     .collect();
   for (const job of backgroundJobs) {
-    if (!job.jobId) {
-      continue;
+    if (job.fileStorageId) {
+      try {
+        await ctx.storage.delete(job.fileStorageId);
+      } catch (error) {
+        console.warn(
+          `Failed to delete file for background job ${job.jobId}:`,
+          error
+        );
+      }
     }
-    try {
-      await ctx.runMutation(api.backgroundJobs.deleteJob, {
-        jobId: job.jobId,
-      });
-    } catch (error) {
-      console.warn(
-        `Failed to delete background job ${job.jobId} during account deletion:`,
-        error
-      );
-    }
+    await ctx.db.delete("backgroundJobs", job._id);
   }
 
   const userSettingsDocs = await ctx.db
