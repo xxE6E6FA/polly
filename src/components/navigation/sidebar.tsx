@@ -1,9 +1,5 @@
 import { api } from "@convex/_generated/api";
-import {
-  HeartIcon,
-  NotePencilIcon,
-  SidebarSimpleIcon,
-} from "@phosphor-icons/react";
+import { SidebarSimpleIcon } from "@phosphor-icons/react";
 import { useQuery } from "convex/react";
 import {
   AnimatePresence,
@@ -20,6 +16,11 @@ import { BatchActions } from "@/components/navigation/sidebar/batch-actions";
 import { ConversationList } from "@/components/navigation/sidebar/conversation-list";
 import { SidebarSearch } from "@/components/navigation/sidebar/search";
 import { UserSection } from "@/components/navigation/sidebar/user-section";
+import {
+  AnimatedEditIcon,
+  AnimatedHeartIcon,
+  useAnimatedIcon,
+} from "@/components/ui/animated-icons";
 import { Backdrop } from "@/components/ui/backdrop";
 import { Button } from "@/components/ui/button";
 import { ROUTES } from "@/lib/routes";
@@ -72,6 +73,8 @@ export const Sidebar = ({ forceHidden = false }: { forceHidden?: boolean }) => {
   const { isSelectionMode, hasSelection } = useBatchSelection();
   const location = useLocation();
   const { isPrivateMode } = usePrivateMode();
+  const favoritesIcon = useAnimatedIcon();
+  const newChatIcon = useAnimatedIcon();
 
   // Framer Motion for gestures
   const dragControls = useDragControls();
@@ -460,14 +463,13 @@ export const Sidebar = ({ forceHidden = false }: { forceHidden?: boolean }) => {
                         title="Favorites"
                         variant="ghost"
                         className="text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-hover h-8 w-8"
+                        onMouseEnter={favoritesIcon.onHoverStart}
+                        onMouseLeave={favoritesIcon.onHoverEnd}
                       >
-                        <HeartIcon
+                        <AnimatedHeartIcon
+                          controls={favoritesIcon.controls}
                           className="size-4.5"
-                          weight={
-                            location.pathname === ROUTES.FAVORITES
-                              ? "fill"
-                              : "regular"
-                          }
+                          filled={location.pathname === ROUTES.FAVORITES}
                         />
                       </Button>
                     </Link>
@@ -479,8 +481,13 @@ export const Sidebar = ({ forceHidden = false }: { forceHidden?: boolean }) => {
                       title={`New chat (${isMac ? "⌘⇧O" : "Ctrl+Shift+O"})`}
                       variant="ghost"
                       className="text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-hover h-8 w-8"
+                      onMouseEnter={newChatIcon.onHoverStart}
+                      onMouseLeave={newChatIcon.onHoverEnd}
                     >
-                      <NotePencilIcon className="size-4.5" />
+                      <AnimatedEditIcon
+                        controls={newChatIcon.controls}
+                        className="size-4.5"
+                      />
                     </Button>
                   </Link>
                   {!isPrivateMode && (
