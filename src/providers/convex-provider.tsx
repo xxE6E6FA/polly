@@ -11,7 +11,10 @@ import {
   refreshAnonymousToken,
   setAnonymousSession,
 } from "@/lib";
-import { installClerkSessionRecovery } from "@/lib/clerk-recovery";
+import {
+  clearClerkCookies,
+  installClerkSessionRecovery,
+} from "@/lib/clerk-recovery";
 import { CACHE_KEYS, set } from "@/lib/local-storage";
 
 type ConvexProviderProps = {
@@ -106,8 +109,11 @@ function hasClerkSessionCookies(): boolean {
 }
 
 // How long to wait for Clerk to restore a session before falling back to
-// anonymous auth, when Clerk session cookies are present.
-const CLERK_SETTLE_DELAY_MS = 2_000;
+// anonymous auth, when Clerk session cookies are present. Clerk session
+// verification typically completes within 300-500ms of isLoaded; 1s is
+// a comfortable buffer without penalising legitimate anonymous users who
+// have stale cookies from a previous signed-in session.
+const CLERK_SETTLE_DELAY_MS = 1_000;
 
 // Grace period before declaring both auth methods failed.
 const AUTH_FALLBACK_DELAY_MS = 3_000;
@@ -255,13 +261,21 @@ function useAuthWithAnonymous() {
     // starts. Without this delay, anon auth can win the race, causing an
     // orgId flip ("anonymous" → undefined) that forces Convex to re-auth and
     // briefly drop all query subscriptions.
-    const delay = hasClerkSessionCookies() ? CLERK_SETTLE_DELAY_MS : 0;
+    const hadClerkCookies = hasClerkSessionCookies();
+    const delay = hadClerkCookies ? CLERK_SETTLE_DELAY_MS : 0;
 
     const anonTimer = setTimeout(() => {
       if (cancelled || fetchingRef.current) {
         return;
       }
-      initAnonymousAuth();
+      initAnonymousAuth().then(() => {
+        // If we reached anonymous auth despite Clerk cookies being present,
+        // those cookies are stale (Clerk loaded and didn't sign in). Clear
+        // them so subsequent visits skip the settle delay entirely.
+        if (hadClerkCookies) {
+          clearClerkCookies();
+        }
+      });
     }, delay);
 
     return () => {
