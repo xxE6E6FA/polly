@@ -936,8 +936,19 @@ export async function editAndResendMessageHandler(
     preferredProvider
   );
 
+  // Query image models if the text model supports tools
+  const supportsTools = fullModel.supportsTools ?? false;
+  let imageModelsForTools: ImageModelInfo[] | undefined;
+  if (supportsTools) {
+    const userImageModels = await ctx.runQuery(
+      internal.imageModels.getUserImageModelsInternal,
+      { userId: user._id }
+    );
+    imageModelsForTools = toImageModelInfos(userImageModels);
+  }
+
   // Build context messages including the edited message, passing pre-fetched data
-  await buildContextMessages(ctx, {
+  const { contextMessages } = await buildContextMessages(ctx, {
     conversationId: message.conversationId,
     personaId: conversation.personaId,
     modelCapabilities: {
@@ -964,6 +975,23 @@ export async function editAndResendMessageHandler(
   await ctx.runMutation(internal.conversations.internalPatch, {
     id: message.conversationId,
     updates: { isStreaming: true },
+  });
+
+  // Schedule server-side streaming
+  await ctx.scheduler.runAfter(0, internal.streaming_actions.streamMessage, {
+    messageId: assistantMessageId,
+    conversationId: message.conversationId,
+    model: fullModel.modelId,
+    provider: fullModel.provider,
+    messages: contextMessages,
+    personaId: conversation.personaId,
+    reasoningConfig: args.reasoningConfig,
+    supportsTools,
+    supportsFiles: fullModel.supportsFiles ?? false,
+    supportsReasoning: fullModel.supportsReasoning ?? false,
+    supportsTemperature: fullModel.supportsTemperature ?? undefined,
+    imageModels: imageModelsForTools,
+    userId: user._id,
   });
 
   return {
