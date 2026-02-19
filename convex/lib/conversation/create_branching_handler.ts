@@ -29,11 +29,7 @@ export async function createBranchingConversationHandler(
     }>;
     useWebSearch?: boolean;
     generateTitle?: boolean;
-    reasoningConfig?: {
-      enabled: boolean;
-      effort: "low" | "medium" | "high";
-      maxTokens?: number;
-    };
+    reasoningConfig?: { enabled: boolean };
     contextSummary?: string;
   }
 ): Promise<{
@@ -179,11 +175,7 @@ export async function createConversationActionHandler(
       mimeType?: string;
     }>;
     useWebSearch?: boolean;
-    reasoningConfig?: {
-      enabled: boolean;
-      effort: "low" | "medium" | "high";
-      maxTokens?: number;
-    };
+    reasoningConfig?: { enabled: boolean };
     temperature?: number;
   }
 ): Promise<

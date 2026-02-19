@@ -158,59 +158,11 @@ export interface StreamConfig {
 // REASONING CONFIGURATION TYPES
 // ============================================================================
 
-export type ReasoningEffortLevel = "low" | "medium" | "high";
-
 export type ReasoningConfig = {
-  effort?: ReasoningEffortLevel;
-  maxTokens?: number;
+  enabled?: boolean;
 };
 
-export type OpenAIReasoningConfig = {
-  reasoning: boolean;
-};
-
-export type GoogleReasoningConfig = {
-  thinkingConfig: {
-    includeThoughts: boolean;
-    thinkingBudget?: number;
-  };
-};
-
-export type AnthropicReasoningConfig = {
-  thinking: {
-    type: "enabled";
-    budgetTokens: number;
-  };
-};
-
-export type OpenRouterReasoningConfig = {
-  reasoning: {
-    effort?: "low" | "medium" | "high";
-    max_tokens?: number;
-    exclude?: boolean;
-    enabled?: boolean;
-  };
-};
-
-export type ProviderStreamOptions =
-  | Record<string, never> // Empty object for non-reasoning models
-  | { openai: { reasoning: boolean } }
-  | { anthropic: { thinking: { type: "enabled"; budgetTokens: number } } }
-  | {
-      providerOptions: {
-        google?: {
-          thinkingConfig: { thinkingBudget: number };
-        };
-        openrouter?: {
-          reasoning: {
-            effort?: "low" | "medium" | "high";
-            max_tokens?: number;
-            exclude?: boolean;
-            enabled?: boolean;
-          };
-        };
-      };
-    };
+export type { ProviderStreamOptions } from "../shared/reasoning-config";
 
 // ============================================================================
 // ERROR HANDLING TYPES

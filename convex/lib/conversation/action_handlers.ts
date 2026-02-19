@@ -40,11 +40,7 @@ export async function createUserMessageHandler(
       storageId?: Id<"_storage">;
       mimeType?: string;
     }>;
-    reasoningConfig?: {
-      enabled: boolean;
-      effort: "low" | "medium" | "high";
-      maxTokens?: number;
-    };
+    reasoningConfig?: { enabled: boolean };
     temperature?: number;
   }
 ): Promise<{
@@ -136,11 +132,7 @@ export async function sendMessageHandler(
       storageId?: Id<"_storage">;
       mimeType?: string;
     }>;
-    reasoningConfig?: {
-      enabled: boolean;
-      effort: "low" | "medium" | "high";
-      maxTokens?: number;
-    };
+    reasoningConfig?: { enabled: boolean };
     temperature?: number;
     maxTokens?: number;
     topP?: number;
@@ -356,6 +348,7 @@ export async function sendMessageHandler(
     supportsTools,
     supportsFiles: fullModel.supportsFiles ?? false,
     supportsReasoning: fullModel.supportsReasoning ?? false,
+    supportsTemperature: fullModel.supportsTemperature ?? undefined,
     imageModels: imageModelsForTools,
     userId,
   });
@@ -570,11 +563,7 @@ export async function startConversationHandler(
     }>;
     model?: string;
     provider?: string;
-    reasoningConfig?: {
-      enabled: boolean;
-      effort: "low" | "medium" | "high";
-      maxTokens?: number;
-    };
+    reasoningConfig?: { enabled: boolean };
     temperature?: number;
   }
 ): Promise<{
@@ -707,6 +696,7 @@ export async function startConversationHandler(
     supportsTools: fullModel.supportsTools ?? false,
     supportsFiles: fullModel.supportsFiles ?? false,
     supportsReasoning: fullModel.supportsReasoning ?? false,
+    supportsTemperature: fullModel.supportsTemperature ?? undefined,
     imageModels: imageModelsForTools,
     userId,
   });
@@ -751,11 +741,7 @@ export async function editAndResendMessageHandler(
     model?: string;
     provider?: string;
     newContent: string;
-    reasoningConfig?: {
-      enabled: boolean;
-      effort: "low" | "medium" | "high";
-      maxTokens?: number;
-    };
+    reasoningConfig?: { enabled: boolean };
     temperature?: number;
     maxTokens?: number;
     topP?: number;
@@ -994,11 +980,7 @@ export async function retryFromMessageHandler(
     model?: string;
     provider?: string;
     personaId?: Id<"personas">;
-    reasoningConfig?: {
-      enabled: boolean;
-      effort: "low" | "medium" | "high";
-      maxTokens?: number;
-    };
+    reasoningConfig?: { enabled: boolean };
   }
 ): Promise<{ assistantMessageId: Id<"messages"> }> {
   // Get authenticated user
@@ -1163,6 +1145,7 @@ export async function retryFromMessageHandler(
         supportsTools: retrySupportsTools,
         supportsFiles: fullModel.supportsFiles ?? false,
         supportsReasoning: fullModel.supportsReasoning ?? false,
+    supportsTemperature: fullModel.supportsTemperature ?? undefined,
         imageModels: imageModelsForRetry,
         userId: user._id,
       }
@@ -1350,11 +1333,7 @@ export async function editMessageHandler(
     newContent: string;
     model?: string;
     provider?: string;
-    reasoningConfig?: {
-      enabled: boolean;
-      effort: "low" | "medium" | "high";
-      maxTokens?: number;
-    };
+    reasoningConfig?: { enabled: boolean };
   }
 ): Promise<{ assistantMessageId: Id<"messages"> }> {
   // Get authenticated user
@@ -1482,11 +1461,7 @@ export async function createBranchingConversationHandler(
     }>;
     useWebSearch?: boolean;
     generateTitle?: boolean;
-    reasoningConfig?: {
-      enabled: boolean;
-      effort: "low" | "medium" | "high";
-      maxTokens?: number;
-    };
+    reasoningConfig?: { enabled: boolean };
     contextSummary?: string;
   }
 ): Promise<{
@@ -1632,11 +1607,7 @@ export async function createConversationActionHandler(
       mimeType?: string;
     }>;
     useWebSearch?: boolean;
-    reasoningConfig?: {
-      enabled: boolean;
-      effort: "low" | "medium" | "high";
-      maxTokens?: number;
-    };
+    reasoningConfig?: { enabled: boolean };
     temperature?: number;
   }
 ): Promise<

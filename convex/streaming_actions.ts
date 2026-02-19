@@ -144,6 +144,7 @@ export const streamMessage = internalAction({
     supportsTools: v.optional(v.boolean()),
     supportsFiles: v.optional(v.boolean()),
     supportsReasoning: v.optional(v.boolean()),
+    supportsTemperature: v.optional(v.boolean()),
     // Image generation tool support
     imageModels: v.optional(
       v.array(
@@ -187,10 +188,7 @@ export const streamMessage = internalAction({
 
       // 3. Get reasoning stream options if enabled
       const reasoningConfig = args.reasoningConfig?.enabled
-        ? {
-            effort: args.reasoningConfig.effort,
-            maxTokens: args.reasoningConfig.maxTokens,
-          }
+        ? { enabled: true as const }
         : undefined;
 
       const streamOptions = await getProviderStreamOptions(
@@ -202,6 +200,7 @@ export const streamMessage = internalAction({
           modelId,
           provider,
           supportsReasoning: args.supportsReasoning ?? false,
+          supportsTemperature: args.supportsTemperature,
         }
       );
 

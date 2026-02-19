@@ -198,14 +198,9 @@ const ChatSection = () => {
         attachments,
         model: selectedModel?.modelId,
         provider: selectedModel?.provider,
-        reasoningConfig:
-          reasoningConfig?.enabled && reasoningConfig.effort
-            ? {
-                enabled: reasoningConfig.enabled,
-                effort: reasoningConfig.effort,
-                maxTokens: reasoningConfig.maxTokens,
-              }
-            : undefined,
+        reasoningConfig: reasoningConfig?.enabled
+          ? { enabled: true }
+          : undefined,
         temperature,
       }).catch(err => {
         // If action fails, the conversation page will show an error

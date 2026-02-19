@@ -47,6 +47,7 @@ export type ModelCapabilities = {
   supportsTools: boolean;
   supportsImages: boolean;
   supportsReasoning: boolean;
+  supportsTemperature: boolean;
   supportsFiles: boolean;
   contextLength: number;
   maxOutputTokens?: number;
@@ -112,16 +113,12 @@ export type ModelCapability = {
 // REASONING CONFIGURATION TYPES
 // ============================================================================
 
-export type ReasoningEffortLevel = "low" | "medium" | "high";
-
 /**
- * Reasoning configuration. Frontend version allows `effort` to be optional
- * (schema requires it for DB storage, but UI may omit it before submission).
+ * Reasoning configuration — simple on/off toggle.
+ * The model decides how much to think; we just enable or disable it.
  */
 export type ReasoningConfig = {
   enabled: boolean;
-  effort?: ReasoningEffortLevel;
-  maxTokens?: number;
 };
 
 // ============================================================================
@@ -519,7 +516,5 @@ export type CreateConversationArgs = {
   generateTitle?: boolean;
   reasoningConfig?: {
     enabled: boolean;
-    effort: "low" | "medium" | "high";
-    maxTokens: number;
   };
 };

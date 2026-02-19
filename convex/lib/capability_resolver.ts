@@ -15,6 +15,7 @@ export type ResolvedCapabilities = {
   supportsTools: boolean;
   supportsImages: boolean;
   supportsReasoning: boolean;
+  supportsTemperature: boolean;
   supportsFiles: boolean;
   contextLength: number;
   maxOutputTokens?: number;
@@ -53,6 +54,7 @@ export async function resolveModelCapabilities(
         supportsTools: cachedModel.supportsTools,
         supportsImages: cachedModel.inputModalities.includes("image"),
         supportsReasoning: cachedModel.supportsReasoning,
+        supportsTemperature: cachedModel.supportsTemperature ?? true,
         supportsFiles:
           cachedModel.supportsAttachments ??
           cachedModel.inputModalities.includes("file"),
@@ -71,6 +73,7 @@ export async function resolveModelCapabilities(
     supportsTools: false,
     supportsImages: false,
     supportsReasoning: false,
+    supportsTemperature: true,
     supportsFiles: false,
     contextLength: 4096,
     inputModalities: ["text"],
@@ -98,6 +101,7 @@ export type HydratedModel<T extends ModelReference> = T & {
   supportsTools: boolean;
   supportsImages: boolean;
   supportsReasoning: boolean;
+  supportsTemperature: boolean;
   supportsFiles: boolean;
   contextLength: number;
   maxOutputTokens?: number;
@@ -126,6 +130,7 @@ export async function hydrateModelWithCapabilities<T extends ModelReference>(
     supportsTools: capabilities.supportsTools,
     supportsImages: capabilities.supportsImages,
     supportsReasoning: capabilities.supportsReasoning,
+    supportsTemperature: capabilities.supportsTemperature,
     supportsFiles: capabilities.supportsFiles,
     contextLength: capabilities.contextLength,
     maxOutputTokens: capabilities.maxOutputTokens,

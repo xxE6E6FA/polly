@@ -14,11 +14,7 @@ export async function editAndResendMessageHandler(
     model?: string;
     provider?: string;
     newContent: string;
-    reasoningConfig?: {
-      enabled: boolean;
-      effort: "low" | "medium" | "high";
-      maxTokens?: number;
-    };
+    reasoningConfig?: { enabled: boolean };
     temperature?: number;
     maxTokens?: number;
     topP?: number;
