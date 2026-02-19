@@ -43,6 +43,43 @@ if (!CLERK_PUBLISHABLE_KEY) {
 }
 
 /**
+ * One-time migration: clear stale tokens from the old @convex-dev/auth system.
+ * Old sessions used localStorage keys like __convexAuthJWT, __convexAuthRefreshToken,
+ * and cookies. Without this, returning users get stuck in an auth error loop.
+ * Safe to remove after 2025-03-01 when all old sessions have expired.
+ */
+function clearLegacyAuthState() {
+  const LEGACY_KEYS = [
+    "__convexAuthJWT",
+    "__convexAuthRefreshToken",
+    "__convexAuthState",
+  ];
+  const migrationKey = "polly:auth-migrated-to-clerk";
+
+  if (localStorage.getItem(migrationKey)) {
+    return;
+  }
+
+  let cleared = false;
+  for (const key of LEGACY_KEYS) {
+    if (localStorage.getItem(key) !== null) {
+      localStorage.removeItem(key);
+      cleared = true;
+    }
+  }
+
+  if (cleared) {
+    localStorage.setItem(migrationKey, "1");
+    window.location.reload();
+    return;
+  }
+
+  localStorage.setItem(migrationKey, "1");
+}
+
+clearLegacyAuthState();
+
+/**
  * Derive the Convex site URL from the Convex deployment URL.
  * VITE_CONVEX_URL is like https://foo-bar-123.convex.cloud
  * Site URL is         like https://foo-bar-123.convex.site
