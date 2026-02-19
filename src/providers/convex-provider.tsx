@@ -11,6 +11,7 @@ import {
   refreshAnonymousToken,
   setAnonymousSession,
 } from "@/lib";
+import { installClerkSessionRecovery } from "@/lib/clerk-recovery";
 import { CACHE_KEYS, set } from "@/lib/local-storage";
 
 type ConvexProviderProps = {
@@ -78,6 +79,7 @@ function clearLegacyAuthState() {
 }
 
 clearLegacyAuthState();
+installClerkSessionRecovery();
 
 /**
  * Derive the Convex site URL from the Convex deployment URL.
@@ -90,6 +92,27 @@ function getConvexSiteUrl(): string {
 }
 
 /**
+ * Check whether Clerk session cookies exist. When they do, the user likely has
+ * a Clerk session that is still being verified. We use this to delay anonymous
+ * auth so it doesn't race with Clerk's session restoration — an anon→Clerk
+ * transition changes `orgId`, which forces ConvexProviderWithClerk to call
+ * `setAuth()`, pausing the WebSocket and causing a visible query gap (flicker).
+ */
+function hasClerkSessionCookies(): boolean {
+  return document.cookie.split(";").some(c => {
+    const name = c.trim().split("=")[0] ?? "";
+    return name === "__client_uat" || name === "__session";
+  });
+}
+
+// How long to wait for Clerk to restore a session before falling back to
+// anonymous auth, when Clerk session cookies are present.
+const CLERK_SETTLE_DELAY_MS = 2_000;
+
+// Grace period before declaring both auth methods failed.
+const AUTH_FALLBACK_DELAY_MS = 3_000;
+
+/**
  * Custom useAuth hook that wraps Clerk's useAuth with anonymous JWT support.
  *
  * When a user is signed in via Clerk, this passes through Clerk's auth
@@ -97,10 +120,12 @@ function getConvexSiteUrl(): string {
  * anonymous JWT from the Convex HTTP endpoint and provides it to
  * ConvexProviderWithClerk so the user appears authenticated to Convex.
  */
+
 function useAuthWithAnonymous() {
   const clerkAuth = useAuth();
   const [anonReady, setAnonReady] = useState(false);
   const [anonToken, setAnonToken] = useState<string | null>(null);
+  const [bothFailed, setBothFailed] = useState(false);
   const fetchingRef = useRef(false);
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -123,7 +148,16 @@ function useAuthWithAnonymous() {
           setAnonToken(newSession.token);
           scheduleRefresh(newSession.expiresAt);
         } catch (err) {
-          console.error("[AnonAuth] Refresh failed:", err);
+          console.error("[AnonAuth] Refresh failed, fetching new token:", err);
+          try {
+            const newSession = await fetchAnonymousToken(siteUrl);
+            setAnonToken(newSession.token);
+            scheduleRefresh(newSession.expiresAt);
+          } catch (fetchErr) {
+            console.error("[AnonAuth] New token fetch also failed:", fetchErr);
+            clearAnonymousSession();
+            setAnonToken(null);
+          }
         }
       }, refreshIn);
     },
@@ -158,12 +192,21 @@ function useAuthWithAnonymous() {
       return;
     }
 
+    // Guard against StrictMode double-mount: if the effect cleanup runs while
+    // initAnonymousAuth is in-flight (past the setTimeout but mid-await), the
+    // async function's setState calls would target the unmounted instance.
+    // The cancelled flag lets us bail out after each await point.
+    let cancelled = false;
+
     const initAnonymousAuth = async () => {
       fetchingRef.current = true;
       try {
         let session = getAnonymousSession();
 
         if (session && !isSessionExpired(session)) {
+          if (cancelled) {
+            return;
+          }
           setAnonToken(session.token);
           setAnonReady(true);
           scheduleRefresh(session.expiresAt);
@@ -173,6 +216,9 @@ function useAuthWithAnonymous() {
         if (session && isSessionExpired(session)) {
           try {
             session = await refreshAnonymousToken(siteUrl, session);
+            if (cancelled) {
+              return;
+            }
             setAnonToken(session.token);
             setAnonReady(true);
             scheduleRefresh(session.expiresAt);
@@ -182,27 +228,70 @@ function useAuthWithAnonymous() {
           }
         }
 
+        if (cancelled) {
+          return;
+        }
         session = await fetchAnonymousToken(siteUrl);
+        if (cancelled) {
+          return;
+        }
         setAnonToken(session.token);
         setAnonReady(true);
         scheduleRefresh(session.expiresAt);
       } catch (err) {
         console.error("[AnonAuth] Failed to initialize:", err);
-        // Still mark as ready so the app can render (will be unauthenticated)
-        setAnonReady(true);
+        if (!cancelled) {
+          // Still mark as ready so the app can render (will be unauthenticated)
+          setAnonReady(true);
+        }
       } finally {
         fetchingRef.current = false;
       }
     };
 
-    initAnonymousAuth();
+    // When Clerk session cookies exist, the user likely has a session being
+    // verified. Delay anon auth to let Clerk settle first — if Clerk restores
+    // the session, this effect's cleanup cancels the timer and anon auth never
+    // starts. Without this delay, anon auth can win the race, causing an
+    // orgId flip ("anonymous" → undefined) that forces Convex to re-auth and
+    // briefly drop all query subscriptions.
+    const delay = hasClerkSessionCookies() ? CLERK_SETTLE_DELAY_MS : 0;
+
+    const anonTimer = setTimeout(() => {
+      if (cancelled || fetchingRef.current) {
+        return;
+      }
+      initAnonymousAuth();
+    }, delay);
 
     return () => {
+      cancelled = true;
+      clearTimeout(anonTimer);
       if (refreshTimerRef.current) {
         clearTimeout(refreshTimerRef.current);
       }
     };
   }, [clerkAuth.isSignedIn, clerkAuth.isLoaded, siteUrl, scheduleRefresh]);
+
+  // Detect genuinely-stuck state: both Clerk and anon resolved, neither succeeded.
+  // Uses a delay to avoid flashing unauthenticated during normal Clerk token restore.
+  useEffect(() => {
+    if (
+      clerkAuth.isLoaded &&
+      !clerkAuth.isSignedIn &&
+      anonReady &&
+      !anonToken
+    ) {
+      const timer = setTimeout(
+        () => setBothFailed(true),
+        AUTH_FALLBACK_DELAY_MS
+      );
+      return () => {
+        clearTimeout(timer);
+      };
+    }
+    setBothFailed(false);
+  }, [clerkAuth.isLoaded, clerkAuth.isSignedIn, anonReady, anonToken]);
 
   // Clerk is signed in — pass through Clerk's auth directly
   if (clerkAuth.isSignedIn) {
@@ -225,8 +314,10 @@ function useAuthWithAnonymous() {
             scheduleRefresh(newSession.expiresAt);
             return newSession.token;
           } catch {
-            // Refresh failed — clear session so initAnonymousAuth re-runs
+            // Refresh failed — clear session and React state so the
+            // bothFailed fallback can trigger or initAnonymousAuth re-runs
             clearAnonymousSession();
+            setAnonToken(null);
             return null;
           }
         }
@@ -244,6 +335,16 @@ function useAuthWithAnonymous() {
       sessionId: null,
       actor: null,
       orgPermissions: undefined,
+    };
+  }
+
+  // Both Clerk and anonymous auth resolved, neither succeeded, and the
+  // grace period has elapsed — let the app render as unauthenticated
+  if (bothFailed) {
+    return {
+      ...clerkAuth,
+      isLoaded: true,
+      isSignedIn: false as const,
     };
   }
 
