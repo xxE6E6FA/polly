@@ -1,5 +1,5 @@
 import { api } from "@convex/_generated/api";
-import { useMutation, useQuery } from "convex/react";
+import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { useCallback, useEffect } from "react";
 import { CACHE_KEYS, get, set } from "@/lib/local-storage";
 import { useToast } from "@/providers/toast-context";
@@ -7,9 +7,13 @@ import { useChatInputStore } from "@/stores/chat-input-store";
 import type { HydratedModel } from "@/types";
 
 export function useSelectedModel() {
+  const { isAuthenticated } = useConvexAuth();
+
+  // Skip until auth is ready so the pre-auth default model doesn't
+  // overwrite the user's cached selection with a flash of wrong model.
   const selectedModelFromServer = useQuery(
     api.userModels.getUserSelectedModel,
-    {}
+    isAuthenticated ? {} : "skip"
   );
   const selectModelMutation = useMutation(api.userModels.selectModel);
   const selectedModel = useChatInputStore(

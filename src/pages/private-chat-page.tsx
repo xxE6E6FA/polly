@@ -1,6 +1,6 @@
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
-import { useAction, useQuery } from "convex/react";
+import { useAction, useConvexAuth, useQuery } from "convex/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { UnifiedChatView } from "@/components/chat";
@@ -23,11 +23,19 @@ export default function PrivateChatPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useUserDataContext();
+  const { isAuthenticated } = useConvexAuth();
   const managedToast = useToast();
 
-  const hasApiKeys = useQuery(api.apiKeys.hasAnyApiKey, {});
+  // Gate on isAuthenticated to prevent pre-auth results overriding cached state
+  const hasApiKeys = useQuery(
+    api.apiKeys.hasAnyApiKey,
+    isAuthenticated ? {} : "skip"
+  );
 
-  const selectedModel = useQuery(api.userModels.getUserSelectedModel, {});
+  const selectedModel = useQuery(
+    api.userModels.getUserSelectedModel,
+    isAuthenticated ? {} : "skip"
+  );
 
   const saveConversationAction = useAction(
     api.conversations.savePrivateConversation

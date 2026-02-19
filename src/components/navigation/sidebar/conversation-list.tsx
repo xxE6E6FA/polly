@@ -1,6 +1,7 @@
 import { api } from "@convex/_generated/api";
-import { useQuery } from "convex/react";
-import { memo, useEffect, useMemo } from "react";
+import type { Doc } from "@convex/_generated/dataModel";
+import { useConvexAuth, useQuery } from "convex/react";
+import { memo, useEffect, useMemo, useRef } from "react";
 import {
   getCachedConversations,
   setCachedConversations,
@@ -26,17 +27,25 @@ export const ConversationList = memo(
     onCloseSidebar,
   }: ConversationListProps) => {
     const { user } = useUserDataContext();
+    const { isAuthenticated } = useConvexAuth();
     const { isSidebarVisible } = useUI();
     const userId = user?._id ? String(user._id) : undefined;
 
     // Skip query on mobile when sidebar is hidden to reduce initial load
     const shouldSkipQuery = isMobile && !isSidebarVisible;
 
+    // Gate queries on isAuthenticated so they don't run before Convex has
+    // a valid auth token. Without this, the server runs the query without
+    // auth context → getAuthUserId() returns null → returns [] (empty array).
+    // That empty array poisons lastFreshRef and causes a visible
+    // cache → empty → server-data flicker.
+    const shouldSkipAuth = !isAuthenticated;
+
     const isSearching = searchQuery.trim().length > 0;
 
     // Search with matches query (for searching)
     const searchWithMatchesArg = (() => {
-      if (!user || shouldSkipQuery || !isSearching) {
+      if (!user || shouldSkipAuth || shouldSkipQuery || !isSearching) {
         return "skip";
       }
       return {
@@ -53,7 +62,7 @@ export const ConversationList = memo(
 
     // List query (for non-searching)
     const listArg = (() => {
-      if (!user || shouldSkipQuery || isSearching) {
+      if (!user || shouldSkipAuth || shouldSkipQuery || isSearching) {
         return "skip";
       }
       return {
@@ -63,9 +72,23 @@ export const ConversationList = memo(
 
     const conversationDataRaw = useQuery(api.conversations.list, listArg);
 
+    // Keep the last fresh result so we don't flash stale localStorage data
+    // when the Convex query temporarily returns undefined during auth
+    // transitions (e.g., StrictMode remount or session token refresh).
+    const lastFreshRef = useRef<Doc<"conversations">[] | null>(null);
+    if (Array.isArray(conversationDataRaw)) {
+      lastFreshRef.current = conversationDataRaw;
+    }
+
     const conversations = useMemo(() => {
       if (Array.isArray(conversationDataRaw)) {
         return conversationDataRaw;
+      }
+
+      // Prefer the last fresh server result over stale localStorage cache
+      // to avoid a loaded→empty→loaded flicker during auth transitions
+      if (lastFreshRef.current) {
+        return lastFreshRef.current;
       }
 
       return getCachedConversations(userId);
