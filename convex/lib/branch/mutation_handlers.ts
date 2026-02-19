@@ -28,11 +28,7 @@ export async function internalCloneMessagesHandler(
       reasoning?: string;
       model?: string;
       provider?: string;
-      reasoningConfig?: {
-        enabled: boolean;
-        effort: "low" | "medium" | "high";
-        maxTokens?: number;
-      };
+      reasoningConfig?: { enabled: boolean };
       parentId?: Id<"messages">;
       branchId?: string;
       sourceConversationId?: Id<"conversations">;

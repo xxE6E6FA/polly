@@ -73,6 +73,7 @@ export const executeStreamingActionForRetry = async (
     supportsTools?: boolean;
     supportsFiles?: boolean;
     supportsReasoning?: boolean;
+    supportsTemperature?: boolean;
     // Image generation tool support
     imageModels?: Array<{
       modelId: string;
@@ -124,6 +125,7 @@ export const executeStreamingActionForRetry = async (
     supportsTools: args.supportsTools ?? false,
     supportsFiles: args.supportsFiles ?? false,
     supportsReasoning: args.supportsReasoning ?? false,
+    supportsTemperature: args.supportsTemperature,
     imageModels: args.imageModels,
     userId: args.userId as Id<"users"> | undefined,
   });
@@ -149,8 +151,6 @@ export async function streamAndSaveMessage(
     personaId?: Id<"personas">;
     reasoningConfig?: {
       enabled: boolean;
-      effort?: "low" | "medium" | "high";
-      maxOutputTokens?: number;
     };
   }
 ) {
@@ -205,12 +205,7 @@ export async function streamAndSaveMessage(
       ctx,
       provider as ProviderType,
       modelId,
-      reasoningConfig?.enabled
-        ? {
-            effort: reasoningConfig.effort,
-            maxOutputTokens: reasoningConfig.maxOutputTokens,
-          }
-        : undefined
+      reasoningConfig?.enabled ? { enabled: true } : undefined
     );
 
     // Build stream options with optional tools

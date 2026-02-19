@@ -96,7 +96,7 @@ export async function handleUserRetry(
   ctx: ActionCtx,
   params: {
     conversationId: Id<"conversations">;
-    reasoningConfig?: { enabled: boolean; effort: "low" | "medium" | "high"; maxTokens?: number };
+    reasoningConfig?: { enabled: boolean };
     user: Doc<"users">;
     conversation: Doc<"conversations">;
     messages: Doc<"messages">[];

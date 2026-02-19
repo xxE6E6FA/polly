@@ -198,7 +198,9 @@ export const attachmentSchema = v.object({
 // Reasoning configuration schema
 export const reasoningConfigSchema = v.object({
   enabled: v.boolean(),
-  effort: v.union(v.literal("low"), v.literal("medium"), v.literal("high")),
+  /** @deprecated No longer used — reasoning is now on/off. Kept optional for existing data. */
+  effort: v.optional(v.union(v.literal("low"), v.literal("medium"), v.literal("high"))),
+  /** @deprecated No longer used — fixed defaults per provider. Kept optional for existing data. */
   maxTokens: v.optional(v.number()),
 });
 
@@ -410,7 +412,9 @@ export const contextMessageSchema = v.object({
 // Reasoning configuration for AI interactions - matches reasoningConfigSchema
 export const reasoningConfigForActionSchema = v.object({
   enabled: v.boolean(),
-  effort: v.union(v.literal("low"), v.literal("medium"), v.literal("high")),
+  /** @deprecated No longer used — reasoning is now on/off. Kept optional for existing data. */
+  effort: v.optional(v.union(v.literal("low"), v.literal("medium"), v.literal("high"))),
+  /** @deprecated No longer used — fixed defaults per provider. Kept optional for existing data. */
   maxTokens: v.optional(v.number()),
 });
 

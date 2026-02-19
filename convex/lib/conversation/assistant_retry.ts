@@ -12,7 +12,7 @@ export async function handleAssistantRetry(
   ctx: ActionCtx,
   params: {
     conversationId: Id<"conversations">;
-    reasoningConfig?: { enabled: boolean; effort: "low" | "medium" | "high"; maxTokens?: number };
+    reasoningConfig?: { enabled: boolean };
     user: Doc<"users">;
     messages: Doc<"messages">[];
     messageIndex: number;
@@ -119,6 +119,7 @@ export async function handleAssistantRetry(
     supportsTools: retrySupportsTools,
     supportsFiles: fullModel.supportsFiles ?? false,
     supportsReasoning: fullModel.supportsReasoning ?? false,
+    supportsTemperature: fullModel.supportsTemperature ?? undefined,
     imageModels: imageModelsForRetry,
     userId: user._id,
   });

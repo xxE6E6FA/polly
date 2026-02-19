@@ -27,11 +27,7 @@ export async function startConversationHandler(
     }>;
     model?: string;
     provider?: string;
-    reasoningConfig?: {
-      enabled: boolean;
-      effort: "low" | "medium" | "high";
-      maxTokens?: number;
-    };
+    reasoningConfig?: { enabled: boolean };
     temperature?: number;
   }
 ): Promise<{
@@ -142,6 +138,7 @@ export async function startConversationHandler(
     supportsTools: fullModel.supportsTools ?? false,
     supportsFiles: fullModel.supportsFiles ?? false,
     supportsReasoning: fullModel.supportsReasoning ?? false,
+    supportsTemperature: fullModel.supportsTemperature ?? undefined,
     imageModels: imageModelsForTools,
     userId,
   });

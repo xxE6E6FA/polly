@@ -22,11 +22,7 @@ export async function retryFromMessageHandler(
     model?: string;
     provider?: string;
     personaId?: Id<"personas">;
-    reasoningConfig?: {
-      enabled: boolean;
-      effort: "low" | "medium" | "high";
-      maxTokens?: number;
-    };
+    reasoningConfig?: { enabled: boolean };
   }
 ): Promise<{ assistantMessageId: Id<"messages"> }> {
   // Get authenticated user
@@ -128,11 +124,7 @@ export async function editMessageHandler(
     newContent: string;
     model?: string;
     provider?: string;
-    reasoningConfig?: {
-      enabled: boolean;
-      effort: "low" | "medium" | "high";
-      maxTokens?: number;
-    };
+    reasoningConfig?: { enabled: boolean };
   }
 ): Promise<{ assistantMessageId: Id<"messages"> }> {
   // Get authenticated user

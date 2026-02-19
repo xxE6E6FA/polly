@@ -28,11 +28,7 @@ export async function createWithUserIdHandler(
     useWebSearch?: boolean;
     model?: string;
     provider?: string;
-    reasoningConfig?: {
-      enabled: boolean;
-      effort: "low" | "medium" | "high";
-      maxTokens?: number;
-    };
+    reasoningConfig?: { enabled: boolean };
   }
 ) {
   const user = await ctx.db.get("users", args.userId);

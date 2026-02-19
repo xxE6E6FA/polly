@@ -30,11 +30,7 @@ export async function createUserMessageHandler(
       storageId?: Id<"_storage">;
       mimeType?: string;
     }>;
-    reasoningConfig?: {
-      enabled: boolean;
-      effort: "low" | "medium" | "high";
-      maxTokens?: number;
-    };
+    reasoningConfig?: { enabled: boolean };
     temperature?: number;
   }
 ): Promise<{

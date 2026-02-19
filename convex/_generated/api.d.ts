@@ -27,7 +27,6 @@ import type * as ai_messages from "../ai/messages.js";
 import type * as ai_pdf from "../ai/pdf.js";
 import type * as ai_pdf_cache from "../ai/pdf_cache.js";
 import type * as ai_pdf_status from "../ai/pdf_status.js";
-import type * as ai_reasoning_detection from "../ai/reasoning_detection.js";
 import type * as ai_replicate from "../ai/replicate.js";
 import type * as ai_replicate_generate from "../ai/replicate/generate.js";
 import type * as ai_replicate_polling from "../ai/replicate/polling.js";
@@ -190,7 +189,6 @@ declare const fullApi: ApiFromModules<{
   "ai/pdf": typeof ai_pdf;
   "ai/pdf_cache": typeof ai_pdf_cache;
   "ai/pdf_status": typeof ai_pdf_status;
-  "ai/reasoning_detection": typeof ai_reasoning_detection;
   "ai/replicate": typeof ai_replicate;
   "ai/replicate/generate": typeof ai_replicate_generate;
   "ai/replicate/polling": typeof ai_replicate_polling;

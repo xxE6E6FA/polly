@@ -33,11 +33,7 @@ export async function sendMessageHandler(
       storageId?: Id<"_storage">;
       mimeType?: string;
     }>;
-    reasoningConfig?: {
-      enabled: boolean;
-      effort: "low" | "medium" | "high";
-      maxTokens?: number;
-    };
+    reasoningConfig?: { enabled: boolean };
     temperature?: number;
     maxTokens?: number;
     topP?: number;
@@ -231,6 +227,7 @@ export async function sendMessageHandler(
     supportsTools,
     supportsFiles: fullModel.supportsFiles ?? false,
     supportsReasoning: fullModel.supportsReasoning ?? false,
+    supportsTemperature: fullModel.supportsTemperature ?? undefined,
     imageModels: imageModelsForTools,
     userId,
   });

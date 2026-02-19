@@ -99,6 +99,7 @@ export async function getUserEffectiveModelWithCapabilities(
   provider: string;
   name: string;
   supportsReasoning: boolean;
+  supportsTemperature?: boolean;
   supportsImages?: boolean;
   supportsTools?: boolean;
   supportsFiles?: boolean;
@@ -212,6 +213,7 @@ export async function getUserEffectiveModelWithCapabilities(
       provider,
       name: modelName || modelId,
       supportsReasoning: capabilities.supportsReasoning,
+      supportsTemperature: capabilities.supportsTemperature,
       supportsImages: capabilities.supportsImages,
       supportsTools: capabilities.supportsTools,
       supportsFiles: capabilities.supportsFiles,
@@ -233,6 +235,7 @@ export async function getUserEffectiveModelWithCapabilities(
     provider,
     name: modelName || modelId,
     supportsReasoning: capabilities.supportsReasoning,
+    supportsTemperature: capabilities.supportsTemperature,
     supportsImages: capabilities.supportsImages,
     supportsTools: capabilities.supportsTools,
     supportsFiles: capabilities.supportsFiles,

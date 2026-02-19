@@ -14,9 +14,12 @@ import type { LanguageModel } from "ai";
 import { api } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import type { ActionCtx } from "../_generated/server";
-import { getProviderReasoningConfig } from "../../shared/reasoning-config";
-import type { ProviderStreamOptions, ProviderType } from "../types";
-import { isReasoningModel } from "./reasoning_detection";
+import {
+  getProviderReasoningConfig,
+  type ReasoningConfig,
+  type ProviderStreamOptions,
+} from "../../shared/reasoning-config";
+import type { ProviderType } from "../types";
 
 // Enhanced provider factory with AI SDK optimizations
 const createProviderModel = {
@@ -150,11 +153,12 @@ export const getProviderStreamOptions = async (
   ctx: ActionCtx,
   provider: ProviderType,
   model: string,
-  reasoningConfig?: { effort?: "low" | "medium" | "high"; maxOutputTokens?: number },
-  modelObject?: { 
-    modelId: string; 
-    provider: string; 
+  reasoningConfig?: ReasoningConfig,
+  modelObject?: {
+    modelId: string;
+    provider: string;
     supportsReasoning: boolean;
+    supportsTemperature?: boolean;
     builtIn?: boolean;
     [key: string]: any; // Allow other model properties
   }
@@ -167,6 +171,7 @@ export const getProviderStreamOptions = async (
     modelId: string;
     provider: string;
     supportsReasoning?: boolean;
+    supportsTemperature?: boolean;
   } = {
     modelId: model,
     provider: actualProvider,
@@ -179,6 +184,7 @@ export const getProviderStreamOptions = async (
       modelId: modelObject.modelId,
       provider: modelObject.provider,
       supportsReasoning: modelObject.supportsReasoning,
+      supportsTemperature: modelObject.supportsTemperature,
     };
   } else {
     // Fallback to user-specific model lookup if modelObject is not provided
@@ -203,21 +209,17 @@ export const getProviderStreamOptions = async (
     }
   }
 
-  // Fallback for anonymous users or models not in user's list
+  // Fallback: resolve capabilities from models.dev cache
   if (!modelWithCapabilities.supportsReasoning) {
-    // For built-in models, check if we have the model in the database
-    if (modelObject?.builtIn) {
-      const builtInModels = await ctx.runQuery(api.userModels.getBuiltInModels);
-      const foundModel = builtInModels.find((m: any) => m.modelId === model && m.provider === provider);
-      if (foundModel) {
-        modelWithCapabilities.supportsReasoning = foundModel.supportsReasoning;
-      }
-    } else {
-      // Final fallback to enhanced detection for edge cases
-      modelWithCapabilities.supportsReasoning = await isReasoningModel(
-        actualProvider,
-        model
+    try {
+      const capabilities = await ctx.runQuery(
+        api.capabilities.resolveCapabilities,
+        { provider: actualProvider, modelId: model }
       );
+      modelWithCapabilities.supportsReasoning = capabilities.supportsReasoning;
+      modelWithCapabilities.supportsTemperature = capabilities.supportsTemperature;
+    } catch {
+      // models.dev lookup failed — leave as false
     }
   }
 

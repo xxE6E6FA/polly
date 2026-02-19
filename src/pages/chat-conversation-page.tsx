@@ -223,14 +223,9 @@ export default function ConversationRoute() {
           sourceConversationId: sourceConversationId as Id<"conversations">,
           personaId: personaId ?? undefined,
           attachments,
-          reasoningConfig:
-            reasoningConfig?.enabled && reasoningConfig.effort
-              ? {
-                  enabled: reasoningConfig.enabled,
-                  effort: reasoningConfig.effort,
-                  maxTokens: reasoningConfig.maxTokens,
-                }
-              : undefined,
+          reasoningConfig: reasoningConfig?.enabled
+            ? { enabled: true }
+            : undefined,
           contextSummary,
           useWebSearch: true,
           generateTitle: true,
