@@ -256,24 +256,19 @@ export function getProviderReasoningOptions(
       // - max_tokens: Direct token allocation (for Gemini, Anthropic models)
       // - exclude: true/false to hide reasoning from response
       // - enabled: true to use default settings
+      // IMPORTANT: Only one of effort/max_tokens can be specified per request.
       // Must use providerOptions.openrouter (not extraBody) at the streamText level
       const reasoningOptions: OpenRouterReasoningOptions = {
         exclude: false,
       };
 
-      // Set effort level if provided (preferred for o-series and Grok models)
+      // effort and max_tokens are mutually exclusive on OpenRouter.
+      // Prefer effort when set; fall back to max_tokens only when effort is absent.
       if (reasoningConfig?.effort) {
         reasoningOptions.effort = reasoningConfig.effort;
-      }
-
-      // Set max tokens if provided (preferred for Gemini and Anthropic models)
-      if (reasoningConfig?.maxTokens) {
+      } else if (reasoningConfig?.maxTokens) {
         reasoningOptions["max_tokens"] = reasoningConfig.maxTokens;
       }
-
-      // Control reasoning token visibility - set to false to include reasoning in response
-      // We want reasoning tokens for our internal processing
-      reasoningOptions.exclude = false;
 
       // Enable reasoning with provided config or use enabled: true for defaults
       const hasExplicitConfig =
