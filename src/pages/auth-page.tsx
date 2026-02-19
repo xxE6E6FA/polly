@@ -1,9 +1,13 @@
-import { SignedIn, SignedOut, SignIn } from "@clerk/clerk-react";
-import { useEffect } from "react";
+import { SignedIn, SignedOut, SignIn, useAuth } from "@clerk/clerk-react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AnimatedLogo } from "@/components/ui/animated-logo";
+import { Button } from "@/components/ui/button";
 import { useTheme } from "@/hooks/use-theme";
+import { clearClerkCookies } from "@/lib/clerk-recovery";
 import { ROUTES } from "@/lib/routes";
+
+const STUCK_TIMEOUT_MS = 8_000;
 
 /**
  * Clerk appearance that maps to CSS custom properties so it
@@ -56,6 +60,51 @@ function useClerkAppearance() {
 
 export default function AuthPage() {
   const clerkAppearance = useClerkAppearance();
+  const { isLoaded } = useAuth();
+  const [showRecovery, setShowRecovery] = useState(false);
+
+  useEffect(() => {
+    if (isLoaded) {
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setShowRecovery(true);
+    }, STUCK_TIMEOUT_MS);
+
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [isLoaded]);
+
+  if (!isLoaded) {
+    return (
+      <div className="flex min-h-[100dvh] items-center justify-center bg-background">
+        <div className="w-full max-w-[400px] stack-lg px-6 py-12 text-center">
+          <div className="flex justify-center">
+            <AnimatedLogo size={64} alt="Polly logo" />
+          </div>
+          <p className="text-sm text-muted-foreground">Loading...</p>
+          {showRecovery && (
+            <div className="stack-sm">
+              <p className="text-sm text-muted-foreground">
+                Taking longer than expected. Your session data may be stale.
+              </p>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  clearClerkCookies();
+                  window.location.reload();
+                }}
+              >
+                Clear session data and retry
+              </Button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-[100dvh] items-center justify-center bg-background">
