@@ -867,6 +867,7 @@ export const messageSchema = v.object({
   imageGeneration: v.optional(imageGenerationSchema), // Add image generation support
   toolCalls: v.optional(v.array(toolCallSchema)), // Tool calls made during reasoning
   error: v.optional(v.string()), // Error message for failed text-to-text requests
+  errorDetail: v.optional(v.string()), // Raw technical error from the provider
   ttsAudioCache: v.optional(v.array(ttsAudioCacheEntrySchema)),
   // Persona snapshot — frozen at message creation time so changing the conversation persona
   // doesn't retroactively update existing messages.

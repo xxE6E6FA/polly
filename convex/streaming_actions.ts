@@ -9,7 +9,10 @@ import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { internalAction } from "./_generated/server";
 import { getApiKey } from "./ai/encryption";
-import { getUserFriendlyErrorMessage } from "./ai/error_handlers";
+import {
+  getRawErrorMessage,
+  getUserFriendlyErrorMessage,
+} from "./ai/error_handlers";
 import {
   convertLegacyPartToAISDK,
   type LegacyMessagePart,
@@ -294,9 +297,11 @@ export const streamMessage = internalAction({
       // This prevents messages from being stuck in "thinking" status indefinitely
       console.error("Stream setup error:", error);
       const errorMessage = getUserFriendlyErrorMessage(error);
+      const errorDetail = getRawErrorMessage(error);
       await ctx.runMutation(internal.messages.updateMessageError, {
         messageId,
         error: errorMessage,
+        errorDetail: errorDetail !== errorMessage ? errorDetail : undefined,
       });
     } finally {
       // Use conditional clearing to prevent race conditions with newer streaming actions.

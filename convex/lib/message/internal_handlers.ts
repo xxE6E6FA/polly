@@ -867,9 +867,10 @@ export async function updateMessageErrorHandler(
   args: {
     messageId: Id<"messages">;
     error: string;
+    errorDetail?: string;
   }
 ) {
-  const { messageId, error } = args;
+  const { messageId, error, errorDetail } = args;
   try {
     const message = await ctx.db.get("messages", messageId);
     if (!message) {
@@ -880,6 +881,7 @@ export async function updateMessageErrorHandler(
     await ctx.db.patch("messages", messageId, {
       status: "error",
       error,
+      ...(errorDetail ? { errorDetail } : {}),
       metadata: {
         ...message.metadata,
         finishReason: "error",

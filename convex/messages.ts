@@ -481,6 +481,7 @@ export const updateMessageError = internalMutation({
   args: {
     messageId: v.id("messages"),
     error: v.string(),
+    errorDetail: v.optional(v.string()),
   },
   handler: updateMessageErrorHandler,
 });

@@ -14,7 +14,7 @@ import {
   isReasoningDelta,
 } from "../lib/shared/stream_utils";
 import type { Citation } from "../types";
-import { getUserFriendlyErrorMessage } from "./error_handlers";
+import { getRawErrorMessage, getUserFriendlyErrorMessage } from "./error_handlers";
 import { createStreamBuffer } from "./streaming/buffer";
 import {
   type StreamingParams,
@@ -279,9 +279,11 @@ export async function streamLLMToMessage({
   } catch (error) {
     console.error("Stream error: stream failed", error);
     const errorMessage = getUserFriendlyErrorMessage(error);
+    const errorDetail = getRawErrorMessage(error);
     await ctx.runMutation(internal.messages.updateMessageError, {
       messageId,
       error: errorMessage,
+      errorDetail: errorDetail !== errorMessage ? errorDetail : undefined,
     });
   } finally {
     if (buffer.state.userStopped) {
