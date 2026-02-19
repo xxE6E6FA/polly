@@ -201,95 +201,36 @@ describe("handleStreamOperationWithRetry", () => {
 });
 
 describe("getUserFriendlyErrorMessage", () => {
-  test("handles 401 unauthorized errors", () => {
-    const error = { statusCode: 401, message: "Unauthorized" };
+  test("passes through raw provider error messages", () => {
+    const error = new Error("Rate limit exceeded");
     const message = getUserFriendlyErrorMessage(error);
 
-    expect(message).toContain("Authentication");
-    expect(message).toContain("API key");
+    expect(message).toBe("Rate limit exceeded");
   });
 
-  test("handles 403 forbidden errors with provider", () => {
-    const error = {
-      statusCode: 403,
-      message: "Forbidden",
-      url: "https://api.openai.com",
-    };
-    const message = getUserFriendlyErrorMessage(error);
-
-    expect(message).toContain("OpenAI");
-    expect(message).toContain("not permitted");
-  });
-
-  test("handles model not found errors", () => {
-    const error = new Error("Model gpt-5 not found");
-    const message = getUserFriendlyErrorMessage(error);
-
-    expect(message).toContain("no longer available");
-  });
-
-  test("handles write conflict errors", () => {
+  test("replaces OCC conflict with user-friendly message", () => {
     const error = new Error(
       "Documents read from or written to have changed"
     );
     const message = getUserFriendlyErrorMessage(error);
 
-    expect(message).toContain("temporary issue");
+    expect(message).toContain("temporary conflict");
     expect(message).toContain("try again");
+    expect(message).not.toContain("Documents read from");
   });
 
-  test("handles rate limit errors", () => {
-    const error = new Error("Rate limit exceeded");
-    const message = getUserFriendlyErrorMessage(error);
-
-    expect(message).toContain("busy");
-    expect(message).toContain("wait");
-  });
-
-  test("handles timeout errors", () => {
-    const error = new Error("Request timed out");
-    const message = getUserFriendlyErrorMessage(error);
-
-    expect(message).toContain("took too long");
-  });
-
-  test("handles network errors", () => {
-    const error = new Error("Network error: ECONNREFUSED");
-    const message = getUserFriendlyErrorMessage(error);
-
-    expect(message).toContain("trouble connecting");
-  });
-
-  test("handles context length errors", () => {
-    const error = new Error("Context length exceeded");
-    const message = getUserFriendlyErrorMessage(error);
-
-    expect(message).toContain("too long");
-    expect(message).toContain("new conversation");
-  });
-
-  test("includes model hint when model is provided", () => {
+  test("prefixes provider name when detected from URL", () => {
     const error = {
-      statusCode: 404,
-      message: "Model not found",
-      requestBodyValues: { model: "gpt-4o" },
+      message: "Context length exceeded",
+      url: "https://api.openai.com/v1/chat/completions",
     };
     const message = getUserFriendlyErrorMessage(error);
 
-    expect(message).toContain("gpt-4o");
+    expect(message).toContain("OpenAI");
+    expect(message).toContain("Context length exceeded");
   });
 
-  test("detects OpenRouter provider", () => {
-    const error = {
-      message: "Model not available",
-      url: "https://openrouter.ai/api/v1",
-    };
-    const message = getUserFriendlyErrorMessage(error);
-
-    expect(message).toContain("OpenRouter");
-  });
-
-  test("detects Anthropic provider", () => {
+  test("prefixes provider name when detected from requestBodyValues", () => {
     const error = {
       message: "Unauthorized",
       requestBodyValues: { provider: "anthropic" },
@@ -297,40 +238,43 @@ describe("getUserFriendlyErrorMessage", () => {
     const message = getUserFriendlyErrorMessage(error);
 
     expect(message).toContain("Anthropic");
+    expect(message).toContain("Unauthorized");
   });
 
-  test("detects Google provider", () => {
+  test("appends model hint when model is available", () => {
     const error = {
-      message: "Service unavailable",
-      url: "https://generativelanguage.googleapis.com",
+      message: "Model not found",
+      requestBodyValues: { model: "gpt-4o" },
     };
     const message = getUserFriendlyErrorMessage(error);
 
-    expect(message).toContain("Google");
+    expect(message).toContain("gpt-4o");
+    expect(message).toContain("Model not found");
   });
 
-  test("provides generic fallback for unknown errors", () => {
-    const error = new Error("Something went wrong");
-    const message = getUserFriendlyErrorMessage(error);
-
-    expect(message).toContain("unexpected error");
-    expect(message).toContain("try again");
+  test("detects various providers", () => {
+    const providers = [
+      { url: "https://openrouter.ai/api/v1", name: "OpenRouter" },
+      { url: "https://api.openai.com/v1", name: "OpenAI" },
+      { url: "https://generativelanguage.googleapis.com", name: "Google" },
+      { url: "https://api.groq.com/v1", name: "Groq" },
+    ];
+    for (const { url, name } of providers) {
+      const result = getUserFriendlyErrorMessage({ message: "error", url });
+      expect(result).toContain(name);
+    }
   });
 
-  test("handles non-Error objects", () => {
-    const error = "String error";
+  test("handles non-Error objects with message property", () => {
+    const error = { statusCode: 500, message: "Internal server error" };
     const message = getUserFriendlyErrorMessage(error);
 
-    expect(message).toContain("unexpected error");
+    expect(message).toContain("Internal server error");
   });
 
-  test("includes status code in generic errors when available", () => {
-    const error = {
-      statusCode: 500,
-      message: "Internal server error",
-    };
-    const message = getUserFriendlyErrorMessage(error);
+  test("handles string errors", () => {
+    const message = getUserFriendlyErrorMessage("Something broke");
 
-    expect(message).toContain("500");
+    expect(message).toBe("Something broke");
   });
 });

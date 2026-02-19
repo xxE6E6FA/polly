@@ -1,4 +1,8 @@
-import { ArrowCounterClockwiseIcon } from "@phosphor-icons/react";
+import {
+  ArrowCounterClockwiseIcon,
+  CaretDownIcon,
+} from "@phosphor-icons/react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { ChatMessage } from "@/types";
 import {
@@ -24,6 +28,8 @@ export function MessageError({
   onRetry,
   onRetryImage,
 }: MessageErrorProps) {
+  const [showDetail, setShowDetail] = useState(false);
+
   const hasImageError =
     message.imageGeneration?.status === "failed" ||
     message.imageGeneration?.status === "canceled";
@@ -36,6 +42,7 @@ export function MessageError({
   const errorMessage = hasImageError
     ? message.imageGeneration?.error
     : message.error;
+  const errorDetail = hasTextError ? message.errorDetail : undefined;
   const errorTitle = hasImageError
     ? `Image generation ${
         message.imageGeneration?.status === "canceled" ? "canceled" : "failed"
@@ -96,6 +103,25 @@ export function MessageError({
         <div className="flex-1">
           <h4 className="text-sm font-medium text-danger">{errorTitle}</h4>
           <p className="mt-1 text-sm text-danger">{errorMessage}</p>
+          {errorDetail && (
+            <div className="mt-2">
+              <button
+                type="button"
+                onClick={() => setShowDetail(prev => !prev)}
+                className="inline-flex items-center gap-1 text-xs text-danger/60 hover:text-danger/80"
+              >
+                <CaretDownIcon
+                  className={`size-3 transition-transform ${showDetail ? "rotate-0" : "-rotate-90"}`}
+                />
+                Technical details
+              </button>
+              {showDetail && (
+                <pre className="mt-1.5 overflow-x-auto whitespace-pre-wrap break-all rounded bg-danger/5 px-2 py-1.5 font-mono text-xs text-danger/70">
+                  {errorDetail}
+                </pre>
+              )}
+            </div>
+          )}
           {showRetry && <div className="mt-3">{renderRetryButton()}</div>}
         </div>
       </div>

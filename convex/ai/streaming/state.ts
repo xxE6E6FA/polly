@@ -15,7 +15,7 @@ import { internal } from "../../_generated/api";
 import type { Id } from "../../_generated/dataModel";
 import type { ActionCtx } from "../../_generated/server";
 import type { Citation } from "../../types";
-import { getUserFriendlyErrorMessage } from "../error_handlers";
+import { getRawErrorMessage, getUserFriendlyErrorMessage } from "../error_handlers";
 import {
   createWebSearchTool,
   createImageGenerationTool,
@@ -458,9 +458,11 @@ export async function handleStreamError(
   console.error("Stream error in onError callback:", error);
   try {
     const errorMessage = getUserFriendlyErrorMessage(error);
+    const errorDetail = getRawErrorMessage(error);
     await ctx.runMutation(internal.messages.updateMessageError, {
       messageId,
       error: errorMessage,
+      errorDetail: errorDetail !== errorMessage ? errorDetail : undefined,
     });
   } catch (updateError) {
     console.error("Failed to update message with error:", updateError);

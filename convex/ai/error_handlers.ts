@@ -179,121 +179,46 @@ export async function handleStreamOperationWithRetry<T>(
 }
 
 /**
- * Generate user-friendly error messages for common server-side errors
+ * Extract the raw error message string from an unknown error.
+ */
+export function getRawErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  if (typeof error === "object" && error !== null && "message" in error) {
+    return String((error as { message: unknown }).message);
+  }
+  return String(error);
+}
+
+/**
+ * Generate user-facing error messages from provider/system errors.
+ *
+ * Strategy: pass through the raw provider error in most cases — providers
+ * already return clear messages. Only override for internal errors that
+ * would be meaningless to users (e.g. Convex OCC conflicts).
  */
 export const getUserFriendlyErrorMessage = (error: unknown): string => {
-  const errorMessage = error instanceof Error ? error.message : (typeof error === 'object' && error !== null && 'message' in error ? (error as { message: unknown }).message as string : String(error));
-  const errorMessageLower = errorMessage.toLowerCase();
-  const statusCode =
-    typeof (error as { statusCode?: unknown })?.statusCode === "number"
-      ? ((error as { statusCode: number }).statusCode ?? undefined)
-      : undefined;
+  const raw = getRawErrorMessage(error);
+  const providerName = resolveProviderName(error);
   const model =
     typeof (error as { requestBodyValues?: { model?: unknown } })?.requestBodyValues?.model ===
     "string"
       ? ((error as { requestBodyValues?: { model?: string } }).requestBodyValues?.model ?? "")
       : "";
-  const providerName = resolveProviderName(error);
 
-  const appendModelHint = (message: string) =>
-    model ? `${message} (requested model: ${model}).` : message;
+  const withModel = (msg: string) =>
+    model ? `${msg} (model: ${model})` : msg;
 
-  if (statusCode === 401 || errorMessageLower.includes("unauthorized")) {
-    const base =
-      providerName
-        ? `Authentication with ${providerName} failed. Please double-check your API key or refresh the connection.`
-        : "Authentication failed with the AI provider. Please double-check your API key or refresh the connection.";
-    return appendModelHint(base);
+  // Internal: Convex OCC conflict — raw message is meaningless to users
+  if (raw.includes("Documents read from or written to")) {
+    return "A temporary conflict occurred while processing your message. Please try again.";
   }
 
-  if (statusCode === 403) {
-    const base =
-      providerName
-        ? `Access to this ${providerName} model is not permitted for your account. Please choose another model or update your provider permissions.`
-        : "Access to this model is not permitted for your account. Please choose another model or update your provider permissions.";
-    return appendModelHint(base);
+  // Enrich with provider name when available
+  if (providerName) {
+    return withModel(`${providerName}: ${raw}`);
   }
 
-  // Model unavailability errors
-  if (
-    errorMessageLower.includes("model") &&
-    (errorMessageLower.includes("not found") ||
-      errorMessageLower.includes("not available") ||
-      errorMessageLower.includes("404") ||
-      errorMessageLower.includes("deprecated") ||
-      errorMessageLower.includes("disabled") ||
-      errorMessageLower.includes("invalid model"))
-  ) {
-    const base =
-      providerName
-        ? `The model you selected is no longer available from ${providerName}. Please pick a different model or update your Settings.`
-        : "This model is no longer available. Please select a different model or remove it from Settings if it's disabled.";
-    return appendModelHint(base);
-  }
-
-  if (errorMessageLower.includes("no endpoints found")) {
-    const base =
-      providerName
-        ? `${providerName} cannot reach the requested model right now. Please choose another model or switch providers.`
-        : "The selected provider does not currently offer this model. Choose another model or switch providers.";
-    return appendModelHint(base);
-  }
-
-  // Common error patterns and their user-friendly messages
-  if (errorMessage.includes("Documents read from or written to")) {
-    return "I encountered a temporary issue while processing your message. Please try again.";
-  }
-
-  if (
-    errorMessageLower.includes("api key") ||
-    errorMessageLower.includes("authentication") ||
-    errorMessageLower.includes("unauthorized") ||
-    errorMessageLower.includes("invalid credentials")
-  ) {
-    const base =
-      providerName
-        ? `Authentication with ${providerName} failed: ${errorMessage}`
-        : errorMessage;
-    return appendModelHint(base);
-  }
-
-  if (errorMessageLower.includes("rate limit") || errorMessageLower.includes("429")) {
-    return "The AI service is currently busy. Please wait a moment and try again.";
-  }
-
-  if (errorMessageLower.includes("timeout") || errorMessageLower.includes("timed out")) {
-    return "The response took too long. Please try again with a shorter message.";
-  }
-
-  if (
-    errorMessageLower.includes("network") ||
-    errorMessageLower.includes("fetch") ||
-    errorMessageLower.includes("econnrefused") ||
-    errorMessageLower.includes("econnreset") ||
-    errorMessageLower.includes("enotfound") ||
-    errorMessageLower.includes("socket hang up") ||
-    errorMessageLower.includes("service unavailable") ||
-    errorMessageLower.includes("503") ||
-    errorMessageLower.includes("unreachable")
-  ) {
-    const base =
-      providerName
-        ? `I'm having trouble connecting to ${providerName}. Please check the provider status or try again in a moment.`
-        : "I'm having trouble connecting to the AI service. Please check your connection and try again.";
-    return appendModelHint(base);
-  }
-
-  if (
-    errorMessageLower.includes("context length") ||
-    errorMessageLower.includes("token")
-  ) {
-    return "Your conversation has become too long. Please start a new conversation.";
-  }
-
-  // Generic fallback
-  const base = "I encountered an unexpected error. Please try again or contact support if the issue persists.";
-  if (statusCode) {
-    return appendModelHint(`${base} (provider status code: ${statusCode}).`);
-  }
-  return appendModelHint(base);
+  return withModel(raw);
 };
