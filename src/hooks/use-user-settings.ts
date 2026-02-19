@@ -1,6 +1,6 @@
 import { api } from "@convex/_generated/api";
 import type { Doc } from "@convex/_generated/dataModel";
-import { useQuery } from "convex/react";
+import { useConvexAuth, useQuery } from "convex/react";
 import { useEffect, useMemo } from "react";
 import { CACHE_KEYS, get, set } from "@/lib/local-storage";
 
@@ -11,9 +11,13 @@ export function getInitialUserSettings(): UserSettings | null {
 }
 
 export function useUserSettings(): UserSettings | undefined {
-  const userSettingsRaw = useQuery(api.userSettings.getUserSettings, {}) as
-    | UserSettings
-    | undefined;
+  const { isAuthenticated } = useConvexAuth();
+
+  // Skip until auth is ready so pre-auth null doesn't override cached settings
+  const userSettingsRaw = useQuery(
+    api.userSettings.getUserSettings,
+    isAuthenticated ? {} : "skip"
+  ) as UserSettings | undefined;
 
   const userSettings = useMemo(() => {
     if (userSettingsRaw) {

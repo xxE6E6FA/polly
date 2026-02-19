@@ -1,5 +1,5 @@
 import { api } from "@convex/_generated/api";
-import { useQuery } from "convex/react";
+import { useConvexAuth, useQuery } from "convex/react";
 import { useEffect } from "react";
 import { shallow, useShallow } from "zustand/shallow";
 import { useStoreWithEqualityFn } from "zustand/traditional";
@@ -109,11 +109,14 @@ export const resetModelCatalogStoreApi = () => {
 };
 
 export function useModelCatalog() {
-  // Use single consolidated query instead of two separate ones
-  // Query returns hydrated models with capabilities from models.dev
-  const availableModels = useQuery(api.userModels.getAvailableModels, {}) as
-    | AvailableModel[]
-    | undefined;
+  const { isAuthenticated } = useConvexAuth();
+
+  // Skip query until auth is ready to prevent pre-auth results (built-in only)
+  // from overwriting the localStorage cache with incomplete data.
+  const availableModels = useQuery(
+    api.userModels.getAvailableModels,
+    isAuthenticated ? {} : "skip"
+  ) as AvailableModel[] | undefined;
 
   const setCatalog = useModelCatalogStore(s => s.setCatalog);
   const initialized = useModelCatalogStore(s => s.initialized);

@@ -1,6 +1,6 @@
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
-import { useAction, useConvex, useQuery } from "convex/react";
+import { useAction, useConvex, useConvexAuth, useQuery } from "convex/react";
 import { useCallback, useEffect, useRef } from "react";
 import { useLoaderData, useLocation, useNavigate } from "react-router-dom";
 import { UnifiedChatView } from "@/components/chat";
@@ -73,6 +73,7 @@ export default function ConversationRoute() {
   const navigate = useNavigate();
   const location = useLocation();
   const convex = useConvex();
+  const { isAuthenticated } = useConvexAuth();
   const managedToast = useToast();
   const online = useOnline();
 
@@ -119,7 +120,11 @@ export default function ConversationRoute() {
     selectedModel
   );
 
-  const hasApiKeys = useQuery(api.apiKeys.hasAnyApiKey, {});
+  // Gate on isAuthenticated to prevent pre-auth result differing from post-auth
+  const hasApiKeys = useQuery(
+    api.apiKeys.hasAnyApiKey,
+    isAuthenticated ? {} : "skip"
+  );
 
   // Determine display state
   const hasRealMessages = realMessages.length > 0;
