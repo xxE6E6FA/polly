@@ -591,7 +591,8 @@ describe("concurrent streaming simulation", () => {
 
   test("handles rapid content append conflicts", async () => {
     let messageContent = "";
-    let _conflictCount = 0;
+    let conflictCount = 0;
+    let callCount = 0;
     const chunks = [
       "Hello",
       " ",
@@ -609,11 +610,12 @@ describe("concurrent streaming simulation", () => {
     for (const chunk of chunks) {
       await withRetry(
         () => {
+          callCount++;
           const currentContent = messageContent;
 
-          // Simulate 30% conflict rate
-          if (Math.random() < 0.3) {
-            _conflictCount++;
+          // Deterministic conflict: fail on every 3rd call (at most once per chunk)
+          if (callCount % 3 === 0) {
+            conflictCount++;
             throw new Error(WRITE_CONFLICT_ERROR);
           }
 
@@ -626,13 +628,14 @@ describe("concurrent streaming simulation", () => {
     }
 
     expect(messageContent).toBe("Hello world! How are you?");
-    // Should have some conflicts (probabilistic)
+    expect(conflictCount).toBeGreaterThan(0);
   });
 
   test("handles interleaved content and reasoning updates", async () => {
     let content = "";
     let reasoning = "";
-    let _totalConflicts = 0;
+    let totalConflicts = 0;
+    let callCount = 0;
 
     const updates = [
       { type: "content", value: "The " },
@@ -647,9 +650,11 @@ describe("concurrent streaming simulation", () => {
     for (const update of updates) {
       await withRetry(
         () => {
-          // 20% conflict rate
-          if (Math.random() < 0.2) {
-            _totalConflicts++;
+          callCount++;
+
+          // Deterministic conflict: fail on every 4th call
+          if (callCount % 4 === 0) {
+            totalConflicts++;
             throw new Error(WRITE_CONFLICT_ERROR);
           }
 
@@ -667,6 +672,7 @@ describe("concurrent streaming simulation", () => {
 
     expect(content).toBe("The answer is 42.");
     expect(reasoning).toBe("Analyzing: computing result. Done.");
+    expect(totalConflicts).toBeGreaterThan(0);
   });
 });
 
