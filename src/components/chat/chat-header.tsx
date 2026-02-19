@@ -1,69 +1,35 @@
 import { api } from "@convex/_generated/api";
 import type { Doc, Id } from "@convex/_generated/dataModel";
 import {
-  ArchiveIcon,
-  DotsThreeIcon,
   DownloadIcon,
   FileCodeIcon,
   FloppyDiskIcon,
   GitBranchIcon,
   GitCommitIcon,
-  PencilSimpleIcon,
-  PushPinIcon,
   ShareNetworkIcon,
   SidebarSimpleIcon,
-  TrashIcon,
 } from "@phosphor-icons/react";
-import { useMutation, useQuery } from "convex/react";
-import { memo, useEffect, useState } from "react";
+import { useQuery } from "convex/react";
+import { memo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Button, buttonVariants } from "@/components/ui/button";
-import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Drawer,
-  DrawerBody,
-  DrawerContent,
-  DrawerHeader,
-  DrawerTitle,
-  DrawerTrigger,
-} from "@/components/ui/drawer";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
-import { ControlledShareConversationDialog } from "@/components/ui/share-conversation-dialog";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useArchiveConversation } from "@/hooks/use-archive-conversation";
-import { useDeleteConversation } from "@/hooks/use-delete-conversation";
 import { useOnline } from "@/hooks/use-online";
-import {
-  downloadFile,
-  exportAsJSON,
-  exportAsMarkdown,
-  generateFilename,
-} from "@/lib/export";
-import { CACHE_KEYS, del } from "@/lib/local-storage";
+import { downloadFile, generateFilename } from "@/lib/export";
 import { ROUTES } from "@/lib/routes";
 import { cn, formatDate } from "@/lib/utils";
 import { useToast } from "@/providers/toast-context";
 import { useUI } from "@/providers/ui-provider";
-import { useUserIdentity } from "@/providers/user-data-context";
 import type { ChatMessage, ConversationId } from "@/types";
 
 const isMac =
@@ -74,73 +40,10 @@ type ChatHeaderProps = {
   conversationId?: ConversationId;
   conversation?: Doc<"conversations"> | null;
   isPrivateMode?: boolean;
-  isArchived?: boolean;
   onSavePrivateChat?: () => void;
   canSavePrivateChat?: boolean;
   privateMessages?: ChatMessage[];
-  privatePersonaId?: Id<"personas">;
 };
-
-type EditTitleDialogProps = {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  currentTitle: string;
-  onSave: (newTitle: string) => void;
-};
-
-function EditTitleDialog({
-  open,
-  onOpenChange,
-  currentTitle,
-  onSave,
-}: EditTitleDialogProps) {
-  const [title, setTitle] = useState(currentTitle);
-
-  // Update title when dialog opens with new currentTitle
-  useEffect(() => {
-    if (open) {
-      setTitle(currentTitle);
-    }
-  }, [open, currentTitle]);
-
-  const handleSave = () => {
-    if (title.trim()) {
-      onSave(title);
-      onOpenChange(false);
-    }
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Edit Title</DialogTitle>
-          <DialogDescription>
-            Enter a new title for this conversation
-          </DialogDescription>
-        </DialogHeader>
-        <Input
-          value={title}
-          onChange={e => setTitle(e.target.value)}
-          onKeyDown={e => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              handleSave();
-            }
-          }}
-          placeholder="Conversation title"
-          autoFocus
-        />
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button onClick={handleSave}>Save</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
 
 function getBranchLabel(
   branches: Array<{ _id: string }>,
@@ -179,12 +82,10 @@ const ChatHeaderComponent = ({
   conversationId,
   conversation,
   isPrivateMode,
-  isArchived,
   onSavePrivateChat,
   canSavePrivateChat,
   privateMessages,
 }: ChatHeaderProps) => {
-  const { user } = useUserIdentity();
   const { isSidebarVisible, setSidebarVisible } = useUI();
   const managedToast = useToast();
   const online = useOnline();
@@ -192,11 +93,6 @@ const ChatHeaderComponent = ({
   const [exportingFormat, setExportingFormat] = useState<"json" | "md" | null>(
     null
   );
-  const [shouldLoadExportData, setShouldLoadExportData] = useState(false);
-  const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
-  const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
-  const [isEditingTitle, setIsEditingTitle] = useState(false);
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   // Check if conversation is shared
   const sharedStatus = useQuery(
@@ -215,189 +111,71 @@ const ChatHeaderComponent = ({
       : ("skip" as const)
   );
 
-  const exportData = useQuery(
-    api.conversations.getForExport,
-    conversationId && shouldLoadExportData ? { id: conversationId } : "skip"
-  );
-
-  const patchConversation = useMutation(api.conversations.patch);
-  const { deleteConversation: performDelete } = useDeleteConversation({
-    currentConversationId: conversationId,
-  });
-  const { archiveConversation: performArchive } = useArchiveConversation({
-    currentConversationId: conversationId,
-  });
-
-  const handleExport = (format: "json" | "md") => {
-    // Handle private chat export
-    if (isPrivateMode && privateMessages) {
-      try {
-        let content: string;
-        let mimeType: string;
-
-        if (format === "json") {
-          content = JSON.stringify(
-            {
-              messages: privateMessages.map(msg => ({
-                role: msg.role,
-                content: msg.content,
-                createdAt: msg.createdAt,
-                attachments: msg.attachments,
-              })),
-              exportedAt: new Date().toISOString(),
-              type: "private-chat",
-            },
-            null,
-            2
-          );
-          mimeType = "application/json";
-        } else {
-          content = privateMessages
-            .filter(msg => msg.content)
-            .map(msg => {
-              const timestamp = new Date(msg.createdAt).toLocaleString();
-              const role = msg.role === "user" ? "You" : "Assistant";
-              return `## ${role} (${timestamp})\n\n${msg.content}\n`;
-            })
-            .join("\n");
-          mimeType = "text/markdown";
-        }
-
-        const filename = generateFilename("Private Chat", format);
-        downloadFile(content, filename, mimeType);
-
-        managedToast.success("Export successful", {
-          description: `Private chat exported as ${filename}`,
-          id: `export-private-${Date.now()}`,
-        });
-      } catch (_error) {
-        managedToast.error("Export failed", {
-          description: "An error occurred while exporting the private chat",
-          id: `export-private-error-${Date.now()}`,
-        });
-      }
-      return;
-    }
-
-    // Handle regular conversation export
-    if (!conversationId) {
-      managedToast.error("Export failed", {
-        description: "No conversation to export",
-        id: "export-no-conversation",
-      });
+  const handlePrivateExport = (format: "json" | "md") => {
+    if (!privateMessages) {
       return;
     }
 
     setExportingFormat(format);
-    setShouldLoadExportData(true);
-  };
 
-  // Handle export data loading completion and errors
-  useEffect(() => {
-    if (exportData && exportingFormat && conversation && conversation.title) {
-      try {
-        let content: string;
-        let mimeType: string;
+    try {
+      let content: string;
+      let mimeType: string;
 
-        if (exportingFormat === "json") {
-          content = exportAsJSON(exportData);
-          mimeType = "application/json";
-        } else {
-          content = exportAsMarkdown(exportData);
-          mimeType = "text/markdown";
-        }
-
-        const filename = generateFilename(conversation.title, exportingFormat);
-        downloadFile(content, filename, mimeType);
-
-        managedToast.success("Export successful", {
-          description: `Conversation exported as ${filename}`,
-          id: `export-conversation-${conversationId}`,
-        });
-      } catch (_error) {
-        managedToast.error("Export failed", {
-          description: "An error occurred while exporting the conversation",
-          id: `export-conversation-error-${conversationId}`,
-        });
-      } finally {
-        setExportingFormat(null);
-        setShouldLoadExportData(false);
+      if (format === "json") {
+        content = JSON.stringify(
+          {
+            messages: privateMessages.map(msg => ({
+              role: msg.role,
+              content: msg.content,
+              createdAt: msg.createdAt,
+              attachments: msg.attachments,
+            })),
+            exportedAt: new Date().toISOString(),
+            type: "private-chat",
+          },
+          null,
+          2
+        );
+        mimeType = "application/json";
+      } else {
+        content = privateMessages
+          .filter(msg => msg.content)
+          .map(msg => {
+            const timestamp = new Date(msg.createdAt).toLocaleString();
+            const role = msg.role === "user" ? "You" : "Assistant";
+            return `## ${role} (${timestamp})\n\n${msg.content}\n`;
+          })
+          .join("\n");
+        mimeType = "text/markdown";
       }
-    } else if (shouldLoadExportData && exportData === null && exportingFormat) {
+
+      const filename = generateFilename("Private Chat", format);
+      downloadFile(content, filename, mimeType);
+
+      managedToast.success("Export successful", {
+        description: `Private chat exported as ${filename}`,
+        id: `export-private-${Date.now()}`,
+      });
+    } catch (_error) {
       managedToast.error("Export failed", {
-        description: "Unable to load conversation data",
-        id: `export-load-error-${conversationId}`,
+        description: "An error occurred while exporting the private chat",
+        id: `export-private-error-${Date.now()}`,
       });
+    } finally {
       setExportingFormat(null);
-      setShouldLoadExportData(false);
-    }
-  }, [
-    exportData,
-    exportingFormat,
-    conversation,
-    shouldLoadExportData,
-    managedToast,
-    conversationId,
-  ]);
-
-  const handlePinToggle = async () => {
-    if (!(conversationId && conversation)) {
-      return;
-    }
-    try {
-      await patchConversation({
-        id: conversationId as Id<"conversations">,
-        updates: { isPinned: !conversation.isPinned },
-      });
-      managedToast.success(
-        conversation.isPinned ? "Conversation unpinned" : "Conversation pinned",
-        {
-          id: `pin-${conversationId}`,
-        }
-      );
-    } catch (_err) {
-      managedToast.error("Failed to update conversation", {
-        description: "Unable to pin/unpin conversation. Please try again.",
-        id: `pin-error-${conversationId}`,
-      });
     }
   };
 
-  const handleEditTitle = () => {
-    setIsEditingTitle(true);
-  };
-
-  const handleSaveTitle = async (newTitle: string) => {
-    if (!(conversationId && newTitle.trim())) {
-      setIsEditingTitle(false);
-      return;
-    }
-    try {
-      await patchConversation({
-        id: conversationId as Id<"conversations">,
-        updates: { title: newTitle.trim() },
-      });
-      setIsEditingTitle(false);
-      managedToast.success("Title updated", {
-        id: `title-${conversationId}`,
-      });
-    } catch (_err) {
-      managedToast.error("Failed to update title", {
-        description: "Unable to update conversation title. Please try again.",
-        id: `title-error-${conversationId}`,
-      });
-    }
-  };
-
-  // For chat pages, show full header with conversation title
   return (
-    <>
-      <div
-        className={cn(
-          "relative flex w-full items-center justify-between gap-1.5 py-0 sm:gap-2",
-          "z-sticky"
-        )}
-      >
+    <div
+      className={cn(
+        "relative flex w-full items-center justify-between gap-1.5 py-0 sm:gap-2",
+        "z-sticky"
+      )}
+    >
+      {/* Left side: sidebar toggle + branch selector + shared indicator */}
+      <div className="flex min-w-0 flex-1 items-center gap-1">
         {!(isSidebarVisible || isPrivateMode) && (
           <Button
             size="icon-sm"
@@ -408,391 +186,135 @@ const ChatHeaderComponent = ({
             <SidebarSimpleIcon />
           </Button>
         )}
-        <div className="flex min-w-0 flex-1 items-center gap-1">
-          {/* Branch selector */}
-          {conversationId && Array.isArray(branches) && branches.length > 1 && (
-            <DropdownMenu>
-              <DropdownMenuTrigger>
-                <Button variant="ghost" size="pill" className="h-5 mt-0">
-                  <GitBranchIcon />
-                  <span className="text-xxs">
-                    {getBranchLabel(
-                      branches,
-                      conversation?._id as unknown as string
-                    )}
-                  </span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start">
-                {sortBranches(
-                  branches,
-                  conversation?.rootConversationId || conversation?._id
-                ).map(b => {
-                  const rootId =
-                    conversation?.rootConversationId || conversation?._id;
-                  const isRoot = !b.parentConversationId || b._id === rootId;
-                  const isActive = b._id === conversation?._id;
-                  const created = formatDate(b.createdAt || 0);
-                  return (
-                    <DropdownMenuItem
-                      key={b._id}
-                      onClick={() => navigate(ROUTES.CHAT_CONVERSATION(b._id))}
-                    >
-                      <div className="flex min-w-0 items-center gap-2">
-                        {/* Active dot first (aligned) */}
-                        <span
-                          className={cn(
-                            "inline-block h-1.5 w-1.5 rounded-full flex-shrink-0",
-                            isActive ? "bg-primary" : "bg-transparent"
-                          )}
-                          aria-label={isActive ? "Active" : undefined}
-                        />
-                        {/* Fixed icon slot for alignment */}
-                        <div className="w-4 flex items-center justify-center flex-shrink-0">
-                          {isRoot ? (
-                            <GitCommitIcon
-                              className="size-3.5 text-muted-foreground"
-                              aria-label="Root conversation"
-                            />
-                          ) : (
-                            <GitBranchIcon
-                              className="size-3.5 text-muted-foreground"
-                              aria-label="Branch"
-                            />
-                          )}
-                        </div>
-                        {/* Text */}
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <span className="text-sm truncate">{b.title}</span>
-                            <span className="text-xxs text-muted-foreground whitespace-nowrap">
-                              {created}
-                            </span>
-                          </div>
+
+        {/* Branch selector */}
+        {conversationId && Array.isArray(branches) && branches.length > 1 && (
+          <DropdownMenu>
+            <DropdownMenuTrigger>
+              <Button variant="ghost" size="pill" className="h-5 mt-0">
+                <GitBranchIcon />
+                <span className="text-xxs">
+                  {getBranchLabel(
+                    branches,
+                    conversation?._id as unknown as string
+                  )}
+                </span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              {sortBranches(
+                branches,
+                conversation?.rootConversationId || conversation?._id
+              ).map(b => {
+                const rootId =
+                  conversation?.rootConversationId || conversation?._id;
+                const isRoot = !b.parentConversationId || b._id === rootId;
+                const isActive = b._id === conversation?._id;
+                const created = formatDate(b.createdAt || 0);
+                return (
+                  <DropdownMenuItem
+                    key={b._id}
+                    onClick={() => navigate(ROUTES.CHAT_CONVERSATION(b._id))}
+                  >
+                    <div className="flex min-w-0 items-center gap-2">
+                      <span
+                        className={cn(
+                          "inline-block h-1.5 w-1.5 rounded-full flex-shrink-0",
+                          isActive ? "bg-primary" : "bg-transparent"
+                        )}
+                        aria-label={isActive ? "Active" : undefined}
+                      />
+                      <div className="w-4 flex items-center justify-center flex-shrink-0">
+                        {isRoot ? (
+                          <GitCommitIcon
+                            className="size-3.5 text-muted-foreground"
+                            aria-label="Root conversation"
+                          />
+                        ) : (
+                          <GitBranchIcon
+                            className="size-3.5 text-muted-foreground"
+                            aria-label="Branch"
+                          />
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="text-sm truncate">{b.title}</span>
+                          <span className="text-xxs text-muted-foreground whitespace-nowrap">
+                            {created}
+                          </span>
                         </div>
                       </div>
-                    </DropdownMenuItem>
-                  );
-                })}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
-          {sharedStatus && (
-            <Tooltip>
-              <TooltipTrigger>
-                <Button
-                  variant="ghost"
-                  size="pill"
-                  className="h-6 mt-0 p-1"
-                  onClick={() => setIsShareDialogOpen(true)}
-                >
-                  <ShareNetworkIcon className="size-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Shared - Click to manage</p>
-              </TooltipContent>
-            </Tooltip>
-          )}
-        </div>
-
-        {/* Only show actions for authenticated users */}
-        {user && (
-          <div className="flex items-center gap-1 sm:gap-1.5">
-            {/* Desktop menu */}
-            <div className="hidden sm:block">
-              <DropdownMenu>
-                <DropdownMenuTrigger>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label="More actions"
-                  >
-                    <DotsThreeIcon weight="bold" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  {!isPrivateMode && conversation && (
-                    <>
-                      <DropdownMenuItem
-                        onClick={handlePinToggle}
-                        disabled={!online}
-                      >
-                        <PushPinIcon
-                          className="mr-2 size-4"
-                          weight={conversation.isPinned ? "fill" : "regular"}
-                        />
-                        {conversation.isPinned ? "Unpin" : "Pin"}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={handleEditTitle}
-                        disabled={!online}
-                      >
-                        <PencilSimpleIcon className="mr-2 size-4" />
-                        Edit Title
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                    </>
-                  )}
-
-                  {isPrivateMode && (
-                    <>
-                      <DropdownMenuItem
-                        onClick={onSavePrivateChat}
-                        disabled={!(online && canSavePrivateChat)}
-                      >
-                        <FloppyDiskIcon className="mr-2 size-4" />
-                        Save Private Chat
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                    </>
-                  )}
-
-                  {!isPrivateMode && conversationId && (
-                    <DropdownMenuItem
-                      onClick={() => setIsShareDialogOpen(true)}
-                      disabled={!online}
-                    >
-                      <ShareNetworkIcon className="mr-2 size-4" />
-                      Share Conversation
-                    </DropdownMenuItem>
-                  )}
-
-                  <DropdownMenuItem
-                    onClick={() => handleExport("json")}
-                    disabled={!online || exportingFormat !== null}
-                  >
-                    <FileCodeIcon className="mr-2 size-4" />
-                    Export as JSON
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => handleExport("md")}
-                    disabled={!online || exportingFormat !== null}
-                  >
-                    <DownloadIcon className="mr-2 size-4" />
-                    Export as Markdown
-                  </DropdownMenuItem>
-
-                  {!isPrivateMode && conversation && !isArchived && (
-                    <>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        onClick={() => setIsArchiveDialogOpen(true)}
-                        disabled={!online}
-                      >
-                        <ArchiveIcon className="mr-2 size-4" />
-                        Archive Conversation
-                      </DropdownMenuItem>
-                    </>
-                  )}
-
-                  {!isPrivateMode && conversation && (
-                    <DropdownMenuItem
-                      onClick={() => setIsDeleteDialogOpen(true)}
-                      disabled={!online}
-                      className="text-destructive focus:text-destructive"
-                    >
-                      <TrashIcon className="mr-2 size-4" />
-                      Delete
-                    </DropdownMenuItem>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-
-            {/* Mobile drawer */}
-            <div className="sm:hidden">
-              <Drawer>
-                <DrawerTrigger>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label="More actions"
-                  >
-                    <DotsThreeIcon weight="bold" />
-                  </Button>
-                </DrawerTrigger>
-                <DrawerContent>
-                  <DrawerHeader>
-                    <DrawerTitle>Conversation actions</DrawerTitle>
-                  </DrawerHeader>
-                  <DrawerBody>
-                    <div className="flex flex-col">
-                      {!isPrivateMode && conversation && (
-                        <>
-                          <Button
-                            size="menu"
-                            variant="ghost"
-                            onClick={handlePinToggle}
-                            disabled={!online}
-                          >
-                            <PushPinIcon
-                              className="size-4"
-                              weight={
-                                conversation.isPinned ? "fill" : "regular"
-                              }
-                            />
-                            {conversation.isPinned ? "Unpin" : "Pin"}
-                          </Button>
-                          <Button
-                            size="menu"
-                            variant="ghost"
-                            onClick={handleEditTitle}
-                            disabled={!online}
-                          >
-                            <PencilSimpleIcon className="size-4" />
-                            Edit Title
-                          </Button>
-                        </>
-                      )}
-
-                      {isPrivateMode && (
-                        <Button
-                          size="menu"
-                          variant="ghost"
-                          onClick={onSavePrivateChat}
-                          disabled={!(online && canSavePrivateChat)}
-                        >
-                          <FloppyDiskIcon className="size-4" />
-                          Save Private Chat
-                        </Button>
-                      )}
-
-                      {!isPrivateMode && conversationId && (
-                        <Button
-                          size="menu"
-                          variant="ghost"
-                          onClick={() => setIsShareDialogOpen(true)}
-                          disabled={!online}
-                        >
-                          <ShareNetworkIcon className="size-4" />
-                          Share Conversation
-                        </Button>
-                      )}
-
-                      <Button
-                        size="menu"
-                        variant="ghost"
-                        onClick={() => handleExport("json")}
-                        disabled={!online || exportingFormat !== null}
-                      >
-                        <FileCodeIcon className="size-4" />
-                        Export as JSON
-                      </Button>
-                      <Button
-                        size="menu"
-                        variant="ghost"
-                        onClick={() => handleExport("md")}
-                        disabled={!online || exportingFormat !== null}
-                      >
-                        <DownloadIcon className="size-4" />
-                        Export as Markdown
-                      </Button>
-
-                      {!isPrivateMode && conversation && !isArchived && (
-                        <Button
-                          size="menu"
-                          variant="ghost"
-                          onClick={() => setIsArchiveDialogOpen(true)}
-                          disabled={!online}
-                        >
-                          <ArchiveIcon className="size-4" />
-                          Archive Conversation
-                        </Button>
-                      )}
-
-                      {!isPrivateMode && conversation && (
-                        <Button
-                          className="text-destructive hover:bg-destructive/10 hover:text-destructive dark:hover:bg-destructive/20"
-                          size="menu"
-                          variant="ghost"
-                          onClick={() => setIsDeleteDialogOpen(true)}
-                          disabled={!online}
-                        >
-                          <TrashIcon className="size-4" />
-                          Delete
-                        </Button>
-                      )}
                     </div>
-                  </DrawerBody>
-                </DrawerContent>
-              </Drawer>
-            </div>
-          </div>
+                  </DropdownMenuItem>
+                );
+              })}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+
+        {sharedStatus && (
+          <Tooltip>
+            <TooltipTrigger>
+              <span className="inline-flex items-center h-6 px-1">
+                <ShareNetworkIcon className="size-4 text-muted-foreground" />
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>This conversation is shared</p>
+            </TooltipContent>
+          </Tooltip>
         )}
       </div>
 
-      {/* Share dialog */}
-      {conversationId && (
-        <ControlledShareConversationDialog
-          conversationId={conversationId}
-          open={isShareDialogOpen}
-          onOpenChange={setIsShareDialogOpen}
-        />
-      )}
+      {/* Right side: private mode controls */}
+      {isPrivateMode && (
+        <div className="flex items-center gap-1 sm:gap-1.5">
+          {canSavePrivateChat && (
+            <Button
+              variant="ghost"
+              size="pill"
+              onClick={onSavePrivateChat}
+              disabled={!online}
+            >
+              <FloppyDiskIcon className="size-3.5" />
+              <span className="text-xs">Save</span>
+            </Button>
+          )}
 
-      {/* Archive confirmation */}
-      {!isPrivateMode && conversationId && (
-        <ConfirmationDialog
-          open={isArchiveDialogOpen}
-          onOpenChange={setIsArchiveDialogOpen}
-          title="Archive Conversation"
-          description={`Are you sure you want to archive "${conversation?.title ?? "this conversation"}"? You can restore it later from Archived Conversations.`}
-          confirmText="Archive"
-          onConfirm={async () => {
-            try {
-              await performArchive(conversationId as ConversationId);
-              managedToast.success("Conversation archived", {
-                description: "The conversation has been moved to archive.",
-                id: `archive-${conversationId}`,
-              });
-            } catch (_err) {
-              managedToast.error("Failed to archive conversation", {
-                description:
-                  "Unable to archive conversation. Please try again.",
-                id: `archive-error-${conversationId}`,
-              });
-            }
-          }}
-        />
+          {privateMessages && privateMessages.length > 0 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="Export private chat"
+                  disabled={exportingFormat !== null}
+                >
+                  <DownloadIcon />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  onClick={() => handlePrivateExport("json")}
+                  disabled={exportingFormat !== null}
+                >
+                  <FileCodeIcon className="mr-2 size-4" />
+                  Export as JSON
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => handlePrivateExport("md")}
+                  disabled={exportingFormat !== null}
+                >
+                  <DownloadIcon className="mr-2 size-4" />
+                  Export as Markdown
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        </div>
       )}
-
-      {/* Delete confirmation */}
-      {!isPrivateMode && conversationId && (
-        <ConfirmationDialog
-          open={isDeleteDialogOpen}
-          onOpenChange={setIsDeleteDialogOpen}
-          title="Delete Conversation"
-          description={`Are you sure you want to permanently delete "${conversation?.title ?? "this conversation"}"? This action cannot be undone.`}
-          confirmText="Delete"
-          variant="destructive"
-          onConfirm={async () => {
-            try {
-              await performDelete(conversationId as ConversationId);
-              managedToast.success("Conversation deleted", {
-                description: "The conversation has been permanently removed.",
-                id: `delete-${conversationId}`,
-              });
-            } catch (_err) {
-              managedToast.error("Failed to delete conversation", {
-                description: "Unable to delete conversation. Please try again.",
-                id: `delete-error-${conversationId}`,
-              });
-            }
-          }}
-        />
-      )}
-
-      {/* Edit title dialog */}
-      {!isPrivateMode && conversationId && isEditingTitle && (
-        <EditTitleDialog
-          open={isEditingTitle}
-          onOpenChange={setIsEditingTitle}
-          currentTitle={conversation?.title ?? ""}
-          onSave={handleSaveTitle}
-        />
-      )}
-    </>
+    </div>
   );
 };
 
