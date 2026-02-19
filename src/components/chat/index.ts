@@ -3,7 +3,7 @@
  * @description Chat interface components for conversations
  *
  * ## Main Components
- * - ChatHeader: Top header with title, actions, sharing
+ * - ChatHeader: Floating controls (sidebar toggle, branch selector, shared indicator, private mode actions)
  * - ChatMessage: Individual message display
  * - VirtualizedChatMessages: Scrollable virtualized message list
  * - ChatZeroState: Empty conversation welcome state

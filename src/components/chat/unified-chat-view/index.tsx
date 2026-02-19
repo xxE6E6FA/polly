@@ -493,20 +493,16 @@ export const UnifiedChatView = memo(
             <div className="pointer-events-none absolute inset-x-0 top-0">
               <header
                 ref={headerOverlayRef}
-                className="pointer-events-auto p-4 bg-background/50 sm:bg-transparent backdrop-blur-lg sm:backdrop-blur-none"
+                className="pointer-events-auto p-2"
               >
-                <div className="flex w-full items-center">
-                  <ChatHeader
-                    conversationId={conversationId}
-                    conversation={conversation}
-                    isPrivateMode={!conversationId}
-                    isArchived={isArchived}
-                    onSavePrivateChat={onSavePrivateChat}
-                    canSavePrivateChat={canSavePrivateChat}
-                    privateMessages={conversationId ? undefined : messages}
-                    privatePersonaId={currentPersonaId || undefined}
-                  />
-                </div>
+                <ChatHeader
+                  conversationId={conversationId}
+                  conversation={conversation}
+                  isPrivateMode={!conversationId}
+                  onSavePrivateChat={onSavePrivateChat}
+                  canSavePrivateChat={canSavePrivateChat}
+                  privateMessages={conversationId ? undefined : messages}
+                />
               </header>
             </div>
 
