@@ -296,6 +296,24 @@ describe("getProviderReasoningOptions", () => {
     });
   });
 
+  test("returns OpenRouter reasoning config with only effort when both effort and maxTokens are provided", () => {
+    const result = getProviderReasoningOptions("openrouter", {
+      effort: "high",
+      maxTokens: 8000,
+    });
+
+    expect(result).toEqual({
+      providerOptions: {
+        openrouter: {
+          reasoning: {
+            effort: "high",
+            exclude: false,
+          },
+        },
+      },
+    });
+  });
+
   test("returns OpenRouter reasoning config with enabled flag when no explicit config", () => {
     const result = getProviderReasoningOptions("openrouter");
 
