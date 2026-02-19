@@ -31,6 +31,7 @@ const actualConvexReact = await import("convex/react");
 mock.module("convex/react", () => ({
   __esModule: true,
   ...actualConvexReact,
+  useConvexAuth: () => ({ isAuthenticated: true, isLoading: false }),
   useQuery: (query: any, args?: any) => {
     if (convexMockRegistry.useQuery) {
       return convexMockRegistry.useQuery(query, args);
