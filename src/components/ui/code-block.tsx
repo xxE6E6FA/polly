@@ -1,13 +1,13 @@
-import { TextAlignJustifyIcon, TextAlignLeftIcon } from "@phosphor-icons/react";
+import {
+  CheckIcon,
+  CopyIcon,
+  DownloadIcon,
+  TextAlignJustifyIcon,
+  TextAlignLeftIcon,
+} from "@phosphor-icons/react";
 import { Highlight } from "prism-react-renderer";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 
-import {
-  AnimatedCheckIcon,
-  AnimatedCopyIcon,
-  AnimatedDownloadIcon,
-  useAnimatedIcon,
-} from "@/components/ui/animated-icons";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -34,8 +34,6 @@ const CodeBlockComponent = ({
   const [wordWrap, setWordWrap] = useState(true);
   const { theme } = useTheme();
   const managedToast = useToast();
-  const copyIcon = useAnimatedIcon();
-  const downloadIcon = useAnimatedIcon();
   const codeContainerRef = useRef<HTMLDivElement>(null);
   const componentRef = useRef<HTMLDivElement>(null);
   const [isVisible, setIsVisible] = useState(false);
@@ -174,13 +172,8 @@ const CodeBlockComponent = ({
                   size="sm"
                   variant="ghost"
                   onClick={handleDownload}
-                  onMouseEnter={downloadIcon.onHoverStart}
-                  onMouseLeave={downloadIcon.onHoverEnd}
                 >
-                  <AnimatedDownloadIcon
-                    controls={downloadIcon.controls}
-                    className="size-3"
-                  />
+                  <DownloadIcon className="size-3" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
@@ -226,21 +219,13 @@ const CodeBlockComponent = ({
                     size="sm"
                     variant="ghost"
                     onClick={handleCopy}
-                    onMouseEnter={copyIcon.onHoverStart}
-                    onMouseLeave={copyIcon.onHoverEnd}
                     aria-label="Copy code to clipboard"
                   >
                     <div className="relative h-4 w-4">
                       {copied ? (
-                        <AnimatedCheckIcon
-                          controls={copyIcon.controls}
-                          className="absolute inset-0 size-3 text-primary animate-copy-success"
-                        />
+                        <CheckIcon className="absolute inset-0 size-3 text-primary animate-copy-success" />
                       ) : (
-                        <AnimatedCopyIcon
-                          controls={copyIcon.controls}
-                          className="absolute inset-0 size-3 transition-all duration-200"
-                        />
+                        <CopyIcon className="absolute inset-0 size-3 transition-all duration-200" />
                       )}
                     </div>
                   </Button>

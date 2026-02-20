@@ -238,25 +238,6 @@ export {
 } from "./share-conversation-dialog";
 
 // =============================================================================
-// Animated Icons
-// =============================================================================
-
-export type { AnimatedIconProps } from "./animated-icons";
-export {
-  AnimatedCheckIcon,
-  AnimatedCopyIcon,
-  AnimatedDeleteIcon,
-  AnimatedDownloadIcon,
-  AnimatedEditIcon,
-  AnimatedGitBranchIcon,
-  AnimatedHeartIcon,
-  AnimatedRetryIcon,
-  AnimatedSearchIcon,
-  AnimatedSettingsIcon,
-  useAnimatedIcon,
-} from "./animated-icons";
-
-// =============================================================================
 // Status & Indicators
 // =============================================================================
 

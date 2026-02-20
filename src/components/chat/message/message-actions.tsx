@@ -13,6 +13,7 @@ import { useAction, useMutation, useQuery } from "convex/react";
 import type React from "react";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Volume2Icon } from "@/components/animate-ui/icons/volume-2";
 import { ProviderIcon } from "@/components/models/provider-icons";
 import {
   Drawer,
@@ -88,7 +89,7 @@ function getTTSIconForButton(ttsState: TtsState): React.ReactNode {
   if (ttsState === "playing") {
     return <SquareIcon className="size-3.5 text-destructive" weight="fill" />;
   }
-  return <SpeakerHighIcon className="size-3.5" />;
+  return <Volume2Icon animateOnHover className="size-3.5" />;
 }
 
 type MessageActionsProps = {

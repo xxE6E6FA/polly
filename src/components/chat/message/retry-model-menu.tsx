@@ -7,6 +7,7 @@ import {
 } from "@phosphor-icons/react";
 import { PROVIDER_CONFIG } from "@shared/provider-constants";
 import { memo, useCallback, useMemo, useState } from "react";
+import { RefreshCwIcon } from "@/components/animate-ui/icons/refresh-cw";
 import { ProviderIcon } from "@/components/models/provider-icons";
 import { Button } from "@/components/ui/button";
 import {
@@ -714,11 +715,11 @@ export const RetryDropdown = memo(
                     />
                   }
                 >
-                  <ArrowCounterClockwiseIcon
+                  <RefreshCwIcon
+                    animateOnHover
                     className={cn(
                       "size-3.5",
-                      isRetrying && "motion-safe:animate-spin-reverse",
-                      "@media (prefers-reduced-motion: reduce) { animation: none }"
+                      isRetrying && "motion-safe:animate-spin-reverse"
                     )}
                     aria-hidden="true"
                   />
@@ -858,11 +859,11 @@ export const RetryDropdown = memo(
                     />
                   }
                 >
-                  <ArrowCounterClockwiseIcon
+                  <RefreshCwIcon
+                    animateOnHover
                     className={cn(
                       "size-3.5",
-                      isRetrying && "motion-safe:animate-spin-reverse",
-                      "@media (prefers-reduced-motion: reduce) { animation: none }"
+                      isRetrying && "motion-safe:animate-spin-reverse"
                     )}
                     aria-hidden="true"
                   />
