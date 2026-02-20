@@ -1,15 +1,12 @@
-import { TextAaIcon } from "@phosphor-icons/react";
+import { CheckIcon } from "@phosphor-icons/react";
 import { memo } from "react";
-import {
-  AnimatedCheckIcon,
-  AnimatedCopyIcon,
-  AnimatedDeleteIcon,
-  AnimatedEditIcon,
-  AnimatedGitBranchIcon,
-  AnimatedHeartIcon,
-  AnimatedRetryIcon,
-  useAnimatedIcon,
-} from "@/components/ui/animated-icons";
+import { ALargeSmallIcon } from "@/components/animate-ui/icons/a-large-small";
+import { CopyIcon } from "@/components/animate-ui/icons/copy";
+import { GitBranchIcon } from "@/components/animate-ui/icons/git-branch";
+import { HeartIcon } from "@/components/animate-ui/icons/heart";
+import { RefreshCwIcon } from "@/components/animate-ui/icons/refresh-cw";
+import { SquarePenIcon } from "@/components/animate-ui/icons/square-pen";
+import { TrashIcon } from "@/components/animate-ui/icons/trash";
 import {
   Tooltip,
   TooltipContent,
@@ -103,8 +100,6 @@ export function ActionButton({
           aria-label={props["aria-label"] || tooltip}
           disabled={props.disabled}
           onClick={props.onClick}
-          onMouseEnter={props.onMouseEnter}
-          onMouseLeave={props.onMouseLeave}
         >
           {props.children}
         </TooltipTrigger>
@@ -141,151 +136,95 @@ type PresetActionButtonProps = {
 };
 
 export const ActionButtons = {
-  Copy: memo(function CopyActionButton({
-    copied,
-    tooltip,
-    ariaLabel,
-    ...props
-  }: PresetActionButtonProps) {
-    const { controls, onHoverStart, onHoverEnd } = useAnimatedIcon();
-    return (
+  Copy: memo(
+    ({ copied, tooltip, ariaLabel, ...props }: PresetActionButtonProps) => (
       <ActionButton
         tooltip={tooltip || (copied ? "Copied!" : "Copy")}
         aria-label={ariaLabel || tooltip || (copied ? "Copied!" : "Copy")}
-        onMouseEnter={onHoverStart}
-        onMouseLeave={onHoverEnd}
         {...props}
       >
         {copied ? (
-          <AnimatedCheckIcon
-            controls={controls}
+          <CheckIcon
             className={cn(iconClass, "text-primary animate-copy-success")}
+            aria-hidden="true"
           />
         ) : (
-          <AnimatedCopyIcon controls={controls} className={iconClass} />
+          <CopyIcon animateOnHover className={iconClass} />
         )}
       </ActionButton>
-    );
-  }),
+    )
+  ),
 
-  Delete: memo(function DeleteActionButton({
-    tooltip,
-    ariaLabel,
-    ...props
-  }: PresetActionButtonProps) {
-    const { controls, onHoverStart, onHoverEnd } = useAnimatedIcon();
-    return (
-      <ActionButton
-        variant="destructive"
-        tooltip={tooltip || "Delete"}
-        aria-label={ariaLabel || tooltip || "Delete"}
-        onMouseEnter={onHoverStart}
-        onMouseLeave={onHoverEnd}
-        {...props}
-      >
-        <AnimatedDeleteIcon controls={controls} className={iconClass} />
-      </ActionButton>
-    );
-  }),
+  Delete: memo(({ tooltip, ariaLabel, ...props }: PresetActionButtonProps) => (
+    <ActionButton
+      variant="destructive"
+      tooltip={tooltip || "Delete"}
+      aria-label={ariaLabel || tooltip || "Delete"}
+      {...props}
+    >
+      <TrashIcon animateOnHover className={iconClass} />
+    </ActionButton>
+  )),
 
-  Edit: memo(function EditActionButton({
-    tooltip,
-    ariaLabel,
-    ...props
-  }: PresetActionButtonProps) {
-    const { controls, onHoverStart, onHoverEnd } = useAnimatedIcon();
-    return (
-      <ActionButton
-        tooltip={tooltip || "Edit"}
-        aria-label={ariaLabel || tooltip || "Edit"}
-        onMouseEnter={onHoverStart}
-        onMouseLeave={onHoverEnd}
-        {...props}
-      >
-        <AnimatedEditIcon controls={controls} className={iconClass} />
-      </ActionButton>
-    );
-  }),
+  Edit: memo(({ tooltip, ariaLabel, ...props }: PresetActionButtonProps) => (
+    <ActionButton
+      tooltip={tooltip || "Edit"}
+      aria-label={ariaLabel || tooltip || "Edit"}
+      {...props}
+    >
+      <SquarePenIcon animateOnHover className={iconClass} />
+    </ActionButton>
+  )),
 
-  Favorite: memo(function FavoriteActionButton({
-    favorited,
-    tooltip,
-    ariaLabel,
-    ...props
-  }: PresetActionButtonProps) {
-    const { controls, onHoverStart, onHoverEnd } = useAnimatedIcon();
-    return (
+  Favorite: memo(
+    ({ favorited, tooltip, ariaLabel, ...props }: PresetActionButtonProps) => (
       <ActionButton
         tooltip={tooltip || (favorited ? "Unfavorite" : "Favorite")}
         aria-label={
           ariaLabel || tooltip || (favorited ? "Unfavorite" : "Favorite")
         }
-        onMouseEnter={onHoverStart}
-        onMouseLeave={onHoverEnd}
         {...props}
       >
-        <AnimatedHeartIcon
-          controls={controls}
-          className={cn(iconClass, favorited && "text-destructive")}
-          filled={!!favorited}
+        <HeartIcon
+          animateOnHover
+          className={cn(
+            iconClass,
+            favorited && "text-destructive [&_path]:fill-current"
+          )}
         />
       </ActionButton>
-    );
-  }),
+    )
+  ),
 
-  Branch: memo(function BranchActionButton({
-    tooltip,
-    ariaLabel,
-    ...props
-  }: PresetActionButtonProps) {
-    const { controls, onHoverStart, onHoverEnd } = useAnimatedIcon();
-    return (
-      <ActionButton
-        tooltip={tooltip || "Branch from here"}
-        aria-label={ariaLabel || tooltip || "Branch from here"}
-        onMouseEnter={onHoverStart}
-        onMouseLeave={onHoverEnd}
-        {...props}
-      >
-        <AnimatedGitBranchIcon controls={controls} className={iconClass} />
-      </ActionButton>
-    );
-  }),
+  Branch: memo(({ tooltip, ariaLabel, ...props }: PresetActionButtonProps) => (
+    <ActionButton
+      tooltip={tooltip || "Branch from here"}
+      aria-label={ariaLabel || tooltip || "Branch from here"}
+      {...props}
+    >
+      <GitBranchIcon animateOnHover className={iconClass} />
+    </ActionButton>
+  )),
 
-  Retry: memo(function RetryActionButton({
-    tooltip,
-    ariaLabel,
-    ...props
-  }: PresetActionButtonProps) {
-    const { controls, onHoverStart, onHoverEnd } = useAnimatedIcon();
-    return (
-      <ActionButton
-        tooltip={tooltip || "Retry"}
-        aria-label={ariaLabel || tooltip || "Retry"}
-        onMouseEnter={onHoverStart}
-        onMouseLeave={onHoverEnd}
-        {...props}
-      >
-        <AnimatedRetryIcon controls={controls} className={iconClass} />
-      </ActionButton>
-    );
-  }),
+  Retry: memo(({ tooltip, ariaLabel, ...props }: PresetActionButtonProps) => (
+    <ActionButton
+      tooltip={tooltip || "Retry"}
+      aria-label={ariaLabel || tooltip || "Retry"}
+      {...props}
+    >
+      <RefreshCwIcon animateOnHover className={iconClass} />
+    </ActionButton>
+  )),
 
-  ZenMode: memo(function ZenModeActionButton({
-    tooltip,
-    ariaLabel,
-    ...props
-  }: PresetActionButtonProps) {
-    return (
-      <ActionButton
-        tooltip={tooltip || "Zen mode"}
-        aria-label={ariaLabel || tooltip || "Zen mode"}
-        {...props}
-      >
-        <TextAaIcon className={iconClass} aria-hidden="true" />
-      </ActionButton>
-    );
-  }),
+  ZenMode: memo(({ tooltip, ariaLabel, ...props }: PresetActionButtonProps) => (
+    <ActionButton
+      tooltip={tooltip || "Zen mode"}
+      aria-label={ariaLabel || tooltip || "Zen mode"}
+      {...props}
+    >
+      <ALargeSmallIcon animateOnHover className={iconClass} />
+    </ActionButton>
+  )),
 };
 
 ActionButtons.Copy.displayName = "ActionButtons.Copy";

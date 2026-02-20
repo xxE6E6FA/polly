@@ -4,14 +4,14 @@ import {
   DownloadIcon,
   FileCodeIcon,
   FloppyDiskIcon,
-  GitBranchIcon,
   GitCommitIcon,
   ShareNetworkIcon,
-  SidebarSimpleIcon,
 } from "@phosphor-icons/react";
 import { useQuery } from "convex/react";
 import { memo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { GitBranchIcon } from "@/components/animate-ui/icons/git-branch";
+import { PanelLeftIcon } from "@/components/animate-ui/icons/panel-left";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -183,7 +183,7 @@ const ChatHeaderComponent = ({
             variant="ghost"
             onClick={() => setSidebarVisible(true)}
           >
-            <SidebarSimpleIcon />
+            <PanelLeftIcon animateOnHover />
           </Button>
         )}
 
