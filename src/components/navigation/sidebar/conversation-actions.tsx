@@ -1,6 +1,8 @@
 import { ContextMenu } from "@base-ui/react/context-menu";
+import { api } from "@convex/_generated/api";
 import {
   ArchiveIcon,
+  ArrowsLeftRightIcon,
   DotsThreeVerticalIcon,
   FileCodeIcon,
   FileTextIcon,
@@ -9,6 +11,7 @@ import {
   ShareNetworkIcon,
   TrashIcon,
 } from "@phosphor-icons/react";
+import { useMutation } from "convex/react";
 import type * as React from "react";
 import { memo } from "react";
 
@@ -25,6 +28,9 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -32,10 +38,114 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useActiveProfile } from "@/hooks/use-active-profile";
 import { useBulkActions } from "@/hooks/use-bulk-actions";
+import { getProfileIconComponent } from "@/lib/profile-icons";
 import { cn } from "@/lib/utils";
 import { useBatchSelection } from "@/providers/batch-selection-context";
 import type { Conversation, ConversationId } from "@/types";
+
+// ============================================================================
+// Move to Profile sub-components (defined first so they can be used in both
+// ConversationActions and ConversationContextMenu below)
+// ============================================================================
+
+const MoveToProfileSubmenu = memo(
+  ({ conversationId }: { conversationId: ConversationId }) => {
+    const { profiles, activeProfile } = useActiveProfile();
+    const moveConversations = useMutation(api.profiles.moveConversations);
+
+    if (!profiles || profiles.length < 2) {
+      return null;
+    }
+
+    const otherProfiles = profiles.filter(p => p._id !== activeProfile?._id);
+
+    if (otherProfiles.length === 0) {
+      return null;
+    }
+
+    return (
+      <DropdownMenuSub>
+        <DropdownMenuSubTrigger className="h-8 gap-2 px-2 text-xs">
+          <ArrowsLeftRightIcon className="size-3.5" />
+          Move to Profile
+        </DropdownMenuSubTrigger>
+        <DropdownMenuSubContent className="w-40">
+          {otherProfiles.map(profile => {
+            const Icon = getProfileIconComponent(profile.icon);
+            return (
+              <DropdownMenuItem
+                key={profile._id}
+                className="h-8 gap-2 px-2 text-xs"
+                onClick={() =>
+                  moveConversations({
+                    conversationIds: [conversationId],
+                    targetProfileId: profile._id,
+                  })
+                }
+              >
+                {Icon ? <Icon className="size-3.5" /> : null}
+                {profile.name}
+              </DropdownMenuItem>
+            );
+          })}
+        </DropdownMenuSubContent>
+      </DropdownMenuSub>
+    );
+  }
+);
+
+const MoveToProfileContextMenuItems = memo(
+  ({ conversationId }: { conversationId: ConversationId }) => {
+    const { profiles, activeProfile } = useActiveProfile();
+    const moveConversations = useMutation(api.profiles.moveConversations);
+
+    if (!profiles || profiles.length < 2) {
+      return null;
+    }
+
+    const otherProfiles = profiles.filter(p => p._id !== activeProfile?._id);
+
+    if (otherProfiles.length === 0) {
+      return null;
+    }
+
+    return (
+      <>
+        <div className="px-2 py-1 text-xs font-medium text-muted-foreground">
+          Move to
+        </div>
+        {otherProfiles.map(profile => {
+          const Icon = getProfileIconComponent(profile.icon);
+          return (
+            <ContextMenu.Item
+              key={profile._id}
+              onClick={() =>
+                moveConversations({
+                  conversationIds: [conversationId],
+                  targetProfileId: profile._id,
+                })
+              }
+              className={cn(
+                "relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none",
+                "data-[highlighted]:bg-muted data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
+              )}
+            >
+              {Icon ? <Icon className="size-4" /> : null}
+              {profile.name}
+            </ContextMenu.Item>
+          );
+        })}
+        <ContextMenu.Separator className="-mx-1 my-1 h-px bg-border" />
+      </>
+    );
+  }
+);
+
+// ============================================================================
+// Main components
+// ============================================================================
 
 type ConversationActionsProps = {
   conversation: Conversation;
@@ -188,7 +298,8 @@ export const ConversationActions = memo(
               <DropdownMenuTrigger className="h-7 w-7 text-foreground/70 transition-opacity hover:text-foreground rounded-md hover:bg-accent hover:text-accent-foreground inline-flex items-center justify-center whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 cursor-pointer">
                 <DotsThreeVerticalIcon className="size-3.5" weight="bold" />
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" sideOffset={5} className="w-40">
+              <DropdownMenuContent align="end" sideOffset={5} className="w-48">
+                <MoveToProfileSubmenu conversationId={conversation._id} />
                 <DropdownMenuItem
                   className="h-8 gap-2 px-2 text-xs"
                   onClick={() => onArchive()}
@@ -374,6 +485,10 @@ export const ConversationContextMenu = memo(
                 </ContextMenu.Item>
 
                 <ContextMenu.Separator className="-mx-1 my-1 h-px bg-border" />
+
+                <MoveToProfileContextMenuItems
+                  conversationId={conversation._id}
+                />
 
                 <ContextMenu.Item
                   onClick={onArchive}

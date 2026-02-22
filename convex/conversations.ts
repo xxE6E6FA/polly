@@ -88,6 +88,8 @@ export const list = query({
     includeArchived: v.optional(v.boolean()),
     archivedOnly: v.optional(v.boolean()),
     sortDirection: v.optional(v.union(v.literal("asc"), v.literal("desc"))),
+    profileId: v.optional(v.id("profiles")),
+    includeUnassigned: v.optional(v.boolean()),
   },
   handler: listHandler,
 });
@@ -106,6 +108,8 @@ export const searchWithMatches = query({
     searchQuery: v.string(),
     limit: v.optional(v.number()),
     maxMatchesPerConversation: v.optional(v.number()),
+    profileId: v.optional(v.id("profiles")),
+    includeUnassigned: v.optional(v.boolean()),
   },
   handler: searchWithMatchesHandler,
 });
@@ -172,6 +176,7 @@ export const createConversation = mutation({
     title: v.optional(v.string()),
     personaId: v.optional(v.id("personas")),
     sourceConversationId: v.optional(v.id("conversations")),
+    profileId: v.optional(v.id("profiles")),
     firstMessage: v.string(),
     attachments: v.optional(v.array(attachmentSchema)),
     model: v.optional(v.string()),
@@ -243,6 +248,7 @@ export const createEmptyInternal = internalMutation({
     userId: v.id("users"),
     personaId: v.optional(v.id("personas")),
     clientId: v.optional(v.string()),
+    profileId: v.optional(v.id("profiles")),
   },
   handler: createEmptyInternalHandler,
 });
@@ -257,6 +263,7 @@ export const createEmpty = mutation({
   args: {
     clientId: v.string(),
     personaId: v.optional(v.id("personas")),
+    profileId: v.optional(v.id("profiles")),
   },
   returns: v.id("conversations"),
   handler: createEmptyHandler,
@@ -393,6 +400,7 @@ export const startConversation = action({
     clientId: v.string(),
     content: v.string(),
     personaId: v.optional(v.id("personas")),
+    profileId: v.optional(v.id("profiles")),
     attachments: v.optional(v.array(attachmentSchema)),
     model: v.optional(v.string()),
     provider: v.optional(v.string()),
@@ -472,6 +480,7 @@ export const createConversationAction = action({
   args: {
     title: v.optional(v.string()),
     personaId: v.optional(v.id("personas")),
+    profileId: v.optional(v.id("profiles")),
     model: v.optional(v.string()),
     provider: v.optional(v.string()),
     firstMessage: v.optional(v.string()),

@@ -263,12 +263,14 @@ export function createDefaultConversationFields(
     title?: string;
     personaId?: Id<"personas">;
     sourceConversationId?: Id<"conversations">;
+    profileId?: Id<"profiles">;
   } = {},
 ) {
   return {
     title: options.title || "New Conversation",
     userId: userId,
     personaId: options.personaId,
+    profileId: options.profileId,
     sourceConversationId: options.sourceConversationId,
     isStreaming: false,
     isArchived: false,

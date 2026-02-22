@@ -17,7 +17,7 @@ import { SquarePenIcon } from "@/components/animate-ui/icons/square-pen";
 import { BatchActions } from "@/components/navigation/sidebar/batch-actions";
 import { ConversationList } from "@/components/navigation/sidebar/conversation-list";
 import { SidebarSearch } from "@/components/navigation/sidebar/search";
-import { UserSection } from "@/components/navigation/sidebar/user-section";
+import { SidebarFooter } from "@/components/navigation/sidebar/sidebar-footer";
 import { Backdrop } from "@/components/ui/backdrop";
 import { Button } from "@/components/ui/button";
 import { ROUTES } from "@/lib/routes";
@@ -541,7 +541,7 @@ export const Sidebar = ({ forceHidden = false }: { forceHidden?: boolean }) => {
                   : undefined
               }
             >
-              <UserSection />
+              <SidebarFooter />
             </div>
           </div>
         )}

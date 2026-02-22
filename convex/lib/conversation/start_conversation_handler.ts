@@ -15,6 +15,7 @@ export async function startConversationHandler(
     clientId: string;
     content: string;
     personaId?: Id<"personas">;
+    profileId?: Id<"profiles">;
     attachments?: Array<{
       type: "image" | "pdf" | "text" | "audio" | "video";
       url: string;
@@ -50,6 +51,7 @@ export async function startConversationHandler(
     {
       userId,
       personaId: args.personaId,
+      profileId: args.profileId,
       clientId: args.clientId,
     }
   );

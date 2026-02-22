@@ -13,6 +13,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { useActiveProfile } from "@/hooks";
 import { useSelectedModel } from "@/hooks/use-selected-model";
 import { CACHE_KEYS, get as getLS, set as setLS } from "@/lib/local-storage";
 import { ROUTES } from "@/lib/routes";
@@ -143,6 +144,7 @@ const ChatSection = () => {
     user,
   } = useUserDataContext();
   const { selectedModel } = useSelectedModel();
+  const { activeProfile, profiles } = useActiveProfile();
   const isLoading = !user;
   const chatInputRef = useRef<ChatInputRef>(null);
   // Use unified action for conversation creation + first message
@@ -191,10 +193,14 @@ const ChatSection = () => {
       });
 
       // Start conversation: creates conversation + sends first message atomically
+      // Only pass profileId when user has multiple profiles
+      const profileId =
+        profiles && profiles.length >= 2 ? activeProfile?._id : undefined;
       startConversation({
         clientId,
         content,
         personaId: personaId ?? undefined,
+        profileId,
         attachments,
         model: selectedModel?.modelId,
         provider: selectedModel?.provider,
@@ -207,7 +213,14 @@ const ChatSection = () => {
         console.error("Failed to start conversation:", err);
       });
     },
-    [navigate, isPrivateMode, startConversation, selectedModel]
+    [
+      navigate,
+      isPrivateMode,
+      startConversation,
+      selectedModel,
+      activeProfile,
+      profiles,
+    ]
   );
 
   const handleQuickPrompt = useCallback(

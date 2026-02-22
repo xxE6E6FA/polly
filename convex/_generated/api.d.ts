@@ -155,6 +155,7 @@ import type * as migrations_updateStoppedMessages from "../migrations/updateStop
 import type * as migrations_updateUserFilesMetadata from "../migrations/updateUserFilesMetadata.js";
 import type * as models_dev_sync from "../models_dev_sync.js";
 import type * as personas from "../personas.js";
+import type * as profiles from "../profiles.js";
 import type * as sharedConversations from "../sharedConversations.js";
 import type * as streaming_actions from "../streaming_actions.js";
 import type * as titleGeneration from "../titleGeneration.js";
@@ -317,6 +318,7 @@ declare const fullApi: ApiFromModules<{
   "migrations/updateUserFilesMetadata": typeof migrations_updateUserFilesMetadata;
   models_dev_sync: typeof models_dev_sync;
   personas: typeof personas;
+  profiles: typeof profiles;
   sharedConversations: typeof sharedConversations;
   streaming_actions: typeof streaming_actions;
   titleGeneration: typeof titleGeneration;

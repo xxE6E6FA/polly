@@ -595,6 +595,7 @@ export const sessionSchema = v.object({
 export const conversationSchema = v.object({
   title: v.string(),
   userId: v.id("users"),
+  profileId: v.optional(v.id("profiles")),
   personaId: v.optional(v.id("personas")),
   sourceConversationId: v.optional(v.id("conversations")),
   isStreaming: v.optional(v.boolean()),
@@ -737,6 +738,17 @@ export const userPersonaSettingsSchema = v.object({
   updatedAt: v.number(),
 });
 
+// Profile schema
+export const profileSchema = v.object({
+  userId: v.id("users"),
+  name: v.string(),
+  icon: v.string(), // Phosphor icon name, e.g. "House", "Briefcase"
+  isDefault: v.boolean(),
+  order: v.optional(v.number()),
+  createdAt: v.number(),
+  updatedAt: v.number(),
+});
+
 // User settings schema
 export const userSettingsSchema = v.object({
   userId: v.id("users"),
@@ -757,6 +769,7 @@ export const userSettingsSchema = v.object({
   showMessageMetadata: v.optional(v.boolean()),
   showTemperaturePicker: v.optional(v.boolean()),
   memoryEnabled: v.optional(v.boolean()),
+  activeProfileId: v.optional(v.id("profiles")),
   createdAt: v.number(),
   updatedAt: v.number(),
 });

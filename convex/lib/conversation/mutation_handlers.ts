@@ -532,6 +532,7 @@ export async function createEmptyInternalHandler(
     userId: Id<"users">;
     personaId?: Id<"personas">;
     clientId?: string;
+    profileId?: Id<"profiles">;
   }
 ) {
   const user = await ctx.db.get("users", args.userId);
@@ -544,6 +545,7 @@ export async function createEmptyInternalHandler(
     title: args.title ?? "New Conversation",
     userId: args.userId,
     personaId: args.personaId,
+    profileId: args.profileId,
     clientId: args.clientId,
     isStreaming: false,
     isArchived: false,
@@ -583,6 +585,7 @@ export async function createEmptyHandler(
   args: {
     clientId: string;
     personaId?: Id<"personas">;
+    profileId?: Id<"profiles">;
   }
 ) {
   const { userId, user } = await getAuthenticatedUserWithData(ctx);
@@ -591,6 +594,7 @@ export async function createEmptyHandler(
   const conversationId = await ctx.db.insert("conversations", {
     title: "New Conversation",
     userId,
+    profileId: args.profileId,
     personaId: args.personaId,
     clientId: args.clientId,
     isStreaming: false,

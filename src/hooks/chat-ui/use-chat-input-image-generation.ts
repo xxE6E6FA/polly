@@ -3,6 +3,7 @@ import type { Id } from "@convex/_generated/dataModel";
 import { useAction, useConvex } from "convex/react";
 import { useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { useActiveProfile } from "@/hooks/use-active-profile";
 import { useConvexFileUpload } from "@/hooks/use-convex-file-upload";
 import { useEnabledImageModels } from "@/hooks/use-enabled-image-models";
 import { useImageParams } from "@/hooks/use-generation";
@@ -52,6 +53,7 @@ export function useChatInputImageGeneration({
 }: UseChatInputImageGenerationProps) {
   const convex = useConvex();
   const navigate = useNavigate();
+  const { activeProfile, profiles } = useActiveProfile();
   const generateSummaryAction = useAction(
     api.conversationSummary.generateConversationSummary
   );
@@ -187,10 +189,13 @@ export function useChatInputImageGeneration({
       );
     } else {
       // No conversation exists, create a new one for image generation
+      const imgProfileId =
+        profiles && profiles.length >= 2 ? activeProfile?._id : undefined;
       const newConversation = await convex.action(
         api.conversations.createConversationAction,
         {
           title: "Image Generation",
+          profileId: imgProfileId,
         }
       );
 
@@ -229,6 +234,8 @@ export function useChatInputImageGeneration({
     isPrivateMode,
     uploadFile,
     setImageParams,
+    activeProfile,
+    profiles,
   ]);
 
   const handleSendAsNewConversation = useCallback(
@@ -247,10 +254,13 @@ export function useChatInputImageGeneration({
         }
 
         // Create new conversation for image generation
+        const newImgProfileId =
+          profiles && profiles.length >= 2 ? activeProfile?._id : undefined;
         const newConversation = await convex.action(
           api.conversations.createConversationAction,
           {
             title: "Image Generation",
+            profileId: newImgProfileId,
           }
         );
 
@@ -299,6 +309,8 @@ export function useChatInputImageGeneration({
       onResetInputState,
       setImageParams,
       setNegativePromptEnabled,
+      activeProfile,
+      profiles,
     ]
   );
 

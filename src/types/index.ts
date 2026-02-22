@@ -15,11 +15,13 @@ import type { Infer } from "convex/values";
 export type User = Doc<"users">;
 export type Conversation = Doc<"conversations">;
 export type Message = Doc<"messages">;
+export type Profile = Doc<"profiles">;
 
 // ID types
 export type ConversationId = Id<"conversations">;
 export type MessageId = Id<"messages">;
 export type UserId = Id<"users">;
+export type ProfileId = Id<"profiles">;
 
 // ============================================================================
 // MEMORY TYPES
