@@ -64,6 +64,13 @@ export { useReplicateSchema } from "./use-replicate-schema";
 export { useSelectedModel } from "./use-selected-model";
 
 // =============================================================================
+// Profile Hooks
+// =============================================================================
+
+export { useActiveProfile } from "./use-active-profile";
+export { useProfiles } from "./use-profiles";
+
+// =============================================================================
 // Conversation Hooks
 // =============================================================================
 

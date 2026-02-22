@@ -7,6 +7,7 @@ export const ROUTES = {
   SHARE: (shareId: string) => `/share/${shareId}`,
   SETTINGS: {
     ROOT: "/settings",
+    PROFILES: "/settings/profiles",
     API_KEYS: "/settings/api-keys",
     MODELS: "/settings/models",
     TEXT_MODELS: "/settings/models/text",

@@ -57,6 +57,9 @@ const SettingsChatHistoryPage = lazy(
 );
 const SettingsGeneralPage = lazy(() => import("./pages/settings/general-page"));
 const SettingsMemoryPage = lazy(() => import("./pages/settings/memory-page"));
+const SettingsProfilesPage = lazy(
+  () => import("./pages/settings/profiles-page")
+);
 const SettingsNewPersonaPage = lazy(
   () => import("./pages/settings/new-persona-page")
 );
@@ -242,6 +245,11 @@ export const routes: RouteObject[] = [
           {
             path: "general",
             element: withSuspense(<SettingsGeneralPage />, "partial"),
+            errorElement: routeErrorElement,
+          },
+          {
+            path: "profiles",
+            element: withSuspense(<SettingsProfilesPage />, "partial"),
             errorElement: routeErrorElement,
           },
         ],

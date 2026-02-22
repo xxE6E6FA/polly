@@ -23,6 +23,7 @@ export async function createConversationHandler(
     title?: string;
     personaId?: Id<"personas">;
     sourceConversationId?: Id<"conversations">;
+    profileId?: Id<"profiles">;
     firstMessage: string;
     attachments?: Array<{
       type: "image" | "pdf" | "text" | "audio" | "video";
@@ -71,6 +72,7 @@ export async function createConversationHandler(
       title: initialTitle,
       personaId: args.personaId,
       sourceConversationId: args.sourceConversationId,
+      profileId: args.profileId,
     })
   );
 

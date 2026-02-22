@@ -72,6 +72,7 @@ export async function getUserSettingsHandler(ctx: QueryCtx) {
       showMessageMetadata: false,
       showTemperaturePicker: true, // Default to enabled
       memoryEnabled: false, // Default to disabled (opt-in)
+      activeProfileId: undefined,
     };
   }
 
@@ -89,6 +90,7 @@ export async function getUserSettingsHandler(ctx: QueryCtx) {
     showMessageMetadata: settings.showMessageMetadata ?? false,
     showTemperaturePicker: settings.showTemperaturePicker ?? true, // Default to enabled
     memoryEnabled: settings.memoryEnabled ?? false, // Default to disabled (opt-in)
+    activeProfileId: settings.activeProfileId,
   };
 }
 

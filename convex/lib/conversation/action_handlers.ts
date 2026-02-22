@@ -551,6 +551,7 @@ export async function startConversationHandler(
     clientId: string;
     content: string;
     personaId?: Id<"personas">;
+    profileId?: Id<"profiles">;
     attachments?: Array<{
       type: "image" | "pdf" | "text" | "audio" | "video";
       url: string;
@@ -586,6 +587,7 @@ export async function startConversationHandler(
     {
       userId,
       personaId: args.personaId,
+      profileId: args.profileId,
       clientId: args.clientId,
     }
   );
@@ -1621,6 +1623,7 @@ export async function createConversationActionHandler(
   args: {
     title?: string;
     personaId?: Id<"personas">;
+    profileId?: Id<"profiles">;
     model?: string;
     provider?: string;
     firstMessage?: string;
@@ -1673,6 +1676,7 @@ export async function createConversationActionHandler(
     } = await ctx.runMutation(api.conversations.createConversation, {
       title: args.title,
       personaId: args.personaId,
+      profileId: args.profileId,
       firstMessage: args.firstMessage,
       model: args.model || DEFAULT_BUILTIN_MODEL_ID,
       provider:
@@ -1711,6 +1715,7 @@ export async function createConversationActionHandler(
       title: args.title || "New Conversation",
       userId: user._id,
       personaId: args.personaId,
+      profileId: args.profileId,
     }
   );
 

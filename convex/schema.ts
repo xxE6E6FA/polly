@@ -11,6 +11,7 @@ import {
   modelsDevCacheSchema,
   pdfTextCacheSchema,
   personaSchema,
+  profileSchema,
   sharedConversationSchema,
   userApiKeySchema,
   userFileSchema,
@@ -27,10 +28,20 @@ export default defineSchema({
     .index("email", ["email"])
     .index("byExternalId", ["externalId"]),
 
+  profiles: defineTable(profileSchema)
+    .index("by_user", ["userId"])
+    .index("by_user_default", ["userId", "isDefault"]),
+
   conversations: defineTable(conversationSchema)
     .index("by_user_recent", ["userId", "updatedAt"])
     .index("by_user_pinned", ["userId", "isPinned", "updatedAt"])
     .index("by_user_archived", ["userId", "isArchived", "updatedAt"])
+    .index("by_user_profile_archived", [
+      "userId",
+      "profileId",
+      "isArchived",
+      "updatedAt",
+    ])
     .index("by_created_at", ["createdAt"])
     // Branching-related indexes
     .index("by_root_updated", ["rootConversationId", "updatedAt"])

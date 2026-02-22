@@ -8,6 +8,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Spinner } from "@/components/ui/spinner";
+import { useActiveProfile } from "@/hooks";
 import { useSelectedModel } from "@/hooks/use-selected-model";
 import { useTextSelection } from "@/hooks/use-text-selection";
 import { ROUTES } from "@/lib/routes";
@@ -44,6 +45,7 @@ export const ConversationStarterPopover = ({
   const navigate = useNavigate();
   const { lockSelection, unlockSelection } = useTextSelection();
   const { selectedModel } = useSelectedModel();
+  const { activeProfile, profiles } = useActiveProfile();
 
   useEffect(() => {
     async function fetchPrompts() {
@@ -77,8 +79,11 @@ export const ConversationStarterPopover = ({
   }, [open, lockSelection, unlockSelection]);
   const handleStartConversation = async (prompt: string) => {
     try {
+      const profileId =
+        profiles && profiles.length >= 2 ? activeProfile?._id : undefined;
       const result = await createConversationAction({
         firstMessage: prompt,
+        profileId,
         // Let the server generate the title from the opening message
         model: selectedModel?.modelId,
         provider: selectedModel?.provider,

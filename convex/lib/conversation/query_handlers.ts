@@ -22,6 +22,8 @@ export async function listHandler(
     includeArchived?: boolean;
     archivedOnly?: boolean;
     sortDirection?: "asc" | "desc";
+    profileId?: Id<"profiles">;
+    includeUnassigned?: boolean;
   }
 ) {
   // Use getAuthUserId to properly handle both anonymous and authenticated users
@@ -33,6 +35,42 @@ export async function listHandler(
 
   const userDocId = userId as Id<"users">;
   const sortDirection = args.sortDirection ?? "desc";
+
+  // When profileId is provided, use the profile-aware index for filtering.
+  // When includeUnassigned is true (default profile), also include
+  // pre-migration conversations where profileId is undefined.
+  if (args.profileId && args.includeArchived === false) {
+    if (args.includeUnassigned) {
+      // Default profile: include both assigned and unassigned conversations.
+      // Use the standard index and post-filter since we need profileId === id OR undefined.
+      const allNonArchived = await ctx.db
+        .query("conversations")
+        .withIndex("by_user_archived", q =>
+          q.eq("userId", userDocId).eq("isArchived", false)
+        )
+        .order(sortDirection)
+        .take(200);
+
+      return allNonArchived.filter(
+        c => c.profileId === args.profileId || c.profileId === undefined
+      );
+    }
+
+    // Non-default profile: exact match only
+    const query = ctx.db
+      .query("conversations")
+      .withIndex("by_user_profile_archived", q =>
+        q.eq("userId", userDocId).eq("profileId", args.profileId!).eq("isArchived", false)
+      )
+      .order(sortDirection);
+
+    const validatedOpts = validatePaginationOpts(
+      args.paginationOpts ?? undefined
+    );
+    return validatedOpts
+      ? await query.paginate(validatedOpts)
+      : await query.take(100);
+  }
 
   // Use the appropriate index based on filter type for better performance:
   // - by_user_archived: ["userId", "isArchived", "updatedAt"] - use when filtering by archived status
@@ -420,6 +458,8 @@ export async function searchWithMatchesHandler(
     searchQuery: string;
     limit?: number;
     maxMatchesPerConversation?: number;
+    profileId?: Id<"profiles">;
+    includeUnassigned?: boolean;
   }
 ): Promise<ConversationSearchWithMatchesResult[]> {
   const userId = await getAuthUserId(ctx);
@@ -447,6 +487,14 @@ export async function searchWithMatchesHandler(
   // Build initial results from title matches
   const resultsMap = new Map<string, ConversationSearchWithMatchesResult>();
   for (const conv of titleMatches) {
+    // Filter by profile if specified
+    if (args.profileId) {
+      const matches = conv.profileId === args.profileId ||
+        (args.includeUnassigned && conv.profileId === undefined);
+      if (!matches) {
+        continue;
+      }
+    }
     resultsMap.set(conv._id, {
       conversationId: conv._id,
       title: conv.title || "Untitled",
@@ -483,6 +531,14 @@ export async function searchWithMatchesHandler(
       conversation.isArchived
     ) {
       continue;
+    }
+    // Filter by profile if specified
+    if (args.profileId) {
+      const matches = conversation.profileId === args.profileId ||
+        (args.includeUnassigned && conversation.profileId === undefined);
+      if (!matches) {
+        continue;
+      }
     }
 
     const snippet = extractSnippetAroundMatch(msg.content || "", q, 150);

@@ -50,34 +50,45 @@ function writeStore(store: ConversationsCacheStore): void {
   }
 }
 
+function cacheKey(userId: string, profileId?: string): string {
+  return profileId ? `${userId}:${profileId}` : userId;
+}
+
 export function getCachedConversations(
-  userId: string | undefined
+  userId: string | undefined,
+  profileId?: string
 ): Doc<"conversations">[] {
   if (!userId) {
     return [];
   }
   const store = readStore();
-  return store[userId] ?? [];
+  return store[cacheKey(userId, profileId)] ?? [];
 }
 
 export function setCachedConversations(
   userId: string,
-  conversations: Doc<"conversations">[]
+  conversations: Doc<"conversations">[],
+  profileId?: string
 ): void {
   const store = readStore();
-  const next: ConversationsCacheStore = { ...store, [userId]: conversations };
+  const key = cacheKey(userId, profileId);
+  const next: ConversationsCacheStore = { ...store, [key]: conversations };
   writeStore(next);
 }
 
-export function clearCachedConversations(userId: string | undefined): void {
+export function clearCachedConversations(
+  userId: string | undefined,
+  profileId?: string
+): void {
   if (!userId) {
     return;
   }
+  const key = cacheKey(userId, profileId);
   const store = readStore();
-  if (!(userId in store)) {
+  if (!(key in store)) {
     return;
   }
-  const { [userId]: _removed, ...rest } = store;
+  const { [key]: _removed, ...rest } = store;
   if (Object.keys(rest).length === 0) {
     try {
       localStorage.removeItem(STORAGE_KEY);

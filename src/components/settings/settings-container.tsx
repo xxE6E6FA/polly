@@ -10,6 +10,7 @@ import {
   RobotIcon,
   ShareNetworkIcon,
   SpeakerHighIcon,
+  UserCircleIcon,
   UsersIcon,
 } from "@phosphor-icons/react";
 import { useMemo } from "react";
@@ -29,6 +30,7 @@ type SettingsContainerProps = {
 // Main navigation tabs (shared structure)
 const mainTabs: SettingsTabItem[] = [
   { path: ROUTES.SETTINGS.GENERAL, label: "General", icon: GearIcon },
+  { path: ROUTES.SETTINGS.PROFILES, label: "Profiles", icon: UserCircleIcon },
   { path: ROUTES.SETTINGS.API_KEYS, label: "API Keys", icon: KeyIcon },
   { path: ROUTES.SETTINGS.TEXT_MODELS, label: "Models", icon: RobotIcon },
   { path: ROUTES.SETTINGS.PERSONAS, label: "Personas", icon: UsersIcon },

@@ -7,6 +7,7 @@ import {
   PaperclipIcon,
   RobotIcon,
   ShareNetworkIcon,
+  UserCircleIcon,
   UsersIcon,
 } from "@phosphor-icons/react";
 import useEmblaCarousel from "embla-carousel-react";
@@ -51,6 +52,7 @@ const ChatHistoryPage = lazy(
 );
 const AttachmentsPage = lazy(() => import("@/pages/settings/attachments-page"));
 const MemoryPage = lazy(() => import("@/pages/settings/memory-page"));
+const ProfilesPage = lazy(() => import("@/pages/settings/profiles-page"));
 
 // Define settings routes with their components
 const settingsRoutes: (SettingsTabItem & {
@@ -61,6 +63,12 @@ const settingsRoutes: (SettingsTabItem & {
     label: "General",
     icon: GearIcon,
     component: GeneralPage,
+  },
+  {
+    path: ROUTES.SETTINGS.PROFILES,
+    label: "Profiles",
+    icon: UserCircleIcon,
+    component: ProfilesPage,
   },
   {
     path: ROUTES.SETTINGS.API_KEYS,
