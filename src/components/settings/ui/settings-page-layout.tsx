@@ -11,5 +11,5 @@ export const SettingsPageLayout = ({
 }: SettingsPageLayoutProps) => {
   // Width is handled by parent container (settings-container.tsx)
   // This component only handles vertical spacing
-  return <div className={cn("w-full stack-xl", className)}>{children}</div>;
+  return <div className={cn("w-full stack-2xl", className)}>{children}</div>;
 };

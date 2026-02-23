@@ -1,13 +1,9 @@
 import {
-  ArchiveIcon,
   BrainIcon,
-  CloudArrowDownIcon,
+  ClockIcon,
   GearIcon,
-  KeyIcon,
   PaperclipIcon,
   RobotIcon,
-  ShareNetworkIcon,
-  UserCircleIcon,
   UsersIcon,
 } from "@phosphor-icons/react";
 import useEmblaCarousel from "embla-carousel-react";
@@ -24,37 +20,23 @@ import {
   type SettingsTabItem,
 } from "./mobile-settings-tabs";
 
-// Lazy load all settings pages
+// Lazy load page components
 const GeneralPage = lazy(() => import("@/pages/settings/general-page"));
-const ApiKeysTab = lazy(() =>
-  import("@/components/settings/api-keys-tab").then(m => ({
-    default: m.ApiKeysTab,
+const PersonasPage = lazy(() =>
+  import("@/components/settings/personas-tab").then(m => ({
+    default: m.PersonasTabContent,
   }))
 );
+const MemoryPage = lazy(() => import("@/pages/settings/memory-page"));
 const ModelsTab = lazy(() =>
   import("@/components/settings/models-tab").then(m => ({
     default: m.ModelsTab,
   }))
 );
-const PersonasTab = lazy(() =>
-  import("@/components/settings/personas-tab").then(m => ({
-    default: m.PersonasTab,
-  }))
-);
-const SharedConversationsPage = lazy(
-  () => import("@/pages/settings/shared-conversations-page")
-);
-const ArchivedConversationsPage = lazy(
-  () => import("@/pages/settings/archived-conversations-page")
-);
-const ChatHistoryPage = lazy(
-  () => import("@/pages/settings/chat-history-page")
-);
-const AttachmentsPage = lazy(() => import("@/pages/settings/attachments-page"));
-const MemoryPage = lazy(() => import("@/pages/settings/memory-page"));
-const ProfilesPage = lazy(() => import("@/pages/settings/profiles-page"));
+const HistoryPage = lazy(() => import("@/pages/settings/chat-history-page"));
+const FilesPage = lazy(() => import("@/pages/settings/attachments-page"));
 
-// Define settings routes with their components
+// 6 flat settings routes
 const settingsRoutes: (SettingsTabItem & {
   component: React.LazyExoticComponent<React.ComponentType>;
 })[] = [
@@ -65,28 +47,10 @@ const settingsRoutes: (SettingsTabItem & {
     component: GeneralPage,
   },
   {
-    path: ROUTES.SETTINGS.PROFILES,
-    label: "Profiles",
-    icon: UserCircleIcon,
-    component: ProfilesPage,
-  },
-  {
-    path: ROUTES.SETTINGS.API_KEYS,
-    label: "API Keys",
-    icon: KeyIcon,
-    component: ApiKeysTab,
-  },
-  {
-    path: ROUTES.SETTINGS.TEXT_MODELS,
-    label: "Models",
-    icon: RobotIcon,
-    component: ModelsTab,
-  },
-  {
     path: ROUTES.SETTINGS.PERSONAS,
     label: "Personas",
     icon: UsersIcon,
-    component: PersonasTab,
+    component: PersonasPage,
   },
   {
     path: ROUTES.SETTINGS.MEMORY,
@@ -95,28 +59,22 @@ const settingsRoutes: (SettingsTabItem & {
     component: MemoryPage,
   },
   {
-    path: ROUTES.SETTINGS.SHARED_CONVERSATIONS,
-    label: "Shares",
-    icon: ShareNetworkIcon,
-    component: SharedConversationsPage,
+    path: ROUTES.SETTINGS.TEXT_MODELS,
+    label: "Models",
+    icon: RobotIcon,
+    component: ModelsTab,
   },
   {
-    path: ROUTES.SETTINGS.ARCHIVED_CONVERSATIONS,
-    label: "Archive",
-    icon: ArchiveIcon,
-    component: ArchivedConversationsPage,
-  },
-  {
-    path: ROUTES.SETTINGS.CHAT_HISTORY,
+    path: ROUTES.SETTINGS.HISTORY,
     label: "History",
-    icon: CloudArrowDownIcon,
-    component: ChatHistoryPage,
+    icon: ClockIcon,
+    component: HistoryPage,
   },
   {
-    path: ROUTES.SETTINGS.ATTACHMENTS,
+    path: ROUTES.SETTINGS.FILES,
     label: "Files",
     icon: PaperclipIcon,
-    component: AttachmentsPage,
+    component: FilesPage,
   },
 ];
 

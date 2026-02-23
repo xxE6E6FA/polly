@@ -28,11 +28,6 @@ const SettingsLayout = lazy(
 const SettingsStandaloneLayout = lazy(
   () => import("./components/layouts/settings-standalone-layout")
 );
-const SettingsApiKeysPage = lazy(() =>
-  import("./components/settings/api-keys-tab").then(m => ({
-    default: m.ApiKeysTab,
-  }))
-);
 const SettingsModelsPage = lazy(() =>
   import("./components/settings/models-tab").then(m => ({
     default: m.ModelsTab,
@@ -40,25 +35,16 @@ const SettingsModelsPage = lazy(() =>
 );
 const SettingsPersonasPage = lazy(() =>
   import("./components/settings/personas-tab").then(m => ({
-    default: m.PersonasTab,
+    default: m.PersonasTabContent,
   }))
-);
-const SettingsSharedConversationsPage = lazy(
-  () => import("./pages/settings/shared-conversations-page")
-);
-const SettingsArchivedConversationsPage = lazy(
-  () => import("./pages/settings/archived-conversations-page")
-);
-const SettingsAttachmentsPage = lazy(
-  () => import("./pages/settings/attachments-page")
-);
-const SettingsChatHistoryPage = lazy(
-  () => import("./pages/settings/chat-history-page")
 );
 const SettingsGeneralPage = lazy(() => import("./pages/settings/general-page"));
 const SettingsMemoryPage = lazy(() => import("./pages/settings/memory-page"));
-const SettingsProfilesPage = lazy(
-  () => import("./pages/settings/profiles-page")
+const SettingsHistoryPage = lazy(
+  () => import("./pages/settings/chat-history-page")
+);
+const SettingsFilesPage = lazy(
+  () => import("./pages/settings/attachments-page")
 );
 const SettingsNewPersonaPage = lazy(
   () => import("./pages/settings/new-persona-page")
@@ -179,10 +165,21 @@ export const routes: RouteObject[] = [
             errorElement: routeErrorElement,
           },
           {
-            path: "api-keys",
-            element: withSuspense(<SettingsApiKeysPage />, "partial"),
+            path: "general",
+            element: withSuspense(<SettingsGeneralPage />, "partial"),
             errorElement: routeErrorElement,
           },
+          {
+            path: "personas",
+            element: withSuspense(<SettingsPersonasPage />, "partial"),
+            errorElement: routeErrorElement,
+          },
+          {
+            path: "memory",
+            element: withSuspense(<SettingsMemoryPage />, "partial"),
+            errorElement: routeErrorElement,
+          },
+          // Models group (keeps sub-tabs)
           {
             path: "models",
             element: withSuspense(<SettingsModelsPage />, "partial"),
@@ -194,63 +191,89 @@ export const routes: RouteObject[] = [
               },
               {
                 path: "text",
-                element: <div />, // Empty element since content is handled by parent
+                element: <div />,
               },
               {
                 path: "image",
-                element: <div />, // Empty element since content is handled by parent
+                element: <div />,
               },
               {
                 path: "tts",
-                element: <div />, // Empty element since content is handled by parent
+                element: <div />,
+              },
+              {
+                path: "keys",
+                element: <div />,
               },
             ],
           },
           {
-            path: "personas",
-            element: withSuspense(<SettingsPersonasPage />, "partial"),
+            path: "history",
+            element: withSuspense(<SettingsHistoryPage />, "partial"),
             errorElement: routeErrorElement,
+          },
+          {
+            path: "files",
+            element: withSuspense(<SettingsFilesPage />, "partial"),
+            errorElement: routeErrorElement,
+          },
+          // Redirects from old paths
+          {
+            path: "history/archived",
+            element: <Navigate to="/settings/history" replace />,
+          },
+          {
+            path: "history/shared",
+            element: <Navigate to="/settings/history" replace />,
+          },
+          {
+            path: "api-keys",
+            element: <Navigate to="/settings/models/keys" replace />,
           },
           {
             path: "shared-conversations",
-            element: withSuspense(
-              <SettingsSharedConversationsPage />,
-              "partial"
-            ),
-            errorElement: routeErrorElement,
+            element: <Navigate to="/settings/history" replace />,
           },
           {
             path: "archived-conversations",
-            element: withSuspense(
-              <SettingsArchivedConversationsPage />,
-              "partial"
-            ),
-            errorElement: routeErrorElement,
+            element: <Navigate to="/settings/history" replace />,
           },
           {
             path: "chat-history",
-            element: withSuspense(<SettingsChatHistoryPage />, "partial"),
-            errorElement: routeErrorElement,
+            element: <Navigate to="/settings/history" replace />,
           },
           {
             path: "attachments",
-            element: withSuspense(<SettingsAttachmentsPage />, "partial"),
-            errorElement: routeErrorElement,
-          },
-          {
-            path: "memory",
-            element: withSuspense(<SettingsMemoryPage />, "partial"),
-            errorElement: routeErrorElement,
-          },
-          {
-            path: "general",
-            element: withSuspense(<SettingsGeneralPage />, "partial"),
-            errorElement: routeErrorElement,
+            element: <Navigate to="/settings/files" replace />,
           },
           {
             path: "profiles",
-            element: withSuspense(<SettingsProfilesPage />, "partial"),
-            errorElement: routeErrorElement,
+            element: <Navigate to="/settings/general" replace />,
+          },
+          // Redirects from old nested paths
+          {
+            path: "personalization/personas",
+            element: <Navigate to="/settings/personas" replace />,
+          },
+          {
+            path: "personalization/memory",
+            element: <Navigate to="/settings/memory" replace />,
+          },
+          {
+            path: "conversations/history",
+            element: <Navigate to="/settings/history" replace />,
+          },
+          {
+            path: "conversations/archived",
+            element: <Navigate to="/settings/history" replace />,
+          },
+          {
+            path: "conversations/shared",
+            element: <Navigate to="/settings/history" replace />,
+          },
+          {
+            path: "conversations/files",
+            element: <Navigate to="/settings/files" replace />,
           },
         ],
       },
@@ -285,6 +308,15 @@ export const routes: RouteObject[] = [
             errorElement: routeErrorElement,
           },
         ],
+      },
+      // Redirects for old persona standalone routes
+      {
+        path: "settings/personalization/personas/new",
+        element: <Navigate to="/settings/personas/new" replace />,
+      },
+      {
+        path: "settings/personalization/personas/:id/edit",
+        element: <Navigate to="/settings/personas/:id/edit" replace />,
       },
       {
         path: "*",

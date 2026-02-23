@@ -21,7 +21,6 @@ import { isUserSettings } from "@/lib/type-guards";
 import { validateApiKey } from "@/lib/validation";
 import { useToast } from "@/providers/toast-context";
 import { SettingsHeader } from "./settings-header";
-import { SettingsPageLayout } from "./ui/settings-page-layout";
 
 type ApiKeyInfo = {
   provider: string;
@@ -101,7 +100,7 @@ const hasStoredKey = (k: unknown): boolean => {
   return false;
 };
 
-export const ApiKeysTab = () => {
+export const ApiKeysTabContent = () => {
   const userSettingsRaw = useUserSettings();
   const apiKeysRaw = useQuery(api.apiKeys.getUserApiKeys);
   const storeKeyMutation = useMutation(api.apiKeys.storeApiKey);
@@ -205,7 +204,7 @@ export const ApiKeysTab = () => {
   };
 
   return (
-    <SettingsPageLayout>
+    <>
       <SettingsHeader
         title="API Keys"
         description="Configure your API keys to use different AI providers. Keys are securely encrypted and stored."
@@ -376,6 +375,8 @@ export const ApiKeysTab = () => {
           </div>
         </div>
       )}
-    </SettingsPageLayout>
+    </>
   );
 };
+
+export const ApiKeysTab = ApiKeysTabContent;

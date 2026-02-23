@@ -76,9 +76,11 @@ export const SettingsHeader = ({
   // Page header (new usage)
   if (title && description) {
     return (
-      <div className={cn("stack-sm", className)}>
+      <div className={cn("stack-md", className)}>
         <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
-        <p className="text-muted-foreground">{description}</p>
+        <p className="text-[15px] leading-relaxed text-muted-foreground">
+          {description}
+        </p>
       </div>
     );
   }

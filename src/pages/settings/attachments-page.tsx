@@ -118,7 +118,7 @@ function getFileAttachmentIcon(attachment: Attachment) {
   return <FileTextIcon className="size-4 text-gray-500" />;
 }
 
-export default function AttachmentsPage() {
+export function AttachmentsContent() {
   const navigate = useNavigate();
   const [fileType, setFileType] = useState<FileType>("all");
   const [includeGenerated, setIncludeGenerated] = useState(true);
@@ -764,3 +764,5 @@ export default function AttachmentsPage() {
     </SettingsPageLayout>
   );
 }
+
+export default AttachmentsContent;

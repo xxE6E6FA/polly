@@ -14,8 +14,6 @@ import { Link, useNavigate } from "react-router-dom";
 import type { MobileDrawerConfig } from "@/components/data-list/data-list-mobile-drawer";
 import type { VirtualizedDataListColumn } from "@/components/data-list/virtualized-data-list";
 import { VirtualizedDataList } from "@/components/data-list/virtualized-data-list";
-import { SettingsHeader } from "@/components/settings/settings-header";
-import { SettingsPageLayout } from "@/components/settings/ui/settings-page-layout";
 import { SettingsZeroState } from "@/components/settings/ui/settings-zero-state";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
@@ -66,7 +64,7 @@ function formatDaysLeft(daysLeft: number): string {
   return `${daysLeft} days left`;
 }
 
-export default function SharedConversationsPage() {
+export function SharedView() {
   const managedToast = useToast();
   const confirmDialog = useConfirmationDialog();
   const navigate = useNavigate();
@@ -375,12 +373,7 @@ export default function SharedConversationsPage() {
   );
 
   return (
-    <SettingsPageLayout>
-      <SettingsHeader
-        title="Shared Conversations"
-        description={`Manage your publicly shared conversations. Shares expire after ${SHARED_CONVERSATION_EXPIRY_DAYS} days of inactivity.`}
-      />
-
+    <>
       <VirtualizedDataList<SharedConversation, SortField>
         query={api.sharedConversations.listUserSharedConversationsPaginated}
         queryArgs={{ sortField, sortDirection }}
@@ -421,6 +414,6 @@ export default function SharedConversationsPage() {
         onCancel={confirmDialog.handleCancel}
         variant={confirmDialog.state.variant}
       />
-    </SettingsPageLayout>
+    </>
   );
 }

@@ -13,6 +13,7 @@ import { Switch } from "@/components/ui/switch";
 import { useUserSettings } from "@/hooks/use-user-settings";
 import { isApiKeysArray } from "@/lib/type-guards";
 import { useUserDataContext } from "@/providers/user-data-context";
+import { SettingsHeader } from "../settings-header";
 import { ModelPicker } from "./model-picker";
 import { VoicePicker } from "./voice-picker";
 
@@ -55,6 +56,11 @@ export const TTSTab = () => {
 
   return (
     <div className="stack-xl">
+      <SettingsHeader
+        title="Text-to-Speech"
+        description="Configure ElevenLabs voice synthesis settings for reading messages aloud."
+      />
+
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="stack-sm">
           <ModelPicker

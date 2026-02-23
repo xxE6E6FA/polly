@@ -133,7 +133,7 @@ function DetailedJobCard({
 
   return (
     <Card className="transition-colors hover:bg-muted/50">
-      <CardContent className="p-4">
+      <CardContent className="p-5">
         <div className="flex items-center gap-3">
           <div className="flex-shrink-0">{getStatusIcon()}</div>
           <div className="flex-1 min-w-0">
@@ -211,7 +211,7 @@ export function ActivitySection({
   );
 
   return (
-    <div className="stack-lg">
+    <div className="stack-xl">
       <div className="flex items-center justify-between">
         <div>
           <h3
@@ -235,7 +235,7 @@ export function ActivitySection({
       </div>
 
       {showDetailed ? (
-        <div className="stack-md">
+        <div className="stack-lg">
           {jobs.map(job => (
             <DetailedJobCard
               key={job.id}

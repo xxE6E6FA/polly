@@ -222,7 +222,7 @@ const UserMenu = memo(
             <GearIcon className="size-4" />
             Settings
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => navigate(ROUTES.SETTINGS.PROFILES)}>
+          <DropdownMenuItem onClick={() => navigate(ROUTES.SETTINGS.GENERAL)}>
             <UsersIcon className="size-4" />
             Manage Profiles
           </DropdownMenuItem>

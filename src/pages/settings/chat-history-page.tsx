@@ -12,12 +12,13 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ListEmptyState,
-  ListLoadingState,
   type MobileDrawerConfig,
   VirtualizedDataList,
   type VirtualizedDataListColumn,
 } from "@/components/data-list";
+import { ArchivedView } from "@/components/settings/chat-history-tab/archived-view";
 import { ImportExportActions } from "@/components/settings/chat-history-tab/import-export-actions";
+import { SharedView } from "@/components/settings/chat-history-tab/shared-view";
 import { SettingsHeader } from "@/components/settings/settings-header";
 import { ActivitySection } from "@/components/settings/ui/activity-section";
 import { SettingsPageLayout } from "@/components/settings/ui/settings-page-layout";
@@ -43,9 +44,11 @@ function formatDate(timestamp: number): string {
   });
 }
 
+type HistoryFilter = "all" | "archived" | "shared";
 type SortField = "updated";
 
-export default function ChatHistoryPage() {
+export function ChatHistoryContent() {
+  const [filter, setFilter] = useState<HistoryFilter>("all");
   const navigate = useNavigate();
   const {
     listSelection,
@@ -500,6 +503,8 @@ export default function ChatHistoryPage() {
         description="Manage your conversation history - import, export, and organize your chats"
       />
 
+      <ImportExportActions />
+
       <ActivitySection
         jobs={jobs}
         onDownload={handleDownload}
@@ -511,102 +516,134 @@ export default function ChatHistoryPage() {
         description="Track your recent imports and exports. Files are automatically deleted after 30 days."
       />
 
-      <ImportExportActions />
-
-      {/* Conversations Section */}
-      <div className="stack-lg">
-        <div className="flex-col gap-4 sm:flex-row sm:items-center sm:justify-between hidden sm:flex">
-          <div className="flex flex-wrap items-center gap-2">
-            {someSelected ? (
-              <>
-                <label className="flex items-center gap-2 text-sm cursor-pointer">
-                  <Switch
-                    checked={includeAttachments}
-                    onCheckedChange={setIncludeAttachments}
-                  />
-                  <span className="text-muted-foreground">
-                    Include attachment content in export
-                  </span>
-                </label>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={handleExportSelected}
-                  disabled={isExporting}
-                >
-                  {isExporting ? (
-                    "Exporting..."
-                  ) : (
-                    <>
-                      <DownloadIcon className="mr-1.5 size-4" />
-                      Export ({selectedCount})
-                    </>
-                  )}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="destructive"
-                  onClick={() => {
-                    setDeleteTarget("selected");
-                    setShowDeleteDialog(true);
-                  }}
-                >
-                  <TrashIcon className="mr-1.5 size-4" />
-                  Delete ({selectedCount})
-                </Button>
-                <Button size="sm" variant="ghost" onClick={clearSelection}>
-                  Clear
-                </Button>
-              </>
-            ) : undefined}
-          </div>
-        </div>
-
-        {/* VirtualizedDataList */}
-        <VirtualizedDataList<ConversationSummary, SortField>
-          query={api.conversations.list}
-          queryArgs={{ includeArchived: true, sortDirection }}
-          columns={columns}
-          getItemKey={conv => conv._id}
-          selection={selectionAdapter}
-          sort={{
-            field: sortField,
-            direction: sortDirection,
-            onSort: handleSort,
-          }}
-          onRowClick={conv => selectionAdapter.toggleItem(conv)}
-          mobileTitleRender={mobileTitleRender}
-          mobileMetadataRender={mobileMetadataRender}
-          mobileDrawerConfig={mobileDrawerConfig}
-          emptyState={
-            <ListEmptyState
-              icon={<ChatCircleIcon className="size-12" />}
-              title="No conversations yet"
-              description="Your conversation history will appear here once you start chatting"
-            />
-          }
-        />
+      <div className="flex items-center gap-1">
+        <Button
+          size="sm"
+          variant={filter === "all" ? "secondary" : "ghost"}
+          onClick={() => setFilter("all")}
+        >
+          All Conversations
+        </Button>
+        <Button
+          size="sm"
+          variant={filter === "archived" ? "secondary" : "ghost"}
+          onClick={() => setFilter("archived")}
+        >
+          Archived
+        </Button>
+        <Button
+          size="sm"
+          variant={filter === "shared" ? "secondary" : "ghost"}
+          onClick={() => setFilter("shared")}
+        >
+          Shared
+        </Button>
       </div>
 
-      {/* Delete Confirmation Dialog */}
-      <ConfirmationDialog
-        open={showDeleteDialog}
-        onOpenChange={open => {
-          setShowDeleteDialog(open);
-          if (!open) {
-            setDeleteTarget(null);
-          }
-        }}
-        title="Delete Conversations"
-        description={
-          deleteTarget === "selected"
-            ? `Are you sure you want to delete ${selectedCount} conversation${selectedCount === 1 ? "" : "s"}? This action cannot be undone.`
-            : "Are you sure you want to delete this conversation? This action cannot be undone."
-        }
-        confirmText={isDeleting ? "Deleting..." : "Delete"}
-        onConfirm={handleDeleteConfirm}
-        variant="destructive"
-      />
+      {filter === "all" && (
+        <>
+          {/* Conversations Section */}
+          <div className="stack-lg">
+            <div className="flex-col gap-4 sm:flex-row sm:items-center sm:justify-between hidden sm:flex">
+              <div className="flex flex-wrap items-center gap-2">
+                {someSelected ? (
+                  <>
+                    <label className="flex items-center gap-2 text-sm cursor-pointer">
+                      <Switch
+                        checked={includeAttachments}
+                        onCheckedChange={setIncludeAttachments}
+                      />
+                      <span className="text-muted-foreground">
+                        Include attachment content in export
+                      </span>
+                    </label>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={handleExportSelected}
+                      disabled={isExporting}
+                    >
+                      {isExporting ? (
+                        "Exporting..."
+                      ) : (
+                        <>
+                          <DownloadIcon className="mr-1.5 size-4" />
+                          Export ({selectedCount})
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => {
+                        setDeleteTarget("selected");
+                        setShowDeleteDialog(true);
+                      }}
+                    >
+                      <TrashIcon className="mr-1.5 size-4" />
+                      Delete ({selectedCount})
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={clearSelection}>
+                      Clear
+                    </Button>
+                  </>
+                ) : undefined}
+              </div>
+            </div>
+
+            {/* VirtualizedDataList */}
+            <VirtualizedDataList<ConversationSummary, SortField>
+              query={api.conversations.list}
+              queryArgs={{ includeArchived: true, sortDirection }}
+              columns={columns}
+              getItemKey={conv => conv._id}
+              selection={selectionAdapter}
+              sort={{
+                field: sortField,
+                direction: sortDirection,
+                onSort: handleSort,
+              }}
+              onRowClick={conv => selectionAdapter.toggleItem(conv)}
+              mobileTitleRender={mobileTitleRender}
+              mobileMetadataRender={mobileMetadataRender}
+              mobileDrawerConfig={mobileDrawerConfig}
+              emptyState={
+                <ListEmptyState
+                  icon={<ChatCircleIcon className="size-12" />}
+                  title="No conversations yet"
+                  description="Your conversation history will appear here once you start chatting"
+                />
+              }
+            />
+          </div>
+
+          {/* Delete Confirmation Dialog */}
+          <ConfirmationDialog
+            open={showDeleteDialog}
+            onOpenChange={open => {
+              setShowDeleteDialog(open);
+              if (!open) {
+                setDeleteTarget(null);
+              }
+            }}
+            title="Delete Conversations"
+            description={
+              deleteTarget === "selected"
+                ? `Are you sure you want to delete ${selectedCount} conversation${selectedCount === 1 ? "" : "s"}? This action cannot be undone.`
+                : "Are you sure you want to delete this conversation? This action cannot be undone."
+            }
+            confirmText={isDeleting ? "Deleting..." : "Delete"}
+            onConfirm={handleDeleteConfirm}
+            variant="destructive"
+          />
+        </>
+      )}
+
+      {filter === "archived" && <ArchivedView />}
+
+      {filter === "shared" && <SharedView />}
     </SettingsPageLayout>
   );
 }
+
+export default ChatHistoryContent;
