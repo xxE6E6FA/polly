@@ -34,18 +34,11 @@ Guidance for Claude Code when working with this repository.
 ## Project Structure
 
 ```
-src/
-├── components/      # UI primitives in ui/, domain components in chat/, navigation/, etc.
-├── hooks/           # All custom hooks - see hooks/index.ts
-├── lib/             # Utilities - see lib/index.ts
-├── pages/           # Route components
-├── providers/       # React context providers
-├── stores/          # Zustand stores
-├── types/           # Type definitions
-└── loaders/         # React Router loaders
-
-shared/              # Frontend/backend shared code (top-level)
-convex/              # Backend: schema.ts, ai/, lib/
+Browser → React Router → Pages → Hooks → Convex Client ←→ Convex Backend
+                                   ↓                          ↓
+                              Zustand Stores           AI Actions → LLM APIs
+                                                           ↓
+                                                    Streaming Mutations → DB
 ```
 
 ## Routes
@@ -92,7 +85,7 @@ All files use **kebab-case**: `chat-message.tsx`, `use-chat.ts`, `user-bubble.ts
 
 ## Imports
 
-Use barrel files: `@/components/ui`, `@/hooks`, `@/lib`. See JSDoc in each `index.ts`.
+Use barrel files: `@/components/ui`, `@/hooks`, `@/lib`. All files use **kebab-case**.
 
 ## Gotchas
 

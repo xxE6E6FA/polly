@@ -4,14 +4,19 @@ import type { Id } from "@convex/_generated/dataModel";
 import {
   DownloadSimpleIcon,
   GithubLogoIcon,
+  PencilSimpleIcon,
+  PlusIcon,
   TrashIcon,
 } from "@phosphor-icons/react";
 import { useConvex, useMutation } from "convex/react";
 import { useCallback, useState, useTransition } from "react";
 import { useNavigate } from "react-router-dom";
+import { ProfileDeleteDialog } from "@/components/settings/profile-delete-dialog";
+import { ProfileFormDialog } from "@/components/settings/profile-form-dialog";
 import { SettingsPageLayout } from "@/components/settings/ui/settings-page-layout";
 import { UserIdCard } from "@/components/settings/user-id-card";
 import { Alert, AlertDescription, AlertIcon } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -31,9 +36,12 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { useBackgroundJobs } from "@/hooks/use-background-jobs";
+import { useProfiles } from "@/hooks/use-profiles";
 import { useUserSettings } from "@/hooks/use-user-settings";
 import { clearUserData } from "@/lib/local-storage";
+import { getProfileIconComponent } from "@/lib/profile-icons";
 import { useToast } from "@/providers/toast-context";
+import type { Profile } from "@/types";
 
 type PaginatedResult<T> = {
   page: T[];
@@ -63,6 +71,29 @@ export default function GeneralPage() {
   const [isExportingData, startExportTransition] = useTransition();
   const [exportQueued, setExportQueued] = useState(false);
   const [isDeletingAccount, startDeleteTransition] = useTransition();
+
+  // Profiles state
+  const { profiles, isLoading: profilesLoading } = useProfiles();
+  const [profileFormOpen, setProfileFormOpen] = useState(false);
+  const [editingProfile, setEditingProfile] = useState<Profile | undefined>();
+  const [deletingProfile, setDeletingProfile] = useState<Profile | undefined>();
+
+  const handleEditProfile = useCallback((profile: Profile) => {
+    setEditingProfile(profile);
+    setProfileFormOpen(true);
+  }, []);
+
+  const handleCreateProfile = useCallback(() => {
+    setEditingProfile(undefined);
+    setProfileFormOpen(true);
+  }, []);
+
+  const handleProfileFormClose = useCallback((open: boolean) => {
+    if (!open) {
+      setEditingProfile(undefined);
+    }
+    setProfileFormOpen(open);
+  }, []);
   const autoArchiveEnabled = userSettings?.autoArchiveEnabled ?? false;
   const autoArchiveDaysValue = String(userSettings?.autoArchiveDays ?? 30);
 
@@ -208,10 +239,10 @@ export default function GeneralPage() {
             <UserIdCard />
           </aside>
 
-          <main>
+          <main className="stack-12">
             {/* Preferences */}
-            <section className="mb-12">
-              <h2 className="text-lg font-semibold mb-2">Preferences</h2>
+            <section>
+              <h2 className="text-lg font-semibold mb-4">Preferences</h2>
 
               <div className="stack-6">
                 {/* Show message metadata */}
@@ -327,9 +358,111 @@ export default function GeneralPage() {
               </div>
             </section>
 
+            {/* Profiles */}
+            <section>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold">Profiles</h2>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleCreateProfile}
+                  className="shrink-0"
+                >
+                  <PlusIcon className="size-4 mr-1.5" />
+                  New Profile
+                </Button>
+              </div>
+              <p className="text-sm text-muted-foreground mb-5">
+                Organize conversations into separate contexts like work,
+                personal, or learning.
+              </p>
+
+              {(() => {
+                if (profilesLoading) {
+                  return (
+                    <div className="stack-sm">
+                      <Skeleton className="h-14 w-full rounded-lg" />
+                      <Skeleton className="h-14 w-full rounded-lg" />
+                    </div>
+                  );
+                }
+
+                if (!profiles || profiles.length === 0) {
+                  return (
+                    <div className="rounded-lg border border-dashed p-6 text-center">
+                      <p className="text-muted-foreground text-sm">
+                        No profiles yet. Create your first profile to organize
+                        conversations.
+                      </p>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="stack-xs">
+                    {profiles.map(profile => {
+                      const IconComponent = getProfileIconComponent(
+                        profile.icon
+                      );
+                      return (
+                        <div
+                          key={profile._id}
+                          className="flex items-center gap-3 rounded-lg border p-3 hover:bg-muted/30 transition-colors"
+                        >
+                          <div className="flex items-center justify-center w-10 h-10 rounded-md bg-muted">
+                            {IconComponent ? (
+                              <IconComponent className="size-5 text-foreground/70" />
+                            ) : (
+                              <span className="text-sm text-muted-foreground">
+                                ?
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-sm truncate">
+                                {profile.name}
+                              </span>
+                              {profile.isDefault && (
+                                <Badge variant="secondary" className="text-xs">
+                                  Default
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                              onClick={() => handleEditProfile(profile)}
+                              title="Edit profile"
+                            >
+                              <PencilSimpleIcon className="size-4" />
+                            </Button>
+                            {!profile.isDefault && (
+                              <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                onClick={() => setDeletingProfile(profile)}
+                                title="Delete profile"
+                              >
+                                <TrashIcon className="size-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+            </section>
+
             {/* Data & Privacy */}
-            <section className="mb-12">
-              <h2 className="text-lg font-semibold mb-2">Data & Privacy</h2>
+            <section>
+              <h2 className="text-lg font-semibold mb-4">Data & Privacy</h2>
 
               <div className="stack-6">
                 {/* Export */}
@@ -361,8 +494,8 @@ export default function GeneralPage() {
             </section>
 
             {/* About */}
-            <section className="mb-12">
-              <h2 className="text-lg font-semibold mb-2">About</h2>
+            <section>
+              <h2 className="text-lg font-semibold mb-4">About</h2>
 
               <div>
                 <p className="text-sm text-muted-foreground mb-3">
@@ -388,8 +521,8 @@ export default function GeneralPage() {
             </section>
 
             {/* Danger Zone */}
-            <section className="mb-12">
-              <h2 className="text-lg font-semibold mb-2">Danger Zone</h2>
+            <section>
+              <h2 className="text-lg font-semibold mb-4">Danger Zone</h2>
 
               <div>
                 <div className="font-medium mb-1">Delete account</div>
@@ -408,6 +541,25 @@ export default function GeneralPage() {
           </main>
         </div>
       </SettingsPageLayout>
+
+      <ProfileFormDialog
+        open={profileFormOpen}
+        onOpenChange={handleProfileFormClose}
+        profile={editingProfile}
+      />
+
+      {deletingProfile && profiles && (
+        <ProfileDeleteDialog
+          open={!!deletingProfile}
+          onOpenChange={open => {
+            if (!open) {
+              setDeletingProfile(undefined);
+            }
+          }}
+          profile={deletingProfile}
+          otherProfiles={profiles.filter(p => p._id !== deletingProfile._id)}
+        />
+      )}
 
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <DialogContent className="sm:max-w-lg">

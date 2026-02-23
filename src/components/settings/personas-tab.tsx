@@ -46,7 +46,7 @@ import { SettingsPageLayout } from "./ui/settings-page-layout";
 
 type SortField = "name" | "type";
 
-export const PersonasTab = () => {
+export const PersonasTabContent = () => {
   const navigate = useNavigate();
   const userSettingsRaw = useUserSettings();
   const managedToast = useToast();
@@ -472,3 +472,5 @@ export const PersonasTab = () => {
     </SettingsPageLayout>
   );
 };
+
+export const PersonasTab = PersonasTabContent;

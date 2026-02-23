@@ -389,7 +389,7 @@ export const TextModelsTab = () => {
   return (
     <div className="stack-xl">
       {error && (
-        <Alert className="mb-6" variant="danger">
+        <Alert variant="danger">
           <AlertIcon variant="danger" />
           <AlertDescription>
             Failed to load models. Please refresh the page or try again later.

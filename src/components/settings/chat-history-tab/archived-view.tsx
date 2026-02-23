@@ -11,8 +11,6 @@ import { Link, useNavigate } from "react-router-dom";
 import type { MobileDrawerConfig } from "@/components/data-list/data-list-mobile-drawer";
 import type { VirtualizedDataListColumn } from "@/components/data-list/virtualized-data-list";
 import { VirtualizedDataList } from "@/components/data-list/virtualized-data-list";
-import { SettingsHeader } from "@/components/settings/settings-header";
-import { SettingsPageLayout } from "@/components/settings/ui/settings-page-layout";
 import { SettingsZeroState } from "@/components/settings/ui/settings-zero-state";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
@@ -39,7 +37,7 @@ type ArchivedConversation = {
 
 type SortField = "archivedAt";
 
-export const ArchivedConversationsPage = () => {
+export function ArchivedView() {
   const confirmationDialog = useConfirmationDialog();
   const managedToast = useToast();
   const navigate = useNavigate();
@@ -297,12 +295,7 @@ export const ArchivedConversationsPage = () => {
   );
 
   return (
-    <SettingsPageLayout>
-      <SettingsHeader
-        title="Archived Conversations"
-        description="Manage your archived conversations"
-      />
-
+    <>
       <VirtualizedDataList<ArchivedConversation, SortField>
         query={api.conversations.list}
         queryArgs={{ archivedOnly: true, sortDirection }}
@@ -337,8 +330,6 @@ export const ArchivedConversationsPage = () => {
         onConfirm={confirmationDialog.handleConfirm}
         onCancel={confirmationDialog.handleCancel}
       />
-    </SettingsPageLayout>
+    </>
   );
-};
-
-export default ArchivedConversationsPage;
+}

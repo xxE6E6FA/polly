@@ -37,7 +37,7 @@ type MemoryItem = Doc<"userMemories">;
 
 type SortField = "createdAt";
 
-export default function MemoryPage() {
+export function MemoryContent() {
   const userSettings = useUserSettings();
   const updateSettings = useMutation(api.userSettings.updateUserSettings);
   const memoryCountResult = useQuery(api.memory.getMemoryCount);
@@ -313,170 +313,168 @@ export default function MemoryPage() {
   }
 
   return (
-    <>
-      <SettingsPageLayout>
-        <SettingsHeader
-          title="Memory"
-          description="Polly can remember things about you across conversations to provide more personalized responses."
-        />
+    <SettingsPageLayout>
+      <SettingsHeader
+        title="Memory"
+        description="Polly can remember things about you across conversations to provide more personalized responses."
+      />
 
-        {/* Global Memory Toggle */}
-        <div className="rounded-lg bg-muted/20 p-4 shadow-sm ring-1 ring-border/30 mb-8">
+      {/* Global Memory Toggle */}
+      <div className="rounded-lg bg-muted/20 p-4 shadow-sm ring-1 ring-border/30">
+        <div className="flex items-start justify-between gap-4">
+          <div className="stack-sm flex-1">
+            <h3 className="text-base font-semibold">Enable Memory</h3>
+            <p className="text-sm text-muted-foreground">
+              Automatically extract and remember relevant facts about you from
+              conversations.
+            </p>
+          </div>
+          <Switch
+            checked={memoryEnabled}
+            onCheckedChange={handleToggleMemory}
+            disabled={isPending}
+            className="flex-shrink-0"
+          />
+        </div>
+      </div>
+
+      {/* Scan Existing Conversations */}
+      {memoryEnabled && (
+        <div className="rounded-lg bg-muted/20 p-4 shadow-sm ring-1 ring-border/30">
           <div className="flex items-start justify-between gap-4">
             <div className="stack-sm flex-1">
-              <h3 className="text-base font-semibold">Enable Memory</h3>
+              <h3 className="text-base font-semibold">
+                Scan Existing Conversations
+              </h3>
               <p className="text-sm text-muted-foreground">
-                Automatically extract and remember relevant facts about you from
-                conversations.
+                Extract memories from your recent conversations. Only processes
+                conversations with enough messages.
               </p>
             </div>
-            <Switch
-              checked={memoryEnabled}
-              onCheckedChange={handleToggleMemory}
-              disabled={isPending}
-              className="flex-shrink-0"
+            <Tooltip>
+              <TooltipTrigger delayDuration={200}>
+                <Button
+                  onClick={async () => {
+                    await backgroundJobs.startMemoryScan();
+                  }}
+                  disabled={hasActiveScan}
+                >
+                  {hasActiveScan ? (
+                    <>
+                      <Spinner size="sm" className="mr-1.5" /> Scanning...
+                    </>
+                  ) : (
+                    "Start Scan"
+                  )}
+                </Button>
+              </TooltipTrigger>
+              {hasActiveScan && (
+                <TooltipContent>
+                  <p>A scan is already in progress</p>
+                </TooltipContent>
+              )}
+            </Tooltip>
+          </div>
+        </div>
+      )}
+
+      {/* Scan Activity */}
+      {memoryScanJobs.length > 0 && (
+        <div>
+          <ActivitySection
+            jobs={memoryScanJobs}
+            onDownload={() => {
+              // Memory scan jobs don't have downloadable files
+            }}
+            onRemove={backgroundJobs.removeJob}
+            isDownloading={false}
+            downloadingJobId={null}
+            showDetailed={true}
+            title="Scan Activity"
+          />
+        </div>
+      )}
+
+      {/* Saved Memories */}
+      <section>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold">
+            Saved Memories
+            {memoryCount !== undefined && memoryCount > 0 && (
+              <span className="ml-2 text-sm font-normal text-muted-foreground">
+                ({memoryCountLabel})
+              </span>
+            )}
+          </h2>
+          <div className="flex items-center gap-2">
+            <SearchInput
+              placeholder="Search memories..."
+              value={searchQuery}
+              onChange={setSearchQuery}
+              className="w-48"
             />
+            {memoryCount !== undefined && memoryCount > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleClearAll}
+                className="text-destructive hover:text-destructive"
+              >
+                <TrashIcon className="mr-1.5 size-4" />
+                Clear all
+              </Button>
+            )}
           </div>
         </div>
 
-        {/* Scan Existing Conversations */}
-        {memoryEnabled && (
-          <div className="rounded-lg bg-muted/20 p-4 shadow-sm ring-1 ring-border/30 mb-8">
-            <div className="flex items-start justify-between gap-4">
-              <div className="stack-sm flex-1">
-                <h3 className="text-base font-semibold">
-                  Scan Existing Conversations
-                </h3>
-                <p className="text-sm text-muted-foreground">
-                  Extract memories from your recent conversations. Only
-                  processes conversations with enough messages.
-                </p>
-              </div>
-              <Tooltip>
-                <TooltipTrigger delayDuration={200}>
-                  <Button
-                    onClick={async () => {
-                      await backgroundJobs.startMemoryScan();
-                    }}
-                    disabled={hasActiveScan}
-                  >
-                    {hasActiveScan ? (
-                      <>
-                        <Spinner size="sm" className="mr-1.5" /> Scanning...
-                      </>
-                    ) : (
-                      "Start Scan"
-                    )}
-                  </Button>
-                </TooltipTrigger>
-                {hasActiveScan && (
-                  <TooltipContent>
-                    <p>A scan is already in progress</p>
-                  </TooltipContent>
-                )}
-              </Tooltip>
-            </div>
-          </div>
-        )}
-
-        {/* Scan Activity */}
-        {memoryScanJobs.length > 0 && (
-          <div className="mb-8">
-            <ActivitySection
-              jobs={memoryScanJobs}
-              onDownload={() => {
-                // Memory scan jobs don't have downloadable files
-              }}
-              onRemove={backgroundJobs.removeJob}
-              isDownloading={false}
-              downloadingJobId={null}
-              showDetailed={true}
-              title="Scan Activity"
-            />
-          </div>
-        )}
-
-        {/* Saved Memories */}
-        <section>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold">
-              Saved Memories
-              {memoryCount !== undefined && memoryCount > 0 && (
-                <span className="ml-2 text-sm font-normal text-muted-foreground">
-                  ({memoryCountLabel})
-                </span>
-              )}
-            </h2>
+        <VirtualizedDataList<MemoryItem, SortField>
+          query={api.memory.listPaginated}
+          queryArgs={{
+            sortDirection,
+            searchQuery: debouncedSearchQuery || undefined,
+          }}
+          getItemKey={memory => memory._id}
+          columns={columns}
+          sort={{
+            field: "createdAt",
+            direction: sortDirection,
+            onSort: handleSort,
+          }}
+          mobileTitleRender={memory => (
             <div className="flex items-center gap-2">
-              <SearchInput
-                placeholder="Search memories..."
-                value={searchQuery}
-                onChange={setSearchQuery}
-                className="w-48"
-              />
-              {memoryCount !== undefined && memoryCount > 0 && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleClearAll}
-                  className="text-destructive hover:text-destructive"
-                >
-                  <TrashIcon className="mr-1.5 size-4" />
-                  Clear all
-                </Button>
-              )}
-            </div>
-          </div>
-
-          <VirtualizedDataList<MemoryItem, SortField>
-            query={api.memory.listPaginated}
-            queryArgs={{
-              sortDirection,
-              searchQuery: debouncedSearchQuery || undefined,
-            }}
-            getItemKey={memory => memory._id}
-            columns={columns}
-            sort={{
-              field: "createdAt",
-              direction: sortDirection,
-              onSort: handleSort,
-            }}
-            mobileTitleRender={memory => (
-              <div className="flex items-center gap-2">
-                <span
-                  className={cn(
-                    "shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium",
-                    CATEGORY_COLORS[memory.category] ??
-                      "bg-muted text-muted-foreground"
-                  )}
-                >
-                  {CATEGORY_LABELS[memory.category] ?? memory.category}
-                </span>
-                <span
-                  className={cn(
-                    "truncate text-sm",
-                    !memory.isActive && "text-muted-foreground"
-                  )}
-                >
-                  {memory.content}
-                </span>
-              </div>
-            )}
-            mobileMetadataRender={memory => (
-              <span className="text-xs text-muted-foreground">
-                {memory.sourceConversationTitle
-                  ? `from "${memory.sourceConversationTitle}" · `
-                  : ""}
-                Added {new Date(memory.createdAt).toLocaleDateString()}
+              <span
+                className={cn(
+                  "shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium",
+                  CATEGORY_COLORS[memory.category] ??
+                    "bg-muted text-muted-foreground"
+                )}
+              >
+                {CATEGORY_LABELS[memory.category] ?? memory.category}
               </span>
-            )}
-            mobileDrawerConfig={mobileDrawerConfig}
-            emptyState={emptyState}
-            initialNumItems={20}
-            loadMoreCount={20}
-          />
-        </section>
-      </SettingsPageLayout>
+              <span
+                className={cn(
+                  "truncate text-sm",
+                  !memory.isActive && "text-muted-foreground"
+                )}
+              >
+                {memory.content}
+              </span>
+            </div>
+          )}
+          mobileMetadataRender={memory => (
+            <span className="text-xs text-muted-foreground">
+              {memory.sourceConversationTitle
+                ? `from "${memory.sourceConversationTitle}" · `
+                : ""}
+              Added {new Date(memory.createdAt).toLocaleDateString()}
+            </span>
+          )}
+          mobileDrawerConfig={mobileDrawerConfig}
+          emptyState={emptyState}
+          initialNumItems={20}
+          loadMoreCount={20}
+        />
+      </section>
 
       <ConfirmationDialog
         open={confirmationDialog.state.isOpen}
@@ -489,6 +487,8 @@ export default function MemoryPage() {
         onConfirm={confirmationDialog.handleConfirm}
         onCancel={confirmationDialog.handleCancel}
       />
-    </>
+    </SettingsPageLayout>
   );
 }
+
+export default MemoryContent;

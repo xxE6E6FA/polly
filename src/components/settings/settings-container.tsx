@@ -1,16 +1,13 @@
 import {
-  ArchiveIcon,
   BrainIcon,
   ChatTextIcon,
-  CloudArrowDownIcon,
+  ClockIcon,
   GearIcon,
   ImageIcon,
   KeyIcon,
   PaperclipIcon,
   RobotIcon,
-  ShareNetworkIcon,
   SpeakerHighIcon,
-  UserCircleIcon,
   UsersIcon,
 } from "@phosphor-icons/react";
 import { useMemo } from "react";
@@ -27,42 +24,38 @@ type SettingsContainerProps = {
   className?: string;
 };
 
-// Main navigation tabs (shared structure)
+// 6 flat main tabs
 const mainTabs: SettingsTabItem[] = [
   { path: ROUTES.SETTINGS.GENERAL, label: "General", icon: GearIcon },
-  { path: ROUTES.SETTINGS.PROFILES, label: "Profiles", icon: UserCircleIcon },
-  { path: ROUTES.SETTINGS.API_KEYS, label: "API Keys", icon: KeyIcon },
-  { path: ROUTES.SETTINGS.TEXT_MODELS, label: "Models", icon: RobotIcon },
   { path: ROUTES.SETTINGS.PERSONAS, label: "Personas", icon: UsersIcon },
   { path: ROUTES.SETTINGS.MEMORY, label: "Memory", icon: BrainIcon },
   {
-    path: ROUTES.SETTINGS.SHARED_CONVERSATIONS,
-    label: "Shares",
-    icon: ShareNetworkIcon,
+    path: ROUTES.SETTINGS.TEXT_MODELS,
+    label: "Models",
+    icon: RobotIcon,
   },
   {
-    path: ROUTES.SETTINGS.ARCHIVED_CONVERSATIONS,
-    label: "Archive",
-    icon: ArchiveIcon,
-  },
-  {
-    path: ROUTES.SETTINGS.CHAT_HISTORY,
+    path: ROUTES.SETTINGS.HISTORY,
     label: "History",
-    icon: CloudArrowDownIcon,
+    icon: ClockIcon,
   },
-  {
-    path: ROUTES.SETTINGS.ATTACHMENTS,
-    label: "Files",
-    icon: PaperclipIcon,
-  },
+  { path: ROUTES.SETTINGS.FILES, label: "Files", icon: PaperclipIcon },
 ];
 
-// Sub-navigation for Models section
+// Sub-tabs only for Models
 const modelSubTabs: SettingsTabItem[] = [
   { path: ROUTES.SETTINGS.TEXT_MODELS, label: "Text", icon: ChatTextIcon },
   { path: ROUTES.SETTINGS.IMAGE_MODELS, label: "Image", icon: ImageIcon },
   { path: ROUTES.SETTINGS.TTS_MODELS, label: "TTS", icon: SpeakerHighIcon },
+  { path: ROUTES.SETTINGS.API_KEYS, label: "Keys", icon: KeyIcon },
 ];
+
+function getActiveSubTabs(pathname: string): SettingsTabItem[] | null {
+  if (pathname.startsWith("/settings/models")) {
+    return modelSubTabs;
+  }
+  return null;
+}
 
 export const SettingsContainer = ({
   children,
@@ -71,13 +64,12 @@ export const SettingsContainer = ({
   const location = useLocation();
   const { isMobile } = useUI();
 
-  // Determine active tab index
+  const activeSubTabs = getActiveSubTabs(location.pathname);
+
+  // Determine active main tab index
   const activeMainIndex = useMemo(() => {
-    // Check for models sub-routes first
-    const isModelsRoute = modelSubTabs.some(tab =>
-      location.pathname.startsWith(tab.path)
-    );
-    if (isModelsRoute) {
+    // Models group: any /settings/models/* path
+    if (location.pathname.startsWith("/settings/models")) {
       return mainTabs.findIndex(
         tab => tab.path === ROUTES.SETTINGS.TEXT_MODELS
       );
@@ -95,17 +87,16 @@ export const SettingsContainer = ({
     return 0;
   }, [location.pathname]);
 
-  // Determine if we're in models section and which sub-tab is active
-  const isModelsSection = modelSubTabs.some(tab =>
-    location.pathname.startsWith(tab.path)
-  );
+  // Determine active sub-tab index
   const activeSubIndex = useMemo(() => {
-    if (!isModelsSection) {
+    if (!activeSubTabs) {
       return 0;
     }
-    const index = modelSubTabs.findIndex(tab => location.pathname === tab.path);
+    const index = activeSubTabs.findIndex(
+      tab => location.pathname === tab.path
+    );
     return index !== -1 ? index : 0;
-  }, [isModelsSection, location.pathname]);
+  }, [activeSubTabs, location.pathname]);
 
   // On mobile, use the swipeable carousel navigation
   if (isMobile) {
@@ -117,9 +108,8 @@ export const SettingsContainer = ({
   }
 
   // Desktop: Window handles scrolling, nav is sticky at top
-  // This allows WindowVirtualizer to work correctly with window scroll
   return (
-    <div className="flex-1" style={{ scrollbarGutter: "stable" }}>
+    <div className="flex-1">
       {/* Sticky navigation container */}
       <div className="sticky top-0 z-sticky bg-background pb-3">
         <div className="mx-auto w-full max-w-4xl px-4 pt-3 stack-sm">
@@ -132,11 +122,11 @@ export const SettingsContainer = ({
             />
           </nav>
 
-          {/* Sub-navigation for Models section */}
-          {isModelsSection && (
+          {/* Sub-navigation */}
+          {activeSubTabs && (
             <nav>
               <SettingsTabs
-                tabs={modelSubTabs}
+                tabs={activeSubTabs}
                 activeIndex={activeSubIndex}
                 layoutId="settings-sub-tab"
               />
@@ -146,7 +136,7 @@ export const SettingsContainer = ({
       </div>
 
       {/* Content area - scrolls with window */}
-      <div className="mx-auto w-full max-w-4xl px-4 pb-6">
+      <div className="mx-auto w-full max-w-4xl px-4 pt-4 pb-10">
         <div className={cn("w-full", className)}>{children}</div>
       </div>
     </div>
