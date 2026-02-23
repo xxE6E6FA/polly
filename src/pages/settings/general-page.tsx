@@ -11,6 +11,7 @@ import {
 import { useConvex, useMutation } from "convex/react";
 import { useCallback, useState, useTransition } from "react";
 import { useNavigate } from "react-router-dom";
+import { ColorSchemeSelector } from "@/components/settings/color-scheme-selector";
 import { ProfileDeleteDialog } from "@/components/settings/profile-delete-dialog";
 import { ProfileFormDialog } from "@/components/settings/profile-form-dialog";
 import { SettingsPageLayout } from "@/components/settings/ui/settings-page-layout";
@@ -240,6 +241,12 @@ export default function GeneralPage() {
           </aside>
 
           <main className="stack-12">
+            {/* Appearance */}
+            <section>
+              <h2 className="text-lg font-semibold mb-4">Appearance</h2>
+              <ColorSchemeSelector />
+            </section>
+
             {/* Preferences */}
             <section>
               <h2 className="text-lg font-semibold mb-4">Preferences</h2>

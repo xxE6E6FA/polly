@@ -1,7 +1,9 @@
 import {
+  CheckIcon,
   GearIcon,
   MonitorIcon,
   MoonIcon,
+  PaletteIcon,
   PlusIcon,
   SignOutIcon,
   SunIcon,
@@ -16,7 +18,9 @@ import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuSub,
   DropdownMenuSubContent,
@@ -31,6 +35,7 @@ import {
 import { useActiveProfile } from "@/hooks/use-active-profile";
 import { useTheme } from "@/hooks/use-theme";
 import { useUserSettings } from "@/hooks/use-user-settings";
+import { COLOR_SCHEME_DEFINITIONS } from "@/lib/color-schemes";
 import { getProfileIconComponent } from "@/lib/profile-icons";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
@@ -174,7 +179,15 @@ const UserMenu = memo(
     shouldAnonymize: boolean;
     navigate: (path: string) => void;
   }) => {
-    const { theme, setTheme } = useTheme();
+    const {
+      theme,
+      setTheme,
+      colorScheme,
+      setColorScheme,
+      previewScheme,
+      previewMode,
+      endPreview,
+    } = useTheme();
 
     const avatar = user?.image ? (
       <img
@@ -227,27 +240,74 @@ const UserMenu = memo(
             Manage Profiles
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuSub>
+          <DropdownMenuSub
+            onOpenChange={open => {
+              if (!open) {
+                endPreview();
+              }
+            }}
+          >
             <DropdownMenuSubTrigger className="gap-2">
-              {(() => {
-                const ThemeIcon =
-                  THEME_OPTIONS.find(t => t.value === theme)?.icon ??
-                  MonitorIcon;
-                return <ThemeIcon className="size-4" />;
-              })()}
-              Theme
+              <PaletteIcon className="size-4" />
+              Appearance
             </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent className="w-36">
-              {THEME_OPTIONS.map(opt => (
-                <DropdownMenuItem
-                  key={opt.value}
-                  onClick={() => setTheme(opt.value)}
-                  className={cn(theme === opt.value && "bg-muted font-medium")}
-                >
-                  <opt.icon className="size-4" />
-                  {opt.label}
-                </DropdownMenuItem>
-              ))}
+            <DropdownMenuSubContent className="w-44">
+              <DropdownMenuGroup>
+                <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">
+                  Mode
+                </DropdownMenuLabel>
+                {THEME_OPTIONS.map(opt => (
+                  <DropdownMenuItem
+                    key={opt.value}
+                    onClick={() => setTheme(opt.value)}
+                    onMouseEnter={() => previewMode(opt.value)}
+                    className={cn(
+                      theme === opt.value && "bg-muted font-medium"
+                    )}
+                  >
+                    <opt.icon className="size-4" />
+                    {opt.label}
+                    {theme === opt.value && (
+                      <CheckIcon className="size-3.5 ml-auto" />
+                    )}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuGroup>
+              <DropdownMenuSeparator />
+              <DropdownMenuGroup>
+                <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">
+                  Color scheme
+                </DropdownMenuLabel>
+                {COLOR_SCHEME_DEFINITIONS.map(scheme => {
+                  const isActive = colorScheme === scheme.id;
+                  const isDark =
+                    document.documentElement.classList.contains("dark");
+                  const preview = isDark
+                    ? scheme.preview.dark
+                    : scheme.preview.light;
+                  return (
+                    <DropdownMenuItem
+                      key={scheme.id}
+                      onClick={() => setColorScheme(scheme.id)}
+                      onMouseEnter={() => previewScheme(scheme.id)}
+                      className={cn(isActive && "bg-muted font-medium")}
+                    >
+                      <div className="flex items-center gap-0.5 shrink-0">
+                        <div
+                          className="size-3 rounded-full"
+                          style={{ backgroundColor: preview.primary }}
+                        />
+                        <div
+                          className="size-3 rounded-full"
+                          style={{ backgroundColor: preview.accent }}
+                        />
+                      </div>
+                      {scheme.name}
+                      {isActive && <CheckIcon className="size-3.5 ml-auto" />}
+                    </DropdownMenuItem>
+                  );
+                })}
+              </DropdownMenuGroup>
             </DropdownMenuSubContent>
           </DropdownMenuSub>
           <DropdownMenuSeparator />

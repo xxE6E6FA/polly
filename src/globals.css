@@ -133,33 +133,11 @@
     hsl(0 0% 4%) 0%,
     hsl(0 0% 16%) 100%
   );
-  --gradient-surface: linear-gradient(
-    135deg,
-    hsl(0 0% 100%) 0%,
-    hsl(0 0% 99%) 100%
-  );
-  --gradient-accent: linear-gradient(
-    135deg,
-    hsl(0 0% 20%) 0%,
-    hsl(0 0% 35%) 100%
-  );
   --gradient-tropical: linear-gradient(
     135deg,
     hsl(214.6 60% 45%),
     hsl(214.6 79.1% 62.5%)
   );
-  --gradient-organic: radial-gradient(
-    ellipse 70% 70% at 50% 50%,
-    hsl(0 0% 0% / 0.02) 0%,
-    transparent 70%
-  );
-  --gradient-header-from-logo: linear-gradient(
-    135deg,
-    hsl(0 0% 4%),
-    hsl(0 0% 16%),
-    hsl(0 0% 21%)
-  );
-
   /* Animations */
   --animate-accordion-down: accordion-down 0.2s ease-out;
   --animate-accordion-up: accordion-up 0.2s ease-out;
@@ -208,9 +186,7 @@
   --color-ring: hsl(0 0% 60%);
   --color-background: hsl(0 0% 99%);
   --color-foreground: hsl(0 0% 5%);
-  --color-foreground-focus: hsl(0 0% 0%);
   --color-highlight: hsl(0 0% 20%);
-  --color-highlight-foreground: hsl(0 0% 100%);
   --color-card: hsl(0 0% 100%);
   --color-card-foreground: hsl(0 0% 10%);
   --color-popover: hsl(0 0% 100%);
@@ -218,22 +194,17 @@
   --color-sidebar-foreground: hsl(0 0% 5%);
   --color-sidebar-muted: hsl(0 0% 25%);
   --color-sidebar-hover: hsl(0 0% 96%);
-  --color-sidebar-tinted: hsl(0 0% 98%);
-  --color-active-element-tint: hsl(0 0% 97%);
-  --color-active-element-border: hsl(0 0% 85%);
   --color-sidebar: hsl(0 0% 97%);
 
   /* Primary Colors (Are.na Black) */
   --color-primary: hsl(0 0% 10%);
   --color-primary-foreground: hsl(0 0% 100%);
   --color-primary-hover: hsl(0 0% 20%);
-  --color-primary-active: hsl(0 0% 30%);
 
   /* Secondary Colors (Are.na Gray) */
   --color-secondary: hsl(0 0% 97%);
   --color-secondary-foreground: hsl(0 0% 15%);
   --color-secondary-hover: hsl(0 0% 95%);
-  --color-secondary-active: hsl(0 0% 93%);
 
   /* Muted Colors */
   --color-muted: hsl(0 0% 97%);
@@ -261,7 +232,6 @@
   --color-success: hsl(160.1 84.1% 39.4%);
   --color-success-foreground: hsl(0 0% 100%);
   --color-success-hover: hsl(160 85% 35%);
-  --color-success-active: hsl(160 86% 30%);
   --color-success-bg: hsl(162 58% 86%);
   --color-success-border: hsl(162 48% 68%);
 
@@ -269,7 +239,6 @@
   --color-warning: hsl(47.9 95.8% 53.1%);
   --color-warning-foreground: hsl(0 0% 10%);
   --color-warning-hover: hsl(48 96% 48%);
-  --color-warning-active: hsl(48 97% 43%);
   --color-warning-bg: hsl(40 92% 90%);
   --color-warning-border: hsl(40 72% 70%);
 
@@ -277,7 +246,6 @@
   --color-info: hsl(188.7 94.5% 42.7%);
   --color-info-foreground: hsl(0 0% 100%);
   --color-info-hover: hsl(189 95% 48%);
-  --color-info-active: hsl(189 96% 53%);
   --color-info-bg: hsl(205 90% 90%);
   --color-info-border: hsl(205 68% 68%);
 
@@ -285,37 +253,11 @@
   --color-danger: hsl(0 75% 50%);
   --color-danger-foreground: hsl(0 0% 100%);
   --color-danger-hover: hsl(0 80% 55%);
-  --color-danger-active: hsl(0 85% 60%);
   --color-danger-bg: hsl(4 88% 92%);
   --color-danger-border: hsl(4 72% 72%);
 
   /* Surface Colors */
   --color-surface: hsl(0 0% 100%);
-  --color-surface-variant: hsl(0 0% 97%);
-  --color-surface-hover: hsl(0 0% 96.1%);
-  --color-surface-active: hsl(0 0% 95%);
-  --color-surface-primary: hsl(0 0% 99%);
-  --color-surface-secondary: hsl(0 0% 97%);
-
-  /* Coral Color Palette */
-  --color-coral-50: hsl(10 100% 97%);
-  --color-coral-100: hsl(10 80% 92%);
-  --color-coral-200: hsl(10 75% 85%);
-  --color-coral-300: hsl(10 75% 75%);
-  --color-coral-400: hsl(10 75% 68%);
-  --color-coral-500: hsl(10 75% 60%);
-  --color-coral-600: hsl(10 75% 52%);
-  --color-coral-700: hsl(10 75% 45%);
-  --color-coral-800: hsl(10 75% 38%);
-  --color-coral-900: hsl(10 75% 32%);
-  --color-coral-950: hsl(10 75% 20%);
-
-  /* Chart Colors */
-  --color-chart-1: hsl(12 76% 61%);
-  --color-chart-2: hsl(173 58% 39%);
-  --color-chart-3: hsl(197 37% 24%);
-  --color-chart-4: hsl(43 74% 66%);
-  --color-chart-5: hsl(27 87% 67%);
 
   /* Z-Index Utilities */
   --z-index-content: var(--z-content);
@@ -480,9 +422,7 @@
     /* Dark Mode Color Overrides (Are.na-inspired Dark) */
     --color-background: hsl(0 0% 8%);
     --color-foreground: hsl(0 0% 98%);
-    --color-foreground-focus: hsl(0 0% 100%);
     --color-highlight: hsl(0 0% 25%);
-    --color-highlight-foreground: hsl(0 0% 100%);
     --color-card: hsl(0 0% 10%);
     --color-card-foreground: hsl(0 0% 95%);
     --color-popover: hsl(0 0% 8%);
@@ -495,11 +435,9 @@
     --color-primary: hsl(0 0% 95%);
     --color-primary-foreground: hsl(0 0% 8%);
     --color-primary-hover: hsl(0 0% 90%);
-    --color-primary-active: hsl(0 0% 85%);
     --color-secondary: hsl(0 0% 15%);
     --color-secondary-foreground: hsl(0 0% 95%);
     --color-secondary-hover: hsl(0 0% 18%);
-    --color-secondary-active: hsl(0 0% 22%);
     --color-muted: hsl(0 0% 15%);
     --color-muted-foreground: hsl(0 0% 75%);
     --color-accent: hsl(0 0% 18%);
@@ -516,26 +454,19 @@
     --color-danger: hsl(0 72% 45%);
     --color-danger-foreground: hsl(0 0% 100%);
     --color-danger-hover: hsl(0 75% 50%);
-    --color-danger-active: hsl(0 78% 55%);
     /* Success: keep light mode value with white text */
     --color-success: hsl(160.1 84.1% 39.4%);
     --color-success-foreground: hsl(0 0% 100%);
     --color-success-hover: hsl(160 85% 45%);
-    --color-success-active: hsl(160 86% 50%);
     /* Warning: darker text for contrast on bright yellow background */
     --color-warning: hsl(47.9 95.8% 53.1%);
     --color-warning-foreground: hsl(0 0% 10%);
     --color-warning-hover: hsl(48 96% 58%);
-    --color-warning-active: hsl(48 97% 63%);
     /* Info: keep light mode value with white text */
     --color-info: hsl(188.7 94.5% 42.7%);
     --color-info-foreground: hsl(0 0% 100%);
     --color-info-hover: hsl(189 95% 48%);
-    --color-info-active: hsl(189 96% 53%);
     --color-surface: hsl(228 8% 7%);
-    --color-surface-variant: hsl(228 5% 11%);
-    --color-surface-hover: hsl(228 4% 14%);
-    --color-surface-active: hsl(0 0% 16%);
     --color-success-bg: hsl(160 60% 10%);
     --color-warning-bg: hsl(37 80% 15%);
     --color-info-bg: hsl(214 50% 15%);
@@ -561,6 +492,337 @@
   }
 }
 
+/* ==========================================================================
+   Color Schemes
+   Classic = the @theme + .dark fallback above (no selector needed).
+   Each non-classic scheme overrides the core UI variables.
+   Status colors (success/warning/danger/info) stay inherited from @theme.
+   ========================================================================== */
+
+@layer base {
+  /* --- Polly Light --- */
+  [data-color-scheme="polly"] {
+    --color-background: hsl(264 40% 97%);
+    --color-foreground: hsl(264 25% 8%);
+    --color-highlight: hsl(261 70% 38%);
+    --color-border: hsl(264 28% 84%);
+    --color-input: hsl(264 35% 97%);
+    --color-input-hover: hsl(264 32% 95%);
+    --color-input-focus: hsl(264 30% 93%);
+    --color-input-border: hsl(264 24% 76%);
+    --color-ring: hsl(261 85% 45%);
+    --color-card: hsl(264 35% 97%);
+    --color-card-foreground: hsl(264 22% 10%);
+    --color-popover: hsl(264 35% 97%);
+    --color-popover-foreground: hsl(264 22% 10%);
+    --color-sidebar: hsl(264 35% 93%);
+    --color-sidebar-foreground: hsl(264 22% 8%);
+    --color-sidebar-muted: hsl(264 18% 38%);
+    --color-sidebar-hover: hsl(264 32% 89%);
+    --color-primary: hsl(261 85% 45%);
+    --color-primary-foreground: hsl(0 0% 100%);
+    --color-primary-hover: hsl(261 82% 52%);
+    --color-secondary: hsl(264 32% 92%);
+    --color-secondary-foreground: hsl(264 22% 16%);
+    --color-secondary-hover: hsl(264 30% 88%);
+    --color-muted: hsl(264 32% 92%);
+    --color-muted-foreground: hsl(264 16% 40%);
+    --color-accent: hsl(264 32% 92%);
+    --color-accent-foreground: hsl(264 22% 16%);
+    --color-destructive: hsl(0 84% 60%);
+    --color-destructive-foreground: hsl(0 0% 100%);
+    --color-surface: hsl(264 35% 97%);
+  }
+
+  /* --- Polly Dark --- */
+  [data-color-scheme="polly"].dark {
+    --color-background: hsl(264 35% 7%);
+    --color-foreground: hsl(264 25% 95%);
+    --color-highlight: hsl(261 55% 30%);
+    --color-border: hsl(264 22% 20%);
+    --color-input: hsl(264 28% 11%);
+    --color-input-hover: hsl(264 25% 13%);
+    --color-input-focus: hsl(264 22% 16%);
+    --color-input-border: hsl(264 22% 20%);
+    --color-ring: hsl(261 85% 68%);
+    --color-card: hsl(264 30% 10%);
+    --color-card-foreground: hsl(264 22% 92%);
+    --color-popover: hsl(264 30% 8%);
+    --color-popover-foreground: hsl(264 20% 85%);
+    --color-sidebar: hsl(264 30% 8%);
+    --color-sidebar-foreground: hsl(264 20% 88%);
+    --color-sidebar-muted: hsl(264 18% 55%);
+    --color-sidebar-hover: hsl(264 26% 13%);
+    --color-primary: hsl(261 85% 74%);
+    --color-primary-foreground: hsl(264 35% 7%);
+    --color-primary-hover: hsl(261 82% 80%);
+    --color-secondary: hsl(264 26% 14%);
+    --color-secondary-foreground: hsl(264 25% 90%);
+    --color-secondary-hover: hsl(264 24% 18%);
+    --color-muted: hsl(264 22% 14%);
+    --color-muted-foreground: hsl(264 18% 62%);
+    --color-accent: hsl(264 26% 18%);
+    --color-accent-foreground: hsl(264 25% 90%);
+    --color-destructive: hsl(0 72% 45%);
+    --color-destructive-foreground: hsl(0 0% 100%);
+    --color-surface: hsl(264 26% 6%);
+    --color-success-bg: hsl(160 60% 10%);
+    --color-warning-bg: hsl(37 80% 15%);
+    --color-info-bg: hsl(214 50% 15%);
+    --color-danger-bg: hsl(0 60% 12%);
+    --color-success-border: hsl(160 50% 20%);
+    --color-warning-border: hsl(37 60% 25%);
+    --color-info-border: hsl(214 40% 25%);
+    --color-danger-border: hsl(0 50% 20%);
+  }
+
+  /* --- Catppuccin Latte (Light) --- */
+  /* Canonical: base=#eff1f5 mantle=#e6e9ef crust=#dce0e8 text=#4c4f69 subtext1=#5c5f77 */
+  /* surface0=#ccd0da surface1=#bcc0cc surface2=#acb0be mauve=#8839ef blue=#1e66f5 red=#d20f39 */
+  [data-color-scheme="catppuccin"] {
+    --color-background: hsl(220 23% 95%); /* base */
+    --color-foreground: hsl(234 16% 35%); /* text */
+    --color-highlight: hsl(266 85% 58%); /* mauve */
+    --color-border: hsl(223 16% 83%); /* surface0 */
+    --color-input: hsl(220 23% 95%); /* base */
+    --color-input-hover: hsl(220 22% 92%); /* mantle */
+    --color-input-focus: hsl(220 21% 89%); /* crust */
+    --color-input-border: hsl(225 14% 77%); /* surface1 */
+    --color-ring: hsl(220 91% 54%); /* blue — canonical focus color */
+    --color-card: hsl(220 23% 95%); /* base */
+    --color-card-foreground: hsl(234 16% 35%); /* text */
+    --color-popover: hsl(220 23% 95%); /* base */
+    --color-popover-foreground: hsl(234 16% 35%); /* text */
+    --color-sidebar: hsl(220 22% 92%); /* mantle */
+    --color-sidebar-foreground: hsl(234 16% 35%); /* text */
+    --color-sidebar-muted: hsl(233 13% 41%); /* subtext1 */
+    --color-sidebar-hover: hsl(223 16% 83%); /* surface0 — rest→hover pattern */
+    --color-primary: hsl(266 85% 58%); /* mauve */
+    --color-primary-foreground: hsl(220 23% 95%); /* base */
+    --color-primary-hover: hsl(231 97% 72%); /* lavender */
+    --color-secondary: hsl(220 22% 92%); /* mantle */
+    --color-secondary-foreground: hsl(234 16% 35%); /* text */
+    --color-secondary-hover: hsl(223 16% 83%); /* surface0 */
+    --color-muted: hsl(220 22% 92%); /* mantle */
+    --color-muted-foreground: hsl(233 13% 41%); /* subtext1 */
+    --color-accent: hsl(220 22% 92%); /* mantle */
+    --color-accent-foreground: hsl(234 16% 35%); /* text */
+    --color-destructive: hsl(347 87% 44%); /* red */
+    --color-destructive-foreground: hsl(0 0% 100%);
+    --color-surface: hsl(220 23% 95%); /* base */
+  }
+
+  /* --- Catppuccin Mocha (Dark) --- */
+  /* Canonical: base=#1e1e2e mantle=#181825 crust=#11111b text=#cdd6f4 subtext0=#a6adc8 */
+  /* surface0=#313244 surface1=#45475a surface2=#585b70 overlay2=#9399b2 */
+  /* mauve=#cba6f7 blue=#89b4fa lavender=#b4befe red=#f38ba8 */
+  [data-color-scheme="catppuccin"].dark {
+    --color-background: hsl(240 21% 15%); /* base */
+    --color-foreground: hsl(226 64% 88%); /* text */
+    --color-highlight: hsl(267 84% 35%);
+    --color-border: hsl(237 16% 23%); /* surface0 */
+    --color-input: hsl(240 21% 15%); /* base */
+    --color-input-hover: hsl(237 16% 23%); /* surface0 */
+    --color-input-focus: hsl(234 13% 31%); /* surface1 */
+    --color-input-border: hsl(234 13% 31%); /* surface1 */
+    --color-ring: hsl(217 92% 76%); /* blue — canonical focus color */
+    --color-card: hsl(240 21% 15%); /* base */
+    --color-card-foreground: hsl(226 64% 88%); /* text */
+    --color-popover: hsl(240 21% 12%); /* mantle */
+    --color-popover-foreground: hsl(226 64% 88%); /* text */
+    --color-sidebar: hsl(240 21% 12%); /* mantle */
+    --color-sidebar-foreground: hsl(226 64% 88%); /* text */
+    --color-sidebar-muted: hsl(228 24% 72%); /* subtext0 */
+    --color-sidebar-hover: hsl(237 16% 23%); /* surface0 */
+    --color-primary: hsl(267 84% 81%); /* mauve */
+    --color-primary-foreground: hsl(240 23% 9%); /* crust */
+    --color-primary-hover: hsl(232 97% 85%); /* lavender */
+    --color-secondary: hsl(237 16% 23%); /* surface0 */
+    --color-secondary-foreground: hsl(226 64% 88%); /* text */
+    --color-secondary-hover: hsl(234 13% 31%); /* surface1 */
+    --color-muted: hsl(237 16% 23%); /* surface0 */
+    --color-muted-foreground: hsl(228 24% 72%); /* subtext0 */
+    --color-accent: hsl(234 13% 31%); /* surface1 */
+    --color-accent-foreground: hsl(226 64% 88%); /* text */
+    --color-destructive: hsl(343 81% 75%); /* red */
+    --color-destructive-foreground: hsl(240 23% 9%); /* crust */
+    --color-surface: hsl(240 21% 12%); /* mantle */
+    --color-success-bg: hsl(160 60% 10%);
+    --color-warning-bg: hsl(37 80% 15%);
+    --color-info-bg: hsl(214 50% 15%);
+    --color-danger-bg: hsl(0 60% 12%);
+    --color-success-border: hsl(160 50% 20%);
+    --color-warning-border: hsl(37 60% 25%);
+    --color-info-border: hsl(214 40% 25%);
+    --color-danger-border: hsl(0 50% 20%);
+  }
+
+  /* --- Dracula Alucard (Light) --- */
+  /* Canonical: bg=#FFFBEB fg=#1F1F1F comment=#6C664B selection=#CFCFDE */
+  /* UI bg levels: Floating=#EFEDDC(90%) Lighter=#ECE9DF(90%) Light=#DEDCCF(84%) Dark=#CECCC0(78%) Darker=#BCBAB3(72%) */
+  /* pink=#A3144D purple=#644AC9 red=#CB3A2A funcPurple=#815CD6 */
+  [data-color-scheme="dracula"] {
+    --color-background: hsl(48 100% 96%); /* canonical bg */
+    --color-foreground: hsl(0 0% 12%); /* canonical fg */
+    --color-highlight: hsl(336 78% 36%); /* canonical pink */
+    --color-border: hsl(51 13% 78%); /* bg-dark */
+    --color-input: hsl(48 100% 96%); /* bg */
+    --color-input-hover: hsl(46 25% 90%); /* bg-lighter */
+    --color-input-focus: hsl(46 25% 90%); /* bg-lighter */
+    --color-input-border: hsl(51 13% 78%); /* bg-dark */
+    --color-ring: hsl(252 54% 54%); /* canonical purple */
+    --color-card: hsl(54 37% 90%); /* floating */
+    --color-card-foreground: hsl(0 0% 12%); /* fg */
+    --color-popover: hsl(54 37% 90%); /* floating */
+    --color-popover-foreground: hsl(0 0% 12%); /* fg */
+    --color-sidebar: hsl(46 25% 90%); /* bg-lighter */
+    --color-sidebar-foreground: hsl(0 0% 12%); /* fg */
+    --color-sidebar-muted: hsl(49 18% 36%); /* canonical comment */
+    --color-sidebar-hover: hsl(52 19% 84%); /* bg-light */
+    --color-primary: hsl(336 78% 36%); /* canonical pink */
+    --color-primary-foreground: hsl(0 0% 100%);
+    --color-primary-hover: hsl(336 78% 44%);
+    --color-secondary: hsl(46 25% 90%); /* bg-lighter */
+    --color-secondary-foreground: hsl(0 0% 12%); /* fg */
+    --color-secondary-hover: hsl(52 19% 84%); /* bg-light */
+    --color-muted: hsl(46 25% 90%); /* bg-lighter */
+    --color-muted-foreground: hsl(49 18% 36%); /* canonical comment */
+    --color-accent: hsl(46 25% 90%); /* bg-lighter */
+    --color-accent-foreground: hsl(0 0% 12%); /* fg */
+    --color-destructive: hsl(6 66% 48%); /* canonical red */
+    --color-destructive-foreground: hsl(0 0% 100%);
+    --color-surface: hsl(48 100% 96%); /* bg */
+  }
+
+  /* --- Dracula Dark --- */
+  /* Canonical bg levels: Darker=#191A21(11%) Dark=#21222C(15%) Main=#282A36(18%) Light=#343746(24%) Lighter=#424450(29%) */
+  /* fg=#F8F8F2 comment=#6272A4 selection=#44475A pink=#FF79C6 purple=#BD93F9 red=#FF5555 */
+  /* Website text hierarchy: caption=hsl(250 12% 72%) body=hsl(250 12% 78%) */
+  /* Functional: purple=#815CD6 for focus */
+  [data-color-scheme="dracula"].dark {
+    --color-background: hsl(231 15% 18%); /* bg-main */
+    --color-foreground: hsl(60 30% 96%); /* canonical fg */
+    --color-highlight: hsl(232 14% 31%); /* selection */
+    --color-border: hsl(231 10% 29%); /* bg-lighter */
+    --color-input: hsl(231 15% 18%); /* bg-main */
+    --color-input-hover: hsl(230 15% 24%); /* bg-light */
+    --color-input-focus: hsl(230 15% 24%); /* bg-light */
+    --color-input-border: hsl(231 10% 29%); /* bg-lighter */
+    --color-ring: hsl(258 60% 60%); /* functional purple */
+    --color-card: hsl(230 15% 24%); /* bg-light — elevated surface */
+    --color-card-foreground: hsl(60 30% 96%); /* fg */
+    --color-popover: hsl(231 15% 18%); /* bg-main */
+    --color-popover-foreground: hsl(250 12% 84%); /* heading-level text */
+    --color-sidebar: hsl(235 14% 15%); /* bg-dark */
+    --color-sidebar-foreground: hsl(250 12% 90%); /* display-level text */
+    --color-sidebar-muted: hsl(250 12% 72%); /* caption-level text */
+    --color-sidebar-hover: hsl(230 15% 24%); /* bg-light */
+    --color-primary: hsl(326 100% 74%); /* canonical pink */
+    --color-primary-foreground: hsl(233 14% 11%); /* bg-darker */
+    --color-primary-hover: hsl(326 100% 80%);
+    --color-secondary: hsl(230 15% 24%); /* bg-light */
+    --color-secondary-foreground: hsl(250 12% 90%); /* display-level text */
+    --color-secondary-hover: hsl(231 10% 29%); /* bg-lighter */
+    --color-muted: hsl(230 15% 24%); /* bg-light */
+    --color-muted-foreground: hsl(250 12% 72%); /* caption-level text */
+    --color-accent: hsl(231 10% 29%); /* bg-lighter */
+    --color-accent-foreground: hsl(250 12% 84%); /* heading-level text */
+    --color-destructive: hsl(12 72% 54%); /* functional red */
+    --color-destructive-foreground: hsl(233 14% 11%); /* bg-darker */
+    --color-surface: hsl(233 14% 11%); /* bg-darker */
+    --color-success-bg: hsl(135 50% 12%);
+    --color-warning-bg: hsl(65 40% 14%);
+    --color-info-bg: hsl(191 40% 14%);
+    --color-danger-bg: hsl(0 50% 14%);
+    --color-success-border: hsl(135 40% 22%);
+    --color-warning-border: hsl(65 35% 22%);
+    --color-info-border: hsl(191 35% 22%);
+    --color-danger-border: hsl(0 40% 22%);
+  }
+
+  /* --- Nord Snow Storm (Light) --- */
+  /* Canonical: nord0=#2E3440 nord3=#4C566A nord4=#D8DEE9 nord5=#E5E9F0 nord6=#ECEFF4 */
+  /* nord7=#8FBCBB nord8=#88C0D0 nord9=#81A1C1 nord10=#5E81AC nord11=#BF616A */
+  [data-color-scheme="nord"] {
+    --color-background: hsl(218 27% 94%); /* nord6 */
+    --color-foreground: hsl(220 16% 22%); /* nord0 */
+    --color-highlight: hsl(193 43% 67%); /* nord8 */
+    --color-border: hsl(219 28% 88%); /* nord4 */
+    --color-input: hsl(218 27% 94%); /* nord6 */
+    --color-input-hover: hsl(218 27% 92%); /* nord5 */
+    --color-input-focus: hsl(218 27% 92%); /* nord5 */
+    --color-input-border: hsl(219 28% 88%); /* nord4 */
+    --color-ring: hsl(
+      193 43% 67%
+    ); /* nord8 — primary accent per official ports */
+    --color-card: hsl(218 27% 94%); /* nord6 */
+    --color-card-foreground: hsl(220 16% 22%); /* nord0 */
+    --color-popover: hsl(218 27% 94%); /* nord6 */
+    --color-popover-foreground: hsl(220 16% 22%); /* nord0 */
+    --color-sidebar: hsl(218 27% 92%); /* nord5 */
+    --color-sidebar-foreground: hsl(220 16% 22%); /* nord0 */
+    --color-sidebar-muted: hsl(220 16% 36%); /* nord3 */
+    --color-sidebar-hover: hsl(219 28% 88%); /* nord4 */
+    --color-primary: hsl(193 43% 67%); /* nord8 — official primary accent */
+    --color-primary-foreground: hsl(220 16% 22%); /* nord0 */
+    --color-primary-hover: hsl(179 25% 65%); /* nord7 */
+    --color-secondary: hsl(218 27% 92%); /* nord5 */
+    --color-secondary-foreground: hsl(220 16% 22%); /* nord0 */
+    --color-secondary-hover: hsl(219 28% 88%); /* nord4 */
+    --color-muted: hsl(218 27% 92%); /* nord5 */
+    --color-muted-foreground: hsl(220 16% 36%); /* nord3 */
+    --color-accent: hsl(218 27% 92%); /* nord5 */
+    --color-accent-foreground: hsl(220 16% 22%); /* nord0 */
+    --color-destructive: hsl(354 42% 56%); /* nord11 */
+    --color-destructive-foreground: hsl(0 0% 100%);
+    --color-surface: hsl(218 27% 94%); /* nord6 */
+  }
+
+  /* --- Nord Polar Night (Dark) --- */
+  /* Canonical: nord0=#2E3440 nord1=#3B4252 nord2=#434C5E nord3=#4C566A */
+  /* nord4=#D8DEE9 nord8=#88C0D0 nord9=#81A1C1 nord11=#BF616A */
+  [data-color-scheme="nord"].dark {
+    --color-background: hsl(220 16% 22%); /* nord0 */
+    --color-foreground: hsl(219 28% 88%); /* nord4 */
+    --color-highlight: hsl(220 16% 36%); /* nord3 */
+    --color-border: hsl(220 17% 32%); /* nord2 */
+    --color-input: hsl(222 16% 28%); /* nord1 */
+    --color-input-hover: hsl(220 17% 32%); /* nord2 */
+    --color-input-focus: hsl(220 16% 36%); /* nord3 */
+    --color-input-border: hsl(220 17% 32%); /* nord2 */
+    --color-ring: hsl(193 43% 67%); /* nord8 */
+    --color-card: hsl(222 16% 28%); /* nord1 */
+    --color-card-foreground: hsl(219 28% 88%); /* nord4 */
+    --color-popover: hsl(220 16% 22%); /* nord0 */
+    --color-popover-foreground: hsl(219 28% 88%); /* nord4 */
+    --color-sidebar: hsl(220 16% 22%); /* nord0 */
+    --color-sidebar-foreground: hsl(219 28% 88%); /* nord4 */
+    --color-sidebar-muted: hsl(210 34% 63%); /* nord9 */
+    --color-sidebar-hover: hsl(222 16% 28%); /* nord1 */
+    --color-primary: hsl(193 43% 67%); /* nord8 */
+    --color-primary-foreground: hsl(220 16% 22%); /* nord0 */
+    --color-primary-hover: hsl(179 25% 65%); /* nord7 */
+    --color-secondary: hsl(222 16% 28%); /* nord1 */
+    --color-secondary-foreground: hsl(219 28% 88%); /* nord4 */
+    --color-secondary-hover: hsl(220 17% 32%); /* nord2 */
+    --color-muted: hsl(222 16% 28%); /* nord1 — lifted from bg for contrast */
+    --color-muted-foreground: hsl(210 34% 63%); /* nord9 */
+    --color-accent: hsl(220 17% 32%); /* nord2 */
+    --color-accent-foreground: hsl(219 28% 88%); /* nord4 */
+    --color-destructive: hsl(354 42% 56%); /* nord11 */
+    --color-destructive-foreground: hsl(218 27% 92%); /* nord5 */
+    --color-surface: hsl(220 16% 22%); /* nord0 */
+    --color-success-bg: hsl(92 20% 12%);
+    --color-warning-bg: hsl(40 35% 14%);
+    --color-info-bg: hsl(193 25% 14%);
+    --color-danger-bg: hsl(354 25% 14%);
+    --color-success-border: hsl(92 20% 22%);
+    --color-warning-border: hsl(40 30% 22%);
+    --color-info-border: hsl(193 20% 22%);
+    --color-danger-border: hsl(354 20% 22%);
+  }
+}
+
 @layer base {
   * {
     border-color: var(--color-border);
@@ -582,12 +844,12 @@
 
   ::selection {
     background: var(--color-highlight);
-    color: var(--color-highlight-foreground);
+    color: hsl(0 0% 100%);
   }
 
   .dark ::selection {
     background: var(--color-highlight);
-    color: var(--color-highlight-foreground);
+    color: hsl(0 0% 100%);
   }
 }
 

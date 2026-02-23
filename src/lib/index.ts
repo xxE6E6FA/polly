@@ -176,6 +176,17 @@ export {
 } from "./type-guards";
 
 // =============================================================================
+// Color Schemes
+// =============================================================================
+
+export type { ColorScheme, ColorSchemeDefinition } from "./color-schemes";
+export {
+  COLOR_SCHEME_DEFINITIONS,
+  COLOR_SCHEMES,
+  DEFAULT_COLOR_SCHEME,
+} from "./color-schemes";
+
+// =============================================================================
 // Syntax Themes
 // =============================================================================
 

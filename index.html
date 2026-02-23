@@ -56,17 +56,25 @@
     />
     <style>
       /* Critical theme styles — applied instantly before external CSS loads */
-      html.dark {
-        color-scheme: dark;
-        background-color: hsl(0 0% 8%);
-        color: hsl(0 0% 98%);
-      }
-      html.light,
-      html:not(.dark):not(.light) {
-        color-scheme: light;
-        background-color: hsl(0 0% 99%);
-        color: hsl(0 0% 5%);
-      }
+      /* Classic (grayscale fallback) */
+      html.dark[data-color-scheme="classic"],
+      html.dark:not([data-color-scheme]) { color-scheme: dark; background-color: hsl(0 0% 8%); color: hsl(0 0% 98%); }
+      html.light[data-color-scheme="classic"],
+      html.light:not([data-color-scheme]),
+      html:not(.dark):not(.light):not([data-color-scheme]) { color-scheme: light; background-color: hsl(0 0% 99%); color: hsl(0 0% 5%); }
+      /* Polly */
+      html.dark[data-color-scheme="polly"] { color-scheme: dark; background-color: hsl(264 35% 7%); color: hsl(264 25% 95%); }
+      html.light[data-color-scheme="polly"],
+      html:not(.dark):not(.light)[data-color-scheme="polly"] { color-scheme: light; background-color: hsl(264 40% 97%); color: hsl(264 25% 8%); }
+      /* Catppuccin */
+      html.dark[data-color-scheme="catppuccin"] { color-scheme: dark; background-color: hsl(240 21% 15%); color: hsl(226 64% 88%); }
+      html.light[data-color-scheme="catppuccin"] { color-scheme: light; background-color: hsl(220 23% 95%); color: hsl(234 16% 35%); }
+      /* Dracula */
+      html.dark[data-color-scheme="dracula"] { color-scheme: dark; background-color: hsl(231 15% 18%); color: hsl(60 30% 96%); }
+      html.light[data-color-scheme="dracula"] { color-scheme: light; background-color: hsl(48 100% 96%); color: hsl(0 0% 12%); }
+      /* Nord */
+      html.dark[data-color-scheme="nord"] { color-scheme: dark; background-color: hsl(220 16% 22%); color: hsl(219 28% 88%); }
+      html.light[data-color-scheme="nord"] { color-scheme: light; background-color: hsl(218 27% 94%); color: hsl(220 16% 22%); }
       /* Available immediately so disable-animations works before globals.css loads */
       .disable-animations *,
       .disable-animations *::before,
