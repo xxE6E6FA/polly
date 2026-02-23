@@ -39,19 +39,28 @@ export class ErrorBoundary extends React.Component<
 
   override componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error("Error caught by boundary:", error, errorInfo);
-  }
-
-  override componentDidMount() {
-    // Ensure theme is applied from localStorage
+    // Re-apply theme so the error fallback UI uses the correct colors
     this.applyThemeFromLocalStorage();
   }
 
   applyThemeFromLocalStorage = () => {
     try {
-      const storedTheme = getLS<"light" | "dark">(CACHE_KEYS.theme, "light");
+      const storedTheme = getLS<"light" | "dark" | "system">(
+        CACHE_KEYS.theme,
+        "system"
+      );
+
+      let actual: "light" | "dark";
+      if (storedTheme === "light" || storedTheme === "dark") {
+        actual = storedTheme;
+      } else {
+        actual = window.matchMedia("(prefers-color-scheme: dark)").matches
+          ? "dark"
+          : "light";
+      }
 
       document.documentElement.classList.remove("light", "dark");
-      document.documentElement.classList.add(storedTheme);
+      document.documentElement.classList.add(actual);
     } catch (error) {
       console.error("Error reading theme from storage:", error);
     }

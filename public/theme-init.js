@@ -36,6 +36,29 @@
 
   document.documentElement.classList.add(actualTheme);
 
+  // Apply color scheme before first paint
+  var validSchemes = ["polly", "catppuccin", "dracula", "nord", "classic"];
+  var schemeKey = "polly:color-scheme/v1";
+  var colorScheme = "polly";
+  var storedScheme = localStorage.getItem(schemeKey);
+  if (storedScheme) {
+    try {
+      var parsed2 = JSON.parse(storedScheme);
+      if (
+        parsed2 &&
+        typeof parsed2 === "object" &&
+        "version" in parsed2 &&
+        "data" in parsed2 &&
+        validSchemes.indexOf(parsed2.data) !== -1
+      ) {
+        colorScheme = parsed2.data;
+      }
+    } catch (e) {
+      colorScheme = "polly";
+    }
+  }
+  document.documentElement.setAttribute("data-color-scheme", colorScheme);
+
   setTimeout(() => {
     document.documentElement.classList.remove("disable-animations");
   }, 100);

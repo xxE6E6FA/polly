@@ -11,14 +11,13 @@ import {
   GearIcon,
   KeyIcon,
   MagnifyingGlassIcon,
-  MoonIcon,
   PaperclipIcon,
   PencilSimpleIcon,
   PlusIcon,
   PushPinIcon,
   RobotIcon,
   ShareNetworkIcon,
-  SunIcon,
+  SwatchesIcon,
   TrashIcon,
   UploadIcon,
   UsersIcon,
@@ -68,6 +67,7 @@ import { CommandPaletteConversationActions } from "./command-palette-conversatio
 import { CommandPaletteConversationBrowser } from "./command-palette-conversation-browser";
 import { CommandPaletteMainMenu } from "./command-palette-main-menu";
 import { CommandPaletteModelBrowser } from "./command-palette-model-browser";
+import { CommandPaletteThemeMenu } from "./command-palette-theme-menu";
 import type {
   Action,
   ConversationType,
@@ -94,6 +94,9 @@ function getCommandInputPlaceholder(
   }
   if (currentMenu === "conversation-browser") {
     return "Search conversations...";
+  }
+  if (currentMenu === "theme") {
+    return "Search themes...";
   }
   return "Search conversations, switch models, or take actions...";
 }
@@ -123,7 +126,15 @@ export function CommandPalette({
   const navigate = useNavigate();
   const location = useLocation();
   const params = useParams();
-  const { theme, toggleTheme } = useTheme();
+  const {
+    theme,
+    setTheme,
+    colorScheme,
+    setColorScheme,
+    previewScheme,
+    previewMode,
+    endPreview,
+  } = useTheme();
   const { isAuthenticated } = useUserIdentity();
 
   const currentConversationId = params.conversationId;
@@ -527,10 +538,23 @@ export function CommandPalette({
     handleClose();
   }, [navigate, handleClose]);
 
-  const handleToggleTheme = useCallback(() => {
-    toggleTheme();
-    handleClose();
-  }, [toggleTheme, handleClose]);
+  const handleOpenThemeMenu = useCallback(() => {
+    navigateToMenu("theme", undefined, "Theme");
+  }, [navigateToMenu]);
+
+  const handleSelectColorScheme = useCallback(
+    (scheme: Parameters<typeof setColorScheme>[0]) => {
+      setColorScheme(scheme);
+    },
+    [setColorScheme]
+  );
+
+  const handleSelectTheme = useCallback(
+    (newTheme: Parameters<typeof setTheme>[0]) => {
+      setTheme(newTheme);
+    },
+    [setTheme]
+  );
 
   const handleImportConversations = useCallback(() => {
     handleClose();
@@ -705,20 +729,19 @@ export function CommandPalette({
     }
 
     actions.push({
-      id: "toggle-theme",
-      label: theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode",
-      icon: theme === "dark" ? SunIcon : MoonIcon,
-      handler: handleToggleTheme,
+      id: "change-theme",
+      label: "Change Theme",
+      icon: SwatchesIcon,
+      handler: handleOpenThemeMenu,
       disabled: false,
     });
 
     return actions;
   }, [
-    theme,
     handleNewConversation,
     handlePrivateMode,
     handleImportConversations,
-    handleToggleTheme,
+    handleOpenThemeMenu,
     navigateToMenu,
     online,
     isAuthenticated,
@@ -1285,6 +1308,20 @@ export function CommandPalette({
                 online={online}
                 onNavigateToConversation={handleNavigateToConversation}
                 onConversationActions={handleConversationActions}
+              />
+            )}
+
+            {/* Theme Menu */}
+            {navigation.currentMenu === "theme" && (
+              <CommandPaletteThemeMenu
+                colorScheme={colorScheme}
+                theme={theme}
+                selectedValue={selectedValue}
+                onSelectColorScheme={handleSelectColorScheme}
+                onSelectTheme={handleSelectTheme}
+                previewScheme={previewScheme}
+                previewMode={previewMode}
+                endPreview={endPreview}
               />
             )}
           </CommandList>

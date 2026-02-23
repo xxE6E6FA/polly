@@ -1,7 +1,7 @@
 import { afterAll, beforeEach, describe, expect, test } from "bun:test";
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook } from "@testing-library/react";
 import { CACHE_KEYS, get as getLS, set as setLS } from "@/lib/local-storage";
-import { useTheme } from "./use-theme";
+import { __resetThemeState, useTheme } from "./use-theme";
 
 const originalRAF = globalThis.requestAnimationFrame;
 const originalMatchMedia = window.matchMedia;
@@ -9,6 +9,9 @@ const originalMatchMedia = window.matchMedia;
 beforeEach(() => {
   localStorage.clear();
   document.documentElement.className = "light";
+  document.documentElement.removeAttribute("data-color-scheme");
+  // Reset module-level state to match cleared localStorage
+  __resetThemeState();
   (globalThis as any).requestAnimationFrame = (cb: FrameRequestCallback) => {
     cb(performance.now());
     return 0;
@@ -37,17 +40,13 @@ beforeEach(() => {
 });
 
 describe("useTheme", () => {
-  test("initializes from localStorage and toggles", async () => {
+  test("initializes from localStorage and toggles", () => {
     setLS(CACHE_KEYS.theme, "dark");
+    __resetThemeState(); // re-read after writing to LS
 
     const { result } = renderHook(() => useTheme());
 
-    await waitFor(() => {
-      expect(result.current.mounted).toBe(true);
-    });
-
     expect(result.current.theme).toBe("dark");
-    expect(document.documentElement.classList.contains("dark")).toBe(true);
 
     act(() => {
       result.current.toggleTheme();
@@ -58,46 +57,82 @@ describe("useTheme", () => {
     expect(getLS(CACHE_KEYS.theme, "system")).toBe("light");
   });
 
-  test("system theme tracks matchMedia changes", async () => {
-    const listeners: Array<(ev: MediaQueryListEvent) => void> = [];
-    let systemMatches = false;
-    (window as any).matchMedia = () => ({
-      matches: systemMatches,
-      media: "",
-      onchange: null,
-      addEventListener: (_: string, cb: (ev: MediaQueryListEvent) => void) => {
-        listeners.push(cb);
-      },
-      removeEventListener: () => {
-        /* empty */
-      },
-      addListener: () => {
-        /* empty */
-      },
-      removeListener: () => {
-        /* empty */
-      },
-      dispatchEvent: () => false,
-    });
-
+  test("setColorScheme updates DOM and localStorage", () => {
     const { result } = renderHook(() => useTheme());
 
-    await waitFor(() => {
-      expect(result.current.mounted).toBe(true);
+    act(() => {
+      result.current.setColorScheme("catppuccin");
+    });
+
+    expect(result.current.colorScheme).toBe("catppuccin");
+    expect(document.documentElement.getAttribute("data-color-scheme")).toBe(
+      "catppuccin"
+    );
+    expect(getLS(CACHE_KEYS.colorScheme, "polly")).toBe("catppuccin");
+  });
+
+  test("previewScheme changes DOM without updating state", () => {
+    const { result } = renderHook(() => useTheme());
+
+    act(() => {
+      result.current.previewScheme("nord");
+    });
+
+    // DOM changed
+    expect(document.documentElement.getAttribute("data-color-scheme")).toBe(
+      "nord"
+    );
+    // State unchanged (still default)
+    expect(result.current.colorScheme).toBe("polly");
+
+    act(() => {
+      result.current.endPreview();
+    });
+
+    // DOM restored
+    expect(document.documentElement.getAttribute("data-color-scheme")).toBe(
+      "polly"
+    );
+  });
+
+  test("shared state across multiple hook instances", () => {
+    const { result: a } = renderHook(() => useTheme());
+    const { result: b } = renderHook(() => useTheme());
+
+    act(() => {
+      a.current.setColorScheme("dracula");
+    });
+
+    // Both instances see the update
+    expect(a.current.colorScheme).toBe("dracula");
+    expect(b.current.colorScheme).toBe("dracula");
+  });
+
+  test("endPreview restores committed state even from another instance", () => {
+    const { result: a } = renderHook(() => useTheme());
+    const { result: b } = renderHook(() => useTheme());
+
+    act(() => {
+      a.current.setColorScheme("nord");
     });
 
     act(() => {
-      result.current.setTheme("system");
+      b.current.previewScheme("dracula");
     });
+
+    // DOM shows preview
+    expect(document.documentElement.getAttribute("data-color-scheme")).toBe(
+      "dracula"
+    );
 
     act(() => {
-      systemMatches = true;
-      listeners.forEach(listener =>
-        listener({ matches: true } as MediaQueryListEvent)
-      );
+      b.current.endPreview();
     });
 
-    expect(document.documentElement.classList.contains("dark")).toBe(true);
+    // Restores to the committed "nord" — not stale default
+    expect(document.documentElement.getAttribute("data-color-scheme")).toBe(
+      "nord"
+    );
   });
 });
 

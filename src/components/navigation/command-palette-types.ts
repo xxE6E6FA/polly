@@ -6,7 +6,8 @@ export type NavigationState = {
     | "main"
     | "conversation-actions"
     | "model-categories"
-    | "conversation-browser";
+    | "conversation-browser"
+    | "theme";
   selectedConversationId?: string;
   breadcrumb?: string;
 };

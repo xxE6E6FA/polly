@@ -1,9 +1,4 @@
-import {
-  CheckIcon,
-  MonitorIcon,
-  MoonIcon,
-  SunIcon,
-} from "@phosphor-icons/react";
+import { MonitorIcon, MoonIcon, SunIcon } from "@phosphor-icons/react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -53,7 +48,7 @@ export const ThemeToggle = ({
   variant = "ghost",
   className,
 }: ThemeToggleProps) => {
-  const { theme, setTheme } = useTheme();
+  const { theme, setTheme, previewMode, endPreview } = useTheme();
 
   const iconSize = className?.includes("h-10") ? "size-5" : "size-4";
 
@@ -64,7 +59,13 @@ export const ThemeToggle = ({
   };
 
   return (
-    <DropdownMenu>
+    <DropdownMenu
+      onOpenChange={open => {
+        if (!open) {
+          endPreview();
+        }
+      }}
+    >
       <DropdownMenuTrigger>
         <Button
           className={cn("transition-colors duration-150", className)}
@@ -79,6 +80,7 @@ export const ThemeToggle = ({
         <DropdownMenuRadioGroup value={theme} onValueChange={handleThemeChange}>
           <DropdownMenuRadioItem
             value="light"
+            onMouseEnter={() => previewMode("light")}
             className={cn(
               "pl-2",
               theme === "light" &&
@@ -90,6 +92,7 @@ export const ThemeToggle = ({
           </DropdownMenuRadioItem>
           <DropdownMenuRadioItem
             value="dark"
+            onMouseEnter={() => previewMode("dark")}
             className={cn(
               "pl-2",
               theme === "dark" &&
@@ -101,6 +104,7 @@ export const ThemeToggle = ({
           </DropdownMenuRadioItem>
           <DropdownMenuRadioItem
             value="system"
+            onMouseEnter={() => previewMode("system")}
             className={cn(
               "pl-2",
               theme === "system" &&

@@ -23,6 +23,7 @@ export const CACHE_KEYS = {
   anonymousSession: "anonymous-session",
   anonymousUserGraduation: "anonymous-user-graduation",
   anonymousGraduationToken: "anonymous-graduation-token",
+  colorScheme: "color-scheme",
 } as const;
 
 export type CacheKey = (typeof CACHE_KEYS)[keyof typeof CACHE_KEYS];
@@ -40,6 +41,7 @@ const PRIVATE_MODE_BLOCKED_KEYS = new Set<CacheKey>([
 const PERSISTENT_KEYS = new Set<CacheKey>([
   CACHE_KEYS.sidebar,
   CACHE_KEYS.theme,
+  CACHE_KEYS.colorScheme,
   CACHE_KEYS.zenDisplayPreferences,
 ]);
 
