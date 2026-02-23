@@ -3,12 +3,13 @@ import type { Doc } from "@convex/_generated/dataModel";
 import { useQuery } from "convex/react";
 import type { CSSProperties } from "react";
 import { useMemo } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { VirtualizedChatMessages } from "@/components/chat";
 import { Button } from "@/components/ui/button";
 import { NotFoundPage } from "@/components/ui/not-found-page";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { useRequiredParam } from "@/hooks";
 
 import { ROUTES } from "@/lib/routes";
 import type { ChatMessage, ConversationId } from "@/types";
@@ -25,12 +26,11 @@ const logoMaskStyle: CSSProperties = {
 };
 
 export default function SharedConversationPage() {
-  const { shareId } = useParams();
+  const shareId = useRequiredParam("shareId");
 
-  const sharedData = useQuery(
-    api.sharedConversations.getSharedConversation,
-    shareId ? { shareId } : "skip"
-  );
+  const sharedData = useQuery(api.sharedConversations.getSharedConversation, {
+    shareId,
+  });
 
   const pageTitle = useMemo(() => {
     const title = sharedData?.conversation?.title;
@@ -39,10 +39,6 @@ export default function SharedConversationPage() {
     }
     return "Polly";
   }, [sharedData?.conversation?.title]);
-
-  if (!shareId) {
-    return <NotFoundPage />;
-  }
 
   if (sharedData === undefined) {
     return <SharedConversationLoading />;

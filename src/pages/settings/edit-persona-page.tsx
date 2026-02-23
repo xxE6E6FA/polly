@@ -2,14 +2,14 @@ import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import { useMutation, useQuery } from "convex/react";
 import { useEffect, useState, useTransition } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   PersonaForm,
   type PersonaFormData,
 } from "@/components/settings/persona-form";
 import { SettingsPageLayout } from "@/components/settings/ui/settings-page-layout";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { NotFoundPage } from "@/components/ui/not-found-page";
+import { useRequiredParam } from "@/hooks";
 import { ROUTES } from "@/lib/routes";
 import { isPersona } from "@/lib/type-guards";
 import { useToast } from "@/providers/toast-context";
@@ -18,7 +18,7 @@ import { useToast } from "@/providers/toast-context";
 
 export default function EditPersonaPage() {
   const navigate = useNavigate();
-  const { id: personaId } = useParams();
+  const personaId = useRequiredParam("id");
   const managedToast = useToast();
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
   const [formData, setFormData] = useState<PersonaFormData | null>(null);
@@ -28,10 +28,9 @@ export default function EditPersonaPage() {
   const updatePersonaMutation = useMutation(api.personas.update);
   const deletePersonaMutation = useMutation(api.personas.remove);
 
-  const personaRaw = useQuery(
-    api.personas.get,
-    personaId ? { id: personaId as Id<"personas"> } : "skip"
-  );
+  const personaRaw = useQuery(api.personas.get, {
+    id: personaId as Id<"personas">,
+  });
 
   const persona = isPersona(personaRaw) ? personaRaw : null;
   useEffect(() => {
@@ -61,12 +60,8 @@ export default function EditPersonaPage() {
     }
   }, [persona]);
 
-  if (!personaId) {
-    return <NotFoundPage />;
-  }
-
   const handleUpdatePersona = () => {
-    if (!(formData?.name.trim() && formData?.prompt.trim() && personaId)) {
+    if (!(formData?.name.trim() && formData?.prompt.trim())) {
       return;
     }
 
@@ -95,10 +90,6 @@ export default function EditPersonaPage() {
   };
 
   const handleDeletePersona = () => {
-    if (!personaId) {
-      return;
-    }
-
     if (
       !window.confirm(
         "Are you sure you want to delete this persona? This action cannot be undone."
