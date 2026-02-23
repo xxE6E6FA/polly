@@ -93,6 +93,7 @@ export { useHoverLinger } from "./use-hover-linger";
 export { useListSelection } from "./use-list-selection";
 export { useMediaQuery } from "./use-media-query";
 export { useOnline } from "./use-online";
+export { useRequiredParam } from "./use-required-param";
 export { useTextSelection } from "./use-text-selection";
 export { useVirtualizedPaginatedQuery } from "./use-virtualized-paginated-query";
 export type {

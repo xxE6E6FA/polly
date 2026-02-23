@@ -18,36 +18,18 @@ Guidance for Claude Code when working with this repository.
 
 ## Commands
 
-**Always use `bun`** - never npm, pnpm, or npx.
-
-```bash
-bun run dev          # Start dev server (React Router + Convex)
-bun run build        # Production build
-bun run fix          # Auto-fix formatting/linting (Biome)
-bun run check        # Full verification: lint + types + build
-bun run check:json   # Biome lint with JSON reporter (structured errors)
-bun run typecheck    # TypeScript only
-bun run test         # Run tests
-bun run lint:file <path>   # Auto-fix a single file
-bun run check:file <path>  # Lint-check a single file (no fix)
-bunx <package>       # Instead of npx
-```
+- `bun run dev` — start dev server
+- `bun run check` — full verification (lint + types + build)
+- `bun run fix` — auto-fix formatting/linting
+- `bun run test` — run tests (`bun:test`, not jest/vitest)
+- `bun run lint:file <path>` / `bun run check:file <path>` — single-file fix/check
 
 ## Testing
 
-- Framework: **bun:test** (not jest/vitest)
 - `bun test <path>` — run a single test file
 - `bun test --watch` — watch mode
 - Test utils in `test/` directory (`test-utils.tsx`, `convex-test-utils.ts`, `TestProviders.tsx`)
 - Run targeted tests for what you changed, not the full suite
-
-## Stack
-
-- **Frontend**: React 19 + TypeScript + Vite + React Router v7
-- **Backend**: Convex (serverless functions, realtime DB, auth, file storage)
-- **Styling**: TailwindCSS + Base UI + CVA
-- **AI**: Vercel AI SDK (Anthropic, OpenAI, Google, OpenRouter)
-- **Quality**: Biome (linting + formatting)
 
 ## Project Structure
 
@@ -70,20 +52,6 @@ convex/              # Backend: schema.ts, ai/, lib/
 
 `/`, `/chat/:id`, `/chat/favorites`, `/private`, `/settings/*`, `/share/:id`
 
-## Code Style (Biome)
-
-Run `bun run fix` before committing. Key rules:
-
-- **Types**: No `any`, use `import type`, prefer `?.` over `&&`
-- **React**: Exhaustive deps, no array index keys, use children composition
-- **Control**: No nested ternaries, use `===`, always use `{}`
-- **Backend**: Use `console.error`/`console.warn` in Convex (no custom logger)
-
-## React 19 Patterns
-
-- **Refs as props**: Pass `ref` as a regular prop - no `forwardRef` needed
-- **useTransition**: Use for async mutations instead of manual loading state
-
 ## React Compiler
 
 Trust the compiler for optimization. Keep `useMemo`/`useCallback` only for:
@@ -105,7 +73,6 @@ Never create hooks, utils, or context files inside component directories.
 ## UI Components
 
 - Base UI uses `render` prop (not `asChild`) to customize element rendering
-- Tooltip delays: Use `delayDuration={200}` on `TooltipTrigger` for quick actions (icon buttons, copy buttons). Default 600ms is for explanatory tooltips.
 - Model types: `Doc<"userModels"> | Doc<"builtInModels">` for selected models
 
 ## Styling
@@ -117,9 +84,7 @@ Never create hooks, utils, or context files inside component directories.
 
 ## Commits
 
-- Format: `<type>: <description>` (feat, fix, refactor, chore, test, docs)
-- Title only, no body. Split commits for different areas.
-- Branches: `<type>/<description>` in kebab-case
+See `CONTRIBUTING.md` for format and conventions.
 
 ## File Naming
 
@@ -131,12 +96,8 @@ Use barrel files: `@/components/ui`, `@/hooks`, `@/lib`. See JSDoc in each `inde
 
 ## Gotchas
 
-- **Streaming coordination**: Use `currentStreamingMessageId` on the conversation to detect/guard streaming, not `isStreaming` alone
 - **OCC (Optimistic Concurrency Control)**: Mutations that touch hot documents must be idempotent. Use `withRetry(fn, 5, 25)` for OCC-prone mutations
 - **Model capabilities**: Resolved at query time from `modelsDevCache` table, NOT stored on model documents. See hydration in `convex/lib/model-hydration.ts`
-- **Route params**: May be `undefined` in React Router v7 — always handle the missing case
-- **File deletion**: Always verify `userFiles` ownership (`entry.userId === currentUserId`) before deleting
-- **Private mode**: Client-side only, no server storage. Uses `usePrivateChat` hook with user's own API keys
 
 ## Code Review (GitHub)
 
