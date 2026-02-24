@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import {
+  internalQuery,
   type MutationCtx,
   mutation,
   type QueryCtx,
@@ -280,4 +281,16 @@ export const updateArchiveSettings = mutation({
     autoArchiveDays: v.number(),
   },
   handler: updateArchiveSettingsHandler,
+});
+
+/**
+ * Auth-free internal query for getting user settings.
+ * Used by streaming actions to resolve OpenRouter sorting preference
+ * without requiring auth context.
+ */
+export const getUserSettingsInternal = internalQuery({
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    return await handleGetUserSettings(ctx, args.userId);
+  },
 });

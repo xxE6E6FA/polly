@@ -3,11 +3,8 @@ import { DEFAULT_BUILTIN_MODEL_ID } from "../../../shared/constants";
 import { api, internal } from "../../_generated/api";
 import type { Doc, Id } from "../../_generated/dataModel";
 import type { ActionCtx } from "../../_generated/server";
-import type { ImageModelInfo } from "../../ai/tools";
-import { toImageModelInfos } from "./helpers";
 import { handleMessageDeletion } from "./message_handling";
 import {
-  buildContextMessages,
   executeStreamingActionForRetry,
   incrementUserMessageStats,
   processAttachmentsForStorage,
@@ -193,9 +190,8 @@ export async function sendMessageHandler(
     });
   }
 
-  // Then create assistant message and update streaming in parallel
+  // Create assistant message + mark streaming in parallel
   const [assistantMessageId] = await Promise.all([
-    // Create assistant placeholder with thinking status
     ctx.runMutation(api.messages.create, {
       conversationId: args.conversationId,
       role: "assistant",
@@ -204,8 +200,6 @@ export async function sendMessageHandler(
       model: fullModel.modelId,
       provider: fullModel.provider,
     }),
-
-    // Mark conversation as streaming and bump updatedAt so it jumps to top
     ctx.runMutation(internal.conversations.internalPatch, {
       id: args.conversationId,
       updates: { isStreaming: true },
@@ -213,165 +207,40 @@ export async function sendMessageHandler(
     }),
   ]);
 
-  // Load persona parameters if set and not explicitly overridden
-  let personaParams: {
-    temperature?: number;
-    maxTokens?: number;
-    topP?: number;
-    frequencyPenalty?: number;
-    presencePenalty?: number;
-    topK?: number;
-    repetitionPenalty?: number;
-  } = {};
-  if (effectivePersonaId) {
-    const persona = await ctx.runQuery(api.personas.get, {
-      id: effectivePersonaId,
-    });
-    if (
-      persona &&
-      (persona as { advancedSamplingEnabled?: boolean })
-        .advancedSamplingEnabled
-    ) {
-      // Only apply persona parameters if advanced sampling is enabled
-      const rawParams = {
-        // These fields are optional in the schema
-        temperature: (persona as { temperature?: number }).temperature,
-        topP: (persona as { topP?: number }).topP,
-        topK: (persona as { topK?: number }).topK,
-        frequencyPenalty: (persona as { frequencyPenalty?: number })
-          .frequencyPenalty,
-        presencePenalty: (persona as { presencePenalty?: number })
-          .presencePenalty,
-        repetitionPenalty: (persona as { repetitionPenalty?: number })
-          .repetitionPenalty,
-      };
-
-      // Filter out undefined values
-      personaParams = Object.fromEntries(
-        Object.entries(rawParams).filter(([_, value]) => value !== undefined)
-      ) as typeof personaParams;
-    }
-  }
-
-  // Trigger summary generation in background based on context window limits
-  // rather than message count. We estimate total tokens and compare against
-  // the effective model context window with a conservative 100k cap to
-  // protect multi-model conversations.
-  try {
-    // Prefer rolling estimate if present
-    const latestConversation = await ctx.runQuery(api.conversations.get, {
-      id: args.conversationId,
-    });
-    let totalTokens: number | null =
-      latestConversation?.tokenEstimate ?? null;
-    if (totalTokens === null || totalTokens === undefined) {
-      totalTokens = await ctx.runQuery(
-        api.messages.getConversationTokenEstimate,
-        { conversationId: args.conversationId }
-      );
-    }
-
-    // Use model context length if available; otherwise default to the cap
-    const cap = 100_000; // conservative lower limit across providers
-    const modelWindow = fullModel.contextLength || cap;
-    const threshold = Math.min(modelWindow, cap);
-
-    if ((totalTokens || 0) > threshold) {
-      await scheduleRunAfter(
-        ctx,
-        5000,
-        internal.conversationSummary.generateMissingSummaries,
-        {
-          conversationId: args.conversationId,
-          forceRegenerate: false,
-        }
-      );
-    }
-  } catch (e) {
-    console.warn("Failed to schedule token-aware summaries:", e);
-  }
-
-  // Query image models if the text model supports tools
   const supportsTools = fullModel.supportsTools ?? false;
-  let imageModelsForTools: ImageModelInfo[] | undefined;
-  if (supportsTools) {
-    const userImageModels = await ctx.runQuery(
-      internal.imageModels.getUserImageModelsInternal,
-      { userId }
-    );
-    imageModelsForTools = toImageModelInfos(userImageModels);
-  }
 
-  // Retrieve relevant memories if enabled.
-  // Uses ctx.runAction because embedding generation requires Node.js (AI SDK),
-  // but this file runs in Convex's V8 runtime (no "use node").
-  let memories: Array<{ content: string; category: string }> | undefined;
-  let memoryEnabled = false;
-  try {
-    const settings = await ctx.runQuery(
-      internal.memory.getUserMemorySettings,
-      { userId },
-    );
-    memoryEnabled = settings?.memoryEnabled ?? false;
-    if (memoryEnabled) {
-      memories = await ctx.runAction(
-        internal.memory_actions.retrieveMemories,
-        { userId, messageContent: args.content },
-      );
-    }
-  } catch (error) {
-    console.warn("[sendMessageHandler] Memory retrieval failed:", error);
-  }
-
-  // Build context messages
-  const { contextMessages } = await buildContextMessages(ctx, {
-    conversationId: args.conversationId,
-    personaId: effectivePersonaId,
-    modelCapabilities: {
-      supportsImages: fullModel.supportsImages ?? false,
-      supportsFiles: fullModel.supportsFiles ?? false,
-    },
-    provider: fullModel.provider,
-    modelId: fullModel.modelId,
-    memories,
-  });
-
-  // Schedule server-side streaming
+  // Schedule streaming — context building, image models, and API key all happen inside streamMessage
   await ctx.scheduler.runAfter(0, internal.streaming_actions.streamMessage, {
     messageId: assistantMessageId,
     conversationId: args.conversationId,
     model: fullModel.modelId,
     provider: fullModel.provider,
-    messages: contextMessages,
     personaId: effectivePersonaId,
     reasoningConfig: args.reasoningConfig,
     supportsTools,
+    supportsImages: fullModel.supportsImages ?? false,
     supportsFiles: fullModel.supportsFiles ?? false,
     supportsReasoning: fullModel.supportsReasoning ?? false,
     supportsTemperature: fullModel.supportsTemperature ?? undefined,
-    imageModels: imageModelsForTools,
+    contextLength: fullModel.contextLength,
     userId,
   });
 
-  // Schedule memory extraction from the user message (non-blocking).
-  // Runs concurrently with streaming — no need to wait for assistant response.
-  if (memoryEnabled) {
-    try {
+  // Schedule memory extraction (non-blocking background job)
+  try {
+    const settings = await ctx.runQuery(
+      internal.memory.getUserMemorySettings,
+      { userId },
+    );
+    if (settings?.memoryEnabled) {
       await ctx.scheduler.runAfter(
         0,
         internal.memory_actions.extractMemories,
-        {
-          conversationId: args.conversationId,
-          userId,
-          assistantMessageId,
-        }
-      );
-    } catch (error) {
-      console.warn(
-        "[sendMessageHandler] Failed to schedule memory extraction:",
-        error
+        { conversationId: args.conversationId, userId, assistantMessageId },
       );
     }
+  } catch (error) {
+    console.warn("[sendMessageHandler] Memory scheduling failed:", error);
   }
 
   return { userMessageId, assistantMessageId };
@@ -641,89 +510,41 @@ export async function startConversationHandler(
     }),
   ]);
 
-  // 5. Retrieve relevant memories if enabled.
-  // Uses ctx.runAction because embedding generation requires Node.js (AI SDK),
-  // but this file runs in Convex's V8 runtime (no "use node").
-  let startMemories: Array<{ content: string; category: string }> | undefined;
-  let startMemoryEnabled = false;
-  try {
-    const memSettings = await ctx.runQuery(
-      internal.memory.getUserMemorySettings,
-      { userId },
-    );
-    startMemoryEnabled = memSettings?.memoryEnabled ?? false;
-    if (startMemoryEnabled) {
-      startMemories = await ctx.runAction(
-        internal.memory_actions.retrieveMemories,
-        { userId, messageContent: args.content },
-      );
-    }
-  } catch (error) {
-    console.warn("[startConversationHandler] Memory retrieval failed:", error);
-  }
-
-  // 6. Build context messages
-  const { contextMessages } = await buildContextMessages(ctx, {
-    conversationId,
-    personaId: args.personaId,
-    modelCapabilities: {
-      supportsImages: fullModel.supportsImages ?? false,
-      supportsFiles: fullModel.supportsFiles ?? false,
-    },
-    provider: fullModel.provider,
-    modelId: fullModel.modelId,
-    memories: startMemories,
-  });
-
-  // 7. Query image models if the text model supports tools
-  let imageModelsForTools: ImageModelInfo[] | undefined;
-  if (fullModel.supportsTools) {
-    const userImageModels = await ctx.runQuery(
-      internal.imageModels.getUserImageModelsInternal,
-      { userId }
-    );
-    imageModelsForTools = toImageModelInfos(userImageModels);
-  }
-
-  // 8. Schedule server-side streaming (runs in background)
+  // 5. Schedule streaming — context building, image models, memory all happen inside streamMessage
   await ctx.scheduler.runAfter(0, internal.streaming_actions.streamMessage, {
     messageId: assistantMessageId,
     conversationId,
     model: fullModel.modelId,
     provider: fullModel.provider,
-    messages: contextMessages,
     personaId: args.personaId,
     reasoningConfig: args.reasoningConfig,
-    // Pass model capabilities from mutation context where auth is available
     supportsTools: fullModel.supportsTools ?? false,
+    supportsImages: fullModel.supportsImages ?? false,
     supportsFiles: fullModel.supportsFiles ?? false,
     supportsReasoning: fullModel.supportsReasoning ?? false,
     supportsTemperature: fullModel.supportsTemperature ?? undefined,
-    imageModels: imageModelsForTools,
+    contextLength: fullModel.contextLength,
     userId,
   });
 
-  // Schedule memory extraction from the user message (non-blocking).
-  if (startMemoryEnabled) {
-    try {
+  // Schedule memory extraction (non-blocking background job)
+  try {
+    const memSettings = await ctx.runQuery(
+      internal.memory.getUserMemorySettings,
+      { userId },
+    );
+    if (memSettings?.memoryEnabled) {
       await ctx.scheduler.runAfter(
         0,
         internal.memory_actions.extractMemories,
-        {
-          conversationId,
-          userId,
-          assistantMessageId,
-        }
-      );
-    } catch (error) {
-      console.warn(
-        "[startConversationHandler] Failed to schedule memory extraction:",
-        error
+        { conversationId, userId, assistantMessageId },
       );
     }
+  } catch (error) {
+    console.warn("[startConversationHandler] Memory scheduling failed:", error);
   }
 
-  // 9. Schedule title generation
+  // 6. Schedule title generation
   await scheduleRunAfter(ctx, 100, api.titleGeneration.generateTitle, {
     conversationId,
     message: args.content,
@@ -938,61 +759,36 @@ export async function editAndResendMessageHandler(
     preferredProvider
   );
 
-  // Query image models if the text model supports tools
-  const supportsTools = fullModel.supportsTools ?? false;
-  let imageModelsForTools: ImageModelInfo[] | undefined;
-  if (supportsTools) {
-    const userImageModels = await ctx.runQuery(
-      internal.imageModels.getUserImageModelsInternal,
-      { userId: user._id }
-    );
-    imageModelsForTools = toImageModelInfos(userImageModels);
-  }
+  // Create assistant message + mark streaming in parallel
+  const [assistantMessageId] = await Promise.all([
+    ctx.runMutation(api.messages.create, {
+      conversationId: message.conversationId,
+      role: "assistant",
+      content: "",
+      model: fullModel.modelId,
+      provider: fullModel.provider,
+      status: "thinking",
+    }),
+    ctx.runMutation(internal.conversations.internalPatch, {
+      id: message.conversationId,
+      updates: { isStreaming: true },
+    }),
+  ]);
 
-  // Build context messages including the edited message, passing pre-fetched data
-  const { contextMessages } = await buildContextMessages(ctx, {
-    conversationId: message.conversationId,
-    personaId: conversation.personaId,
-    modelCapabilities: {
-      supportsImages: fullModel.supportsImages ?? false,
-      supportsFiles: fullModel.supportsFiles ?? false,
-    },
-    provider: fullModel.provider,
-    modelId: fullModel.modelId,
-    prefetchedMessages: messages, // Pass already-fetched messages
-    prefetchedModelInfo: { contextLength: fullModel.contextLength },
-  });
-
-  // Create new assistant message for streaming
-  const assistantMessageId = await ctx.runMutation(api.messages.create, {
-    conversationId: message.conversationId,
-    role: "assistant",
-    content: "",
-    model: fullModel.modelId,
-    provider: fullModel.provider,
-    status: "thinking",
-  });
-
-  // Mark conversation as streaming
-  await ctx.runMutation(internal.conversations.internalPatch, {
-    id: message.conversationId,
-    updates: { isStreaming: true },
-  });
-
-  // Schedule server-side streaming
+  // Schedule streaming — context building + image models happen inside streamMessage
   await ctx.scheduler.runAfter(0, internal.streaming_actions.streamMessage, {
     messageId: assistantMessageId,
     conversationId: message.conversationId,
     model: fullModel.modelId,
     provider: fullModel.provider,
-    messages: contextMessages,
     personaId: conversation.personaId,
     reasoningConfig: args.reasoningConfig,
-    supportsTools,
+    supportsTools: fullModel.supportsTools ?? false,
+    supportsImages: fullModel.supportsImages ?? false,
     supportsFiles: fullModel.supportsFiles ?? false,
     supportsReasoning: fullModel.supportsReasoning ?? false,
     supportsTemperature: fullModel.supportsTemperature ?? undefined,
-    imageModels: imageModelsForTools,
+    contextLength: fullModel.contextLength,
     userId: user._id,
   });
 
@@ -1134,33 +930,7 @@ export async function retryFromMessageHandler(
       throw new Error("Cannot find previous user message to retry from");
     }
 
-    // Query image models if the text model supports tools
-    const retrySupportsTools = fullModel.supportsTools ?? false;
-    let imageModelsForRetry: ImageModelInfo[] | undefined;
-    if (retrySupportsTools) {
-      const userImageModels = await ctx.runQuery(
-        internal.imageModels.getUserImageModelsInternal,
-        { userId: user._id }
-      );
-      imageModelsForRetry = toImageModelInfos(userImageModels);
-    }
-
-    // Build context messages for streaming, passing pre-fetched data to avoid redundant queries
-    const { contextMessages } = await buildContextMessages(ctx, {
-      conversationId: args.conversationId,
-      personaId: effectivePersonaId,
-      includeUpToIndex: previousUserMessageIndex,
-      modelCapabilities: {
-        supportsImages: fullModel.supportsImages ?? false,
-        supportsFiles: fullModel.supportsFiles ?? false,
-      },
-      provider: fullModel.provider,
-      modelId: fullModel.modelId,
-      prefetchedMessages: messages, // Pass already-fetched messages
-      prefetchedModelInfo: { contextLength: fullModel.contextLength },
-    });
-
-    // Schedule the streaming action to regenerate the assistant response
+    // Schedule streaming — context building + image models happen inside streamMessage
     await ctx.scheduler.runAfter(
       0,
       internal.streaming_actions.streamMessage,
@@ -1169,14 +939,15 @@ export async function retryFromMessageHandler(
         conversationId: args.conversationId,
         model: fullModel.modelId,
         provider: fullModel.provider,
-        messages: contextMessages,
         personaId: effectivePersonaId,
         reasoningConfig: args.reasoningConfig,
-        supportsTools: retrySupportsTools,
+        supportsTools: fullModel.supportsTools ?? false,
+        supportsImages: fullModel.supportsImages ?? false,
         supportsFiles: fullModel.supportsFiles ?? false,
         supportsReasoning: fullModel.supportsReasoning ?? false,
-    supportsTemperature: fullModel.supportsTemperature ?? undefined,
-        imageModels: imageModelsForRetry,
+        supportsTemperature: fullModel.supportsTemperature ?? undefined,
+        contextLength: fullModel.contextLength,
+        contextEndIndex: previousUserMessageIndex,
         userId: user._id,
       }
     );
@@ -1304,49 +1075,23 @@ export async function retryFromMessageHandler(
     requestedProvider
   );
 
-  const contextEndIndex = messageIndex;
-
   // Delete messages after the user message (preserve the user message and context)
   await handleMessageDeletion(ctx, messages, messageIndex, "user");
 
-  // Query image models if the text model supports tools
-  const userRetrySupportsTools = fullModel.supportsTools ?? false;
-  let imageModelsForUserRetry: ImageModelInfo[] | undefined;
-  if (userRetrySupportsTools) {
-    const userImageModels = await ctx.runQuery(
-      internal.imageModels.getUserImageModelsInternal,
-      { userId: user._id }
-    );
-    imageModelsForUserRetry = toImageModelInfos(userImageModels);
-  }
-
-  // Build context messages up to the retry point, passing pre-fetched data
-  const { contextMessages } = await buildContextMessages(ctx, {
-    conversationId: args.conversationId,
-    personaId: effectivePersonaId,
-    includeUpToIndex: contextEndIndex,
-    modelCapabilities: {
-      supportsImages: fullModel.supportsImages ?? false,
-      supportsFiles: fullModel.supportsFiles ?? false,
-    },
-    provider: fullModel.provider,
-    modelId: fullModel.modelId,
-    prefetchedMessages: messages, // Pass already-fetched messages
-    prefetchedModelInfo: { contextLength: fullModel.contextLength },
-  });
-
-  // Execute streaming action for retry (creates a NEW assistant message)
+  // Execute streaming — context building + image models happen inside streamMessage
   const result = await executeStreamingActionForRetry(ctx, {
     conversationId: args.conversationId,
     model: fullModel.modelId,
     provider: fullModel.provider,
     conversation: { ...conversation, personaId: effectivePersonaId },
-    contextMessages,
-    useWebSearch: true, // Retry operations are always from authenticated users
     reasoningConfig: args.reasoningConfig,
-    supportsTools: userRetrySupportsTools,
+    supportsTools: fullModel.supportsTools ?? false,
+    supportsImages: fullModel.supportsImages ?? false,
     supportsFiles: fullModel.supportsFiles ?? false,
-    imageModels: imageModelsForUserRetry,
+    supportsReasoning: fullModel.supportsReasoning ?? false,
+    supportsTemperature: fullModel.supportsTemperature ?? undefined,
+    contextLength: fullModel.contextLength,
+    contextEndIndex: messageIndex,
     userId: user._id,
   });
 
@@ -1426,43 +1171,19 @@ export async function editMessageHandler(
     preferredProvider
   );
 
-  // Query image models if the text model supports tools
-  const editSupportsTools = fullModel.supportsTools ?? false;
-  let imageModelsForEdit: ImageModelInfo[] | undefined;
-  if (editSupportsTools) {
-    const userImageModels = await ctx.runQuery(
-      internal.imageModels.getUserImageModelsInternal,
-      { userId: user._id }
-    );
-    imageModelsForEdit = toImageModelInfos(userImageModels);
-  }
-
-  // Build context messages including the edited message, passing pre-fetched data
-  const { contextMessages } = await buildContextMessages(ctx, {
-    conversationId: args.conversationId,
-    personaId: conversation.personaId,
-    modelCapabilities: {
-      supportsImages: fullModel.supportsImages ?? false,
-      supportsFiles: fullModel.supportsFiles ?? false,
-    },
-    provider: fullModel.provider,
-    modelId: fullModel.modelId,
-    prefetchedMessages: messages, // Pass already-fetched messages
-    prefetchedModelInfo: { contextLength: fullModel.contextLength },
-  });
-
-  // Execute streaming action for retry
+  // Execute streaming — context building + image models happen inside streamMessage
   const result = await executeStreamingActionForRetry(ctx, {
     conversationId: args.conversationId,
     model: fullModel.modelId,
     provider: fullModel.provider,
     conversation,
-    contextMessages,
-    useWebSearch: true, // Retry operations are always from authenticated users
     reasoningConfig: args.reasoningConfig,
-    supportsTools: editSupportsTools,
+    supportsTools: fullModel.supportsTools ?? false,
+    supportsImages: fullModel.supportsImages ?? false,
     supportsFiles: fullModel.supportsFiles ?? false,
-    imageModels: imageModelsForEdit,
+    supportsReasoning: fullModel.supportsReasoning ?? false,
+    supportsTemperature: fullModel.supportsTemperature ?? undefined,
+    contextLength: fullModel.contextLength,
     userId: user._id,
   });
 

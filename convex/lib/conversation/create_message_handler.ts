@@ -1,13 +1,6 @@
-import { getAuthUserId } from "../auth";
-import { api, internal } from "../../_generated/api";
+import { api } from "../../_generated/api";
 import type { Doc, Id } from "../../_generated/dataModel";
 import type { ActionCtx } from "../../_generated/server";
-import type { ImageModelInfo } from "../../ai/tools";
-import { toImageModelInfos } from "./helpers";
-import {
-  buildContextMessages,
-  incrementUserMessageStats,
-} from "../conversation_utils";
 import { getUserEffectiveModelWithCapabilities } from "../model_resolution";
 import { scheduleRunAfter } from "../scheduler";
 import { validateUserMessageLength } from "../shared_utils";

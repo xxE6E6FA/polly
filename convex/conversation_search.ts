@@ -56,7 +56,7 @@ export interface ConversationSearchResult {
   conversationId: string;
   title: string;
   snippet: string;
-  matchedIn: "title" | "summary" | "message";
+  matchedIn: "title" | "message";
   messageCount: number;
   updatedAt: number;
   relevantContext?: string;
@@ -98,34 +98,14 @@ async function getRecentMessagesPreview(
 }
 
 /**
- * Fetch the combined summary for a conversation.
- * Returns all summary chunks concatenated together, truncated to MAX_CONTEXT_LENGTH.
- * Falls back to recent messages preview if no summaries exist.
+ * Fetch context for a conversation using recent messages preview.
  */
 async function getConversationContext(
   ctx: QueryCtx,
   conversationId: Id<"conversations">
 ): Promise<string | undefined> {
-  // Try stored summaries first
-  const summaries = await ctx.db
-    .query("conversationSummaries")
-    .withIndex("by_conversation_chunk", q =>
-      q.eq("conversationId", conversationId)
-    )
-    .collect();
-
-  if (summaries.length > 0) {
-    // Sort by chunk index and concatenate
-    summaries.sort((a, b) => a.chunkIndex - b.chunkIndex);
-    const combined = summaries.map(s => s.summary).join("\n\n");
-    // Truncate to prevent context bloat
-    return truncateAtWordBoundary(combined, MAX_CONTEXT_LENGTH);
-  }
-
-  // Fallback: fetch recent messages as preview
   const preview = await getRecentMessagesPreview(ctx, conversationId);
   if (preview) {
-    // Truncate to prevent context bloat
     return truncateAtWordBoundary(preview, MAX_CONTEXT_LENGTH);
   }
   return preview;

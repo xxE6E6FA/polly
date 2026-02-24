@@ -35,6 +35,10 @@ import {
   internalGetHandler,
   internalPatchHandler,
   patchHandler,
+  prepareAssistantRetryHandler,
+  prepareEditAndResendHandler,
+  prepareSendMessageHandler,
+  prepareStartConversationHandler,
   removeHandler,
   setStreamingHandler,
   stopGenerationHandler,
@@ -44,6 +48,7 @@ import {
 import {
   getByClientIdHandler,
   getBySlugHandler,
+  getConversationLimitStatusHandler,
   getForExportHandler,
   getHandler,
   getWithAccessInfoHandler,
@@ -162,6 +167,15 @@ export const isStreaming = query({
   handler: isStreamingHandler,
 });
 
+/**
+ * Get the context limit status for a conversation.
+ * Returns token usage, effective limit, and whether the conversation is at/near the limit.
+ */
+export const getConversationLimitStatus = query({
+  args: { conversationId: v.id("conversations") },
+  handler: getConversationLimitStatusHandler,
+});
+
 export const internalGet = internalQuery({
   args: { id: v.id("conversations") },
   handler: internalGetHandler,
@@ -251,6 +265,83 @@ export const createEmptyInternal = internalMutation({
     profileId: v.optional(v.id("profiles")),
   },
   handler: createEmptyInternalHandler,
+});
+
+/**
+ * Combined send-message mutation: all DB work in one transaction.
+ * The action wrapper only needs auth + this single call.
+ */
+export const prepareSendMessage = internalMutation({
+  args: {
+    userId: v.id("users"),
+    conversationId: v.id("conversations"),
+    content: v.string(),
+    model: v.optional(v.string()),
+    provider: v.optional(v.string()),
+    personaId: v.optional(v.id("personas")),
+    attachments: v.optional(v.array(attachmentSchema)),
+    reasoningConfig: v.optional(reasoningConfigSchema),
+    temperature: v.optional(v.number()),
+  },
+  handler: prepareSendMessageHandler,
+});
+
+/**
+ * Combined start-conversation mutation: create conversation + messages + schedule streaming.
+ * The action wrapper only needs auth + this single call.
+ */
+export const prepareStartConversation = internalMutation({
+  args: {
+    userId: v.id("users"),
+    clientId: v.string(),
+    content: v.string(),
+    personaId: v.optional(v.id("personas")),
+    profileId: v.optional(v.id("profiles")),
+    attachments: v.optional(v.array(attachmentSchema)),
+    model: v.optional(v.string()),
+    provider: v.optional(v.string()),
+    reasoningConfig: v.optional(reasoningConfigSchema),
+    temperature: v.optional(v.number()),
+  },
+  handler: prepareStartConversationHandler,
+});
+
+/**
+ * Combined assistant-retry mutation: all DB work in one transaction.
+ * Eliminates 4+N sequential round-trips.
+ */
+export const prepareAssistantRetry = internalMutation({
+  args: {
+    userId: v.id("users"),
+    conversationId: v.id("conversations"),
+    targetMessageId: v.id("messages"),
+    messageIdsToDelete: v.array(v.id("messages")),
+    model: v.optional(v.string()),
+    provider: v.optional(v.string()),
+    reasoningConfig: v.optional(reasoningConfigSchema),
+    previousUserMessageIndex: v.number(),
+    personaId: v.optional(v.id("personas")),
+  },
+  handler: prepareAssistantRetryHandler,
+});
+
+/**
+ * Combined edit-and-resend mutation: all DB work in one transaction.
+ * Eliminates 5-7 sequential round-trips.
+ */
+export const prepareEditAndResend = internalMutation({
+  args: {
+    userId: v.id("users"),
+    conversationId: v.id("conversations"),
+    userMessageId: v.id("messages"),
+    newContent: v.string(),
+    messageIdsToDelete: v.array(v.id("messages")),
+    model: v.optional(v.string()),
+    provider: v.optional(v.string()),
+    personaId: v.optional(v.id("personas")),
+    reasoningConfig: v.optional(reasoningConfigSchema),
+  },
+  handler: prepareEditAndResendHandler,
 });
 
 /**

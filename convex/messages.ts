@@ -59,6 +59,7 @@ import {
   addToolCallHandler,
   appendReasoningSegmentHandler,
   clearImageGenerationAttachmentsHandler,
+  finalizeStreamHandler,
   finalizeToolResultHandler,
   getAllInConversationInternalHandler,
   getByReplicateIdHandler,
@@ -69,6 +70,7 @@ import {
   internalRemoveMultipleHandler,
   internalUpdateHandler,
   setTtsAudioCacheHandler,
+  streamingFlushHandler,
   updateAssistantContentHandler,
   updateAssistantStatusHandler,
   updateContentHandler,
@@ -402,6 +404,40 @@ export const appendReasoningSegment = internalMutation({
     startedAt: v.number(),
   },
   handler: appendReasoningSegmentHandler,
+});
+
+/**
+ * Unified streaming flush: content + reasoning + optional status in one DB write.
+ * Reduces mutation count during streaming by ~50%.
+ */
+export const streamingFlush = internalMutation({
+  args: {
+    messageId: v.id("messages"),
+    appendContent: v.optional(v.string()),
+    appendReasoning: v.optional(
+      v.object({
+        segmentIndex: v.number(),
+        text: v.string(),
+        startedAt: v.number(),
+      })
+    ),
+    status: v.optional(messageStatusSchema),
+  },
+  handler: streamingFlushHandler,
+});
+
+/**
+ * Unified stream finalization: metadata + status "done" + clear conversation streaming.
+ * Replaces 3 separate mutations at end of streaming.
+ */
+export const finalizeStream = internalMutation({
+  args: {
+    messageId: v.id("messages"),
+    conversationId: v.id("conversations"),
+    metadata: extendedMessageMetadataSchema,
+    citations: v.optional(v.array(webCitationSchema)),
+  },
+  handler: finalizeStreamHandler,
 });
 
 /**

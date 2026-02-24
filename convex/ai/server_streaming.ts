@@ -21,6 +21,49 @@ import {
 } from "../../shared/reasoning-config";
 import type { ProviderType } from "../types";
 
+// ── Module-level LanguageModel cache ─────────────────────────────────
+// Non-OpenRouter providers are stateless (provider + model + apiKey → instance),
+// so we can safely cache them. OpenRouter is excluded because it queries user
+// settings (sorting preference) which can change between calls.
+const LM_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const LM_CACHE_MAX_ENTRIES = 50;
+const languageModelCache = new Map<
+  string,
+  { model: LanguageModel; expiresAt: number }
+>();
+
+function getCachedLanguageModel(
+  provider: string,
+  modelId: string,
+  apiKey: string,
+): LanguageModel | undefined {
+  const cacheKey = `${provider}_${modelId}_${apiKey.slice(0, 8)}`;
+  const entry = languageModelCache.get(cacheKey);
+  if (!entry) return undefined;
+  if (Date.now() > entry.expiresAt) {
+    languageModelCache.delete(cacheKey);
+    return undefined;
+  }
+  return entry.model;
+}
+
+function setCachedLanguageModel(
+  provider: string,
+  modelId: string,
+  apiKey: string,
+  model: LanguageModel,
+): void {
+  if (languageModelCache.size >= LM_CACHE_MAX_ENTRIES) {
+    const firstKey = languageModelCache.keys().next().value;
+    if (firstKey) languageModelCache.delete(firstKey);
+  }
+  const cacheKey = `${provider}_${modelId}_${apiKey.slice(0, 8)}`;
+  languageModelCache.set(cacheKey, {
+    model,
+    expiresAt: Date.now() + LM_CACHE_TTL_MS,
+  });
+}
+
 // Enhanced provider factory with AI SDK optimizations
 const createProviderModel = {
   openai: (apiKey: string, model: string) => {
@@ -64,11 +107,10 @@ const createProviderModel = {
     return moonshot.chatModel(model);
   },
 
-  openrouter: async (
+  openrouter: (
     apiKey: string,
     model: string,
-    ctx: ActionCtx,
-    userId?: Id<"users">
+    sorting?: string,
   ) => {
     try {
       const openrouterProvider = createOpenRouter({
@@ -79,22 +121,6 @@ const createProviderModel = {
         },
       });
 
-      // Get user's OpenRouter sorting preference
-      let sorting: "default" | "price" | "throughput" | "latency" = "default";
-      if (userId) {
-        try {
-          const userSettings = await ctx.runQuery(
-            api.userSettings.getUserSettings
-          );
-          sorting = userSettings?.openRouterSorting ?? "default";
-        } catch (error) {
-          console.warn(
-            "Failed to get user settings for OpenRouter sorting:",
-            error
-          );
-        }
-      }
-
       // Map sorting preference to native provider.sort option
       const sortMap: Record<string, "price" | "throughput" | "latency" | undefined> = {
         price: "price",
@@ -103,7 +129,7 @@ const createProviderModel = {
       };
 
       return openrouterProvider.chat(model, {
-        provider: sorting !== "default" ? { sort: sortMap[sorting] } : undefined,
+        provider: sorting && sorting !== "default" ? { sort: sortMap[sorting] } : undefined,
       });
     } catch (error) {
       console.error("[server_streaming] Error creating OpenRouter model:", {
@@ -119,34 +145,59 @@ const createProviderModel = {
 
 // Create language model based on provider
 export const createLanguageModel = async (
-  ctx: ActionCtx,
+  _ctx: ActionCtx,
   provider: ProviderType,
   model: string,
   apiKey: string,
-  userId?: Id<"users">
+  _userId?: Id<"users">,
+  openRouterSorting?: string,
 ): Promise<LanguageModel> => {
-  // No more provider mapping needed - provider is already the actual provider
-
-  // Handle OpenRouter separately due to async requirements
+  // OpenRouter: now cacheable since sorting is resolved externally
   if (provider === "openrouter") {
-    return await createProviderModel.openrouter(apiKey, model, ctx, userId);
+    const orCacheKey = `openrouter_${model}_${apiKey.slice(0, 8)}_${openRouterSorting || "default"}`;
+    const orEntry = languageModelCache.get(orCacheKey);
+    if (orEntry && Date.now() <= orEntry.expiresAt) {
+      return orEntry.model;
+    }
+    const lm = createProviderModel.openrouter(apiKey, model, openRouterSorting);
+    if (languageModelCache.size >= LM_CACHE_MAX_ENTRIES) {
+      const firstKey = languageModelCache.keys().next().value;
+      if (firstKey) languageModelCache.delete(firstKey);
+    }
+    languageModelCache.set(orCacheKey, {
+      model: lm,
+      expiresAt: Date.now() + LM_CACHE_TTL_MS,
+    });
+    return lm;
   }
 
-  // Handle other providers synchronously
+  // Check module-level cache for non-OpenRouter providers
+  const cached = getCachedLanguageModel(provider, model, apiKey);
+  if (cached) return cached;
+
+  let lm: LanguageModel;
   switch (provider) {
     case "openai":
-      return createProviderModel.openai(apiKey, model);
+      lm = createProviderModel.openai(apiKey, model);
+      break;
     case "anthropic":
-      return createProviderModel.anthropic(apiKey, model);
+      lm = createProviderModel.anthropic(apiKey, model);
+      break;
     case "google":
-      return createProviderModel.google(apiKey, model);
+      lm = createProviderModel.google(apiKey, model);
+      break;
     case "groq":
-      return createProviderModel.groq(apiKey, model);
+      lm = createProviderModel.groq(apiKey, model);
+      break;
     case "moonshot":
-      return createProviderModel.moonshot(apiKey, model);
+      lm = createProviderModel.moonshot(apiKey, model);
+      break;
     default:
       throw new Error(`Unsupported provider: ${provider}`);
   }
+
+  setCachedLanguageModel(provider, model, apiKey, lm);
+  return lm;
 };
 
 export const getProviderStreamOptions = async (

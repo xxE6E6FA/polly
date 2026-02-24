@@ -66,14 +66,18 @@ export const executeStreamingActionForRetry = async (
     model: string;
     provider: string;
     conversation: any; // Doc<"conversations">
-    contextMessages: Array<{ role: "system" | "user" | "assistant"; content: string }>;
-    useWebSearch: boolean;
+    // Pre-built context messages (legacy path)
+    contextMessages?: Array<{ role: "system" | "user" | "assistant"; content: string }>;
+    useWebSearch?: boolean;
     reasoningConfig?: any;
-    // Model capabilities - passed from caller who has access to model info
+    // Model capabilities
     supportsTools?: boolean;
+    supportsImages?: boolean;
     supportsFiles?: boolean;
     supportsReasoning?: boolean;
     supportsTemperature?: boolean;
+    contextLength?: number;
+    contextEndIndex?: number;
     // Image generation tool support
     imageModels?: Array<{
       modelId: string;
@@ -93,12 +97,10 @@ export const executeStreamingActionForRetry = async (
   const { conversationId, model, provider } = args;
 
   // Create streaming assistant message with status: "thinking"
-  // This ensures the message is properly marked as streaming from the start,
-  // even if the scheduled streaming action fails or is delayed
   const assistantMessageId = await createMessage(ctx, {
     conversationId,
     role: "assistant",
-    content: "", // Empty content for streaming
+    content: "",
     status: "thinking",
     model,
     provider: provider as "openai" | "anthropic" | "google" | "groq" | "openrouter" | "replicate" | "elevenlabs",
@@ -114,7 +116,7 @@ export const executeStreamingActionForRetry = async (
   // Increment user stats
   await incrementUserMessageStats(ctx, userId, model, provider);
 
-  // Schedule server-side streaming
+  // Schedule server-side streaming — context building happens inside streamMessage
   await ctx.scheduler.runAfter(0, internal.streaming_actions.streamMessage, {
     messageId: assistantMessageId,
     conversationId: args.conversationId,
@@ -123,9 +125,12 @@ export const executeStreamingActionForRetry = async (
     messages: args.contextMessages,
     reasoningConfig: args.reasoningConfig,
     supportsTools: args.supportsTools ?? false,
+    supportsImages: args.supportsImages ?? false,
     supportsFiles: args.supportsFiles ?? false,
     supportsReasoning: args.supportsReasoning ?? false,
     supportsTemperature: args.supportsTemperature,
+    contextLength: args.contextLength,
+    contextEndIndex: args.contextEndIndex,
     imageModels: args.imageModels,
     userId: args.userId as Id<"users"> | undefined,
   });

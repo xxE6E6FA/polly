@@ -1,17 +1,10 @@
 import type { Doc, Id } from "../../_generated/dataModel";
 import type { ActionCtx } from "../../_generated/server";
 import { api, internal } from "../../_generated/api";
-import type { ImageModelInfo } from "../../ai/tools";
-import { toImageModelInfos } from "./helpers";
-import { handleMessageDeletion } from "./message_handling";
-import {
-  buildContextMessages,
-  executeStreamingActionForRetry,
-} from "../conversation_utils";
-import { getUserEffectiveModelWithCapabilities } from "../model_resolution";
 import { getAuthenticatedUserWithDataForAction } from "../shared_utils";
 import { handleAssistantRetry } from "./assistant_retry";
 import { handleReplicateUserRetry, handleUserRetry } from "./user_retry";
+import { executeStreamMessage } from "../../streaming_actions";
 
 export async function retryFromMessageHandler(
   ctx: ActionCtx,
@@ -165,64 +158,48 @@ export async function editMessageHandler(
     throw new Error("Can only edit user messages");
   }
 
-  // Update the message content
-  await ctx.runMutation(internal.messages.updateContent, {
-    messageId: args.messageId,
-    content: args.newContent,
-  });
-
-  // Delete all messages after the edited message (use user retry logic)
-  await handleMessageDeletion(ctx, messages, messageIndex, "user");
+  // Compute IDs to delete (messages after the edited message, excluding context)
+  const messageIdsToDelete = messages
+    .slice(messageIndex + 1)
+    .filter((msg: Doc<"messages">) => msg.role !== "context")
+    .map((msg: Doc<"messages">) => msg._id);
 
   // Prefer the original model/provider recorded on the edited message
   const preferredModelId = targetMessage.model || args.model;
   const preferredProvider = targetMessage.provider || args.provider;
 
-  const fullModel = await getUserEffectiveModelWithCapabilities(
-    ctx,
-    preferredModelId,
-    preferredProvider
+  // Single combined mutation: update content, delete subsequent, create assistant, set streaming
+  const { assistantMessageId, streamingArgs } = await ctx.runMutation(
+    internal.conversations.prepareEditAndResend,
+    {
+      userId: user._id,
+      conversationId: args.conversationId,
+      userMessageId: args.messageId,
+      newContent: args.newContent,
+      messageIdsToDelete,
+      model: preferredModelId,
+      provider: preferredProvider,
+      personaId: conversation.personaId,
+      reasoningConfig: args.reasoningConfig,
+    },
   );
 
-  // Query image models if the text model supports tools
-  const editSupportsTools = fullModel.supportsTools ?? false;
-  let imageModelsForEdit: ImageModelInfo[] | undefined;
-  if (editSupportsTools) {
-    const userImageModels = await ctx.runQuery(
-      internal.imageModels.getUserImageModelsInternal,
-      { userId: user._id }
-    );
-    imageModelsForEdit = toImageModelInfos(userImageModels);
-  }
-
-  // Build context messages including the edited message
-  const { contextMessages } = await buildContextMessages(ctx, {
+  // Direct streaming call — skip scheduler hop
+  await executeStreamMessage(ctx, {
+    messageId: assistantMessageId,
     conversationId: args.conversationId,
+    model: streamingArgs.modelId,
+    provider: streamingArgs.provider,
     personaId: conversation.personaId,
-    modelCapabilities: {
-      supportsImages: fullModel.supportsImages ?? false,
-      supportsFiles: fullModel.supportsFiles ?? false,
-    },
-    provider: fullModel.provider,
-    modelId: fullModel.modelId,
-    prefetchedMessages: messages,
-    prefetchedModelInfo: { contextLength: fullModel.contextLength },
-  });
-
-  // Execute streaming action for retry
-  const result = await executeStreamingActionForRetry(ctx, {
-    conversationId: args.conversationId,
-    model: fullModel.modelId,
-    provider: fullModel.provider,
-    conversation,
-    contextMessages,
-    useWebSearch: true,
     reasoningConfig: args.reasoningConfig,
-    supportsTools: editSupportsTools,
-    supportsFiles: fullModel.supportsFiles ?? false,
-    imageModels: imageModelsForEdit,
+    supportsTools: streamingArgs.supportsTools,
+    supportsImages: streamingArgs.supportsImages,
+    supportsFiles: streamingArgs.supportsFiles,
+    supportsReasoning: streamingArgs.supportsReasoning,
+    supportsTemperature: streamingArgs.supportsTemperature,
+    contextLength: streamingArgs.contextLength,
     userId: user._id,
   });
 
-  return { assistantMessageId: result.assistantMessageId };
+  return { assistantMessageId };
 }

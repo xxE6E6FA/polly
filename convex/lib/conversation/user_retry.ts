@@ -1,13 +1,8 @@
 import type { Doc, Id } from "../../_generated/dataModel";
 import type { ActionCtx } from "../../_generated/server";
 import { api, internal } from "../../_generated/api";
-import type { ImageModelInfo } from "../../ai/tools";
-import { toImageModelInfos } from "./helpers";
 import { handleMessageDeletion } from "./message_handling";
-import {
-  buildContextMessages,
-  executeStreamingActionForRetry,
-} from "../conversation_utils";
+import { executeStreamMessage } from "../../streaming_actions";
 import { getUserEffectiveModelWithCapabilities } from "../model_resolution";
 
 export async function handleReplicateUserRetry(
@@ -107,58 +102,51 @@ export async function handleUserRetry(
   }
 ): Promise<{ assistantMessageId: Id<"messages"> }> {
   const {
-    conversationId, reasoningConfig, user, conversation, messages,
+    conversationId, reasoningConfig, user, messages,
     messageIndex, effectivePersonaId, requestedModel, requestedProvider,
   } = params;
-
-  const fullModel = await getUserEffectiveModelWithCapabilities(ctx, requestedModel, requestedProvider);
-  const contextEndIndex = messageIndex;
 
   // Delete messages after the user message (preserve the user message and context)
   await handleMessageDeletion(ctx, messages, messageIndex, "user");
 
-  // Query image models if the text model supports tools
-  const userRetrySupportsTools = fullModel.supportsTools ?? false;
-  let imageModelsForUserRetry: ImageModelInfo[] | undefined;
-  if (userRetrySupportsTools) {
-    const userImageModels = await ctx.runQuery(
-      internal.imageModels.getUserImageModelsInternal,
-      { userId: user._id }
-    );
-    imageModelsForUserRetry = toImageModelInfos(userImageModels);
-  }
+  // Compute IDs for messages that were deleted (for reference)
+  const fullModel = await getUserEffectiveModelWithCapabilities(ctx, requestedModel, requestedProvider);
 
-  // Build context messages up to the retry point
-  const { contextMessages } = await buildContextMessages(ctx, {
-    conversationId,
-    personaId: effectivePersonaId,
-    includeUpToIndex: contextEndIndex,
-    modelCapabilities: {
-      supportsImages: fullModel.supportsImages ?? false,
-      supportsFiles: fullModel.supportsFiles ?? false,
+  // Create assistant message + set streaming state via combined mutation
+  const { assistantMessageId, streamingArgs } = await ctx.runMutation(
+    internal.conversations.prepareEditAndResend,
+    {
+      userId: user._id,
+      conversationId,
+      userMessageId: messages[messageIndex]!._id,
+      newContent: messages[messageIndex]!.content,
+      messageIdsToDelete: [], // Already deleted above via handleMessageDeletion
+      model: fullModel.modelId,
+      provider: fullModel.provider,
+      personaId: effectivePersonaId,
+      reasoningConfig,
     },
-    provider: fullModel.provider,
-    modelId: fullModel.modelId,
-    prefetchedMessages: messages,
-    prefetchedModelInfo: { contextLength: fullModel.contextLength },
-  });
+  );
 
-  // Execute streaming action for retry (creates a NEW assistant message)
-  const result = await executeStreamingActionForRetry(ctx, {
+  // Direct streaming call — skip scheduler hop
+  await executeStreamMessage(ctx, {
+    messageId: assistantMessageId,
     conversationId,
-    model: fullModel.modelId,
-    provider: fullModel.provider,
-    conversation: { ...conversation, personaId: effectivePersonaId },
-    contextMessages,
-    useWebSearch: true,
+    model: streamingArgs.modelId,
+    provider: streamingArgs.provider,
+    personaId: effectivePersonaId,
     reasoningConfig,
-    supportsTools: userRetrySupportsTools,
-    supportsFiles: fullModel.supportsFiles ?? false,
-    imageModels: imageModelsForUserRetry,
+    supportsTools: streamingArgs.supportsTools,
+    supportsImages: streamingArgs.supportsImages,
+    supportsFiles: streamingArgs.supportsFiles,
+    supportsReasoning: streamingArgs.supportsReasoning,
+    supportsTemperature: streamingArgs.supportsTemperature,
+    contextLength: streamingArgs.contextLength,
+    contextEndIndex: messageIndex,
     userId: user._id,
   });
 
-  return { assistantMessageId: result.assistantMessageId };
+  return { assistantMessageId };
 }
 
 // --- Shared helpers ---

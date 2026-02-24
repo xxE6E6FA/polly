@@ -48,6 +48,8 @@ export type StreamingParams = {
   userId?: Id<"users">;
   modelId?: string;
   provider?: string;
+  // Skip initialization when sendMessageHandler already set up streaming state
+  skipInitialization?: boolean;
 };
 
 export type ToolConfig = {
@@ -294,9 +296,11 @@ export async function handleToolResult(
 
 /**
  * Finalize a message that completed successfully.
+ * Uses the unified finalizeStream mutation (metadata + done + clear conversation streaming).
  */
 export async function finalizeSuccess(
   ctx: ActionCtx,
+  conversationId: Id<"conversations">,
   messageId: Id<"messages">,
   citations: Citation[],
   timing: TimingMetrics,
@@ -336,9 +340,10 @@ export async function finalizeSuccess(
         ? endTime - timing.reasoningStartTime
         : undefined;
 
-  await ctx.runMutation(internal.messages.internalUpdate, {
-    id: messageId,
-    ...(citations.length > 0 ? { citations } : {}),
+  await ctx.runMutation(internal.messages.finalizeStream, {
+    messageId,
+    conversationId,
+    citations: citations.length > 0 ? citations : undefined,
     metadata: {
       finishReason: finish.finishReason || "stop",
       tokenUsage:
@@ -382,18 +387,15 @@ export async function finalizeSuccess(
       duration,
     },
   });
-
-  await ctx.runMutation(internal.messages.updateMessageStatus, {
-    messageId,
-    status: "done",
-  });
 }
 
 /**
  * Finalize a message that was stopped by the user.
+ * Uses the unified finalizeStream mutation.
  */
 export async function finalizeUserStopped(
   ctx: ActionCtx,
+  conversationId: Id<"conversations">,
   messageId: Id<"messages">,
   buffer: StreamBuffer,
   timing: TimingMetrics,
@@ -424,8 +426,9 @@ export async function finalizeUserStopped(
             ? endTime - timing.reasoningStartTime
             : undefined;
 
-      await ctx.runMutation(internal.messages.internalUpdate, {
-        id: messageId,
+      await ctx.runMutation(internal.messages.finalizeStream, {
+        messageId,
+        conversationId,
         metadata: {
           finishReason: "user_stopped",
           stopped: true,
@@ -433,10 +436,6 @@ export async function finalizeUserStopped(
           thinkingDurationMs,
           duration,
         },
-      });
-      await ctx.runMutation(internal.messages.updateMessageStatus, {
-        messageId,
-        status: "done",
       });
     }
   } catch (e) {
