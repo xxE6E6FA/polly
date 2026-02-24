@@ -78,11 +78,3 @@ export type ApiMessageDoc = {
   createdAt: number;
   updatedAt: number;
 };
-
-export type ProcessedChunk = {
-  messages?: ApiMessageDoc[];
-  summary?: string;
-  isMetaSummary?: boolean;
-  chunkIndex?: number;
-  originalMessageCount?: number;
-};

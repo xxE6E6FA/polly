@@ -227,6 +227,11 @@ const ConversationItemComponent = ({
           // Archive first (hides from sidebar)
           await performArchive(conversation._id);
 
+          // Navigate away immediately so the user doesn't stay on the archived page
+          if (isCurrentConversation) {
+            navigate(ROUTES.HOME);
+          }
+
           managedToast.success("Conversation deleted", {
             id: `delete-${conversation._id}`,
             duration: 5000,
@@ -266,6 +271,8 @@ const ConversationItemComponent = ({
     performDelete,
     unarchiveConversation,
     managedToast,
+    isCurrentConversation,
+    navigate,
   ]);
 
   const handlePinToggle = useCallback(

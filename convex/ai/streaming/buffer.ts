@@ -12,6 +12,8 @@
 import { internal } from "../../_generated/api";
 import type { Id } from "../../_generated/dataModel";
 import type { ActionCtx } from "../../_generated/server";
+import type { Infer } from "convex/values";
+import type { messageStatusSchema } from "../../lib/schemas";
 import { DEFAULT_STREAM_CONFIG } from "../../lib/shared/stream_utils";
 
 export type FlushDeps = {
@@ -41,6 +43,9 @@ export function createStreamBuffer(deps: FlushDeps) {
   let reasoningSegmentIndex = 0;
   let reasoningSegmentStartedAt = 0;
 
+  // Pending status to fold into the next flush (e.g. first-chunk "streaming")
+  let pendingStatus: Infer<typeof messageStatusSchema> | undefined;
+
   // Shared stop state
   const state: StreamBufferState = {
     stopped: false,
@@ -53,52 +58,47 @@ export function createStreamBuffer(deps: FlushDeps) {
   // Periodic flush scheduling
   let flushTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
-  // ── Internal flush functions ──────────────────────────────────────────
-  // Should only be called via flushAll to avoid OCC conflicts.
+  // ── Unified flush ───────────────────────────────────────────────────
+  // Single mutation combines content + reasoning + optional status change.
 
-  const _flushContentInternal = async () => {
-    if (!contentBuf || state.stopped) return;
-    const toSend = contentBuf;
-    contentBuf = "";
-    try {
-      const result = await ctx.runMutation(
-        internal.messages.updateAssistantContent,
-        {
-          messageId,
-          appendContent: toSend,
-        },
-      );
-      // Check stop signal from mutation - interrupt at the source
-      if (result?.shouldStop) {
-        state.userStopped = true;
-        state.stopped = true;
-      }
-    } catch (e) {
-      console.error("Stream error: content flush failed", e);
-    }
-  };
+  const _flushInternal = async () => {
+    const hasContent = !!contentBuf;
+    const hasReasoning = !!reasoningBuf;
+    const hasStatus = !!pendingStatus;
 
-  const _flushReasoningInternal = async () => {
-    if (!reasoningBuf || state.stopped) return;
-    const toSend = reasoningBuf;
-    reasoningBuf = "";
-    try {
-      const result = await ctx.runMutation(
-        internal.messages.appendReasoningSegment,
-        {
-          messageId,
+    if ((!hasContent && !hasReasoning && !hasStatus) || state.stopped) return;
+
+    const contentToSend = hasContent ? contentBuf : undefined;
+    const reasoningToSend = hasReasoning
+      ? {
           segmentIndex: reasoningSegmentIndex,
-          text: toSend,
+          text: reasoningBuf,
           startedAt: reasoningSegmentStartedAt || Date.now(),
+        }
+      : undefined;
+    const statusToSend = pendingStatus;
+
+    // Clear buffers before the async call
+    contentBuf = "";
+    reasoningBuf = "";
+    pendingStatus = undefined;
+
+    try {
+      const result = await ctx.runMutation(
+        internal.messages.streamingFlush,
+        {
+          messageId,
+          appendContent: contentToSend,
+          appendReasoning: reasoningToSend,
+          status: statusToSend,
         },
       );
-      // Check stop signal from mutation - interrupt at the source
       if (result?.shouldStop) {
         state.userStopped = true;
         state.stopped = true;
       }
     } catch (e) {
-      console.error("Stream error: reasoning flush failed", e);
+      console.error("Stream error: unified flush failed", e);
     }
   };
 
@@ -110,8 +110,7 @@ export function createStreamBuffer(deps: FlushDeps) {
     if (isFlushing || state.stopped) return;
     isFlushing = true;
     try {
-      await _flushContentInternal();
-      await _flushReasoningInternal();
+      await _flushInternal();
     } finally {
       isFlushing = false;
     }
@@ -146,9 +145,10 @@ export function createStreamBuffer(deps: FlushDeps) {
     if (pendingFlush) {
       await pendingFlush;
     }
+    // Safety net: clear conversation streaming state.
+    // finalizeStream handles this for normal success/stop paths,
+    // but stopAll must cover error paths and edge cases.
     try {
-      // Use conditional clearing to prevent race conditions with newer streaming actions.
-      // Only clears isStreaming if this message is still the current streaming message.
       await ctx.runMutation(internal.conversations.clearStreamingForMessage, {
         conversationId,
         messageId,
@@ -203,9 +203,13 @@ export function createStreamBuffer(deps: FlushDeps) {
       reasoningSegmentStartedAt = 0;
     },
 
+    /** Set a status to be included in the next flush */
+    setPendingStatus(status: Infer<typeof messageStatusSchema>) {
+      pendingStatus = status;
+    },
+
     /**
      * Serialized flush - goes through flushAll to prevent OCC conflicts.
-     * Both flushContent and flushReasoning route through here.
      */
     flush: flushAll,
 

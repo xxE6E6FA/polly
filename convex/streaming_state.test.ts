@@ -78,14 +78,14 @@ describe("clearStreamingForMessage", () => {
     expect(ctx.db.patch).not.toHaveBeenCalled();
   });
 
-  test("does NOT clear streaming when currentStreamingMessageId is undefined", async () => {
+  test("clears stuck streaming state when currentStreamingMessageId is undefined (safety net)", async () => {
     const conversationId = "conv-123" as Id<"conversations">;
     const messageId = "msg-456" as Id<"messages">;
 
     const mockConversation = {
       _id: conversationId,
       isStreaming: true,
-      currentStreamingMessageId: undefined, // No message tracking
+      currentStreamingMessageId: undefined, // No message tracking — stuck state
     };
 
     const ctx = makeConvexCtx({
@@ -100,8 +100,11 @@ describe("clearStreamingForMessage", () => {
       messageId,
     });
 
-    // Verify patch was NOT called - undefined !== messageId
-    expect(ctx.db.patch).not.toHaveBeenCalled();
+    // Safety net: clears stuck isStreaming when no currentStreamingMessageId is set
+    expect(ctx.db.patch).toHaveBeenCalledWith("conversations", conversationId, {
+      isStreaming: false,
+      stopRequested: undefined,
+    });
   });
 
   test("handles missing conversation gracefully", async () => {

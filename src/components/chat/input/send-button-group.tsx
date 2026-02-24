@@ -1,5 +1,6 @@
-import type { Doc, Id } from "@convex/_generated/dataModel";
+import type { Id } from "@convex/_generated/dataModel";
 import { useCallback, useEffect, useState } from "react";
+import { useConversationLimit } from "@/hooks";
 import { useReasoningConfig } from "@/hooks/use-reasoning";
 import { isUserModel } from "@/lib/type-guards";
 import { cn } from "@/lib/utils";
@@ -72,6 +73,7 @@ export const SendButtonGroup = ({
   selectedModel,
 }: SendButtonGroupProps) => {
   const [reasoningConfig] = useReasoningConfig();
+  const { isAtLimit: isAtContextLimit } = useConversationLimit(conversationId);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [hasBeenEnabled, setHasBeenEnabled] = useState(false);
@@ -123,6 +125,10 @@ export const SendButtonGroup = ({
     }
     // Block if quota exhausted and using built-in model
     if (isBlockedByQuota) {
+      return true;
+    }
+    // Block if conversation context limit reached
+    if (isAtContextLimit) {
       return true;
     }
     return !canSend || isLoading || isSummarizing;

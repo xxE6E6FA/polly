@@ -1,11 +1,16 @@
-import { MESSAGE_BATCH_SIZE } from "../../../shared/constants";
+import {
+  DEFAULT_BUILTIN_MODEL_ID,
+  MESSAGE_BATCH_SIZE,
+} from "../../../shared/constants";
 import { api, internal } from "../../_generated/api";
 import type { Doc, Id } from "../../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../../_generated/server";
 import type { ImageModelInfo } from "../../ai/tools";
 import { withRetry } from "../../ai/error_handlers";
 import { toImageModelInfos } from "./helpers";
+import { createUserFileEntriesHandler } from "../file_storage/mutation_handlers";
 import { incrementUserMessageStats } from "../conversation_utils";
+import { resolveModelCapabilities } from "../capability_resolver";
 import { getUserEffectiveModelWithCapabilities } from "../model_resolution";
 import { scheduleRunAfter } from "../scheduler";
 import {
@@ -343,6 +348,12 @@ export const clearStreamingForMessageHandler = async (
     await ctx.db.patch("conversations", args.conversationId, {
       isStreaming: false,
       currentStreamingMessageId: undefined,
+      stopRequested: undefined,
+    });
+  } else if (conversation.isStreaming && !conversation.currentStreamingMessageId) {
+    // Safety net: if isStreaming is stuck with no currentStreamingMessageId, clear it
+    await ctx.db.patch("conversations", args.conversationId, {
+      isStreaming: false,
       stopRequested: undefined,
     });
   }
@@ -889,4 +900,677 @@ export async function setStreamingHandler(
     5,
     25
   );
+}
+
+// ── Model resolution for internalMutation (no auth context) ──────────
+
+/**
+ * Resolve the effective model for a user without relying on auth context.
+ * Used by prepareSendMessageHandler / prepareStartConversationHandler which
+ * run as internalMutations where getAuthUserId() returns null.
+ */
+async function resolveModelForUser(
+  ctx: MutationCtx,
+  userId: Id<"users">,
+  requestedModel?: string,
+  requestedProvider?: string,
+) {
+  let finalModel = requestedModel;
+  let finalProvider = requestedProvider;
+  let modelName: string | null = null;
+  let isFree: boolean | undefined;
+
+  if (!finalModel || !finalProvider) {
+    const selectedModel = await ctx.db
+      .query("userModels")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .filter((q) => q.eq(q.field("selected"), true))
+      .unique();
+    if (selectedModel) {
+      finalModel = finalModel || selectedModel.modelId;
+      finalProvider = finalProvider || selectedModel.provider;
+      modelName = selectedModel.name;
+      isFree = selectedModel.free;
+    }
+  }
+
+  // If we have model+provider but no name, look it up.
+  // Skip when both were explicitly provided by the caller — the name falls back
+  // to modelId anyway and is never passed to streamMessage, saving ~20-50ms.
+  if (finalModel && finalProvider && !modelName && !(requestedModel && requestedProvider)) {
+    const userModel = await ctx.db
+      .query("userModels")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .filter((q) =>
+        q.and(
+          q.eq(q.field("modelId"), finalModel!),
+          q.eq(q.field("provider"), finalProvider!),
+        ),
+      )
+      .unique();
+    if (userModel) {
+      modelName = userModel.name;
+      isFree = userModel.free;
+    }
+  }
+
+  const modelId = finalModel || DEFAULT_BUILTIN_MODEL_ID;
+  const provider = finalProvider || "google";
+
+  const capabilities = await resolveModelCapabilities(ctx, provider, modelId);
+
+  return {
+    modelId,
+    provider,
+    name: modelName || modelId,
+    supportsReasoning: capabilities.supportsReasoning,
+    supportsTemperature: capabilities.supportsTemperature,
+    supportsImages: capabilities.supportsImages,
+    supportsTools: capabilities.supportsTools,
+    supportsFiles: capabilities.supportsFiles,
+    contextLength: capabilities.contextLength,
+    maxOutputTokens: capabilities.maxOutputTokens,
+    inputModalities: capabilities.inputModalities,
+    free: isFree,
+  };
+}
+
+// ── Combined send-message mutation ────────────────────────────────────
+// Does ALL DB work for sendMessage in a single transaction (zero round-trips).
+// The action wrapper only needs to get auth + call this once.
+
+export async function prepareSendMessageHandler(
+  ctx: MutationCtx,
+  args: {
+    userId: Id<"users">;
+    conversationId: Id<"conversations">;
+    content: string;
+    model?: string;
+    provider?: string;
+    personaId?: Id<"personas">;
+    attachments?: Array<{
+      type: "image" | "pdf" | "text" | "audio" | "video";
+      url: string;
+      name: string;
+      size: number;
+      content?: string;
+      thumbnail?: string;
+      storageId?: Id<"_storage">;
+      mimeType?: string;
+    }>;
+    reasoningConfig?: { enabled: boolean };
+    temperature?: number;
+  }
+): Promise<{
+  userMessageId: Id<"messages">;
+  assistantMessageId: Id<"messages">;
+}> {
+  const { userId, conversationId } = args;
+
+  // 1. Validate conversation access (direct DB read, no round-trip)
+  const conversation = await ctx.db.get("conversations", conversationId);
+  if (!conversation || conversation.userId !== userId) {
+    throw new Error("Conversation not found or access denied");
+  }
+
+  // 2. Resolve model: look up user's selected model directly (no auth needed)
+  //    internalMutation has no auth context, so we can't use getUserEffectiveModelWithCapabilities
+  const fullModel = await resolveModelForUser(ctx, userId, args.model, args.provider);
+
+  // 3. Context limit check — block if conversation exceeds model's effective limit
+  const tokenEstimate = conversation.tokenEstimate ?? 0;
+  const contextLength = fullModel.contextLength || 80_000;
+  const effectiveLimit = Math.floor(contextLength * 0.8);
+  if (tokenEstimate >= effectiveLimit) {
+    throw new Error(
+      "This conversation has reached its context limit. Please continue in a new conversation.",
+    );
+  }
+
+  const effectivePersonaId =
+    args.personaId !== undefined ? args.personaId : conversation.personaId;
+
+  // 3. Strip large fields from attachments for storage
+  const attachmentsForStorage = args.attachments?.map(
+    ({ thumbnail, content, ...attachment }) => ({
+      ...attachment,
+      ...(thumbnail && attachment.type === "video" ? { thumbnail } : {}),
+    }),
+  );
+
+  // Rolling token estimate
+  const estimateTokens = (text: string) =>
+    Math.max(1, Math.ceil((text || "").length / 4));
+
+  // 4. Create user message (direct DB insert)
+  const userMessageId = await ctx.db.insert("messages", {
+    conversationId,
+    userId,
+    role: "user",
+    content: args.content,
+    attachments: attachmentsForStorage,
+    reasoningConfig: args.reasoningConfig,
+    model: fullModel.modelId,
+    provider: fullModel.provider,
+    isMainBranch: true,
+    createdAt: Date.now(),
+    metadata:
+      args.temperature !== undefined
+        ? { temperature: args.temperature }
+        : undefined,
+  });
+
+  // 5. Create file entries for attachments (direct DB inserts)
+  if (args.attachments && args.attachments.length > 0) {
+    await createUserFileEntriesHandler(ctx, {
+      userId,
+      messageId: userMessageId,
+      conversationId,
+      attachments: args.attachments,
+    });
+  }
+
+  // 6. Create assistant message with persona snapshot (direct DB)
+  let personaName: string | undefined;
+  let personaIcon: string | undefined;
+  if (effectivePersonaId) {
+    const persona = await ctx.db.get("personas", effectivePersonaId);
+    if (persona) {
+      personaName = persona.name;
+      personaIcon = persona.icon ?? undefined;
+    }
+  }
+
+  const assistantMessageId = await ctx.db.insert("messages", {
+    conversationId,
+    userId,
+    role: "assistant",
+    content: "",
+    status: "thinking",
+    model: fullModel.modelId,
+    provider: fullModel.provider,
+    isMainBranch: true,
+    createdAt: Date.now(),
+    personaName,
+    personaIcon,
+  });
+
+  // 7. Single conversation patch: stats + streaming state
+  // Inside a single mutation transaction, no OCC from other mutations —
+  // withRetry is unnecessary. One patch instead of three.
+  const delta = estimateTokens(args.content || "");
+  await ctx.db.patch("conversations", conversationId, {
+    tokenEstimate: Math.max(0, (conversation.tokenEstimate || 0) + delta),
+    messageCount: (conversation.messageCount || 0) + 2, // user + assistant
+    isStreaming: true,
+    currentStreamingMessageId: assistantMessageId,
+    stopRequested: undefined,
+    updatedAt: Date.now(),
+  });
+
+  // Increment user message stats (pass free flag to skip redundant model lookup)
+  if (fullModel.modelId && fullModel.provider) {
+    await incrementUserMessageStats(ctx, userId, fullModel.modelId, fullModel.provider, undefined, {
+      countTowardsMonthly: Boolean(fullModel.free),
+    });
+  }
+
+  // 8. Schedule streaming action — context building happens inside streamMessage
+  const supportsTools = fullModel.supportsTools ?? false;
+  await ctx.scheduler.runAfter(0, internal.streaming_actions.streamMessage, {
+    messageId: assistantMessageId,
+    conversationId,
+    model: fullModel.modelId,
+    provider: fullModel.provider,
+    personaId: effectivePersonaId,
+    reasoningConfig: args.reasoningConfig,
+    supportsTools,
+    supportsImages: fullModel.supportsImages ?? false,
+    supportsFiles: fullModel.supportsFiles ?? false,
+    supportsReasoning: fullModel.supportsReasoning ?? false,
+    supportsTemperature: fullModel.supportsTemperature ?? undefined,
+    contextLength: fullModel.contextLength,
+    userId,
+  });
+
+  return { userMessageId, assistantMessageId };
+}
+
+// ── Combined start-conversation mutation ──────────────────────────────
+
+export async function prepareStartConversationHandler(
+  ctx: MutationCtx,
+  args: {
+    userId: Id<"users">;
+    clientId: string;
+    content: string;
+    personaId?: Id<"personas">;
+    profileId?: Id<"profiles">;
+    attachments?: Array<{
+      type: "image" | "pdf" | "text" | "audio" | "video";
+      url: string;
+      name: string;
+      size: number;
+      content?: string;
+      thumbnail?: string;
+      storageId?: Id<"_storage">;
+      mimeType?: string;
+    }>;
+    model?: string;
+    provider?: string;
+    reasoningConfig?: { enabled: boolean };
+    temperature?: number;
+  }
+): Promise<{
+  conversationId: Id<"conversations">;
+  userMessageId: Id<"messages">;
+  assistantMessageId: Id<"messages">;
+}> {
+  const { userId } = args;
+
+  // 1. Verify user exists
+  const user = await ctx.db.get("users", userId);
+  if (!user) throw new Error("User not found");
+
+  // 2. Create conversation
+  const conversationId = await ctx.db.insert("conversations", {
+    title: "New Conversation",
+    userId,
+    personaId: args.personaId,
+    profileId: args.profileId,
+    clientId: args.clientId,
+    isStreaming: false,
+    isArchived: false,
+    isPinned: false,
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+    rootConversationId: undefined as unknown as Id<"conversations">,
+  });
+
+  // Set rootConversationId to self + update user count in minimal patches
+  await ctx.db.patch("conversations", conversationId, {
+    rootConversationId: conversationId,
+  });
+  await ctx.db.patch("users", userId, {
+    conversationCount: Math.max(0, (user.conversationCount || 0) + 1),
+  });
+
+  // 3. Resolve model: direct DB lookup (internalMutation has no auth)
+  const fullModel = await resolveModelForUser(ctx, userId, args.model, args.provider
+  );
+
+  // 4. Strip large fields from attachments
+  const attachmentsForStorage = args.attachments?.map(
+    ({ thumbnail, content, ...attachment }) => ({
+      ...attachment,
+      ...(thumbnail && attachment.type === "video" ? { thumbnail } : {}),
+    }),
+  );
+
+  // Rolling token estimate
+  const estimateTokens = (text: string) =>
+    Math.max(1, Math.ceil((text || "").length / 4));
+
+  // 5. Create user message
+  const userMessageId = await ctx.db.insert("messages", {
+    conversationId,
+    userId,
+    role: "user",
+    content: args.content,
+    attachments: attachmentsForStorage,
+    reasoningConfig: args.reasoningConfig,
+    model: fullModel.modelId,
+    provider: fullModel.provider,
+    isMainBranch: true,
+    createdAt: Date.now(),
+    metadata:
+      args.temperature !== undefined
+        ? { temperature: args.temperature }
+        : undefined,
+  });
+
+  // 6. Create file entries
+  if (args.attachments && args.attachments.length > 0) {
+    await createUserFileEntriesHandler(ctx, {
+      userId,
+      messageId: userMessageId,
+      conversationId,
+      attachments: args.attachments,
+    });
+  }
+
+  // 7. Create assistant message with persona snapshot
+  let personaName: string | undefined;
+  let personaIcon: string | undefined;
+  if (args.personaId) {
+    const persona = await ctx.db.get("personas", args.personaId);
+    if (persona) {
+      personaName = persona.name;
+      personaIcon = persona.icon ?? undefined;
+    }
+  }
+
+  const assistantMessageId = await ctx.db.insert("messages", {
+    conversationId,
+    userId,
+    role: "assistant",
+    content: "",
+    status: "thinking",
+    model: fullModel.modelId,
+    provider: fullModel.provider,
+    isMainBranch: true,
+    createdAt: Date.now(),
+    personaName,
+    personaIcon,
+  });
+
+  // 8. Single conversation patch: stats + streaming state
+  const delta = estimateTokens(args.content || "");
+  await ctx.db.patch("conversations", conversationId, {
+    tokenEstimate: delta,
+    messageCount: 2, // user + assistant
+    isStreaming: true,
+    currentStreamingMessageId: assistantMessageId,
+    updatedAt: Date.now(),
+  });
+
+  // Increment user stats (pass free flag to skip redundant model lookup)
+  if (fullModel.modelId && fullModel.provider) {
+    await incrementUserMessageStats(ctx, userId, fullModel.modelId, fullModel.provider, undefined, {
+      countTowardsMonthly: Boolean(fullModel.free),
+    });
+  }
+
+  // 9. Schedule streaming action
+  const supportsTools = fullModel.supportsTools ?? false;
+  await ctx.scheduler.runAfter(0, internal.streaming_actions.streamMessage, {
+    messageId: assistantMessageId,
+    conversationId,
+    model: fullModel.modelId,
+    provider: fullModel.provider,
+    personaId: args.personaId,
+    reasoningConfig: args.reasoningConfig,
+    supportsTools,
+    supportsImages: fullModel.supportsImages ?? false,
+    supportsFiles: fullModel.supportsFiles ?? false,
+    supportsReasoning: fullModel.supportsReasoning ?? false,
+    supportsTemperature: fullModel.supportsTemperature ?? undefined,
+    contextLength: fullModel.contextLength,
+    userId,
+  });
+
+  // 10. Schedule title generation
+  await ctx.scheduler.runAfter(100, api.titleGeneration.generateTitle, {
+    conversationId,
+    message: args.content,
+  });
+
+  return { conversationId, userMessageId, assistantMessageId };
+}
+
+// ── Combined assistant-retry mutation ─────────────────────────────────
+// Batches all DB work for assistant retry into a single transaction,
+// eliminating 4+N sequential round-trips.
+
+export async function prepareAssistantRetryHandler(
+  ctx: MutationCtx,
+  args: {
+    userId: Id<"users">;
+    conversationId: Id<"conversations">;
+    targetMessageId: Id<"messages">;
+    messageIdsToDelete: Id<"messages">[];
+    model?: string;
+    provider?: string;
+    reasoningConfig?: { enabled: boolean };
+    previousUserMessageIndex: number;
+    personaId?: Id<"personas">;
+  },
+): Promise<{
+  assistantMessageId: Id<"messages">;
+  streamingArgs: {
+    modelId: string;
+    provider: string;
+    supportsTools: boolean;
+    supportsImages: boolean;
+    supportsFiles: boolean;
+    supportsReasoning: boolean;
+    supportsTemperature?: boolean;
+    contextLength?: number;
+    contextEndIndex: number;
+  };
+}> {
+  const { userId, conversationId, targetMessageId } = args;
+
+  // 1. Validate conversation access
+  const conversation = await ctx.db.get("conversations", conversationId);
+  if (!conversation || conversation.userId !== userId) {
+    throw new Error("Conversation not found or access denied");
+  }
+
+  // 2. Resolve model capabilities
+  const fullModel = await resolveModelForUser(ctx, userId, args.model, args.provider);
+
+  // 3. Delete subsequent messages with proper cleanup
+  let deletedMessageCount = 0;
+  let deletedUserMessageCount = 0;
+  for (const msgId of args.messageIdsToDelete) {
+    const msg = await ctx.db.get("messages", msgId);
+    if (msg) {
+      deletedMessageCount++;
+      if (msg.role === "user") {
+        deletedUserMessageCount++;
+      }
+      // Clean up orphaned storage files
+      if (msg.attachments) {
+        for (const att of msg.attachments as Array<{ storageId?: string }>) {
+          if (att.storageId) {
+            try {
+              await ctx.storage.delete(att.storageId as Id<"_storage">);
+            } catch {
+              // Storage may already be deleted
+            }
+          }
+        }
+      }
+      await ctx.db.delete(msgId);
+    }
+  }
+
+  // Update conversation messageCount
+  if (deletedMessageCount > 0) {
+    await ctx.db.patch("conversations", conversationId, {
+      messageCount: Math.max(0, (conversation.messageCount || 0) - deletedMessageCount),
+    });
+  }
+
+  // Update user totalMessageCount
+  if (deletedUserMessageCount > 0) {
+    const user = await ctx.db.get("users", userId);
+    if (user) {
+      await ctx.db.patch("users", userId, {
+        totalMessageCount: Math.max(0, (user.totalMessageCount || 0) - deletedUserMessageCount),
+      });
+    }
+  }
+
+  // 4. Reset the target assistant message
+  await ctx.db.patch("messages", targetMessageId, {
+    content: "",
+    reasoning: "",
+    citations: [],
+    toolCalls: [],
+    attachments: [],
+    reasoningParts: [],
+    model: fullModel.modelId,
+    provider: fullModel.provider,
+    status: "thinking",
+    metadata: undefined,
+  });
+
+  // 5. Set conversation streaming state
+  await ctx.db.patch("conversations", conversationId, {
+    isStreaming: true,
+    currentStreamingMessageId: targetMessageId,
+    stopRequested: undefined,
+    updatedAt: Date.now(),
+  });
+
+  // 6. Return streaming args for the caller to invoke directly
+  return {
+    assistantMessageId: targetMessageId,
+    streamingArgs: {
+      modelId: fullModel.modelId,
+      provider: fullModel.provider,
+      supportsTools: fullModel.supportsTools ?? false,
+      supportsImages: fullModel.supportsImages ?? false,
+      supportsFiles: fullModel.supportsFiles ?? false,
+      supportsReasoning: fullModel.supportsReasoning ?? false,
+      supportsTemperature: fullModel.supportsTemperature ?? undefined,
+      contextLength: fullModel.contextLength,
+      contextEndIndex: args.previousUserMessageIndex,
+    },
+  };
+}
+
+// ── Combined edit-and-resend mutation ─────────────────────────────────
+// Batches all DB work for edit-and-resend into a single transaction,
+// eliminating 5-7 sequential round-trips.
+
+export async function prepareEditAndResendHandler(
+  ctx: MutationCtx,
+  args: {
+    userId: Id<"users">;
+    conversationId: Id<"conversations">;
+    userMessageId: Id<"messages">;
+    newContent: string;
+    messageIdsToDelete: Id<"messages">[];
+    model?: string;
+    provider?: string;
+    personaId?: Id<"personas">;
+    reasoningConfig?: { enabled: boolean };
+  },
+): Promise<{
+  assistantMessageId: Id<"messages">;
+  streamingArgs: {
+    modelId: string;
+    provider: string;
+    supportsTools: boolean;
+    supportsImages: boolean;
+    supportsFiles: boolean;
+    supportsReasoning: boolean;
+    supportsTemperature?: boolean;
+    contextLength?: number;
+  };
+}> {
+  const { userId, conversationId, userMessageId } = args;
+
+  // 1. Validate conversation access
+  const conversation = await ctx.db.get("conversations", conversationId);
+  if (!conversation || conversation.userId !== userId) {
+    throw new Error("Conversation not found or access denied");
+  }
+
+  // 2. Update user message content
+  await ctx.db.patch("messages", userMessageId, {
+    content: args.newContent,
+  });
+
+  // 3. Delete subsequent messages with proper cleanup
+  let deletedMsgCount = 0;
+  let deletedUserMsgCount = 0;
+  for (const msgId of args.messageIdsToDelete) {
+    const msg = await ctx.db.get("messages", msgId);
+    if (msg) {
+      deletedMsgCount++;
+      if (msg.role === "user") {
+        deletedUserMsgCount++;
+      }
+      // Clean up orphaned storage files
+      if (msg.attachments) {
+        for (const att of msg.attachments as Array<{ storageId?: string }>) {
+          if (att.storageId) {
+            try {
+              await ctx.storage.delete(att.storageId as Id<"_storage">);
+            } catch {
+              // Storage may already be deleted
+            }
+          }
+        }
+      }
+      await ctx.db.delete(msgId);
+    }
+  }
+
+  // Update conversation messageCount
+  if (deletedMsgCount > 0) {
+    // Re-read conversation since it may have been patched above
+    const freshConversation = await ctx.db.get("conversations", conversationId);
+    if (freshConversation) {
+      await ctx.db.patch("conversations", conversationId, {
+        messageCount: Math.max(0, (freshConversation.messageCount || 0) - deletedMsgCount),
+      });
+    }
+  }
+
+  // Update user totalMessageCount
+  if (deletedUserMsgCount > 0) {
+    const user = await ctx.db.get("users", userId);
+    if (user) {
+      await ctx.db.patch("users", userId, {
+        totalMessageCount: Math.max(0, (user.totalMessageCount || 0) - deletedUserMsgCount),
+      });
+    }
+  }
+
+  // 4. Resolve model capabilities
+  const fullModel = await resolveModelForUser(ctx, userId, args.model, args.provider);
+
+  // 5. Persona snapshot for the new assistant message
+  const effectivePersonaId = args.personaId ?? conversation.personaId;
+  let personaName: string | undefined;
+  let personaIcon: string | undefined;
+  if (effectivePersonaId) {
+    const persona = await ctx.db.get("personas", effectivePersonaId);
+    if (persona) {
+      personaName = persona.name;
+      personaIcon = persona.icon ?? undefined;
+    }
+  }
+
+  // 6. Create new assistant message
+  const assistantMessageId = await ctx.db.insert("messages", {
+    conversationId,
+    userId,
+    role: "assistant",
+    content: "",
+    status: "thinking",
+    model: fullModel.modelId,
+    provider: fullModel.provider,
+    isMainBranch: true,
+    createdAt: Date.now(),
+    personaName,
+    personaIcon,
+  });
+
+  // 7. Set conversation streaming state
+  await ctx.db.patch("conversations", conversationId, {
+    isStreaming: true,
+    currentStreamingMessageId: assistantMessageId,
+    stopRequested: undefined,
+    updatedAt: Date.now(),
+  });
+
+  return {
+    assistantMessageId,
+    streamingArgs: {
+      modelId: fullModel.modelId,
+      provider: fullModel.provider,
+      supportsTools: fullModel.supportsTools ?? false,
+      supportsImages: fullModel.supportsImages ?? false,
+      supportsFiles: fullModel.supportsFiles ?? false,
+      supportsReasoning: fullModel.supportsReasoning ?? false,
+      supportsTemperature: fullModel.supportsTemperature ?? undefined,
+      contextLength: fullModel.contextLength,
+    },
+  };
 }

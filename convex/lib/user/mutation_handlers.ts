@@ -141,16 +141,6 @@ export async function clearAllUserDataKeepAccount(
       await ctx.db.delete("sharedConversations", shared._id);
     }
 
-    const summaries = await ctx.db
-      .query("conversationSummaries")
-      .withIndex("by_conversation_updated", q =>
-        q.eq("conversationId", conversationId)
-      )
-      .collect();
-    for (const summary of summaries) {
-      await ctx.db.delete("conversationSummaries", summary._id);
-    }
-
     const favorites = await ctx.db
       .query("messageFavorites")
       .withIndex("by_user_conversation", q =>

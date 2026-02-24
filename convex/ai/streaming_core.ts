@@ -51,9 +51,12 @@ export async function streamLLMToMessage({
   userId,
   modelId,
   provider,
+  skipInitialization,
 }: StreamingParams) {
   // ── Initialize ────────────────────────────────────────────────────────
-  await initializeStreaming(ctx, conversationId, messageId);
+  if (!skipInitialization) {
+    await initializeStreaming(ctx, conversationId, messageId);
+  }
 
   const exaApiKey = process.env.EXA_API_KEY;
   const citationsRef: { value: Citation[] } = { value: [] };
@@ -84,7 +87,7 @@ export async function streamLLMToMessage({
     messageId,
   );
 
-  // Promote to streaming once first chunk arrives
+  // Promote to streaming once first chunk arrives (folded into first flush)
   let setStreaming = false;
 
   try {
@@ -160,10 +163,8 @@ export async function streamLLMToMessage({
 
         if (!setStreaming) {
           setStreaming = true;
-          await ctx.runMutation(internal.messages.updateMessageStatus, {
-            messageId,
-            status: "streaming",
-          });
+          // Fold "streaming" status into the next buffer flush instead of a separate mutation
+          buffer.setPendingStatus("streaming");
         }
 
         // Handle tool call
@@ -243,6 +244,7 @@ export async function streamLLMToMessage({
         await buffer.flush();
         await finalizeSuccess(
           ctx,
+          conversationId,
           messageId,
           citationsRef.value,
           timing,
@@ -262,7 +264,9 @@ export async function streamLLMToMessage({
       },
     });
 
-    // If no chunks arrive quickly, ensure UI doesn't stay in "thinking"
+    // If no chunks arrive quickly, ensure UI doesn't stay in "thinking".
+    // Use an immediate mutation (not pending buffer) so the status update
+    // is guaranteed before consumeStream() starts.
     if (!setStreaming) {
       try {
         await ctx.runMutation(internal.messages.updateMessageStatus, {
@@ -287,7 +291,7 @@ export async function streamLLMToMessage({
     });
   } finally {
     if (buffer.state.userStopped) {
-      await finalizeUserStopped(ctx, messageId, buffer, timing);
+      await finalizeUserStopped(ctx, conversationId, messageId, buffer, timing);
     }
     await buffer.stopAll();
   }

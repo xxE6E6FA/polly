@@ -1,11 +1,8 @@
 import type { Doc, Id } from "../../_generated/dataModel";
 import type { ActionCtx } from "../../_generated/server";
 import { api, internal } from "../../_generated/api";
-import {
-  buildContextMessages,
-} from "../conversation_utils";
-import { getUserEffectiveModelWithCapabilities } from "../model_resolution";
 import { getAuthenticatedUserWithDataForAction } from "../shared_utils";
+import { executeStreamMessage } from "../../streaming_actions";
 
 export async function editAndResendMessageHandler(
   ctx: ActionCtx,
@@ -23,37 +20,32 @@ export async function editAndResendMessageHandler(
     webSearchMaxResults?: number;
   }
 ): Promise<{ assistantMessageId: Id<"messages"> }> {
-  // Get the message to find the conversation
-  const message = await ctx.runQuery(api.messages.getById, {
-    id: args.messageId,
-  });
+  // Parallel: get message, auth, and conversation
+  const [message, { user }] = await Promise.all([
+    ctx.runQuery(api.messages.getById, { id: args.messageId }),
+    getAuthenticatedUserWithDataForAction(ctx),
+  ]);
+
   if (!message) {
     throw new Error("Message not found");
   }
-
   if (message.role !== "user") {
     throw new Error("Can only edit user messages");
   }
 
-  // Get authenticated user
-  const { user } = await getAuthenticatedUserWithDataForAction(ctx);
-
-  // Validate that the conversation belongs to the authenticated user
   const conversation = await ctx.runQuery(api.conversations.get, {
     id: message.conversationId,
   });
   if (!conversation) {
     throw new Error("Conversation not found or access denied");
   }
-
-  // Additional security check: ensure the conversation belongs to the authenticated user
   if (conversation.userId !== user._id) {
     throw new Error(
       "Access denied: conversation does not belong to authenticated user"
     );
   }
 
-  // Get all messages for the conversation
+  // Get all messages to compute which ones to delete
   const messages = await ctx.runQuery(api.messages.getAllInConversation, {
     conversationId: message.conversationId,
   });
@@ -65,34 +57,16 @@ export async function editAndResendMessageHandler(
     throw new Error("Message not found");
   }
 
-  // IMPORTANT: Preserve attachments by updating the existing user message
-  await ctx.runMutation(internal.messages.updateContent, {
-    messageId: args.messageId,
-    content: args.newContent,
-  });
-
-  // Delete only messages AFTER the edited message
-  const messagesToDelete = messages.slice(messageIndex + 1);
-  const messageIdsToDelete = messagesToDelete
-    .filter((msg: Doc<"messages">) => msg.role !== "context")
-    .map((msg: Doc<"messages">) => msg._id);
-
-  if (messageIdsToDelete.length > 0) {
-    await ctx.runMutation(api.messages.removeMultiple, {
-      ids: messageIdsToDelete,
-    });
-  }
-
   // Choose model/provider: prefer the original model stored on the edited message
-  // so that we preserve image-capable models used for this branch. Fallback to
-  // client-provided overrides only when the message did not record a model.
   const preferredModelId = message.model || args.model;
   const preferredProvider = message.provider || args.provider;
   const normalizedProvider = preferredProvider?.toLowerCase();
 
+  // Handle Replicate (image generation) — keep existing path
   if (normalizedProvider === "replicate") {
     const prompt = args.newContent;
 
+    const messagesToDelete = messages.slice(messageIndex + 1);
     const subsequentAssistant = messagesToDelete.find(
       (
         msg
@@ -112,12 +86,7 @@ export async function editAndResendMessageHandler(
     }
 
     const allowedParamKeys = new Set([
-      "aspectRatio",
-      "steps",
-      "guidanceScale",
-      "seed",
-      "negativePrompt",
-      "count",
+      "aspectRatio", "steps", "guidanceScale", "seed", "negativePrompt", "count",
     ]);
 
     const sanitizedParams = previousMetadata?.params
@@ -137,6 +106,22 @@ export async function editAndResendMessageHandler(
           count?: number;
         })
       : undefined;
+
+    // Update content
+    await ctx.runMutation(internal.messages.updateContent, {
+      messageId: args.messageId,
+      content: args.newContent,
+    });
+
+    // Delete subsequent messages
+    const messageIdsToDelete = messagesToDelete
+      .filter((msg: Doc<"messages">) => msg.role !== "context")
+      .map((msg: Doc<"messages">) => msg._id);
+    if (messageIdsToDelete.length > 0) {
+      await ctx.runMutation(api.messages.removeMultiple, {
+        ids: messageIdsToDelete,
+      });
+    }
 
     if (
       message.model !== candidateModel ||
@@ -202,44 +187,44 @@ export async function editAndResendMessageHandler(
     return { assistantMessageId };
   }
 
-  // Get user's effective model using centralized resolution with full capabilities
-  const fullModel = await getUserEffectiveModelWithCapabilities(
-    ctx,
-    preferredModelId,
-    preferredProvider
+  // Non-Replicate path: use combined mutation + direct streaming
+  const messageIdsToDelete = messages
+    .slice(messageIndex + 1)
+    .filter((msg: Doc<"messages">) => msg.role !== "context")
+    .map((msg: Doc<"messages">) => msg._id);
+
+  // Single combined mutation: update content, delete subsequent, create assistant, set streaming
+  const { assistantMessageId, streamingArgs } = await ctx.runMutation(
+    internal.conversations.prepareEditAndResend,
+    {
+      userId: user._id,
+      conversationId: message.conversationId,
+      userMessageId: args.messageId,
+      newContent: args.newContent,
+      messageIdsToDelete,
+      model: preferredModelId,
+      provider: preferredProvider,
+      personaId: conversation.personaId,
+      reasoningConfig: args.reasoningConfig,
+    },
   );
 
-  // Build context messages including the edited message, passing pre-fetched data
-  await buildContextMessages(ctx, {
+  // Direct streaming call — skip scheduler hop (~50-200ms savings)
+  await executeStreamMessage(ctx, {
+    messageId: assistantMessageId,
     conversationId: message.conversationId,
+    model: streamingArgs.modelId,
+    provider: streamingArgs.provider,
     personaId: conversation.personaId,
-    modelCapabilities: {
-      supportsImages: fullModel.supportsImages ?? false,
-      supportsFiles: fullModel.supportsFiles ?? false,
-    },
-    provider: fullModel.provider,
-    modelId: fullModel.modelId,
-    prefetchedMessages: messages, // Pass already-fetched messages
-    prefetchedModelInfo: { contextLength: fullModel.contextLength },
+    reasoningConfig: args.reasoningConfig,
+    supportsTools: streamingArgs.supportsTools,
+    supportsImages: streamingArgs.supportsImages,
+    supportsFiles: streamingArgs.supportsFiles,
+    supportsReasoning: streamingArgs.supportsReasoning,
+    supportsTemperature: streamingArgs.supportsTemperature,
+    contextLength: streamingArgs.contextLength,
+    userId: user._id,
   });
 
-  // Create new assistant message for streaming
-  const assistantMessageId = await ctx.runMutation(api.messages.create, {
-    conversationId: message.conversationId,
-    role: "assistant",
-    content: "",
-    model: fullModel.modelId,
-    provider: fullModel.provider,
-    status: "thinking",
-  });
-
-  // Mark conversation as streaming
-  await ctx.runMutation(internal.conversations.internalPatch, {
-    id: message.conversationId,
-    updates: { isStreaming: true },
-  });
-
-  return {
-    assistantMessageId,
-  };
+  return { assistantMessageId };
 }

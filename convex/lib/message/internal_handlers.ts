@@ -1176,6 +1176,152 @@ export async function updateImageGenerationHandler(
   }
 }
 
+/**
+ * Unified streaming flush: append content + reasoning + optional status change in one DB write.
+ * Replaces separate updateAssistantContent + appendReasoningSegment calls during each flush cycle.
+ */
+export async function streamingFlushHandler(
+  ctx: MutationCtx,
+  args: {
+    messageId: Id<"messages">;
+    appendContent?: string;
+    appendReasoning?: {
+      segmentIndex: number;
+      text: string;
+      startedAt: number;
+    };
+    status?: Infer<typeof messageStatusSchema>;
+  }
+) {
+  const { messageId, appendContent, appendReasoning, status } = args;
+
+  // Nothing to do
+  if (!appendContent && !appendReasoning && !status) {
+    return { shouldStop: false };
+  }
+
+  return await withRetry(
+    async () => {
+      const message = await ctx.db.get("messages", messageId);
+      if (!message) {
+        return { shouldStop: false };
+      }
+
+      // Don't overwrite error or done status
+      if (message.status === "error" || message.status === "done") {
+        return { shouldStop: false };
+      }
+
+      const updates: Partial<Doc<"messages">> = {};
+
+      // Append content
+      if (appendContent) {
+        updates.content = (message.content || "") + appendContent;
+      }
+
+      // Append reasoning segment
+      if (appendReasoning) {
+        const parts = message.reasoningParts ?? [];
+        const { segmentIndex, text, startedAt } = appendReasoning;
+
+        if (segmentIndex < parts.length) {
+          const existing = parts[segmentIndex];
+          if (existing) {
+            parts[segmentIndex] = {
+              text: existing.text + text,
+              startedAt: existing.startedAt,
+            };
+          }
+        } else {
+          parts.push({ text, startedAt });
+        }
+
+        updates.reasoningParts = parts;
+        // Keep flat reasoning string in sync for backward compat
+        updates.reasoning = parts.map(p => p.text).join("\n\n");
+      }
+
+      // Optional status change (e.g. first-chunk "streaming")
+      if (status) {
+        updates.status = status;
+      }
+
+      await ctx.db.patch("messages", messageId, updates);
+
+      const conversation = await ctx.db.get(
+        "conversations",
+        message.conversationId
+      );
+      return { shouldStop: !!conversation?.stopRequested };
+    },
+    5,
+    25
+  );
+}
+
+/**
+ * Unified finalization: set metadata + status "done" + clear conversation streaming in one mutation.
+ * Replaces the 3 separate mutations (internalUpdate metadata + updateMessageStatus "done" + clearStreamingForMessage).
+ */
+export async function finalizeStreamHandler(
+  ctx: MutationCtx,
+  args: {
+    messageId: Id<"messages">;
+    conversationId: Id<"conversations">;
+    metadata: Infer<typeof extendedMessageMetadataSchema>;
+    citations?: Infer<typeof webCitationSchema>[];
+  }
+) {
+  const { messageId, conversationId, metadata, citations } = args;
+
+  // Update message: metadata + status "done" + optional citations
+  await withRetry(async () => {
+    const message = await ctx.db.get("messages", messageId);
+    if (!message) return;
+
+    // Don't overwrite error status
+    if (message.status === "error") return;
+
+    const updates: Partial<Doc<"messages">> = {
+      status: "done",
+      metadata: {
+        ...message.metadata,
+        ...metadata,
+        finishReason: metadata.finishReason || "stop",
+      },
+    };
+
+    if (citations && citations.length > 0) {
+      updates.citations = citations;
+    }
+
+    await ctx.db.patch("messages", messageId, updates);
+  });
+
+  // Clear conversation streaming state (race-safe)
+  await withRetry(async () => {
+    const conversation = await ctx.db.get("conversations", conversationId);
+    if (!conversation) return;
+
+    if (conversation.currentStreamingMessageId === messageId) {
+      await ctx.db.patch("conversations", conversationId, {
+        isStreaming: false,
+        currentStreamingMessageId: undefined,
+        stopRequested: undefined,
+      });
+    } else if (
+      conversation.isStreaming &&
+      !conversation.currentStreamingMessageId
+    ) {
+      // Safety net: clear stuck streaming state
+      await ctx.db.patch("conversations", conversationId, {
+        isStreaming: false,
+        stopRequested: undefined,
+      });
+    }
+  });
+}
+
 export async function getByReplicateIdHandler(
   ctx: QueryCtx,
   args: { replicateId: string }

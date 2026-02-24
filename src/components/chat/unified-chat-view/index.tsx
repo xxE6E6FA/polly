@@ -518,7 +518,10 @@ export const UnifiedChatView = memo(
                     onUnarchive={handleUnarchive}
                   />
 
-                  <WarningBanners hasExistingMessages={messages.length > 0} />
+                  <WarningBanners
+                    hasExistingMessages={messages.length > 0}
+                    conversationId={conversationId}
+                  />
 
                   <footer className="relative">
                     <button

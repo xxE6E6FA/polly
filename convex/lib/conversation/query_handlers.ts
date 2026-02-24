@@ -2,6 +2,7 @@ import { getAuthUserId } from "../auth";
 import type { Id } from "../../_generated/dataModel";
 import type { QueryCtx } from "../../_generated/server";
 import { checkConversationAccess } from "../conversation_utils";
+import { resolveModelCapabilities } from "../capability_resolver";
 import {
   createEmptyPaginationResult,
   validatePaginationOpts,
@@ -588,4 +589,55 @@ export async function isStreamingHandler(
   args: { conversationId: Id<"conversations"> }
 ) {
   return await isConversationStreaming(ctx, args.conversationId);
+}
+
+const DEFAULT_CONTEXT_FALLBACK = 80_000;
+const CONTEXT_BUFFER_FACTOR = 0.8;
+const WARNING_THRESHOLD_FACTOR = 0.9;
+
+export async function getConversationLimitStatusHandler(
+  ctx: QueryCtx,
+  args: { conversationId: Id<"conversations"> }
+) {
+  const userId = await getAuthUserId(ctx);
+  if (!userId) {
+    return null;
+  }
+
+  const conversation = await ctx.db.get("conversations", args.conversationId);
+  if (!conversation || conversation.userId !== userId) {
+    return null;
+  }
+
+  // Resolve the user's selected model to get its context length
+  const selectedModel = await ctx.db
+    .query("userModels")
+    .withIndex("by_user", (q) => q.eq("userId", userId))
+    .filter((q) => q.eq(q.field("selected"), true))
+    .unique();
+
+  let contextLength = DEFAULT_CONTEXT_FALLBACK;
+  if (selectedModel) {
+    const capabilities = await resolveModelCapabilities(
+      ctx,
+      selectedModel.provider,
+      selectedModel.modelId,
+    );
+    contextLength = capabilities.contextLength || DEFAULT_CONTEXT_FALLBACK;
+  }
+
+  const tokenEstimate = conversation.tokenEstimate ?? 0;
+  const effectiveLimit = Math.floor(contextLength * CONTEXT_BUFFER_FACTOR);
+  const warningThreshold = Math.floor(effectiveLimit * WARNING_THRESHOLD_FACTOR);
+  const percentUsed = effectiveLimit > 0
+    ? Math.min(100, Math.round((tokenEstimate / effectiveLimit) * 100))
+    : 0;
+
+  return {
+    tokenEstimate,
+    effectiveLimit,
+    isAtLimit: tokenEstimate >= effectiveLimit,
+    isNearLimit: tokenEstimate >= warningThreshold && tokenEstimate < effectiveLimit,
+    percentUsed,
+  };
 }

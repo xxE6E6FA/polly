@@ -180,9 +180,6 @@ describe("conversation_search.searchUserConversations", () => {
             if (table === "messages") {
               return createSearchQuery([]);
             }
-            if (table === "conversationSummaries") {
-              return createSearchQuery([]);
-            }
             return createSearchQuery([]);
           }),
         },
@@ -281,9 +278,6 @@ describe("conversation_search.searchUserConversations", () => {
             }
             if (table === "messages") {
               return createSearchQuery(messageMatches);
-            }
-            if (table === "conversationSummaries") {
-              return createSearchQuery([]);
             }
             return createSearchQuery([]);
           }),
@@ -415,9 +409,6 @@ describe("conversation_search.searchUserConversations", () => {
             if (table === "messages") {
               return createSearchQuery(messageMatches);
             }
-            if (table === "conversationSummaries") {
-              return createSearchQuery([]);
-            }
             return createSearchQuery([]);
           }),
           get: mock(() => Promise.resolve(mockConversation1)),
@@ -461,9 +452,6 @@ describe("conversation_search.searchUserConversations", () => {
             }
             if (table === "messages") {
               return createSearchQuery(messageMatches);
-            }
-            if (table === "conversationSummaries") {
-              return createSearchQuery([]);
             }
             return createSearchQuery([]);
           }),
@@ -510,9 +498,6 @@ describe("conversation_search.searchUserConversations", () => {
             if (table === "messages") {
               return createSearchQuery(messageMatches);
             }
-            if (table === "conversationSummaries") {
-              return createSearchQuery([]);
-            }
             return createSearchQuery([]);
           }),
           get: mock(() => Promise.resolve(mockConversation2)),
@@ -546,9 +531,6 @@ describe("conversation_search.searchUserConversations", () => {
             if (table === "conversations") {
               return createSearchQuery(titleMatches);
             }
-            if (table === "conversationSummaries") {
-              return createSearchQuery([]);
-            }
             return createSearchQuery([]);
           }),
         },
@@ -570,47 +552,7 @@ describe("conversation_search.searchUserConversations", () => {
   });
 
   describe("context building", () => {
-    test("includes conversation summary as context when available", async () => {
-      const titleMatches = [mockConversation1];
-      const summaries = [
-        {
-          conversationId: "conv-1" as Id<"conversations">,
-          chunkIndex: 0,
-          summary: "This conversation discussed React hooks patterns",
-        },
-      ];
-
-      const ctx = makeConvexCtx({
-        db: {
-          query: mock(table => {
-            if (table === "conversations") {
-              return createSearchQuery(titleMatches);
-            }
-            if (table === "conversationSummaries") {
-              return createSearchQuery(summaries);
-            }
-            if (table === "messages") {
-              return createSearchQuery([]);
-            }
-            return createSearchQuery([]);
-          }),
-        },
-      });
-
-      const result = await searchUserConversationsHandler(
-        ctx as unknown as QueryCtx,
-        {
-          userId,
-          query: "React",
-          limit: 10,
-        }
-      );
-
-      expect(result).toHaveLength(1);
-      expect(result[0].relevantContext).toContain("React hooks patterns");
-    });
-
-    test("falls back to recent messages when no summary exists", async () => {
+    test("includes recent messages as context", async () => {
       const titleMatches = [mockConversation1];
       const recentMessages = [
         {
@@ -634,9 +576,6 @@ describe("conversation_search.searchUserConversations", () => {
           query: mock(table => {
             if (table === "conversations") {
               return createSearchQuery(titleMatches);
-            }
-            if (table === "conversationSummaries") {
-              return createSearchQuery([]); // No summaries
             }
             if (table === "messages") {
               return createSearchQuery(recentMessages);
@@ -669,9 +608,6 @@ describe("conversation_search.searchUserConversations", () => {
           query: mock(table => {
             if (table === "conversations") {
               return createSearchQuery(titleMatches);
-            }
-            if (table === "conversationSummaries") {
-              return createSearchQuery([]);
             }
             if (table === "messages") {
               return createSearchQuery([]);
@@ -720,9 +656,6 @@ describe("conversation_search.searchUserConversations", () => {
             if (table === "messages") {
               return createSearchQuery(messageMatches);
             }
-            if (table === "conversationSummaries") {
-              return createSearchQuery([]);
-            }
             return createSearchQuery([]);
           }),
           get: mock(() => Promise.resolve(mockConversation2)),
@@ -760,9 +693,6 @@ describe("conversation_search.searchUserConversations", () => {
           query: mock(table => {
             if (table === "conversations") {
               return createSearchQuery([untitledConversation]);
-            }
-            if (table === "conversationSummaries") {
-              return createSearchQuery([]);
             }
             if (table === "messages") {
               return createSearchQuery([]);

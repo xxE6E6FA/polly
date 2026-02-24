@@ -180,6 +180,11 @@ export const clearAll = mutation({
   handler: clearAllHandler,
 });
 
+export const internalGetById = internalQuery({
+  args: { id: v.id("personas") },
+  handler: async (ctx, args) => ctx.db.get(args.id),
+});
+
 export const internalListForExport = internalQuery({
   args: { userId: v.id("users") },
   handler: async (ctx, args) => {

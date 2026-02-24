@@ -1,10 +1,12 @@
 import { useCallback, useMemo, useState } from "react";
 import { ChatWarningBanner } from "@/components/ui/chat-warning-banner";
+import { useConversationLimit } from "@/hooks";
 import {
   useUserCapabilities,
   useUserIdentity,
   useUserUsage,
 } from "@/providers/user-data-context";
+import type { ConversationId } from "@/types";
 
 type WarningMessage = {
   text: string;
@@ -20,12 +22,18 @@ type WarningState = {
 
 interface WarningBannersProps {
   hasExistingMessages?: boolean;
+  conversationId?: ConversationId;
 }
 
-export function WarningBanners({ hasExistingMessages }: WarningBannersProps) {
+export function WarningBanners({
+  hasExistingMessages,
+  conversationId,
+}: WarningBannersProps) {
   const { hasMessageLimit, monthlyUsage, hasUnlimitedCalls } = useUserUsage();
   const { user } = useUserIdentity();
   const { canSendMessage, hasUserApiKeys } = useUserCapabilities();
+  const { isAtLimit, isNearLimit, percentUsed } =
+    useConversationLimit(conversationId);
 
   const isAnonymous = !!user?.isAnonymous;
 
@@ -37,7 +45,38 @@ export function WarningBanners({ hasExistingMessages }: WarningBannersProps) {
       return null;
     }
 
-    // If user has unlimited calls, no warning needed
+    // Context limit takes priority over quota warnings
+    if (isAtLimit) {
+      const warningKey = "context-limit-reached";
+      if (dismissedWarning === warningKey) {
+        return null;
+      }
+      return {
+        type: "error",
+        message: {
+          text: "This conversation has reached its context limit.",
+          suffix: "Continue in a new conversation to keep chatting.",
+        },
+        isDismissed: false,
+      };
+    }
+
+    if (isNearLimit) {
+      const warningKey = "context-limit-warning";
+      if (dismissedWarning === warningKey) {
+        return null;
+      }
+      return {
+        type: "warning",
+        message: {
+          text: `Approaching context limit — ${percentUsed}% used.`,
+          suffix: "Consider continuing in a new conversation soon.",
+        },
+        isDismissed: false,
+      };
+    }
+
+    // If user has unlimited calls, no quota warning needed
     if (hasUnlimitedCalls) {
       return null;
     }
@@ -120,15 +159,24 @@ export function WarningBanners({ hasExistingMessages }: WarningBannersProps) {
     user,
     isAnonymous,
     dismissedWarning,
+    isAtLimit,
+    isNearLimit,
+    percentUsed,
   ]);
 
   const dismissWarning = useCallback(() => {
     if (warningState) {
-      const warningKey =
-        warningState.type === "error" ? "limit-reached" : "limit-warning";
-      setDismissedWarning(warningKey);
+      if (isAtLimit) {
+        setDismissedWarning("context-limit-reached");
+      } else if (isNearLimit) {
+        setDismissedWarning("context-limit-warning");
+      } else {
+        const warningKey =
+          warningState.type === "error" ? "limit-reached" : "limit-warning";
+        setDismissedWarning(warningKey);
+      }
     }
-  }, [warningState]);
+  }, [warningState, isAtLimit, isNearLimit]);
 
   if (!warningState) {
     return null;

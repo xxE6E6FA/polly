@@ -4,7 +4,6 @@ import type { Doc, Id } from "../../_generated/dataModel";
 import type { ActionCtx, MutationCtx } from "../../_generated/server";
 import { createUserFileEntriesHandler } from "../file_storage/mutation_handlers";
 import {
-  buildContextMessages,
   executeStreamingActionForRetry,
 } from "../conversation_utils";
 
@@ -291,25 +290,16 @@ export async function createBranchHandler(
         provider,
       });
 
-      // Build context messages from the cloned conversation (includes attachments)
-      const { contextMessages } = await buildContextMessages(ctx, {
-        conversationId: newConversationId,
-        personaId: conversation.personaId,
-        modelCapabilities: {
-          supportsImages: modelInfo?.supportsImages ?? false,
-          supportsFiles: modelInfo?.supportsFiles ?? false,
-        },
-        provider,
-        modelId,
-      });
-
       const result = await executeStreamingActionForRetry(ctx, {
         conversationId: newConversationId,
         model: modelId,
         provider,
         conversation: { personaId: conversation.personaId },
-        contextMessages,
-        useWebSearch: true,
+        supportsTools: modelInfo?.supportsTools ?? false,
+        supportsImages: modelInfo?.supportsImages ?? false,
+        supportsFiles: modelInfo?.supportsFiles ?? false,
+        supportsReasoning: modelInfo?.supportsReasoning ?? false,
+        contextLength: modelInfo?.contextLength,
       });
       assistantMessageId = result.assistantMessageId as Id<"messages">;
     }
