@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "baseUrl": null,
+    "paths": {
+      "@/*": ["./src/*"],
+      "@convex/*": ["./convex/*"],
+      "@shared/*": ["./shared/*"],
+      "@config/*": ["./config/*"]
+    }
+  }
+}
