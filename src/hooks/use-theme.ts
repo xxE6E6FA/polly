@@ -91,8 +91,17 @@ function setColorScheme(next: ColorScheme) {
   });
 }
 
+function resolveMode(): "light" | "dark" {
+  if (state.theme === "light" || state.theme === "dark") {
+    return state.theme;
+  }
+  return window.matchMedia("(prefers-color-scheme: dark)").matches
+    ? "dark"
+    : "light";
+}
+
 function toggleTheme() {
-  setTheme(state.theme === "light" ? "dark" : "light");
+  setTheme(resolveMode() === "light" ? "dark" : "light");
 }
 
 /** Apply a color scheme to the DOM without persisting. */
