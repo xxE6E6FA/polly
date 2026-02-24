@@ -505,79 +505,114 @@
 
 @layer base {
   /* --- Polly Light --- */
+  /* Same structure as dark: quiet stage + loud actors, stable hue, trans flag accents */
   [data-color-scheme="polly"] {
-    --color-background: hsl(264 40% 97%);
-    --color-foreground: hsl(264 25% 8%);
-    --color-highlight: hsl(261 70% 38%);
-    --color-border: hsl(264 28% 84%);
-    --color-input: hsl(264 35% 97%);
-    --color-input-hover: hsl(264 32% 95%);
-    --color-input-focus: hsl(264 30% 93%);
-    --color-input-border: hsl(264 24% 76%);
-    --color-ring: hsl(261 85% 45%);
-    --color-card: hsl(264 35% 97%);
-    --color-card-foreground: hsl(264 22% 10%);
-    --color-popover: hsl(264 35% 97%);
-    --color-popover-foreground: hsl(264 22% 10%);
-    --color-sidebar: hsl(264 35% 93%);
-    --color-sidebar-foreground: hsl(264 22% 8%);
-    --color-sidebar-muted: hsl(264 18% 38%);
-    --color-sidebar-hover: hsl(264 32% 89%);
-    --color-primary: hsl(261 85% 45%);
+    /* --- Surfaces: the stage (low sat, stable hue ~262) --- */
+    /* 4 tiers: white → tinted → recessed → border */
+    --color-surface: hsl(262 30% 98%);
+    --color-background: hsl(262 30% 98%);
+    --color-card: hsl(262 30% 98%);
+    --color-popover: hsl(262 30% 98%);
+    --color-input: hsl(262 30% 98%);
+    --color-sidebar: hsl(262 28% 94%);
+    --color-secondary: hsl(262 26% 93%);
+    --color-muted: hsl(262 26% 93%);
+    --color-accent: hsl(262 26% 93%);
+    --color-sidebar-hover: hsl(262 26% 90%);
+    --color-input-hover: hsl(262 28% 96%);
+    --color-input-focus: hsl(262 26% 94%);
+    --color-secondary-hover: hsl(262 24% 89%);
+    --color-highlight: hsl(262 60% 40%);
+
+    /* --- Borders --- */
+    --color-border: hsl(262 20% 86%);
+    --color-input-border: hsl(262 18% 78%);
+
+    /* --- Text: 2-tier system (primary 10%, secondary 42%) --- */
+    --color-foreground: hsl(262 30% 10%);
+    --color-card-foreground: hsl(262 30% 10%);
+    --color-popover-foreground: hsl(262 30% 10%);
+    --color-sidebar-foreground: hsl(262 30% 10%);
+    --color-secondary-foreground: hsl(262 30% 10%);
+    --color-accent-foreground: hsl(262 30% 10%);
+    --color-sidebar-muted: hsl(262 16% 42%);
+    --color-muted-foreground: hsl(262 16% 42%);
+
+    /* --- Primary: deep lavender (inverted from dark mode) --- */
+    --color-primary: hsl(267 70% 48%);
     --color-primary-foreground: hsl(0 0% 100%);
-    --color-primary-hover: hsl(261 82% 52%);
-    --color-secondary: hsl(264 32% 92%);
-    --color-secondary-foreground: hsl(264 22% 16%);
-    --color-secondary-hover: hsl(264 30% 88%);
-    --color-muted: hsl(264 32% 92%);
-    --color-muted-foreground: hsl(264 16% 40%);
-    --color-accent: hsl(264 32% 92%);
-    --color-accent-foreground: hsl(264 22% 16%);
-    --color-destructive: hsl(0 84% 60%);
+    --color-primary-hover: hsl(267 65% 55%);
+
+    /* --- Focus ring: trans baby blue --- */
+    --color-ring: hsl(191 70% 42%);
+
+    /* --- Destructive: trans pink --- */
+    --color-destructive: hsl(340 65% 48%);
     --color-destructive-foreground: hsl(0 0% 100%);
-    --color-surface: hsl(264 35% 97%);
   }
 
   /* --- Polly Dark --- */
+  /* Lavender base with trans flag accents (baby blue, pink, white) */
+  /* Migraine-friendly: raised lightness floor, reduced saturation, softer contrast */
   [data-color-scheme="polly"].dark {
-    --color-background: hsl(264 35% 7%);
-    --color-foreground: hsl(264 25% 95%);
-    --color-highlight: hsl(261 55% 30%);
-    --color-border: hsl(264 22% 20%);
-    --color-input: hsl(264 28% 11%);
-    --color-input-hover: hsl(264 25% 13%);
-    --color-input-focus: hsl(264 22% 16%);
-    --color-input-border: hsl(264 22% 20%);
-    --color-ring: hsl(261 85% 68%);
-    --color-card: hsl(264 30% 10%);
-    --color-card-foreground: hsl(264 22% 92%);
-    --color-popover: hsl(264 30% 8%);
-    --color-popover-foreground: hsl(264 20% 85%);
-    --color-sidebar: hsl(264 30% 8%);
-    --color-sidebar-foreground: hsl(264 20% 88%);
-    --color-sidebar-muted: hsl(264 18% 55%);
-    --color-sidebar-hover: hsl(264 26% 13%);
-    --color-primary: hsl(261 85% 74%);
-    --color-primary-foreground: hsl(264 35% 7%);
-    --color-primary-hover: hsl(261 82% 80%);
-    --color-secondary: hsl(264 26% 14%);
-    --color-secondary-foreground: hsl(264 25% 90%);
-    --color-secondary-hover: hsl(264 24% 18%);
-    --color-muted: hsl(264 22% 14%);
-    --color-muted-foreground: hsl(264 18% 62%);
-    --color-accent: hsl(264 26% 18%);
-    --color-accent-foreground: hsl(264 25% 90%);
-    --color-destructive: hsl(0 72% 45%);
+    /* Catppuccin-inspired structure: quiet stage (low-sat surfaces) + loud actors (pastel accents) */
+    /* 4 surface tiers with clear jumps, stable hue ~262, trans flag accents */
+
+    /* --- Surfaces: the stage (low sat, stable hue) --- */
+    --color-surface: hsl(262 22% 8%);
+    --color-sidebar: hsl(262 22% 10%);
+    --color-popover: hsl(262 22% 10%);
+    --color-background: hsl(262 20% 14%);
+    --color-card: hsl(262 18% 20%);
+    --color-secondary: hsl(262 16% 20%);
+    --color-muted: hsl(262 16% 20%);
+    --color-accent: hsl(262 16% 26%);
+    --color-highlight: hsl(262 40% 30%);
+
+    /* --- Inputs --- */
+    --color-input: hsl(262 20% 14%);
+    --color-input-hover: hsl(262 18% 18%);
+    --color-input-focus: hsl(262 16% 22%);
+    --color-input-border: hsl(262 16% 24%);
+    --color-sidebar-hover: hsl(262 20% 16%);
+
+    /* --- Borders --- */
+    --color-border: hsl(262 16% 24%);
+
+    /* --- Text: 2-tier system (primary 88%, secondary 68%) --- */
+    --color-foreground: hsl(262 30% 88%);
+    --color-card-foreground: hsl(262 30% 88%);
+    --color-popover-foreground: hsl(262 30% 88%);
+    --color-sidebar-foreground: hsl(262 30% 88%);
+    --color-secondary-foreground: hsl(262 30% 88%);
+    --color-accent-foreground: hsl(262 30% 88%);
+    --color-sidebar-muted: hsl(262 20% 68%);
+    --color-muted-foreground: hsl(262 20% 68%);
+
+    /* --- Primary: lavender (the star) --- */
+    --color-primary: hsl(267 70% 78%);
+    --color-primary-foreground: hsl(262 22% 10%);
+    --color-primary-hover: hsl(272 65% 82%);
+
+    /* --- Interactive hover: pink-shifted warmth --- */
+    --color-secondary-hover: hsl(262 16% 26%);
+
+    /* --- Focus ring: trans baby blue --- */
+    --color-ring: hsl(191 70% 72%);
+
+    /* --- Destructive: trans pink --- */
+    --color-destructive: hsl(340 65% 72%);
     --color-destructive-foreground: hsl(0 0% 100%);
-    --color-surface: hsl(264 26% 6%);
-    --color-success-bg: hsl(160 60% 10%);
-    --color-warning-bg: hsl(37 80% 15%);
-    --color-info-bg: hsl(214 50% 15%);
-    --color-danger-bg: hsl(0 60% 12%);
-    --color-success-border: hsl(160 50% 20%);
-    --color-warning-border: hsl(37 60% 25%);
-    --color-info-border: hsl(214 40% 25%);
-    --color-danger-border: hsl(0 50% 20%);
+
+    /* --- Status: trans blue for info, trans pink for danger --- */
+    --color-success-bg: hsl(160 45% 12%);
+    --color-warning-bg: hsl(37 60% 16%);
+    --color-info-bg: hsl(191 30% 14%);
+    --color-danger-bg: hsl(340 30% 14%);
+    --color-success-border: hsl(160 40% 24%);
+    --color-warning-border: hsl(37 45% 26%);
+    --color-info-border: hsl(191 40% 28%);
+    --color-danger-border: hsl(340 40% 26%);
   }
 
   /* --- Catppuccin Latte (Light) --- */
