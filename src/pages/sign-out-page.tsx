@@ -1,11 +1,11 @@
-import { useClerk } from "@clerk/clerk-react";
+import { useAuth } from "@clerk/clerk-react";
 import { useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { clearUserData } from "@/lib/local-storage";
 import { resetChatInputStoreApi } from "@/stores/chat-input-store";
 
 export default function SignOutPage() {
-  const { signOut } = useClerk();
+  const { signOut } = useAuth();
   const navigate = useNavigate();
 
   const handleSignOut = useCallback(async () => {

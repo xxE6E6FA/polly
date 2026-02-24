@@ -29,7 +29,7 @@
     "@ai-sdk/react": "^3.0.6",
     "@anthropic-ai/sdk": "^0.71.2",
     "@base-ui/react": "^1.0.0",
-    "@clerk/clerk-react": "^5.22.0",
+    "@clerk/clerk-react": "^5.61.1",
     "@llm-ui/code": "^0.13.3",
     "@llm-ui/markdown": "^0.13.3",
     "@llm-ui/react": "^0.13.3",

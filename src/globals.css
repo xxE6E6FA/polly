@@ -176,6 +176,7 @@
   --z-modal: 110;
   --z-select: 115;
   --z-tooltip: 150;
+  --z-banner: 200;
 
   /* Colors - Light Mode Defaults (Are.na-inspired) */
   --color-border: hsl(0 0% 90%);
@@ -308,6 +309,9 @@
   }
   .z-command-palette {
     z-index: var(--z-command-palette);
+  }
+  .z-banner {
+    z-index: var(--z-banner);
   }
   .z-context-menu {
     z-index: var(--z-context-menu);

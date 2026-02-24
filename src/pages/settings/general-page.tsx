@@ -1,4 +1,4 @@
-import { useClerk } from "@clerk/clerk-react";
+import { useAuth } from "@clerk/clerk-react";
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import {
@@ -112,7 +112,7 @@ export default function GeneralPage() {
   const backgroundJobs = useBackgroundJobs();
   const managedToast = useToast();
   const convex = useConvex();
-  const { signOut } = useClerk();
+  const { signOut } = useAuth();
   const navigate = useNavigate();
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget>(null);
   const [isExportingData, startExportTransition] = useTransition();
