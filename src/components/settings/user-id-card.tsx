@@ -1,23 +1,18 @@
 import { Meter } from "@base-ui/react/meter";
 import { api } from "@convex/_generated/api";
-import type { IconProps } from "@phosphor-icons/react";
 import {
   CalendarBlankIcon,
   CameraIcon,
   ChatCircleIcon,
   CheckIcon,
-  CrownIcon,
-  HashIcon,
   PencilSimpleIcon,
   TrendUpIcon,
   XIcon,
 } from "@phosphor-icons/react";
 import { useConvex, useMutation } from "convex/react";
-import type { ComponentType } from "react";
 import { useCallback, useRef, useState } from "react";
 import { ProfileImageCropper } from "@/components/settings/profile-image-cropper";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useMessageSentCount } from "@/hooks/use-message-sent-count";
@@ -38,43 +33,6 @@ function getInitials(name?: string | null) {
     .toUpperCase()
     .slice(0, 2);
 }
-
-const STAT_ICON_COLORS: string[] = [
-  "hsl(var(--color-primary))",
-  "hsl(var(--color-accent-purple))",
-  "hsl(var(--color-info))",
-];
-
-type StatCardProps = {
-  icon: ComponentType<IconProps>;
-  label: string;
-  value: number;
-  color: string;
-  showDivider: boolean;
-};
-
-const StatCard = ({
-  icon: Icon,
-  label,
-  value,
-  color,
-  showDivider,
-}: StatCardProps) => {
-  return (
-    <div
-      className={cn(
-        "flex items-center justify-between gap-3 px-4 py-3 text-sm",
-        showDivider && "border-b border-border/60"
-      )}
-    >
-      <div className="flex items-center gap-2 text-muted-foreground">
-        <Icon className="size-4" style={{ color }} weight="duotone" />
-        <span className="text-foreground">{label}</span>
-      </div>
-      <span className="font-mono text-sm text-foreground">{value}</span>
-    </div>
-  );
-};
 
 function formatResetDate(createdAt?: number | null) {
   if (!createdAt) {
@@ -264,193 +222,159 @@ export const UserIdCard = () => {
 
   const displayImageUrl = tempImageUrl || user.image || "";
 
-  const [
-    conversationColor = "hsl(var(--color-primary))",
-    totalMessagesColor = "hsl(var(--color-accent-purple))",
-    monthlyMessagesColor = "hsl(var(--color-info))",
-  ] = STAT_ICON_COLORS;
+  const joinedLabel = user.createdAt
+    ? `Joined ${new Date(user.createdAt).toLocaleDateString("en-US", {
+        month: "long",
+        year: "numeric",
+      })}`
+    : null;
 
-  const stats: StatCardProps[] = [
-    {
-      icon: ChatCircleIcon,
-      label: "Conversations",
-      value: user.conversationCount ?? 0,
-      color: conversationColor,
-      showDivider: true,
-    },
-    {
-      icon: ChatCircleIcon,
-      label: "Total Messages",
-      value: user.totalMessageCount ?? 0,
-      color: totalMessagesColor,
-      showDivider: true,
-    },
-    {
-      icon: TrendUpIcon,
-      label: "This Month",
-      value: monthlyMessagesSent || 0,
-      color: monthlyMessagesColor,
-      showDivider: false,
-    },
-  ];
+  const showUsageMeter =
+    monthlyUsage && monthlyUsage.monthlyLimit > 0 && !hasUnlimitedCalls;
 
   return (
     <>
       <div className="stack-lg">
+        {/* Desktop card */}
         <div className="hidden overflow-hidden rounded-xl border border-border/60 bg-card/80 shadow-sm backdrop-blur lg:block">
-          <div className="flex flex-col gap-5 border-b border-border/60 bg-muted/40 p-6">
-            <div className="flex items-center justify-between">
-              <Badge
-                variant="secondary"
-                className="flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium uppercase tracking-wide"
+          <div className="flex flex-col items-center gap-4 p-6">
+            <div
+              className={cn(
+                "relative group",
+                shouldAnonymize && "blur-lg pointer-events-none"
+              )}
+            >
+              <Avatar className="h-20 w-20 ring-[3px] ring-primary/25 shadow-md">
+                <AvatarImage
+                  alt={user.name || "User"}
+                  src={resizeGoogleImageUrl(displayImageUrl, 144)}
+                />
+                <AvatarFallback className="bg-gradient-primary text-base text-primary-foreground">
+                  {getInitials(user.name)}
+                </AvatarFallback>
+              </Avatar>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                aria-label="Change profile photo"
               >
-                <CrownIcon className="size-3.5 text-primary" weight="fill" />
-                Member
-              </Badge>
-              <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                <HashIcon className="size-3" />
-                <span className="font-mono">
-                  {user._id?.slice(-6).toUpperCase() ?? "------"}
-                </span>
-              </div>
+                <CameraIcon className="size-5 text-white" weight="fill" />
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleImageSelect}
+                className="hidden"
+                aria-label="Upload profile photo"
+              />
             </div>
 
-            <div className="flex flex-col items-center gap-3">
-              <div
-                className={cn(
-                  "relative group",
-                  shouldAnonymize && "blur-lg pointer-events-none"
-                )}
-              >
-                <Avatar className="h-24 w-24 ring-2 ring-border/60 shadow-sm">
-                  <AvatarImage
-                    alt={user.name || "User"}
-                    src={resizeGoogleImageUrl(displayImageUrl, 144)}
+            <div className="flex flex-col items-center">
+              {isEditingName ? (
+                <div className="flex items-center gap-1">
+                  <Input
+                    value={nameValue}
+                    onChange={e => setNameValue(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Enter your name"
+                    className="h-8 w-36 text-left text-sm"
+                    autoFocus
+                    disabled={isSavingName}
                   />
-                  <AvatarFallback className="bg-gradient-primary text-base text-primary-foreground">
-                    {getInitials(user.name)}
-                  </AvatarFallback>
-                </Avatar>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={handleSaveName}
+                    disabled={isSavingName || !nameValue.trim()}
+                    aria-label="Save name"
+                    className="h-7 w-7"
+                  >
+                    <CheckIcon className="size-3.5" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={handleCancelEditingName}
+                    disabled={isSavingName}
+                    aria-label="Cancel editing"
+                    className="h-7 w-7"
+                  >
+                    <XIcon className="size-3.5" />
+                  </Button>
+                </div>
+              ) : (
                 <button
                   type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                  aria-label="Change profile photo"
+                  onClick={handleStartEditingName}
+                  className={cn(
+                    "group/name relative flex items-center justify-center rounded px-1 -mx-1 transition-colors hover:bg-muted",
+                    shouldAnonymize && "blur-md pointer-events-none"
+                  )}
+                  aria-label="Edit name"
                 >
-                  <CameraIcon className="size-6 text-white" weight="fill" />
-                </button>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageSelect}
-                  className="hidden"
-                  aria-label="Upload profile photo"
-                />
-              </div>
-              <div className="flex flex-col justify-center">
-                {isEditingName ? (
-                  <div className="flex items-center gap-1">
-                    <Input
-                      value={nameValue}
-                      onChange={e => setNameValue(e.target.value)}
-                      onKeyDown={handleKeyDown}
-                      placeholder="Enter your name"
-                      className="h-8 w-36 text-left text-sm"
-                      autoFocus
-                      disabled={isSavingName}
-                    />
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={handleSaveName}
-                      disabled={isSavingName || !nameValue.trim()}
-                      aria-label="Save name"
-                      className="h-7 w-7"
-                    >
-                      <CheckIcon className="size-3.5" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={handleCancelEditingName}
-                      disabled={isSavingName}
-                      aria-label="Cancel editing"
-                      className="h-7 w-7"
-                    >
-                      <XIcon className="size-3.5" />
-                    </Button>
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={handleStartEditingName}
-                    className={cn(
-                      "group/name relative flex items-center justify-center rounded px-1 -mx-1 transition-colors hover:bg-muted",
-                      shouldAnonymize && "blur-md pointer-events-none"
-                    )}
-                    aria-label="Edit name"
-                  >
-                    <span className="text-lg font-semibold">
-                      {user.name || "Unnamed User"}
-                    </span>
-                    <PencilSimpleIcon className="absolute -right-5 size-3.5 text-muted-foreground opacity-0 transition-opacity group-hover/name:opacity-100" />
-                  </button>
-                )}
-                <div className="mt-1 flex items-center justify-center gap-1 text-xs text-muted-foreground">
-                  <CalendarBlankIcon className="size-3.5" />
-                  <span>
-                    {user.createdAt
-                      ? new Date(user.createdAt).toLocaleDateString("en-US", {
-                          month: "long",
-                          year: "numeric",
-                        })
-                      : "Joined unknown"}
+                  <span className="text-lg font-semibold">
+                    {user.name || "Unnamed User"}
                   </span>
-                </div>
-              </div>
+                  <PencilSimpleIcon className="absolute -right-5 size-3.5 text-muted-foreground opacity-0 transition-opacity group-hover/name:opacity-100" />
+                </button>
+              )}
+              {joinedLabel && (
+                <span className="mt-1 text-xs text-muted-foreground">
+                  {joinedLabel}
+                </span>
+              )}
             </div>
           </div>
 
-          {stats.map((stat, index) => (
-            <StatCard
-              key={stat.label}
-              icon={stat.icon}
-              label={stat.label}
-              value={stat.value}
-              color={stat.color}
-              showDivider={index < stats.length - 1}
-            />
-          ))}
+          <div className="grid grid-cols-2 border-t border-border/60">
+            <div className="flex flex-col items-center gap-0.5 border-r border-border/60 py-4">
+              <span className="text-xl font-semibold tabular-nums">
+                {user.conversationCount ?? 0}
+              </span>
+              <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                <ChatCircleIcon className="size-3" weight="fill" />
+                Chats
+              </span>
+            </div>
+            <div className="flex flex-col items-center gap-0.5 py-4">
+              <span className="text-xl font-semibold tabular-nums">
+                {monthlyMessagesSent || 0}
+              </span>
+              <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                <TrendUpIcon className="size-3" weight="fill" />
+                This month
+              </span>
+            </div>
+          </div>
 
-          {monthlyUsage &&
-            monthlyUsage.monthlyLimit > 0 &&
-            !hasUnlimitedCalls && (
-              <Meter.Root
-                value={monthlyMessagesSent}
-                max={monthlyUsage.monthlyLimit}
-                getAriaValueText={(_, value) =>
-                  `${value} out of ${monthlyUsage.monthlyLimit}`
-                }
-                className="stack-md bg-muted/40 p-4"
-              >
-                <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
-                  <Meter.Label>Monthly Usage</Meter.Label>
-                  <Meter.Value className="font-mono text-foreground">
-                    {(_, value) => `${value}/${monthlyUsage.monthlyLimit}`}
-                  </Meter.Value>
+          {showUsageMeter && (
+            <Meter.Root
+              value={monthlyMessagesSent}
+              max={monthlyUsage.monthlyLimit}
+              getAriaValueText={(_, value) =>
+                `${value} out of ${monthlyUsage.monthlyLimit}`
+              }
+              className="stack-md border-t border-border/60 p-4"
+            >
+              <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
+                <Meter.Label>Monthly Usage</Meter.Label>
+                <Meter.Value className="font-mono text-foreground">
+                  {(_, value) => `${value}/${monthlyUsage.monthlyLimit}`}
+                </Meter.Value>
+              </div>
+              <Meter.Track className="h-1.5 w-full overflow-hidden rounded-full bg-secondary">
+                <Meter.Indicator className="h-full w-full flex-1 bg-primary transition-all" />
+              </Meter.Track>
+              {typeof monthlyUsage.remainingMessages === "number" && (
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>{monthlyUsage.remainingMessages} remaining</span>
+                  <span>Resets {formatResetDate(user.createdAt)}</span>
                 </div>
-                <Meter.Track className="h-2 w-full overflow-hidden rounded-full bg-secondary">
-                  <Meter.Indicator className="h-full w-full flex-1 bg-primary transition-all" />
-                </Meter.Track>
-                {typeof monthlyUsage.remainingMessages === "number" && (
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>{monthlyUsage.remainingMessages} remaining</span>
-                    <span>Resets {formatResetDate(user.createdAt)}</span>
-                  </div>
-                )}
-              </Meter.Root>
-            )}
+              )}
+            </Meter.Root>
+          )}
         </div>
 
         {/* Mobile profile card */}
@@ -461,7 +385,7 @@ export const UserIdCard = () => {
               shouldAnonymize && "blur-lg pointer-events-none"
             )}
           >
-            <Avatar className="h-16 w-16 ring-2 ring-border/60 shadow-sm">
+            <Avatar className="h-14 w-14 ring-[3px] ring-primary/25 shadow-md">
               <AvatarImage
                 alt={user.name || "User"}
                 src={resizeGoogleImageUrl(displayImageUrl, 96)}
@@ -528,50 +452,43 @@ export const UserIdCard = () => {
                 <PencilSimpleIcon className="size-4 shrink-0 text-muted-foreground" />
               </button>
             )}
-            <div className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
-              <CalendarBlankIcon className="size-3.5 shrink-0" />
-              <span>
-                {user.createdAt
-                  ? new Date(user.createdAt).toLocaleDateString("en-US", {
-                      month: "long",
-                      year: "numeric",
-                    })
-                  : "Joined unknown"}
-              </span>
-            </div>
+            {joinedLabel && (
+              <div className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+                <CalendarBlankIcon className="size-3.5 shrink-0" />
+                <span>{joinedLabel}</span>
+              </div>
+            )}
           </div>
         </div>
 
-        {monthlyUsage &&
-          monthlyUsage.monthlyLimit > 0 &&
-          !hasUnlimitedCalls && (
-            <Meter.Root
-              value={monthlyMessagesSent}
-              max={monthlyUsage.monthlyLimit}
-              getAriaValueText={(_, value) =>
-                `${value} out of ${monthlyUsage.monthlyLimit}`
-              }
-              className="rounded-xl border border-border/60 bg-muted/30 p-4 lg:hidden"
-            >
-              <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
-                <Meter.Label>Monthly Usage</Meter.Label>
-                <Meter.Value className="font-mono text-foreground">
-                  {(_, value) => `${value}/${monthlyUsage.monthlyLimit}`}
-                </Meter.Value>
+        {showUsageMeter && (
+          <Meter.Root
+            value={monthlyMessagesSent}
+            max={monthlyUsage.monthlyLimit}
+            getAriaValueText={(_, value) =>
+              `${value} out of ${monthlyUsage.monthlyLimit}`
+            }
+            className="rounded-xl border border-border/60 bg-muted/30 p-4 lg:hidden"
+          >
+            <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
+              <Meter.Label>Monthly Usage</Meter.Label>
+              <Meter.Value className="font-mono text-foreground">
+                {(_, value) => `${value}/${monthlyUsage.monthlyLimit}`}
+              </Meter.Value>
+            </div>
+            <Meter.Track className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-secondary">
+              <Meter.Indicator className="h-full w-full flex-1 bg-primary transition-all" />
+            </Meter.Track>
+            {typeof monthlyUsage.remainingMessages === "number" && (
+              <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
+                <span className="font-mono">
+                  {monthlyUsage.remainingMessages} remaining
+                </span>
+                <span>Resets {formatResetDate(user.createdAt)}</span>
               </div>
-              <Meter.Track className="mt-3 h-2 w-full overflow-hidden rounded-full bg-secondary">
-                <Meter.Indicator className="h-full w-full flex-1 bg-primary transition-all" />
-              </Meter.Track>
-              {typeof monthlyUsage.remainingMessages === "number" && (
-                <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
-                  <span className="font-mono">
-                    {monthlyUsage.remainingMessages} remaining
-                  </span>
-                  <span>Resets {formatResetDate(user.createdAt)}</span>
-                </div>
-              )}
-            </Meter.Root>
-          )}
+            )}
+          </Meter.Root>
+        )}
       </div>
 
       {selectedImage && (
