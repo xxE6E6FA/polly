@@ -141,13 +141,13 @@ export const ImageActions = ({
   // In minimal mode, show only copy prompt + retry
   if (minimal) {
     return (
-      <div className={cn("flex items-center gap-1", className)}>
+      <div className={cn("flex items-center gap-1.5", className)}>
         <ActionButton
           tooltip={prompt ? "Copy prompt to clipboard" : "No prompt available"}
           onClick={handleCopyPrompt}
           disabled={isCopying || !prompt}
         >
-          <CopyIcon className="size-3.5" />
+          <CopyIcon className="size-4" />
         </ActionButton>
 
         {onRetry && (
@@ -162,7 +162,7 @@ export const ImageActions = ({
   }
 
   return (
-    <div className={cn("flex items-center gap-1", className)}>
+    <div className={cn("flex items-center gap-1.5", className)}>
       {/* Show dropdown menu when seed is available, otherwise show simple button */}
       {seed !== undefined ? (
         <DropdownMenu>
@@ -174,7 +174,7 @@ export const ImageActions = ({
                   className="h-7 gap-0.5"
                   disabled={isCopying || (!prompt && seed === undefined)}
                 >
-                  <CopyIcon className="size-3.5" />
+                  <CopyIcon className="size-4" />
                   <CaretDownIcon className="size-3" />
                 </ActionButton>
               </DropdownMenuTrigger>
@@ -206,7 +206,7 @@ export const ImageActions = ({
           onClick={handleCopyPrompt}
           disabled={isCopying || !prompt}
         >
-          <CopyIcon className="size-3.5" />
+          <CopyIcon className="size-4" />
         </ActionButton>
       )}
 
@@ -215,7 +215,7 @@ export const ImageActions = ({
         onClick={handleDownloadImage}
         disabled={isDownloading}
       >
-        <DownloadIcon className="size-3.5" />
+        <DownloadIcon className="size-4" />
       </ActionButton>
 
       {onRetry && (

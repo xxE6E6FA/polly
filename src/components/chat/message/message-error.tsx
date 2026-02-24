@@ -75,7 +75,7 @@ export function MessageError({
           size="sm"
           onClick={() => onRetry(messageId)}
         >
-          <ArrowCounterClockwiseIcon className="size-3.5" />
+          <ArrowCounterClockwiseIcon className="size-4" />
           Retry message
         </Button>
       );

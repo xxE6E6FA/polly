@@ -33,7 +33,7 @@ type ActionButtonProps = React.ComponentProps<"button"> & {
 const chipBase = [
   "appearance-none",
   "flex items-center justify-center",
-  "h-6 rounded-md",
+  "h-7 rounded-md",
   "border border-transparent",
   "text-muted-foreground text-xs",
   "transition-all duration-200 ease-out",
@@ -41,8 +41,8 @@ const chipBase = [
 ].join(" ");
 
 const chipSizes: Record<ActionButtonSize, string> = {
-  icon: "w-6",
-  label: "w-auto px-1.5 gap-1",
+  icon: "w-7",
+  label: "w-auto px-2 gap-1",
 };
 
 const chipVariants: Record<ActionButtonVariant, string> = {
@@ -118,7 +118,7 @@ export function ActionButton({
 /** Icon size for mobile drawer items (size-4) */
 export const DRAWER_ICON_SIZE = "size-4";
 
-const iconClass = "size-3.5";
+const iconClass = "size-4";
 
 // ============================================================================
 // Preset action buttons

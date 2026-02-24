@@ -97,7 +97,7 @@ export function ImageRetryPopover({
   );
 
   const triggerContent = (
-    <ArrowCounterClockwiseIcon className="size-3.5" aria-hidden="true" />
+    <ArrowCounterClockwiseIcon className="size-4" aria-hidden="true" />
   );
 
   return (
@@ -244,7 +244,7 @@ function DesktopContent({
         </Button>
         <Button size="sm" onClick={onRetry} disabled={!selectedModel}>
           <ArrowCounterClockwiseIcon
-            className="size-3.5 mr-1.5"
+            className="size-4 mr-1.5"
             aria-hidden="true"
           />
           Retry
