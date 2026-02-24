@@ -23,6 +23,7 @@ export {
 import { getAuthUserId } from "./lib/auth";
 import { createDefaultConversationFields } from "./lib/shared_utils";
 import {
+  clearAllDataHandler,
   deleteAccountHandler,
   incrementMessageHandler,
   internalDeleteUserDataHandler,
@@ -124,6 +125,11 @@ export const updateProfile = mutation({
 export const deleteAccount = mutation({
   args: {},
   handler: deleteAccountHandler,
+});
+
+export const clearAllData = mutation({
+  args: {},
+  handler: clearAllDataHandler,
 });
 
 /**

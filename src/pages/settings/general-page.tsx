@@ -9,24 +9,16 @@ import {
   TrashIcon,
 } from "@phosphor-icons/react";
 import { useConvex, useMutation } from "convex/react";
-import { useCallback, useState, useTransition } from "react";
+import { useCallback, useRef, useState, useTransition } from "react";
 import { useNavigate } from "react-router-dom";
 import { ColorSchemeSelector } from "@/components/settings/color-scheme-selector";
 import { ProfileDeleteDialog } from "@/components/settings/profile-delete-dialog";
 import { ProfileFormDialog } from "@/components/settings/profile-form-dialog";
 import { SettingsPageLayout } from "@/components/settings/ui/settings-page-layout";
 import { UserIdCard } from "@/components/settings/user-id-card";
-import { Alert, AlertDescription, AlertIcon } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import {
   Select,
   SelectContent,
@@ -43,6 +35,57 @@ import { clearUserData } from "@/lib/local-storage";
 import { getProfileIconComponent } from "@/lib/profile-icons";
 import { useToast } from "@/providers/toast-context";
 import type { Profile } from "@/types";
+
+type DeleteTarget =
+  | "conversations"
+  | "memories"
+  | "personas"
+  | "all-data"
+  | "account"
+  | null;
+
+const DELETE_CONFIGS: Record<
+  NonNullable<DeleteTarget>,
+  {
+    title: string;
+    description: string;
+    confirmLabel: string;
+    showExportHint?: boolean;
+  }
+> = {
+  conversations: {
+    title: "Delete all conversations?",
+    description:
+      "This will permanently remove all your conversations, messages, and attachments. This cannot be undone.",
+    confirmLabel: "Delete all conversations",
+  },
+  memories: {
+    title: "Delete all memories?",
+    description:
+      "This will permanently clear everything Polly has remembered about you. This cannot be undone.",
+    confirmLabel: "Delete all memories",
+  },
+  personas: {
+    title: "Delete all personas?",
+    description:
+      "This will permanently remove all custom personas, their settings, and reset built-in persona preferences. This cannot be undone.",
+    confirmLabel: "Delete all personas",
+  },
+  "all-data": {
+    title: "Delete all data?",
+    description:
+      "This will permanently erase all conversations, memories, personas, models, and API keys. Your account and settings will be kept. This cannot be undone.",
+    confirmLabel: "Delete all data",
+    showExportHint: true,
+  },
+  account: {
+    title: "Delete your account?",
+    description:
+      "This will permanently delete your account and erase all associated data including conversations, models, and settings. This cannot be undone.",
+    confirmLabel: "Delete account",
+    showExportHint: true,
+  },
+};
 
 type PaginatedResult<T> = {
   page: T[];
@@ -63,15 +106,18 @@ export default function GeneralPage() {
   const userSettings = useUserSettings();
   const updateUserSettings = useMutation(api.userSettings.updateUserSettings);
   const deleteAccountMutation = useMutation(api.users.deleteAccount);
+  const clearAllMemories = useMutation(api.memory.clearAll);
+  const clearAllPersonas = useMutation(api.personas.clearAll);
+  const clearAllData = useMutation(api.users.clearAllData);
   const backgroundJobs = useBackgroundJobs();
   const managedToast = useToast();
   const convex = useConvex();
   const { signOut } = useClerk();
   const navigate = useNavigate();
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<DeleteTarget>(null);
   const [isExportingData, startExportTransition] = useTransition();
   const [exportQueued, setExportQueued] = useState(false);
-  const [isDeletingAccount, startDeleteTransition] = useTransition();
+  const cancelledRef = useRef(false);
 
   // Profiles state
   const { profiles, isLoading: profilesLoading } = useProfiles();
@@ -183,33 +229,63 @@ export default function GeneralPage() {
     });
   }, [backgroundJobs, fetchAllConversationIds, managedToast.error]);
 
-  const handleDeleteAccount = useCallback(() => {
-    startDeleteTransition(async () => {
-      try {
-        await deleteAccountMutation({});
-        clearUserData();
+  const handleDeleteConfirm = useCallback(async () => {
+    if (!deleteTarget) {
+      return;
+    }
+    cancelledRef.current = false;
 
-        try {
-          await signOut();
-        } catch (signOutError) {
-          console.warn("Sign out after account deletion failed", signOutError);
-        }
-
-        managedToast.success("Account deleted");
-        setShowDeleteDialog(false);
-        navigate("/", { replace: true });
-      } catch (error) {
-        managedToast.error("Failed to delete account", {
-          description:
-            error instanceof Error ? error.message : "Unknown error occurred",
-        });
+    if (deleteTarget === "conversations") {
+      const conversationIds = await fetchAllConversationIds();
+      if (conversationIds.length === 0) {
+        managedToast.success("No conversations to delete");
+        return;
       }
-    });
+      await backgroundJobs.startBulkDelete(conversationIds);
+      managedToast.success("Deleting conversations in the background");
+    } else if (deleteTarget === "memories") {
+      let hasMore = true;
+      while (hasMore && !cancelledRef.current) {
+        const result = await clearAllMemories();
+        hasMore = result.hasMore;
+      }
+      managedToast.success("All memories deleted");
+    } else if (deleteTarget === "personas") {
+      let hasMore = true;
+      while (hasMore && !cancelledRef.current) {
+        const result = await clearAllPersonas();
+        hasMore = result.hasMore;
+      }
+      managedToast.success("All personas deleted");
+    } else if (deleteTarget === "all-data") {
+      await clearAllData();
+      clearUserData();
+      managedToast.success("All data deleted");
+    } else if (deleteTarget === "account") {
+      await deleteAccountMutation({});
+      clearUserData();
+
+      try {
+        await signOut();
+      } catch (signOutError) {
+        console.warn("Sign out after account deletion failed", signOutError);
+      }
+
+      managedToast.success("Account deleted");
+      navigate("/", { replace: true });
+    }
+
+    setDeleteTarget(null);
   }, [
+    deleteTarget,
+    fetchAllConversationIds,
+    backgroundJobs,
+    clearAllMemories,
+    clearAllPersonas,
+    clearAllData,
     deleteAccountMutation,
     signOut,
     managedToast.success,
-    managedToast.error,
     navigate,
   ]);
 
@@ -478,8 +554,8 @@ export default function GeneralPage() {
                     Export conversation archive
                   </div>
                   <p className="text-sm text-muted-foreground mb-3">
-                    Download a complete backup of your conversations and
-                    attachments
+                    Download a complete backup of your conversations,
+                    attachments, personas, and memories
                   </p>
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                     <Button
@@ -531,18 +607,82 @@ export default function GeneralPage() {
             <section>
               <h2 className="text-lg font-semibold mb-4">Danger Zone</h2>
 
-              <div>
-                <div className="font-medium mb-1">Delete account</div>
-                <p className="text-sm text-muted-foreground mb-3">
-                  Permanently delete your account and all associated data
-                </p>
-                <Button
-                  variant="destructive"
-                  onClick={() => setShowDeleteDialog(true)}
-                >
-                  <TrashIcon className="mr-2 size-4" />
-                  Delete Account
-                </Button>
+              <div className="rounded-lg border border-destructive/30 divide-y divide-destructive/15 overflow-hidden">
+                {[
+                  {
+                    target: "conversations" as const,
+                    label: "Delete all conversations",
+                    desc: "Remove all conversations, messages, and attachments",
+                  },
+                  {
+                    target: "memories" as const,
+                    label: "Delete all memories",
+                    desc: "Clear everything Polly has remembered about you",
+                  },
+                  {
+                    target: "personas" as const,
+                    label: "Delete all personas",
+                    desc: "Remove all custom personas and their settings",
+                  },
+                ].map(item => (
+                  <div
+                    key={item.target}
+                    className="flex items-center justify-between gap-4 px-4 py-3"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-sm">{item.label}</div>
+                      <p className="text-sm text-muted-foreground">
+                        {item.desc}
+                      </p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="shrink-0 text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive"
+                      onClick={() => setDeleteTarget(item.target)}
+                    >
+                      Delete
+                    </Button>
+                  </div>
+                ))}
+
+                <div className="bg-destructive/5 px-4 py-3 stack-3">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-sm">Delete all data</div>
+                      <p className="text-sm text-muted-foreground">
+                        Erase all your data but keep your account
+                      </p>
+                    </div>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      className="shrink-0"
+                      onClick={() => setDeleteTarget("all-data")}
+                    >
+                      <TrashIcon className="mr-1.5 size-3.5" />
+                      Delete all data
+                    </Button>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-sm">Delete account</div>
+                      <p className="text-sm text-muted-foreground">
+                        Permanently delete your account and all data
+                      </p>
+                    </div>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      className="shrink-0"
+                      onClick={() => setDeleteTarget("account")}
+                    >
+                      <TrashIcon className="mr-1.5 size-3.5" />
+                      Delete account
+                    </Button>
+                  </div>
+                </div>
               </div>
             </section>
           </main>
@@ -568,48 +708,35 @@ export default function GeneralPage() {
         />
       )}
 
-      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Delete account</DialogTitle>
-            <DialogDescription>
-              Deleting your account removes all of your data from Polly.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="stack-lg">
-            <Alert variant="warning">
-              <AlertIcon variant="warning" />
-              <AlertDescription>
-                This is permanent. All conversations, attachments, models, and
-                settings will be erased immediately.
-              </AlertDescription>
-            </Alert>
-            <p className="text-xs text-muted-foreground">
-              Need a copy first? Export your data from Data & Privacy before
-              deleting your account.
+      {deleteTarget && (
+        <ConfirmationDialog
+          open={!!deleteTarget}
+          onOpenChange={open => {
+            if (!open) {
+              cancelledRef.current = true;
+              setDeleteTarget(null);
+            }
+          }}
+          title={DELETE_CONFIGS[deleteTarget].title}
+          description={DELETE_CONFIGS[deleteTarget].description}
+          confirmText={DELETE_CONFIGS[deleteTarget].confirmLabel}
+          variant="destructive"
+          onConfirm={handleDeleteConfirm}
+          onCancel={() => {
+            cancelledRef.current = true;
+          }}
+        >
+          {DELETE_CONFIGS[deleteTarget].showExportHint && (
+            <p className="text-sm text-muted-foreground">
+              Need a copy first? Export your data from{" "}
+              <span className="text-foreground font-medium">
+                Data & Privacy
+              </span>{" "}
+              before proceeding.
             </p>
-          </div>
-
-          <DialogFooter className="flex flex-col gap-2 sm:flex-row sm:justify-end">
-            <Button
-              variant="outline"
-              onClick={() => setShowDeleteDialog(false)}
-              disabled={isDeletingAccount}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleDeleteAccount}
-              loading={isDeletingAccount}
-            >
-              <TrashIcon className="mr-2 size-4" />
-              Delete account
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          )}
+        </ConfirmationDialog>
+      )}
     </>
   );
 }

@@ -116,10 +116,10 @@ async function deleteMessagesInBatches(
 }
 
 /**
- * Cascade-delete all data owned by a user.
- * Shared by deleteAccountHandler (authenticated) and internalDeleteUserData (webhook).
+ * Delete all user data EXCEPT the user document and userSettings.
+ * Used by clearAllData (keep account) and cascadeDeleteUserData (delete account).
  */
-export async function cascadeDeleteUserData(
+export async function clearAllUserDataKeepAccount(
   ctx: MutationCtx,
   userId: Id<"users">
 ) {
@@ -212,14 +212,6 @@ export async function cascadeDeleteUserData(
     await ctx.db.delete("backgroundJobs", job._id);
   }
 
-  const userSettingsDocs = await ctx.db
-    .query("userSettings")
-    .withIndex("by_user", q => q.eq("userId", userId))
-    .collect();
-  for (const userSettingsDoc of userSettingsDocs) {
-    await ctx.db.delete("userSettings", userSettingsDoc._id);
-  }
-
   const personaSettings = await ctx.db
     .query("userPersonaSettings")
     .withIndex("by_user_persona", q => q.eq("userId", userId))
@@ -281,9 +273,45 @@ export async function cascadeDeleteUserData(
     await ctx.db.delete("userFiles", file._id);
   }
 
+  return { deletedConversations: conversations.length };
+}
+
+/**
+ * Cascade-delete all data owned by a user, including the user doc and settings.
+ * Shared by deleteAccountHandler (authenticated) and internalDeleteUserData (webhook).
+ */
+export async function cascadeDeleteUserData(
+  ctx: MutationCtx,
+  userId: Id<"users">
+) {
+  const result = await clearAllUserDataKeepAccount(ctx, userId);
+
+  const userSettingsDocs = await ctx.db
+    .query("userSettings")
+    .withIndex("by_user", q => q.eq("userId", userId))
+    .collect();
+  for (const userSettingsDoc of userSettingsDocs) {
+    await ctx.db.delete("userSettings", userSettingsDoc._id);
+  }
+
   await ctx.db.delete("users", userId);
 
-  return { deletedConversations: conversations.length };
+  return result;
+}
+
+/**
+ * Handler for clearing all user data while keeping the account and settings.
+ */
+export async function clearAllDataHandler(ctx: MutationCtx) {
+  const userId = await getAuthenticatedUser(ctx);
+
+  try {
+    const result = await clearAllUserDataKeepAccount(ctx, userId);
+    return { success: true, ...result };
+  } catch (error) {
+    console.error("Failed to clear all data:", error);
+    throw new Error("Failed to clear all data");
+  }
 }
 
 /**
