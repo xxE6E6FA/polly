@@ -49,6 +49,8 @@ export function verifyClerkWebhook(
 
 /**
  * Extract primary email from Clerk user event data.
+ * Only returns the email if Clerk has verified ownership — unverified
+ * emails are not trusted for account merge or storage.
  */
 function getPrimaryEmail(
 	data: ClerkUserEvent["data"],
@@ -59,7 +61,10 @@ function getPrimaryEmail(
 	const primary = data.email_addresses.find(
 		(e) => e.id === data.primary_email_address_id,
 	);
-	return primary?.email_address;
+	if (!primary || primary.verification?.status !== "verified") {
+		return undefined;
+	}
+	return primary.email_address;
 }
 
 /**
@@ -101,17 +106,27 @@ export async function handleClerkUserCreated(
 			.withIndex("email", (q) => q.eq("email", email))
 			.first();
 
-		if (existingByEmail && !existingByEmail.externalId) {
-			// Only merge if the existing user has no Clerk identity yet.
-			// Prevents account takeover if an attacker registers with a
-			// matching email address.
-			await ctx.db.patch(existingByEmail._id, {
-				externalId,
-				name: existingByEmail.name || name,
-				image: existingByEmail.image || image,
-				isAnonymous: false,
-			});
-			return existingByEmail._id;
+		if (existingByEmail) {
+			// Block merge if the existing user is already linked to a *different*
+			// Clerk identity — that means another real Clerk user owns this account.
+			// Allow merge for: no externalId, non-Clerk externalId (old auth), or
+			// same Clerk ID (idempotent re-creation).
+			const existingExt = existingByEmail.externalId;
+			const isOtherClerkUser =
+				existingExt &&
+				existingExt.startsWith("user_") &&
+				existingExt !== externalId;
+
+			if (!isOtherClerkUser) {
+				await ctx.db.patch(existingByEmail._id, {
+					externalId,
+					name: existingByEmail.name || name,
+					image: existingByEmail.image || image,
+					isAnonymous: false,
+				});
+				return existingByEmail._id;
+			}
+			// Otherwise fall through to create a new user
 		}
 	}
 

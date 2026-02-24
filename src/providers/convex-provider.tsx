@@ -1,4 +1,9 @@
-import { ClerkProvider, useAuth } from "@clerk/clerk-react";
+import {
+  ClerkDegraded,
+  ClerkFailed,
+  ClerkProvider,
+  useAuth,
+} from "@clerk/clerk-react";
 import { ConvexReactClient } from "convex/react";
 import { ConvexProviderWithClerk } from "convex/react-clerk";
 import type React from "react";
@@ -11,10 +16,7 @@ import {
   refreshAnonymousToken,
   setAnonymousSession,
 } from "@/lib";
-import {
-  clearClerkCookies,
-  installClerkSessionRecovery,
-} from "@/lib/clerk-recovery";
+import { clearClerkCookies } from "@/lib/clerk-recovery";
 import { CACHE_KEYS, set } from "@/lib/local-storage";
 
 type ConvexProviderProps = {
@@ -45,44 +47,6 @@ const CLERK_PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 if (!CLERK_PUBLISHABLE_KEY) {
   throw new Error("VITE_CLERK_PUBLISHABLE_KEY environment variable is not set");
 }
-
-/**
- * One-time migration: clear stale tokens from the old @convex-dev/auth system.
- * Old sessions used localStorage keys like __convexAuthJWT, __convexAuthRefreshToken,
- * and cookies. Without this, returning users get stuck in an auth error loop.
- * Safe to remove after 2025-03-01 when all old sessions have expired.
- */
-function clearLegacyAuthState() {
-  const LEGACY_KEYS = [
-    "__convexAuthJWT",
-    "__convexAuthRefreshToken",
-    "__convexAuthState",
-  ];
-  const migrationKey = "polly:auth-migrated-to-clerk";
-
-  if (localStorage.getItem(migrationKey)) {
-    return;
-  }
-
-  let cleared = false;
-  for (const key of LEGACY_KEYS) {
-    if (localStorage.getItem(key) !== null) {
-      localStorage.removeItem(key);
-      cleared = true;
-    }
-  }
-
-  if (cleared) {
-    localStorage.setItem(migrationKey, "1");
-    window.location.reload();
-    return;
-  }
-
-  localStorage.setItem(migrationKey, "1");
-}
-
-clearLegacyAuthState();
-installClerkSessionRecovery();
 
 /**
  * Derive the Convex site URL from the Convex deployment URL.
@@ -134,8 +98,29 @@ function useAuthWithAnonymous() {
   const [bothFailed, setBothFailed] = useState(false);
   const fetchingRef = useRef(false);
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const wasSignedInRef = useRef(false);
 
   const siteUrl = getConvexSiteUrl();
+
+  // Track Clerk sign-in state to detect stale sessions. When a user was
+  // signed in but Clerk now reports not-signed-in while session cookies
+  // still exist, the session is stale. Clear cookies so the next load
+  // starts clean instead of looping on failed token refreshes.
+  useEffect(() => {
+    if (clerkAuth.isSignedIn) {
+      wasSignedInRef.current = true;
+      return;
+    }
+    if (
+      clerkAuth.isLoaded &&
+      !clerkAuth.isSignedIn &&
+      wasSignedInRef.current &&
+      hasClerkSessionCookies()
+    ) {
+      wasSignedInRef.current = false;
+      clearClerkCookies();
+    }
+  }, [clerkAuth.isLoaded, clerkAuth.isSignedIn]);
 
   // Schedule a token refresh before expiry
   const scheduleRefresh = useCallback(
@@ -369,6 +354,14 @@ function useAuthWithAnonymous() {
   };
 }
 
+function ClerkServiceBanner({ message }: { message: string }) {
+  return (
+    <div className="fixed top-0 inset-x-0 z-banner bg-amber-500/90 text-amber-950 text-center text-sm py-1.5 px-4">
+      {message}
+    </div>
+  );
+}
+
 export const ConvexProvider = ({ children }: ConvexProviderProps) => {
   const client = getOrCreateClient();
 
@@ -376,8 +369,17 @@ export const ConvexProvider = ({ children }: ConvexProviderProps) => {
     <ClerkProvider
       publishableKey={CLERK_PUBLISHABLE_KEY}
       signInUrl="/auth"
+      signUpUrl="/auth"
       afterSignOutUrl="/"
+      signInFallbackRedirectUrl="/"
+      signUpFallbackRedirectUrl="/"
     >
+      <ClerkDegraded>
+        <ClerkServiceBanner message="Sign-in is temporarily experiencing issues. You can continue using the app." />
+      </ClerkDegraded>
+      <ClerkFailed>
+        <ClerkServiceBanner message="Sign-in is currently unavailable. You can continue using the app as a guest." />
+      </ClerkFailed>
       <ConvexProviderWithClerk client={client} useAuth={useAuthWithAnonymous}>
         {children}
       </ConvexProviderWithClerk>

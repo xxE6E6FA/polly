@@ -165,9 +165,10 @@ export const ensureUser = mutation({
       return existingByExternalId;
     }
 
-    // Check for existing user by email (migrating from old auth system).
-    // If found, link the existing user to the new Clerk identity.
-    const email = identity.email;
+    // Check for existing user by verified email (migrating from old auth
+    // system). Only trust the email for merge if Clerk has verified ownership
+    // — unverified emails could let an attacker claim someone else's account.
+    const email = identity.emailVerified ? identity.email : undefined;
     if (email) {
       // Use .first() — email is not a unique constraint, duplicates are possible
       // (e.g. old auth migration). .unique() would throw on duplicates.
@@ -177,10 +178,14 @@ export const ensureUser = mutation({
         .first();
 
       if (existingByEmail) {
-        // Only merge if the existing user has no Clerk identity yet.
-        // This prevents an attacker with a matching email from hijacking
-        // an account that is already linked to a different Clerk user.
-        if (!existingByEmail.externalId) {
+        // Block merge if the existing user is already linked to a *different*
+        // Clerk identity — that means another real Clerk user owns this account.
+        // Allow merge for: no externalId, non-Clerk externalId (old auth), or
+        // same Clerk ID (idempotent re-login).
+        const existingExt = existingByEmail.externalId;
+        if (existingExt?.startsWith("user_") && existingExt !== externalId) {
+          // Fall through to create a new user below
+        } else {
           await ctx.db.patch(existingByEmail._id, {
             externalId,
             name: identity.name ?? existingByEmail.name,
@@ -189,8 +194,6 @@ export const ensureUser = mutation({
           });
           return await ctx.db.get(existingByEmail._id);
         }
-        // Existing user already has a different identity — don't merge,
-        // fall through to create a new user.
       }
     }
 
