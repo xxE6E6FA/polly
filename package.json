@@ -11,7 +11,7 @@
     "build": "NODE_ENV=production sh -c \"convex deploy --verbose --typecheck disable && vite build\"",
     "fix": "biome check --write .",
     "check": "biome ci . && react-compiler-healthcheck && vite build",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsgo --noEmit",
     "lint:file": "biome check --write",
     "check:file": "biome check",
     "check:json": "biome ci --reporter=json .",
