@@ -60,24 +60,20 @@ type UserMenuProps = {
 
 export const UserMenu = memo(({ user, shouldAnonymize }: UserMenuProps) => {
   const isDesktop = useMediaQuery("(min-width: 640px)");
+  const [imgError, setImgError] = useState(false);
 
-  const avatar = user?.image ? (
+  const imageSrc = user?.image && !imgError ? user.image : null;
+
+  const avatar = imageSrc ? (
     <img
-      alt={user.name || "User avatar"}
+      alt={user?.name || "User avatar"}
       className={cn(
         "h-7 w-7 rounded-full object-cover shrink-0",
         shouldAnonymize && "blur-sm"
       )}
       loading="lazy"
-      src={user.image}
-      onError={e => {
-        const target = e.target as HTMLImageElement;
-        target.style.display = "none";
-        const fallback = target.nextElementSibling as HTMLElement;
-        if (fallback) {
-          fallback.style.display = "flex";
-        }
-      }}
+      src={imageSrc}
+      onError={() => setImgError(true)}
     />
   ) : (
     <div
