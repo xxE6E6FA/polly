@@ -553,7 +553,7 @@ export const ImageGenerationBubble = ({
                 onClick={onDeleteMessage}
                 disabled={isDeleting}
               >
-                <TrashIcon className="size-3.5" />
+                <TrashIcon className="size-4" />
               </ActionButton>
             )}
           </div>
@@ -595,7 +595,7 @@ export const ImageGenerationBubble = ({
                 onClick={onDeleteMessage}
                 disabled={isDeleting}
               >
-                <TrashIcon className="size-3.5" />
+                <TrashIcon className="size-4" />
               </ActionButton>
             )}
           </div>

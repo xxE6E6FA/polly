@@ -84,12 +84,12 @@ function getTTSIconForDrawer(ttsState: TtsState): React.ReactNode {
 
 function getTTSIconForButton(ttsState: TtsState): React.ReactNode {
   if (ttsState === "loading") {
-    return <Spinner size="sm" className="h-3.5 w-3.5" />;
+    return <Spinner size="sm" className="h-4 w-4" />;
   }
   if (ttsState === "playing") {
-    return <SquareIcon className="size-3.5 text-destructive" weight="fill" />;
+    return <SquareIcon className="size-4 text-destructive" weight="fill" />;
   }
-  return <Volume2Icon animateOnHover className="size-3.5" />;
+  return <Volume2Icon animateOnHover className="size-4" />;
 }
 
 type MessageActionsProps = {
@@ -336,7 +336,7 @@ export const MessageActions = memo(
     }
 
     const containerClassName = cn(
-      "flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100",
+      "flex items-center gap-1.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100",
       "translate-y-0 sm:translate-y-1 sm:group-hover:translate-y-0",
       "transition-all duration-200 ease-out",
       "@media (prefers-reduced-motion: reduce) { transition-duration: 0ms; opacity: 100; transform: none }",
@@ -441,7 +441,7 @@ export const MessageActions = memo(
                     disabled={isEditing}
                     aria-label="More actions"
                   >
-                    <DotsThreeIcon className="size-3.5" aria-hidden="true" />
+                    <DotsThreeIcon className="size-4" aria-hidden="true" />
                   </TooltipTrigger>
                 </DrawerTrigger>
                 <TooltipContent>
@@ -464,7 +464,7 @@ export const MessageActions = memo(
         )}
 
         {/* Desktop: Individual action buttons */}
-        <div className="hidden sm:flex sm:items-center sm:gap-1">
+        <div className="hidden sm:flex sm:items-center sm:gap-1.5">
           {onEditMessage && (
             <ActionButtons.Edit
               disabled={isEditing}
@@ -578,7 +578,7 @@ export const MessageActions = memo(
                 </span>
               )}
               {/* Mobile: Show only icon */}
-              <ChartBarIcon className="size-3.5 sm:hidden" aria-hidden="true" />
+              <ChartBarIcon className="size-4 sm:hidden" aria-hidden="true" />
             </PopoverTrigger>
             <PopoverContent className="w-64 p-3" align="start" side="top">
               <div className="stack-md">
@@ -663,7 +663,7 @@ export const MessageActions = memo(
         {!isUser && model && provider && (
           <ActionButton size="label" className="pointer-events-none">
             {provider !== "replicate" && (
-              <ProviderIcon className="h-3 w-3" provider={provider} />
+              <ProviderIcon className="h-3.5 w-3.5" provider={provider} />
             )}
             <span className="hidden sm:inline">{modelTitle}</span>
           </ActionButton>
