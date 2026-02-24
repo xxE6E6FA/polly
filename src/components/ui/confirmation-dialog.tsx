@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -27,6 +28,7 @@ interface ConfirmationDialogProps {
   onCancel?: () => void;
   variant?: "default" | "destructive";
   autoFocusConfirm?: boolean;
+  children?: ReactNode;
 }
 
 export const ConfirmationDialog = ({
@@ -40,6 +42,7 @@ export const ConfirmationDialog = ({
   onCancel,
   variant = "default",
   autoFocusConfirm = true,
+  children,
 }: ConfirmationDialogProps) => {
   const [isMobile, setIsMobile] = useState(false);
 
@@ -90,6 +93,7 @@ export const ConfirmationDialog = ({
             <DialogTitle>{title}</DialogTitle>
             <DialogDescription>{description}</DialogDescription>
           </DialogHeader>
+          {children}
           <DialogFooter>
             <Button
               variant="outline"
@@ -121,6 +125,7 @@ export const ConfirmationDialog = ({
           <DrawerBody>
             <div className="stack-lg">
               <p className="text-sm text-muted-foreground">{description}</p>
+              {children}
               <div className="flex justify-end gap-2">
                 <Button
                   variant="outline"

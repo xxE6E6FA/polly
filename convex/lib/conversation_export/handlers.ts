@@ -96,14 +96,24 @@ export async function processBackgroundExportHandler(
       }
     );
 
+    // Fetch personas and memories for export
+    const [personas, memories] = await Promise.all([
+      ctx.runQuery(internal.personas.internalListForExport, {
+        userId: args.userId,
+      }),
+      ctx.runQuery(internal.memory.internalListForExport, {
+        userId: args.userId,
+      }),
+    ]);
+
     const hydratedExportData = await hydrateExportDataWithAttachments(
       ctx,
       exportData,
       args.includeAttachments
     );
 
-    if (exportData.length === 0) {
-      throw new Error("No conversations found for export");
+    if (exportData.length === 0 && personas.length === 0 && memories.length === 0) {
+      throw new Error("No data found for export");
     }
 
     // Update progress after data retrieval
@@ -130,6 +140,9 @@ export async function processBackgroundExportHandler(
     let fileStorageId: Id<"_storage">;
     let fileSizeBytes: number;
 
+    const personasJson = JSON.stringify(personas, null, 2);
+    const memoriesJson = JSON.stringify(memories, null, 2);
+
     if (args.includeAttachments) {
       // Create ZIP file with JSON and attachments
       const zip = new JSZip();
@@ -137,6 +150,8 @@ export async function processBackgroundExportHandler(
       // Add the JSON file
       const exportJson = JSON.stringify(convexExportData, null, 2);
       zip.file("export.json", exportJson);
+      zip.file("personas.json", personasJson);
+      zip.file("memories.json", memoriesJson);
 
       // Add attachment files
       for (const conversation of hydratedExportData) {
@@ -158,8 +173,13 @@ export async function processBackgroundExportHandler(
         new Blob([zipBlob], { type: "application/zip" })
       );
     } else {
-      // Convert to JSON string
-      const exportJson = JSON.stringify(convexExportData, null, 2);
+      // Convert to JSON string (include personas and memories in the export object)
+      const fullExportData = {
+        ...convexExportData,
+        personas,
+        memories,
+      };
+      const exportJson = JSON.stringify(fullExportData, null, 2);
       fileSizeBytes = new Blob([exportJson]).size;
 
       // Store the export file

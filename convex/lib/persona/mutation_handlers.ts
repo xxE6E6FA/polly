@@ -197,6 +197,35 @@ export async function toggleBuiltInPersonaHandler(
   return { success: true };
 }
 
+/** Delete a batch of user personas. Returns whether more remain so the caller can re-invoke. */
+export async function clearAllHandler(ctx: MutationCtx) {
+  const userId = await getAuthenticatedUser(ctx);
+
+  const batch = await ctx.db
+    .query("personas")
+    .withIndex("by_user_active", q => q.eq("userId", userId))
+    .take(100);
+
+  for (const persona of batch) {
+    await ctx.db.delete("personas", persona._id);
+  }
+
+  const hasMore = batch.length === 100;
+
+  // Clean up userPersonaSettings when no more personas remain
+  if (!hasMore) {
+    const settings = await ctx.db
+      .query("userPersonaSettings")
+      .withIndex("by_user_persona", q => q.eq("userId", userId))
+      .collect();
+    for (const setting of settings) {
+      await ctx.db.delete("userPersonaSettings", setting._id);
+    }
+  }
+
+  return { deleted: batch.length, hasMore };
+}
+
 // ============================================================================
 // Action handler implementations (external API calls)
 // ============================================================================

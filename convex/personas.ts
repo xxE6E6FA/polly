@@ -1,11 +1,12 @@
 import { v } from "convex/values";
-import { action, mutation, query } from "./_generated/server";
+import { action, internalQuery, mutation, query } from "./_generated/server";
 import { paginationOptsSchema } from "./lib/pagination";
 import { personaImportSchema } from "./lib/schemas";
 
 // Re-export types used by frontend
 export type { EnrichedPersona } from "./lib/persona/helpers";
 export {
+  clearAllHandler,
   createHandler,
   importPersonasHandler,
   improvePromptHandler,
@@ -28,6 +29,7 @@ export {
 } from "./lib/persona/query_handlers";
 
 import {
+  clearAllHandler,
   createHandler,
   importPersonasHandler,
   improvePromptHandler,
@@ -171,4 +173,19 @@ export const improvePrompt = action({
     prompt: v.string(),
   },
   handler: improvePromptHandler,
+});
+
+export const clearAll = mutation({
+  args: {},
+  handler: clearAllHandler,
+});
+
+export const internalListForExport = internalQuery({
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("personas")
+      .withIndex("by_user_active", q => q.eq("userId", args.userId))
+      .collect();
+  },
 });

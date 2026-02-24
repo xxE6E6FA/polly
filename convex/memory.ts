@@ -87,6 +87,17 @@ export const getEligibleConversations = internalQuery({
   },
 });
 
+/** List all memories for a user (for export). */
+export const internalListForExport = internalQuery({
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("userMemories")
+      .withIndex("by_user", q => q.eq("userId", args.userId))
+      .collect();
+  },
+});
+
 // ============================================================================
 // INTERNAL MUTATIONS (used by extraction action)
 // ============================================================================
