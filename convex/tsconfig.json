@@ -17,12 +17,11 @@
     "skipLibCheck": true,
     "noEmit": true,
     "moduleResolution": "bundler",
-    "baseUrl": "..",
     "paths": {
-      "@/*": ["src/*"],
-      "@convex/*": ["convex/*"],
-      "@shared/*": ["shared/*"],
-      "@config/*": ["config/*"]
+      "@/*": ["./../src/*"],
+      "@convex/*": ["./../convex/*"],
+      "@shared/*": ["./../shared/*"],
+      "@config/*": ["./../config/*"]
     }
   }
 }
