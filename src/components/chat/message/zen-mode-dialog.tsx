@@ -1,3 +1,4 @@
+import { Dialog } from "@base-ui/react/dialog";
 import {
   useCallback,
   useEffect,
@@ -6,12 +7,6 @@ import {
   useRef,
   useState,
 } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogOverlay,
-  DialogPortal,
-} from "@/components/ui/dialog";
 import { StreamingMarkdown } from "@/components/ui/streaming-markdown";
 import { useZenDisplaySettings } from "@/hooks";
 import { cn } from "@/lib/utils";
@@ -274,20 +269,23 @@ export const ZenModeDialog = ({
   );
 
   return (
-    <Dialog open={internalOpen} onOpenChange={handleDialogOpenChange}>
-      <DialogPortal>
-        <DialogOverlay className="fixed inset-0 bg-foreground/60 backdrop-blur-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0 data-[state=open]:duration-300 data-[state=closed]:duration-200" />
-        <DialogContent
+    <Dialog.Root open={internalOpen} onOpenChange={handleDialogOpenChange}>
+      <Dialog.Portal>
+        <Dialog.Backdrop
           className={cn(
-            "fixed inset-0 m-0 flex h-full w-full flex-col overflow-hidden p-0",
-            "transform-gpu origin-bottom sm:origin-center",
-            "data-[state=open]:animate-in data-[state=closed]:animate-out",
-            "data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0",
-            "data-[state=open]:slide-in-from-bottom-4 data-[state=closed]:slide-out-to-bottom-4",
-            "sm:data-[state=open]:slide-in-from-top-[4%] sm:data-[state=closed]:slide-out-to-top-[4%]",
-            "sm:data-[state=open]:zoom-in-95 sm:data-[state=closed]:zoom-out-95",
-            "data-[state=open]:duration-500 data-[state=closed]:duration-300 ease-out",
-            "focus:outline-none"
+            "fixed inset-0 z-modal bg-black/50 backdrop-blur-sm",
+            "data-[open]:animate-in data-[closed]:animate-out",
+            "data-[open]:fade-in-0 data-[closed]:fade-out-0",
+            "data-[open]:duration-500 data-[closed]:duration-300"
+          )}
+        />
+        <Dialog.Popup
+          className={cn(
+            "fixed inset-0 z-modal m-0 flex h-dvh w-dvw flex-col overflow-hidden p-0 outline-none",
+            "transform-gpu",
+            "data-[open]:animate-in data-[closed]:animate-out",
+            "data-[open]:fade-in-0 data-[closed]:fade-out-0",
+            "data-[open]:duration-500 data-[closed]:duration-300 ease-out"
           )}
         >
           <div className="relative flex h-full w-full flex-col overflow-hidden bg-background text-foreground">
@@ -372,8 +370,8 @@ export const ZenModeDialog = ({
               </section>
             </div>
           </div>
-        </DialogContent>
-      </DialogPortal>
-    </Dialog>
+        </Dialog.Popup>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 };

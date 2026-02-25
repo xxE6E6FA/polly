@@ -2504,6 +2504,18 @@ pre {
   color: var(--color-foreground);
 }
 
+/* First paragraph drop cap for editorial feel */
+.zen-prose .prose
+  > :where(p:first-of-type):not(:where([class~="not-prose"] *))::first-letter {
+  float: left;
+  font-size: calc(3.4em * var(--zen-font-scale, 1));
+  line-height: 0.8;
+  font-weight: 700;
+  margin-right: 0.08em;
+  margin-top: 0.05em;
+  color: var(--color-foreground);
+}
+
 .zen-prose .prose :where(p):not(:where([class~="not-prose"] *)) {
   font-size: clamp(
     calc(1.4rem * var(--zen-font-scale, 1)),
@@ -2515,6 +2527,15 @@ pre {
     calc(1.75 * var(--zen-line-scale, 1)),
     calc(2 * var(--zen-line-scale, 1))
   );
+  margin-top: 0;
+  margin-bottom: clamp(0.8rem, 0.5vw + 0.6rem, 1.2rem);
+  hanging-punctuation: first allow-end last;
+}
+
+/* Elegant paragraph spacing — tighter between consecutive paragraphs */
+.zen-prose .prose :where(p + p):not(:where([class~="not-prose"] *)) {
+  text-indent: 0;
+  margin-top: clamp(0.4rem, 0.3vw + 0.3rem, 0.7rem);
 }
 
 .zen-prose .prose :where(li):not(:where([class~="not-prose"] *)) {
@@ -2531,12 +2552,15 @@ pre {
 }
 
 .zen-prose .prose :where(h1, h2, h3, h4):not(:where([class~="not-prose"] *)) {
-  font-weight: 600;
+  font-weight: 700;
+  letter-spacing: -0.02em;
   line-height: clamp(
     calc(1.05 * var(--zen-line-scale, 1)),
     calc(1.08 * var(--zen-line-scale, 1)),
     calc(1.12 * var(--zen-line-scale, 1))
   );
+  margin-top: clamp(2rem, 1.5vw + 1.5rem, 3.5rem);
+  margin-bottom: clamp(0.6rem, 0.4vw + 0.5rem, 1rem);
 }
 
 .zen-prose .prose :where(h1):not(:where([class~="not-prose"] *)) {
@@ -2545,6 +2569,7 @@ pre {
     calc((1.8vw + 1.4rem) * var(--zen-font-scale, 1)),
     calc(2.8rem * var(--zen-font-scale, 1))
   );
+  letter-spacing: -0.03em;
 }
 
 .zen-prose .prose :where(h2):not(:where([class~="not-prose"] *)) {
@@ -2563,53 +2588,56 @@ pre {
   );
 }
 
+/* Horizontal rules as elegant section dividers */
+.zen-prose .prose :where(hr):not(:where([class~="not-prose"] *)) {
+  border: none;
+  text-align: center;
+  margin: clamp(2rem, 1.5vw + 1.5rem, 3.5rem) auto;
+  max-width: 6rem;
+  height: auto;
+}
+
+.zen-prose .prose :where(hr):not(:where([class~="not-prose"] *))::after {
+  content: "* * *";
+  display: block;
+  font-size: calc(1.1rem * var(--zen-font-scale, 1));
+  letter-spacing: 0.5em;
+  color: var(--color-muted-foreground);
+}
+
 .zen-prose .prose :where(blockquote):not(:where([class~="not-prose"] *)) {
-  margin: clamp(1.25rem, 0.7vw + 1rem, 2rem) 0;
+  margin: clamp(1.5rem, 0.8vw + 1.2rem, 2.5rem) 0;
   font-style: italic;
   color: var(--color-foreground);
-  background: var(--color-card);
-  border-radius: 1rem;
-  border-left: 6px solid var(--color-border);
-  padding: clamp(1.2rem, 0.7vw + 1rem, 1.8rem) clamp(1.4rem, 1vw + 1rem, 2.2rem);
+  background: transparent;
+  border-radius: 0;
+  border-left: 3px solid var(--color-foreground);
+  padding: 0 0 0 clamp(1.2rem, 0.8vw + 0.8rem, 2rem);
   position: relative;
   width: 100%;
+  opacity: 0.85;
 }
 
 .dark .zen-prose .prose :where(blockquote):not(:where([class~="not-prose"] *)) {
   color: var(--color-foreground);
-  background: var(--color-card);
-  border-left: 6px solid var(--color-border);
+  background: transparent;
+  border-left: 3px solid var(--color-foreground);
 }
 
 .zen-prose .prose :where(blockquote)::before {
-  content: "?";
-  font-family: "Literata", Georgia, serif;
-  font-size: clamp(
-    calc(2.2rem * var(--zen-font-scale, 1)),
-    calc((2vw + 1.2rem) * var(--zen-font-scale, 1)),
-    calc(3.4rem * var(--zen-font-scale, 1))
-  );
-  position: absolute;
-  top: clamp(0.2rem, 0.1vw + 0.05rem, 0.4rem);
-  left: clamp(0.6rem, 0.4vw + 0.4rem, 1.1rem);
-  color: var(--color-muted-foreground);
-  line-height: 1;
-}
-
-.dark .zen-prose .prose :where(blockquote)::before {
-  color: var(--color-muted-foreground);
+  display: none;
 }
 
 .zen-prose .prose :where(blockquote p):not(:where([class~="not-prose"] *)) {
   font-size: clamp(
-    calc(1.5rem * var(--zen-font-scale, 1)),
+    calc(1.45rem * var(--zen-font-scale, 1)),
     calc((0.85vw + 1.1rem) * var(--zen-font-scale, 1)),
-    calc(1.85rem * var(--zen-font-scale, 1))
+    calc(1.8rem * var(--zen-font-scale, 1))
   );
   line-height: clamp(
+    calc(1.7 * var(--zen-line-scale, 1)),
     calc(1.85 * var(--zen-line-scale, 1)),
-    calc(1.95 * var(--zen-line-scale, 1)),
-    calc(2.05 * var(--zen-line-scale, 1))
+    calc(2 * var(--zen-line-scale, 1))
   );
   margin: 0;
 }
@@ -2709,22 +2737,7 @@ pre {
 }
 
 .zen-prose .prose :where(pre)::before {
-  content: "";
-  position: absolute;
-  inset: 12px auto auto 12px;
-  height: 10px;
-  width: 52px;
-  background:
-    radial-gradient(circle, var(--color-destructive) 5px, transparent 5px) 0 0,
-    radial-gradient(circle, var(--color-accent-yellow) 5px, transparent 5px)
-    21px 0,
-    radial-gradient(circle, var(--color-success) 5px, transparent 5px) 42px 0;
-  background-size:
-    10px 10px,
-    10px 10px,
-    10px 10px;
-  background-repeat: no-repeat;
-  opacity: 0.85;
+  display: none;
 }
 
 .zen-prose .prose :where(pre code):not(:where([class~="not-prose"] *)) {
@@ -2757,6 +2770,27 @@ pre {
   .prose
   :where(code):not(:where(pre code, [class~="not-prose"] *)) {
   background: var(--color-muted);
+  color: var(--color-foreground);
+}
+
+/* Zen prose — link styling */
+.zen-prose .prose :where(a):not(:where([class~="not-prose"] *)) {
+  color: var(--color-foreground);
+  text-decoration: underline;
+  text-decoration-color: var(--color-foreground);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.15em;
+  transition: text-decoration-color 0.2s ease;
+}
+
+.zen-prose .prose :where(a:hover):not(:where([class~="not-prose"] *)) {
+  text-decoration-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+/* Zen prose — strong emphasis */
+.zen-prose .prose :where(strong):not(:where([class~="not-prose"] *)) {
+  font-weight: 650;
   color: var(--color-foreground);
 }
 
