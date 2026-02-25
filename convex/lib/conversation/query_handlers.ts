@@ -8,7 +8,6 @@ import {
   validatePaginationOpts,
 } from "../pagination";
 import { hasConversationAccess } from "../shared_utils";
-import { isConversationStreaming } from "../streaming_utils";
 
 export async function listHandler(
   ctx: QueryCtx,
@@ -582,13 +581,6 @@ export async function searchWithMatchesHandler(
   });
 
   return results.slice(0, limit);
-}
-
-export async function isStreamingHandler(
-  ctx: QueryCtx,
-  args: { conversationId: Id<"conversations"> }
-) {
-  return await isConversationStreaming(ctx, args.conversationId);
 }
 
 const DEFAULT_CONTEXT_FALLBACK = 80_000;

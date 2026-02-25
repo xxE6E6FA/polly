@@ -1,12 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import {
-  configurePagination,
   createEmptyPaginationResult,
   DEFAULT_PAGE_SIZE,
-  getPaginationConfig,
   MAX_PAGE_SIZE,
   validatePaginationOpts,
-  validatePaginationOptsWithConfig,
 } from "./pagination";
 
 describe("pagination constants", () => {
@@ -16,47 +13,6 @@ describe("pagination constants", () => {
 
   test("has correct max page size", () => {
     expect(MAX_PAGE_SIZE).toBe(100);
-  });
-});
-
-describe("configurePagination", () => {
-  test("configures global pagination settings", () => {
-    configurePagination({
-      defaultPageSize: 10,
-      maxPageSize: 50,
-    });
-
-    const config = getPaginationConfig();
-    expect(config.defaultPageSize).toBe(10);
-    expect(config.maxPageSize).toBe(50);
-
-    // Reset to defaults
-    configurePagination({});
-  });
-
-  test("uses defaults when not provided", () => {
-    configurePagination({});
-
-    const config = getPaginationConfig();
-    expect(config.defaultPageSize).toBe(DEFAULT_PAGE_SIZE);
-    expect(config.maxPageSize).toBe(MAX_PAGE_SIZE);
-  });
-});
-
-describe("getPaginationConfig", () => {
-  test("returns current configuration", () => {
-    const config = getPaginationConfig();
-    expect(config).toHaveProperty("defaultPageSize");
-    expect(config).toHaveProperty("maxPageSize");
-    expect(typeof config.defaultPageSize).toBe("number");
-    expect(typeof config.maxPageSize).toBe("number");
-  });
-
-  test("returns a copy, not the original object", () => {
-    const config1 = getPaginationConfig();
-    const config2 = getPaginationConfig();
-    expect(config1).not.toBe(config2);
-    expect(config1).toEqual(config2);
   });
 });
 
@@ -132,34 +88,6 @@ describe("validatePaginationOpts", () => {
   test("omits id when not provided", () => {
     const result = validatePaginationOpts({ numItems: 10 });
     expect(result).not.toHaveProperty("id");
-  });
-
-  test("uses custom config when provided", () => {
-    const result = validatePaginationOpts(
-      { numItems: 10 },
-      { defaultPageSize: 5, maxPageSize: 50 }
-    );
-    expect(result?.numItems).toBe(10);
-  });
-});
-
-describe("validatePaginationOptsWithConfig", () => {
-  test("passes parameters correctly to validatePaginationOpts", () => {
-    const result = validatePaginationOptsWithConfig(
-      { numItems: 15 },
-      25,
-      200
-    );
-    expect(result?.numItems).toBe(15);
-  });
-
-  test("uses provided default and max page sizes", () => {
-    const result = validatePaginationOptsWithConfig(
-      {},
-      25,
-      200
-    );
-    expect(result?.numItems).toBe(25);
   });
 });
 

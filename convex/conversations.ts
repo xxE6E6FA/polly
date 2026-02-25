@@ -49,7 +49,6 @@ import {
   getForExportHandler,
   getHandler,
   getWithAccessInfoHandler,
-  isStreamingHandler,
   listHandler,
   searchHandler,
   searchWithMatchesHandler,
@@ -158,14 +157,6 @@ export const getByClientId = query({
   },
   returns: v.union(v.id("conversations"), v.null()),
   handler: getByClientIdHandler,
-});
-
-/**
- * Check if a conversation is currently streaming by examining its messages
- */
-export const isStreaming = query({
-  args: { conversationId: v.id("conversations") },
-  handler: isStreamingHandler,
 });
 
 /**
