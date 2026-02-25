@@ -128,16 +128,16 @@ export async function handleUserRetry(
     },
   );
 
-  await executeStreamMessage(ctx, buildStreamArgs(
-    { ...streamingArgs, contextEndIndex: messageIndex },
-    {
+  await executeStreamMessage(ctx, {
+    ...buildStreamArgs(streamingArgs, {
       messageId: assistantMessageId,
       conversationId,
       personaId: effectivePersonaId,
       reasoningConfig,
       userId: user._id,
-    },
-  ));
+    }),
+    contextEndIndex: messageIndex,
+  });
 
   return { assistantMessageId };
 }
