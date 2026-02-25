@@ -1,7 +1,7 @@
 /**
  * Shared utilities for message handling across components and hooks
  */
-import type { Doc } from "convex/_generated/dataModel";
+import type { Doc } from "@convex/_generated/dataModel";
 import { hasPageArray } from "@/lib/type-guards";
 import type { ChatMessage, ConversationId } from "@/types";
 

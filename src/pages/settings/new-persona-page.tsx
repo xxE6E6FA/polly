@@ -1,4 +1,4 @@
-import { api } from "convex/_generated/api";
+import { api } from "@convex/_generated/api";
 import { useMutation } from "convex/react";
 import { useState, useTransition } from "react";
 import { Link, useNavigate } from "react-router-dom";
