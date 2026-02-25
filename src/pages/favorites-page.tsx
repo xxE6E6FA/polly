@@ -6,8 +6,8 @@ import {
   HeartIcon,
   UserIcon,
 } from "@phosphor-icons/react";
-import { useMutation, usePaginatedQuery, useQuery } from "convex/react";
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useMutation, useQuery } from "convex/react";
+import { memo, useCallback, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { SearchInput } from "@/components/ui/search-input";
@@ -33,7 +33,6 @@ type FavoriteItem = {
   };
 };
 
-const ITEMS_PER_PAGE = 50;
 const PREVIEW_LENGTH = 300;
 
 function stripMarkdown(text: string): string {
@@ -144,95 +143,33 @@ const FavoriteCard = memo(function FavoriteCard({
   );
 });
 
-function LoadMoreSentinel({
-  onVisible,
-  isLoading,
-}: {
-  onVisible: () => void;
-  isLoading: boolean;
-}) {
-  const sentinelRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const el = sentinelRef.current;
-    if (!el) {
-      return;
-    }
-
-    const observer = new IntersectionObserver(
-      entries => {
-        if (entries[0]?.isIntersecting) {
-          onVisible();
-        }
-      },
-      { rootMargin: "200px" }
-    );
-
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [onVisible]);
-
-  return (
-    <div ref={sentinelRef}>
-      {isLoading && (
-        <div>
-          <FavoriteItemSkeleton />
-          <FavoriteItemSkeleton />
-          <FavoriteItemSkeleton />
-        </div>
-      )}
-    </div>
-  );
-}
-
-const Skeletons = (
-  <div>
-    <FavoriteItemSkeleton />
-    <FavoriteItemSkeleton />
-    <FavoriteItemSkeleton />
-    <FavoriteItemSkeleton />
-    <FavoriteItemSkeleton />
-    <FavoriteItemSkeleton />
-  </div>
-);
-
 export default function FavoritesPage() {
   const { user } = useUserDataContext();
   const [search, setSearch] = useState("");
   const managedToast = useToast();
 
-  // Fast single-table check — no joins, resolves in one shot
-  const hasFavorites = useQuery(api.messages.hasFavorites, user ? {} : "skip");
-
-  const { results, status, loadMore } = usePaginatedQuery(
-    api.messages.listFavoritesPaginated,
-    user ? {} : "skip",
-    { initialNumItems: ITEMS_PER_PAGE }
-  );
+  const data = useQuery(api.messages.listFavorites, user ? {} : "skip");
 
   const toggleFavorite = useMutation(api.messages.toggleFavorite);
 
-  const handleEndReached = useCallback(() => {
-    if (status === "CanLoadMore") {
-      loadMore(ITEMS_PER_PAGE);
-    }
-  }, [status, loadMore]);
-
-  const items = useMemo(() => {
-    const raw = results as unknown as FavoriteItem[] | undefined;
-    if (!raw) {
+  const allItems = useMemo(() => {
+    if (!data) {
       return [];
     }
+    return data.items as unknown as FavoriteItem[];
+  }, [data]);
+
+  const items = useMemo(() => {
     if (!search.trim()) {
-      return raw;
+      return allItems;
     }
     const q = search.toLowerCase();
-    return raw.filter(
+    return allItems.filter(
       it =>
         it.conversation.title.toLowerCase().includes(q) ||
         it.message.content.toLowerCase().includes(q)
     );
-  }, [results, search]);
+  }, [allItems, search]);
 
   const handleCopy = useCallback(
     async (text: string) => {
@@ -268,12 +205,23 @@ export default function FavoritesPage() {
   }
 
   const hasSearch = search.trim().length > 0;
+  // undefined = still loading, null won't happen since we skip when no user
+  const isLoading = data === undefined;
 
-  // Loading: hasFavorites query hasn't resolved yet
-  // Empty: hasFavorites resolved to false (no favorites exist)
-  // Data loading: hasFavorites is true but enriched items haven't arrived yet
-  // Ready: items are populated
   const renderContent = () => {
+    if (isLoading) {
+      return (
+        <div>
+          <FavoriteItemSkeleton />
+          <FavoriteItemSkeleton />
+          <FavoriteItemSkeleton />
+          <FavoriteItemSkeleton />
+          <FavoriteItemSkeleton />
+          <FavoriteItemSkeleton />
+        </div>
+      );
+    }
+
     if (items.length > 0) {
       return (
         <div>
@@ -285,65 +233,36 @@ export default function FavoritesPage() {
               onUnfavorite={handleUnfavorite}
             />
           ))}
-          {status !== "Exhausted" && (
-            <LoadMoreSentinel
-              onVisible={handleEndReached}
-              isLoading={status === "LoadingMore"}
-            />
-          )}
         </div>
       );
     }
 
-    // hasFavorites is the source of truth for empty vs loading.
-    // The paginated query can briefly return empty results while
-    // enrichment (joining messages + conversations) resolves, so
-    // we don't trust it for the empty/loading decision.
-    if (hasFavorites === false) {
-      return (
-        <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
-          <div className="mb-4 rounded-full bg-muted/30 p-4">
-            <HeartIcon
-              className="size-7 text-muted-foreground/50"
-              weight="regular"
-            />
-          </div>
-          <h2 className="text-base font-medium text-foreground/80 mb-1.5">
-            No favorites yet
-          </h2>
-          <p className="text-sm text-muted-foreground max-w-xs mb-5 leading-relaxed">
-            Tap the heart icon on any message to save it here for quick access.
-          </p>
+    return (
+      <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
+        <div className="mb-4 rounded-full bg-muted/30 p-4">
+          <HeartIcon
+            className="size-7 text-muted-foreground/50"
+            weight="regular"
+          />
+        </div>
+        <h2 className="text-base font-medium text-foreground/80 mb-1.5">
+          {hasSearch ? "No matches found" : "No favorites yet"}
+        </h2>
+        <p className="text-sm text-muted-foreground max-w-xs mb-5 leading-relaxed">
+          {hasSearch
+            ? "Try a different search term."
+            : "Tap the heart icon on any message to save it here for quick access."}
+        </p>
+        {!hasSearch && (
           <Link
             to={ROUTES.HOME}
             className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
           >
             Go to conversations
           </Link>
-        </div>
-      );
-    }
-
-    if (hasSearch) {
-      return (
-        <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
-          <div className="mb-4 rounded-full bg-muted/30 p-4">
-            <HeartIcon
-              className="size-7 text-muted-foreground/50"
-              weight="regular"
-            />
-          </div>
-          <h2 className="text-base font-medium text-foreground/80 mb-1.5">
-            No matches found
-          </h2>
-          <p className="text-sm text-muted-foreground max-w-xs mb-5 leading-relaxed">
-            Try a different search term.
-          </p>
-        </div>
-      );
-    }
-
-    return Skeletons;
+        )}
+      </div>
+    );
   };
 
   return (
@@ -359,7 +278,7 @@ export default function FavoritesPage() {
                 </span>
               )}
             </div>
-            {items.length > 0 && (
+            {allItems.length > 0 && (
               <SearchInput
                 placeholder="Search favorites…"
                 value={search}
