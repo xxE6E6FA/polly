@@ -574,7 +574,9 @@ export const MessageActions = memo(
               {metadata?.tokensPerSecond && (
                 <span className="hidden sm:inline">
                   <span className="text-muted-foreground/30">&middot;</span>
-                  <span>{Math.round(metadata.tokensPerSecond)} t/s</span>
+                  <span className="tabular-nums">
+                    {Math.round(metadata.tokensPerSecond)} t/s
+                  </span>
                 </span>
               )}
               {/* Mobile: Show only icon */}
@@ -630,7 +632,7 @@ export const MessageActions = memo(
                         <span className="text-muted-foreground">
                           Generation Speed
                         </span>
-                        <span className="font-mono">
+                        <span className="font-mono tabular-nums">
                           {metadata.tokensPerSecond.toFixed(1)} t/s
                         </span>
                       </div>

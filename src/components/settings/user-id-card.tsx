@@ -360,7 +360,7 @@ export const UserIdCard = () => {
             >
               <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
                 <Meter.Label>Monthly Usage</Meter.Label>
-                <Meter.Value className="font-mono text-foreground">
+                <Meter.Value className="font-mono tabular-nums text-foreground">
                   {(_, value) => `${value}/${monthlyUsage.monthlyLimit}`}
                 </Meter.Value>
               </div>
@@ -472,7 +472,7 @@ export const UserIdCard = () => {
           >
             <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
               <Meter.Label>Monthly Usage</Meter.Label>
-              <Meter.Value className="font-mono text-foreground">
+              <Meter.Value className="font-mono tabular-nums text-foreground">
                 {(_, value) => `${value}/${monthlyUsage.monthlyLimit}`}
               </Meter.Value>
             </div>

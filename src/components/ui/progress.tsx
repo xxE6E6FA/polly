@@ -181,7 +181,7 @@ function JobProgressCard({ job, onRemove, ref }: JobProgressCardProps) {
                   variant={getProgressVariant()}
                   className="h-1.5 flex-1"
                 />
-                <span className="text-xs font-mono text-muted-foreground">
+                <span className="text-xs font-mono tabular-nums text-muted-foreground">
                   {Math.round(job.progress)}%
                 </span>
               </div>

@@ -220,7 +220,7 @@ const TemperatureControlMobile = ({
             >
               <div className="font-medium text-sm">{preset.label}</div>
               <div className="text-xs text-muted-foreground">{preset.desc}</div>
-              <div className="text-xs font-mono text-primary mt-1">
+              <div className="text-xs font-mono tabular-nums text-primary mt-1">
                 {preset.value.toFixed(1)}
               </div>
             </button>
