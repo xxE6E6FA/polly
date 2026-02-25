@@ -1,6 +1,9 @@
 import { describe, expect, test } from "bun:test";
+import type { Id } from "./_generated/dataModel";
 import {
+  buildStreamArgs,
   isAttachmentPart,
+  type ModelStreamingArgs,
   stripAttachmentsFromOlderMessages,
 } from "./streaming_actions";
 
@@ -382,5 +385,68 @@ describe("stripAttachmentsFromOlderMessages", () => {
       // Original should be unchanged
       expect(messages[0]?.content).toEqual(originalContent);
     });
+  });
+});
+
+describe("buildStreamArgs", () => {
+  const baseStreamingArgs: ModelStreamingArgs = {
+    modelId: "gpt-4o",
+    provider: "openai",
+    supportsTools: true,
+    supportsImages: true,
+    supportsFiles: false,
+    supportsReasoning: false,
+  };
+
+  const baseRequest = {
+    messageId: "msg-123" as Id<"messages">,
+    conversationId: "conv-456" as Id<"conversations">,
+    userId: "user-789" as Id<"users">,
+  };
+
+  test("maps modelId to model and includes all capability flags", () => {
+    const result = buildStreamArgs(baseStreamingArgs, baseRequest);
+
+    expect(result.model).toBe("gpt-4o");
+    expect(result.provider).toBe("openai");
+    expect(result.messageId as string).toBe("msg-123");
+    expect(result.conversationId as string).toBe("conv-456");
+    expect(result.userId as string).toBe("user-789");
+    expect(result.supportsTools).toBe(true);
+    expect(result.supportsImages).toBe(true);
+    expect(result.supportsFiles).toBe(false);
+    expect(result.supportsReasoning).toBe(false);
+  });
+
+  test("includes optional fields when provided", () => {
+    const result = buildStreamArgs(
+      {
+        ...baseStreamingArgs,
+        supportsTemperature: true,
+        contextLength: 128000,
+        contextEndIndex: 5,
+      },
+      {
+        ...baseRequest,
+        personaId: "persona-abc" as Id<"personas">,
+        reasoningConfig: { enabled: true },
+      }
+    );
+
+    expect(result.supportsTemperature).toBe(true);
+    expect(result.contextLength).toBe(128000);
+    expect(result.contextEndIndex).toBe(5);
+    expect(result.personaId as string).toBe("persona-abc");
+    expect(result.reasoningConfig).toEqual({ enabled: true });
+  });
+
+  test("omits optional fields when not provided", () => {
+    const result = buildStreamArgs(baseStreamingArgs, baseRequest);
+
+    expect(result.supportsTemperature).toBeUndefined();
+    expect(result.contextLength).toBeUndefined();
+    expect(result.contextEndIndex).toBeUndefined();
+    expect(result.personaId).toBeUndefined();
+    expect(result.reasoningConfig).toBeUndefined();
   });
 });

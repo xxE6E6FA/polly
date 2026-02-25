@@ -186,7 +186,6 @@ export async function editMessageHandler(
     },
   );
 
-  // Direct streaming call — skip scheduler hop
   await executeStreamMessage(ctx, {
     messageId: assistantMessageId,
     conversationId: args.conversationId,

@@ -13,6 +13,7 @@ import { incrementUserMessageStats } from "../conversation_utils";
 import { resolveModelCapabilities } from "../capability_resolver";
 import { getUserEffectiveModelWithCapabilities } from "../model_resolution";
 import { scheduleRunAfter } from "../scheduler";
+import type { ModelStreamingArgs } from "../../streaming_actions";
 import {
   createDefaultConversationFields,
   createDefaultMessageFields,
@@ -1116,20 +1117,12 @@ export async function prepareSendMessageHandler(
   }
 
   // 8. Schedule streaming action — context building happens inside streamMessage
-  const supportsTools = fullModel.supportsTools ?? false;
-  await ctx.scheduler.runAfter(0, internal.streaming_actions.streamMessage, {
+  await scheduleStreamMessage(ctx, {
+    streamingArgs: toStreamingArgs(fullModel),
     messageId: assistantMessageId,
     conversationId,
-    model: fullModel.modelId,
-    provider: fullModel.provider,
     personaId: effectivePersonaId,
     reasoningConfig: args.reasoningConfig,
-    supportsTools,
-    supportsImages: fullModel.supportsImages ?? false,
-    supportsFiles: fullModel.supportsFiles ?? false,
-    supportsReasoning: fullModel.supportsReasoning ?? false,
-    supportsTemperature: fullModel.supportsTemperature ?? undefined,
-    contextLength: fullModel.contextLength,
     userId,
   });
 
@@ -1282,20 +1275,12 @@ export async function prepareStartConversationHandler(
   }
 
   // 9. Schedule streaming action
-  const supportsTools = fullModel.supportsTools ?? false;
-  await ctx.scheduler.runAfter(0, internal.streaming_actions.streamMessage, {
+  await scheduleStreamMessage(ctx, {
+    streamingArgs: toStreamingArgs(fullModel),
     messageId: assistantMessageId,
     conversationId,
-    model: fullModel.modelId,
-    provider: fullModel.provider,
     personaId: args.personaId,
     reasoningConfig: args.reasoningConfig,
-    supportsTools,
-    supportsImages: fullModel.supportsImages ?? false,
-    supportsFiles: fullModel.supportsFiles ?? false,
-    supportsReasoning: fullModel.supportsReasoning ?? false,
-    supportsTemperature: fullModel.supportsTemperature ?? undefined,
-    contextLength: fullModel.contextLength,
     userId,
   });
 
@@ -1327,17 +1312,7 @@ export async function prepareAssistantRetryHandler(
   },
 ): Promise<{
   assistantMessageId: Id<"messages">;
-  streamingArgs: {
-    modelId: string;
-    provider: string;
-    supportsTools: boolean;
-    supportsImages: boolean;
-    supportsFiles: boolean;
-    supportsReasoning: boolean;
-    supportsTemperature?: boolean;
-    contextLength?: number;
-    contextEndIndex: number;
-  };
+  streamingArgs: ModelStreamingArgs & { contextEndIndex: number };
 }> {
   const { userId, conversationId, targetMessageId } = args;
 
@@ -1419,14 +1394,7 @@ export async function prepareAssistantRetryHandler(
   return {
     assistantMessageId: targetMessageId,
     streamingArgs: {
-      modelId: fullModel.modelId,
-      provider: fullModel.provider,
-      supportsTools: fullModel.supportsTools ?? false,
-      supportsImages: fullModel.supportsImages ?? false,
-      supportsFiles: fullModel.supportsFiles ?? false,
-      supportsReasoning: fullModel.supportsReasoning ?? false,
-      supportsTemperature: fullModel.supportsTemperature ?? undefined,
-      contextLength: fullModel.contextLength,
+      ...toStreamingArgs(fullModel),
       contextEndIndex: args.previousUserMessageIndex,
     },
   };
@@ -1456,16 +1424,7 @@ export async function prepareEditAndResendHandler(
   },
 ): Promise<{
   assistantMessageId: Id<"messages">;
-  streamingArgs: {
-    modelId: string;
-    provider: string;
-    supportsTools: boolean;
-    supportsImages: boolean;
-    supportsFiles: boolean;
-    supportsReasoning: boolean;
-    supportsTemperature?: boolean;
-    contextLength?: number;
-  };
+  streamingArgs: ModelStreamingArgs;
 }> {
   const { userId, conversationId, userMessageId } = args;
 
@@ -1565,7 +1524,32 @@ export async function prepareEditAndResendHandler(
     updatedAt: Date.now(),
   });
 
-  const streamingArgs = {
+  const streamingArgs = toStreamingArgs(fullModel);
+
+  // 8. Schedule streaming action (unless caller handles it directly)
+  if (args.scheduleStreaming !== false) {
+    await scheduleStreamMessage(ctx, {
+      streamingArgs,
+      messageId: assistantMessageId,
+      conversationId,
+      personaId: effectivePersonaId,
+      reasoningConfig: args.reasoningConfig,
+      userId,
+    });
+  }
+
+  return {
+    assistantMessageId,
+    streamingArgs,
+  };
+}
+
+// ── Shared helpers ────────────────────────────────────────────────────
+
+type ResolvedModel = Awaited<ReturnType<typeof resolveModelForUser>>;
+
+function toStreamingArgs(fullModel: ResolvedModel): ModelStreamingArgs {
+  return {
     modelId: fullModel.modelId,
     provider: fullModel.provider,
     supportsTools: fullModel.supportsTools ?? false,
@@ -1575,28 +1559,29 @@ export async function prepareEditAndResendHandler(
     supportsTemperature: fullModel.supportsTemperature ?? undefined,
     contextLength: fullModel.contextLength,
   };
+}
 
-  // 8. Schedule streaming action (unless caller handles it directly)
-  if (args.scheduleStreaming !== false) {
-    await ctx.scheduler.runAfter(0, internal.streaming_actions.streamMessage, {
-      messageId: assistantMessageId,
-      conversationId,
-      model: streamingArgs.modelId,
-      provider: streamingArgs.provider,
-      personaId: effectivePersonaId,
-      reasoningConfig: args.reasoningConfig,
-      supportsTools: streamingArgs.supportsTools,
-      supportsImages: streamingArgs.supportsImages,
-      supportsFiles: streamingArgs.supportsFiles,
-      supportsReasoning: streamingArgs.supportsReasoning,
-      supportsTemperature: streamingArgs.supportsTemperature,
-      contextLength: streamingArgs.contextLength,
-      userId,
-    });
-  }
-
-  return {
-    assistantMessageId,
-    streamingArgs,
-  };
+async function scheduleStreamMessage(
+  ctx: MutationCtx,
+  opts: {
+    streamingArgs: ModelStreamingArgs;
+    messageId: Id<"messages">;
+    conversationId: Id<"conversations">;
+    personaId?: Id<"personas">;
+    reasoningConfig?: { enabled: boolean };
+    userId: Id<"users">;
+  },
+) {
+  const { streamingArgs, ...rest } = opts;
+  await ctx.scheduler.runAfter(0, internal.streaming_actions.streamMessage, {
+    model: streamingArgs.modelId,
+    provider: streamingArgs.provider,
+    supportsTools: streamingArgs.supportsTools,
+    supportsImages: streamingArgs.supportsImages,
+    supportsFiles: streamingArgs.supportsFiles,
+    supportsReasoning: streamingArgs.supportsReasoning,
+    supportsTemperature: streamingArgs.supportsTemperature,
+    contextLength: streamingArgs.contextLength,
+    ...rest,
+  });
 }

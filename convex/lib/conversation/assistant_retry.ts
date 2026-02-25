@@ -1,7 +1,7 @@
 import type { Doc, Id } from "../../_generated/dataModel";
 import type { ActionCtx } from "../../_generated/server";
 import { internal } from "../../_generated/api";
-import { executeStreamMessage } from "../../streaming_actions";
+import { buildStreamArgs, executeStreamMessage } from "../../streaming_actions";
 
 export async function handleAssistantRetry(
   ctx: ActionCtx,
@@ -51,23 +51,13 @@ export async function handleAssistantRetry(
     },
   );
 
-  // Direct streaming call — skip scheduler hop (~50-200ms savings)
-  await executeStreamMessage(ctx, {
+  await executeStreamMessage(ctx, buildStreamArgs(streamingArgs, {
     messageId: targetMessage._id,
     conversationId,
-    model: streamingArgs.modelId,
-    provider: streamingArgs.provider,
     personaId: effectivePersonaId,
     reasoningConfig,
-    supportsTools: streamingArgs.supportsTools,
-    supportsImages: streamingArgs.supportsImages,
-    supportsFiles: streamingArgs.supportsFiles,
-    supportsReasoning: streamingArgs.supportsReasoning,
-    supportsTemperature: streamingArgs.supportsTemperature,
-    contextLength: streamingArgs.contextLength,
-    contextEndIndex: streamingArgs.contextEndIndex,
     userId: user._id,
-  });
+  }));
 
   return { assistantMessageId: targetMessage._id };
 }

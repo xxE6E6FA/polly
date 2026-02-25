@@ -1,6 +1,7 @@
 import type { ActionCtx } from "../../_generated/server";
 import type { Id } from "../../_generated/dataModel";
 import { internal } from "../../_generated/api";
+import { retrieveMemoriesCore } from "../../memory_actions";
 import {
   mergeSystemPrompts,
 } from "./message_handling";
@@ -74,10 +75,10 @@ export const buildContextMessages = async (
               .reverse()
               .find((m: any) => m.role === "user");
             if (!lastUserMsg?.content) return [];
-            return await ctx.runAction(
-              internal.memory_actions.retrieveMemories,
-              { userId, messageContent: lastUserMsg.content },
-            );
+            return await retrieveMemoriesCore(ctx, {
+              userId,
+              messageContent: lastUserMsg.content,
+            });
           } catch (error) {
             console.warn("[buildContextMessagesForStreaming] Memory retrieval failed:", error);
             return [];
