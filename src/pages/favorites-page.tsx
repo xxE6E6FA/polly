@@ -277,9 +277,70 @@ export default function FavoritesPage() {
     );
   }
 
-  const isLoading = items.length === 0 && status !== "Exhausted";
   const hasSearch = search.trim().length > 0;
-  const showEmpty = items.length === 0 && !isLoading;
+
+  const renderContent = () => {
+    if (items.length > 0) {
+      return (
+        <div>
+          {items.map(item => (
+            <FavoriteCard
+              key={String(item.favoriteId)}
+              item={item}
+              onCopy={handleCopy}
+              onUnfavorite={handleUnfavorite}
+            />
+          ))}
+          {status !== "Exhausted" && (
+            <LoadMoreSentinel
+              onVisible={handleEndReached}
+              isLoading={status === "LoadingMore"}
+            />
+          )}
+        </div>
+      );
+    }
+
+    if (status === "Exhausted" || hasSearch) {
+      return (
+        <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
+          <div className="mb-4 rounded-full bg-muted/30 p-4">
+            <HeartIcon
+              className="size-7 text-muted-foreground/50"
+              weight="regular"
+            />
+          </div>
+          <h2 className="text-base font-medium text-foreground/80 mb-1.5">
+            {hasSearch ? "No matches found" : "No favorites yet"}
+          </h2>
+          <p className="text-sm text-muted-foreground max-w-xs mb-5 leading-relaxed">
+            {hasSearch
+              ? "Try a different search term."
+              : "Tap the heart icon on any message to save it here for quick access."}
+          </p>
+          {!hasSearch && (
+            <Link
+              to={ROUTES.HOME}
+              className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+            >
+              Go to conversations
+            </Link>
+          )}
+        </div>
+      );
+    }
+
+    return (
+      <div>
+        <FavoriteItemSkeleton />
+        <FavoriteItemSkeleton />
+        <FavoriteItemSkeleton />
+        <FavoriteItemSkeleton />
+        <FavoriteItemSkeleton />
+        <FavoriteItemSkeleton />
+      </div>
+    );
+  };
 
   return (
     <div className="h-full overflow-y-auto">
@@ -306,68 +367,7 @@ export default function FavoritesPage() {
           </div>
         </div>
 
-        {/* Loading */}
-        {isLoading && !hasSearch && (
-          <div>
-            <FavoriteItemSkeleton />
-            <FavoriteItemSkeleton />
-            <FavoriteItemSkeleton />
-            <FavoriteItemSkeleton />
-            <FavoriteItemSkeleton />
-            <FavoriteItemSkeleton />
-          </div>
-        )}
-
-        {/* Empty */}
-        {showEmpty && (
-          <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
-            <div className="mb-4 rounded-full bg-muted/30 p-4">
-              <HeartIcon
-                className="size-7 text-muted-foreground/50"
-                weight="regular"
-              />
-            </div>
-            <h2 className="text-base font-medium text-foreground/80 mb-1.5">
-              {hasSearch ? "No matches found" : "No favorites yet"}
-            </h2>
-            <p className="text-sm text-muted-foreground max-w-xs mb-5 leading-relaxed">
-              {hasSearch
-                ? "Try a different search term."
-                : "Tap the heart icon on any message to save it here for quick access."}
-            </p>
-            {!hasSearch && (
-              <Link
-                to={ROUTES.HOME}
-                className={cn(
-                  buttonVariants({ variant: "outline", size: "sm" })
-                )}
-              >
-                Go to conversations
-              </Link>
-            )}
-          </div>
-        )}
-
-        {/* Items */}
-        {items.length > 0 && (
-          <div>
-            {items.map(item => (
-              <FavoriteCard
-                key={String(item.favoriteId)}
-                item={item}
-                onCopy={handleCopy}
-                onUnfavorite={handleUnfavorite}
-              />
-            ))}
-
-            {status !== "Exhausted" && (
-              <LoadMoreSentinel
-                onVisible={handleEndReached}
-                isLoading={status === "LoadingMore"}
-              />
-            )}
-          </div>
-        )}
+        {renderContent()}
       </div>
     </div>
   );
