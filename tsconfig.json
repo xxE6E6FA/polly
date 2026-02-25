@@ -25,12 +25,11 @@
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
-    "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"],
-      "@convex/*": ["convex/*"],
-      "@shared/*": ["shared/*"],
-      "@config/*": ["config/*"]
+      "@/*": ["./src/*"],
+      "@convex/*": ["./convex/*"],
+      "@shared/*": ["./shared/*"],
+      "@config/*": ["./config/*"]
     },
     "types": ["bun-types", "node"]
   },
