@@ -1,7 +1,6 @@
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import {
-  ArrowSquareOutIcon,
   ChatCircleIcon,
   CopyIcon,
   HeartIcon,
@@ -13,7 +12,6 @@ import { Link } from "react-router-dom";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { SearchInput } from "@/components/ui/search-input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { StreamingMarkdown } from "@/components/ui/streaming-markdown";
 import { cn, formatDate } from "@/lib";
 import { ROUTES } from "@/lib/routes";
 import { useToast } from "@/providers/toast-context";
@@ -89,7 +87,7 @@ const FavoriteItemSkeleton = memo(() => (
 ));
 FavoriteItemSkeleton.displayName = "FavoriteItemSkeleton";
 
-// Individual favorite card
+// Individual favorite row — clicking navigates to the conversation
 const FavoriteCard = memo(function FavoriteCard({
   item,
   onCopy,
@@ -99,9 +97,6 @@ const FavoriteCard = memo(function FavoriteCard({
   onCopy: (text: string) => void;
   onUnfavorite: (messageId: Id<"messages">) => void;
 }) {
-  const [isExpanded, setIsExpanded] = useState(false);
-
-  const isLong = item.message.content.length > PREVIEW_LENGTH;
   const plainPreview = useMemo(
     () => stripMarkdown(item.message.content),
     [item.message.content]
@@ -138,16 +133,6 @@ const FavoriteCard = memo(function FavoriteCard({
 
           {/* Actions — always visible on mobile, subtle on desktop */}
           <div className="flex items-center gap-0.5 shrink-0 opacity-60 group-hover:opacity-100 transition-opacity">
-            <Link
-              to={ROUTES.CHAT_CONVERSATION(item.conversation._id)}
-              className={cn(
-                buttonVariants({ variant: "ghost", size: "icon-sm" }),
-                "text-muted-foreground hover:text-foreground"
-              )}
-              title="Open conversation"
-            >
-              <ArrowSquareOutIcon className="size-3.5" />
-            </Link>
             <Button
               variant="ghost"
               size="icon-sm"
@@ -169,34 +154,13 @@ const FavoriteCard = memo(function FavoriteCard({
           </div>
         </div>
 
-        {/* Content */}
-        {isExpanded ? (
-          <div className="overflow-hidden rounded-lg border border-border/50 bg-background/50">
-            <div className="max-h-[32rem] overflow-y-auto px-4 py-3">
-              <StreamingMarkdown
-                isStreaming={false}
-                messageId={String(item.message._id)}
-              >
-                {item.message.content}
-              </StreamingMarkdown>
-            </div>
-          </div>
-        ) : (
-          <p className="text-sm leading-relaxed text-foreground/90 line-clamp-3">
-            {truncatedPreview}
-          </p>
-        )}
-
-        {/* Expand/collapse toggle */}
-        {isLong && (
-          <button
-            type="button"
-            className="mt-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
-            onClick={() => setIsExpanded(prev => !prev)}
-          >
-            {isExpanded ? "Show less" : "Show full message"}
-          </button>
-        )}
+        {/* Preview text — links to conversation */}
+        <Link
+          to={ROUTES.CHAT_CONVERSATION(item.conversation._id)}
+          className="block text-sm leading-relaxed text-foreground/90 line-clamp-3 hover:text-foreground transition-colors"
+        >
+          {truncatedPreview}
+        </Link>
       </div>
     </div>
   );
