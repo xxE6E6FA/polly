@@ -15,7 +15,7 @@ minimumReleaseAge = 86400
 
 [test]
 # Preload runs before any test files; keep it lightweight and self-healing.
-preload = ["test/global-mocks.ts", "test/setup-bun.ts"]
+preload = ["./test/global-mocks.ts", "./test/setup-bun.ts"]
 
 # Randomize spec execution order to ensure tests are independent.
 randomize = true
