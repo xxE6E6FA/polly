@@ -1016,6 +1016,40 @@ export const userFileSchema = v.object({
   generatedImagePrompt: v.optional(v.string()), // Prompt used for generation
 });
 
+// Standalone generation schema (canvas mode, decoupled from chat)
+export const generationSchema = v.object({
+  userId: v.id("users"),
+  prompt: v.string(),
+  model: v.string(), // "owner/name" format
+  provider: v.string(), // "replicate"
+  status: v.union(
+    v.literal("pending"),
+    v.literal("starting"),
+    v.literal("processing"),
+    v.literal("succeeded"),
+    v.literal("failed"),
+    v.literal("canceled"),
+  ),
+  replicateId: v.optional(v.string()),
+  storageIds: v.optional(v.array(v.id("_storage"))),
+  error: v.optional(v.string()),
+  params: v.optional(v.object({
+    aspectRatio: v.optional(v.string()),
+    width: v.optional(v.number()),
+    height: v.optional(v.number()),
+    steps: v.optional(v.number()),
+    guidanceScale: v.optional(v.number()),
+    seed: v.optional(v.number()),
+    negativePrompt: v.optional(v.string()),
+    count: v.optional(v.number()),
+    quality: v.optional(v.number()),
+  })),
+  duration: v.optional(v.number()),
+  batchId: v.optional(v.string()), // Groups multi-model generations
+  createdAt: v.number(),
+  completedAt: v.optional(v.number()),
+});
+
 // ============================================================================
 // TYPE ALIASES USING INFER
 // ============================================================================
@@ -1039,3 +1073,4 @@ export type CreateConversationArgs = Infer<typeof conversationCreationSchema>;
 export type CreatePersonaArgs = Infer<typeof personaImportSchema>;
 export type UpdateUserSettingsArgs = Infer<typeof userSettingsUpdateSchema>;
 export type CreateUserModelArgs = Infer<typeof userModelSchema>;
+export type GenerationDoc = Infer<typeof generationSchema>;

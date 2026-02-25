@@ -396,6 +396,38 @@ export type ExportData = {
 };
 
 // ============================================================================
+// CANVAS / GENERATION TYPES
+// ============================================================================
+
+export type GenerationStatus =
+  | "pending"
+  | "starting"
+  | "processing"
+  | "succeeded"
+  | "failed"
+  | "canceled";
+
+/** Unified image type for the "All Images" merged view in canvas mode. */
+export type CanvasImage = {
+  id: string;
+  source: "canvas" | "conversation";
+  imageUrl: string;
+  prompt?: string;
+  model?: string;
+  status: GenerationStatus;
+  seed?: number;
+  duration?: number;
+  createdAt: number;
+  aspectRatio?: string;
+  // Canvas-specific
+  generationId?: Id<"generations">;
+  batchId?: string;
+  // Conversation-specific
+  messageId?: Id<"messages">;
+  conversationId?: ConversationId;
+};
+
+// ============================================================================
 // ROUTE TYPES
 // ============================================================================
 

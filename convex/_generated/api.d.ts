@@ -61,6 +61,7 @@ import type * as conversation_search from "../conversation_search.js";
 import type * as conversations from "../conversations.js";
 import type * as crons from "../crons.js";
 import type * as fileStorage from "../fileStorage.js";
+import type * as generations from "../generations.js";
 import type * as http from "../http.js";
 import type * as imageModels from "../imageModels.js";
 import type * as internal_ from "../internal.js";
@@ -215,6 +216,7 @@ declare const fullApi: ApiFromModules<{
   conversations: typeof conversations;
   crons: typeof crons;
   fileStorage: typeof fileStorage;
+  generations: typeof generations;
   http: typeof http;
   imageModels: typeof imageModels;
   internal: typeof internal_;

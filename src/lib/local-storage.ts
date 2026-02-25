@@ -24,6 +24,9 @@ export const CACHE_KEYS = {
   anonymousUserGraduation: "anonymous-user-graduation",
   anonymousGraduationToken: "anonymous-graduation-token",
   colorScheme: "color-scheme",
+  canvasPanelWidth: "canvas-panel-width",
+  canvasSelections: "canvas-selections",
+  canvasPanelVisible: "canvas-panel-visible",
 } as const;
 
 export type CacheKey = (typeof CACHE_KEYS)[keyof typeof CACHE_KEYS];

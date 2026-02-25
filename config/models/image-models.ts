@@ -28,6 +28,7 @@ export const builtInImageModels: ImageModelConfig[] = [
     modelId: "prunaai/flux-fast",
     provider: "replicate",
     free: true,
+    isActive: false,
   },
   // Add more built-in image models here
   // Example:

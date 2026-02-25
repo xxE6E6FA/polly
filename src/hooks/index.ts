@@ -54,6 +54,7 @@ export { useSpeechInputContext } from "./use-speech-input-context";
 // Model Hooks
 // =============================================================================
 
+export { useBreakpointColumns } from "./use-breakpoint-columns";
 export { useConversationModelOverride } from "./use-conversation-model-override";
 export { useEnabledImageModels } from "./use-enabled-image-models";
 export { useLastGeneratedImageSeed } from "./use-last-generated-image-seed";

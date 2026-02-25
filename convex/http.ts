@@ -284,14 +284,39 @@ const replicateWebhook = httpAction(async (ctx, request): Promise<Response> => {
       return new Response("Bad Request", { status: 400 });
     }
 
-    // Process the webhook
-    await ctx.runAction(internal.ai.replicate.handleWebhook, {
+    // Process the webhook — try messages table first, then generations table
+    const webhookArgs = {
       predictionId: body.id || "",
       status: body.status || "unknown",
       output: body.output,
       error: typeof body.error === "string" ? body.error : undefined,
       metadata: body.metrics,
+    };
+
+    // Check if this prediction belongs to a message (chat image generation)
+    const message = await ctx.runQuery(internal.messages.getByReplicateId, {
+      replicateId: body.id || "",
     });
+
+    if (message) {
+      await ctx.runAction(internal.ai.replicate.handleWebhook, webhookArgs);
+    } else {
+      // Check if it belongs to a canvas generation
+      const generation = await ctx.runQuery(
+        internal.generations.getByReplicateId,
+        { replicateId: body.id || "" }
+      );
+      if (generation) {
+        await ctx.runAction(
+          internal.generations.handleCanvasWebhook,
+          webhookArgs
+        );
+      } else {
+        console.warn("No message or generation found for prediction", {
+          predictionId: body.id,
+        });
+      }
+    }
 
     return new Response("OK", { status: 200 });
   } catch {
