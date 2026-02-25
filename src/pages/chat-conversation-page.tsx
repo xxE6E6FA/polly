@@ -96,7 +96,7 @@ export default function ConversationRoute() {
 
   // Query for conversation by slug
   const slugQuery = useQuery(api.conversations.getBySlug, { slug });
-  const resolvedId = slugQuery?.resolvedId ?? null;
+  const resolvedId = slugQuery?.hasAccess ? slugQuery.resolvedId : null;
 
   // Get chat messages and actions
   const {

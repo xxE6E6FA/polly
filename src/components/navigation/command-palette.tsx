@@ -225,17 +225,17 @@ export function CommandPalette({
     currentConversationId ? { slug: currentConversationId } : "skip"
   );
 
+  const currentResolvedId = currentConversation?.hasAccess
+    ? (currentConversation.resolvedId as ConversationId)
+    : undefined;
+
   const { deleteConversation: performDelete } = useDeleteConversation({
-    currentConversationId: currentConversation?.resolvedId as
-      | ConversationId
-      | undefined,
+    currentConversationId: currentResolvedId,
   });
 
   const { archiveConversation: performArchive, unarchiveConversation } =
     useArchiveConversation({
-      currentConversationId: currentConversation?.resolvedId as
-        | ConversationId
-        | undefined,
+      currentConversationId: currentResolvedId,
     });
 
   const managedToast = useToast();
@@ -287,8 +287,10 @@ export function CommandPalette({
     actionConversationSlug ? { slug: actionConversationSlug } : "skip"
   );
 
-  // Get the resolved Convex ID for mutations
-  const actionConversationId = actionConversation?.resolvedId ?? null;
+  // Get the resolved Convex ID for mutations (gate on hasAccess to avoid pre-auth errors)
+  const actionConversationId = actionConversation?.hasAccess
+    ? actionConversation.resolvedId
+    : null;
 
   const resolvedActionContext =
     navigation.selectedConversationId && actionConversation
