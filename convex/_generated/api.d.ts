@@ -82,7 +82,6 @@ import type * as lib_conversation_context_building from "../lib/conversation/con
 import type * as lib_conversation_create_branching_handler from "../lib/conversation/create_branching_handler.js";
 import type * as lib_conversation_create_handlers from "../lib/conversation/create_handlers.js";
 import type * as lib_conversation_create_message_handler from "../lib/conversation/create_message_handler.js";
-import type * as lib_conversation_edit_resend_handler from "../lib/conversation/edit_resend_handler.js";
 import type * as lib_conversation_helpers from "../lib/conversation/helpers.js";
 import type * as lib_conversation_internal_handlers from "../lib/conversation/internal_handlers.js";
 import type * as lib_conversation_message_handling from "../lib/conversation/message_handling.js";
@@ -91,10 +90,7 @@ import type * as lib_conversation_mutation_handlers from "../lib/conversation/mu
 import type * as lib_conversation_query_handlers from "../lib/conversation/query_handlers.js";
 import type * as lib_conversation_retry_handlers from "../lib/conversation/retry_handlers.js";
 import type * as lib_conversation_save_private_handler from "../lib/conversation/save_private_handler.js";
-import type * as lib_conversation_send_handlers from "../lib/conversation/send_handlers.js";
-import type * as lib_conversation_start_conversation_handler from "../lib/conversation/start_conversation_handler.js";
 import type * as lib_conversation_streaming from "../lib/conversation/streaming.js";
-import type * as lib_conversation_types from "../lib/conversation/types.js";
 import type * as lib_conversation_user_retry from "../lib/conversation/user_retry.js";
 import type * as lib_conversation_export_handlers from "../lib/conversation_export/handlers.js";
 import type * as lib_conversation_export_helpers from "../lib/conversation_export/helpers.js";
@@ -243,7 +239,6 @@ declare const fullApi: ApiFromModules<{
   "lib/conversation/create_branching_handler": typeof lib_conversation_create_branching_handler;
   "lib/conversation/create_handlers": typeof lib_conversation_create_handlers;
   "lib/conversation/create_message_handler": typeof lib_conversation_create_message_handler;
-  "lib/conversation/edit_resend_handler": typeof lib_conversation_edit_resend_handler;
   "lib/conversation/helpers": typeof lib_conversation_helpers;
   "lib/conversation/internal_handlers": typeof lib_conversation_internal_handlers;
   "lib/conversation/message_handling": typeof lib_conversation_message_handling;
@@ -252,10 +247,7 @@ declare const fullApi: ApiFromModules<{
   "lib/conversation/query_handlers": typeof lib_conversation_query_handlers;
   "lib/conversation/retry_handlers": typeof lib_conversation_retry_handlers;
   "lib/conversation/save_private_handler": typeof lib_conversation_save_private_handler;
-  "lib/conversation/send_handlers": typeof lib_conversation_send_handlers;
-  "lib/conversation/start_conversation_handler": typeof lib_conversation_start_conversation_handler;
   "lib/conversation/streaming": typeof lib_conversation_streaming;
-  "lib/conversation/types": typeof lib_conversation_types;
   "lib/conversation/user_retry": typeof lib_conversation_user_retry;
   "lib/conversation_export/handlers": typeof lib_conversation_export_handlers;
   "lib/conversation_export/helpers": typeof lib_conversation_export_helpers;

@@ -169,6 +169,7 @@ export async function editMessageHandler(
   const preferredProvider = targetMessage.provider || args.provider;
 
   // Single combined mutation: update content, delete subsequent, create assistant, set streaming
+  // scheduleStreaming: false because we call executeStreamMessage directly below
   const { assistantMessageId, streamingArgs } = await ctx.runMutation(
     internal.conversations.prepareEditAndResend,
     {
@@ -181,6 +182,7 @@ export async function editMessageHandler(
       provider: preferredProvider,
       personaId: conversation.personaId,
       reasoningConfig: args.reasoningConfig,
+      scheduleStreaming: false,
     },
   );
 

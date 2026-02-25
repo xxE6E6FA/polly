@@ -24,7 +24,7 @@ import {
   getProviderStreamOptions,
 } from "./ai/server_streaming";
 import { streamLLMToMessage } from "./ai/streaming_core";
-import { buildContextMessagesForStreaming } from "./lib/conversation/context_building";
+import { buildContextMessages } from "./lib/conversation/context_building";
 import { toImageModelInfos } from "./lib/conversation/helpers";
 import { reasoningConfigSchema } from "./lib/schemas";
 
@@ -203,7 +203,7 @@ export async function executeStreamMessage(
 
       // 2. Build context messages (new path) or use pre-built (backward compat)
       needsContextBuild && args.userId
-        ? buildContextMessagesForStreaming(ctx, {
+        ? buildContextMessages(ctx, {
             userId: args.userId,
             conversationId,
             personaId: args.personaId,

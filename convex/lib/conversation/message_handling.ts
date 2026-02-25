@@ -135,29 +135,6 @@ export async function incrementUserMessageStats(
   }
 }
 
-// DRY Helper: Generate export metadata
-export function generateExportMetadata(
-  conversation: Doc<"conversations">,
-  messageCount: number,
-  attachmentCount: number = 0,
-): {
-  conversationId: string;
-  title: string;
-  messageCount: number;
-  attachmentCount: number;
-  createdAt: string;
-  exportedAt: string;
-} {
-  return {
-    conversationId: conversation._id,
-    title: conversation.title,
-    messageCount,
-    attachmentCount,
-    createdAt: new Date(conversation.createdAt).toISOString(),
-    exportedAt: new Date().toISOString(),
-  };
-}
-
 // DRY Helper: Merge baseline instructions with persona prompt
 export { mergeSystemPrompts };
 

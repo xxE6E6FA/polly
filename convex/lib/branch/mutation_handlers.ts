@@ -4,8 +4,10 @@ import type { Doc, Id } from "../../_generated/dataModel";
 import type { ActionCtx, MutationCtx } from "../../_generated/server";
 import { createUserFileEntriesHandler } from "../file_storage/mutation_handlers";
 import {
-  executeStreamingActionForRetry,
-} from "../conversation_utils";
+  createMessage,
+  incrementUserMessageStats,
+} from "../conversation/message_handling";
+import { executeStreamMessage } from "../../streaming_actions";
 
 // Internal mutation: clone messages into a new conversation preserving metadata and timestamps
 export async function internalCloneMessagesHandler(
@@ -290,18 +292,36 @@ export async function createBranchHandler(
         provider,
       });
 
-      const result = await executeStreamingActionForRetry(ctx, {
+      // Create assistant message (required before streaming can start)
+      assistantMessageId = await createMessage(ctx, {
         conversationId: newConversationId,
+        role: "assistant",
+        content: "",
+        status: "thinking",
         model: modelId,
-        provider,
-        conversation: { personaId: conversation.personaId },
-        supportsTools: modelInfo?.supportsTools ?? false,
-        supportsImages: modelInfo?.supportsImages ?? false,
-        supportsFiles: modelInfo?.supportsFiles ?? false,
-        supportsReasoning: modelInfo?.supportsReasoning ?? false,
-        contextLength: modelInfo?.contextLength,
+        provider: provider as "openai" | "anthropic" | "google" | "groq" | "openrouter" | "replicate" | "elevenlabs",
       });
-      assistantMessageId = result.assistantMessageId as Id<"messages">;
+
+      // Increment stats in parallel with streaming (independent operations).
+      // executeStreamMessage handles initializeStreaming internally (sets
+      // conversation streaming flag + message status), so no need to call
+      // setStreaming separately.
+      await Promise.all([
+        incrementUserMessageStats(ctx, userId, modelId, provider),
+        executeStreamMessage(ctx, {
+          messageId: assistantMessageId,
+          conversationId: newConversationId,
+          model: modelId,
+          provider,
+          personaId: conversation.personaId,
+          supportsTools: modelInfo?.supportsTools ?? false,
+          supportsImages: modelInfo?.supportsImages ?? false,
+          supportsFiles: modelInfo?.supportsFiles ?? false,
+          supportsReasoning: modelInfo?.supportsReasoning ?? false,
+          contextLength: modelInfo?.contextLength,
+          userId,
+        }),
+      ]);
     }
   }
 
