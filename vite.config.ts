@@ -1,14 +1,60 @@
 import path from "node:path";
+import { transformAsync } from "@babel/core";
 import react from "@vitejs/plugin-react";
-import { defineConfig } from "vite";
+import { defineConfig, type Plugin } from "vite";
+
+/**
+ * Runs babel-plugin-react-compiler on a subset of source files.
+ * Keeping this separate from @vitejs/plugin-react lets the main
+ * plugin use the fast Oxc transform path for JSX + React Refresh
+ * on ALL files, while only the targeted files pay the Babel cost.
+ */
+function reactCompilerPlugin(include: RegExp[]): Plugin {
+  return {
+    name: "vite-plugin-react-compiler",
+    enforce: "pre",
+    async transform(code, id) {
+      // Only process .tsx/.jsx files that match the include patterns
+      if (!/\.[jt]sx$/.test(id)) {
+        return null;
+      }
+      if (!include.some(re => re.test(id))) {
+        return null;
+      }
+
+      const result = await transformAsync(code, {
+        filename: id,
+        plugins: [
+          ["@babel/plugin-syntax-typescript", { isTSX: true }],
+          ["babel-plugin-react-compiler", {}],
+        ],
+        sourceType: "module",
+      });
+
+      if (!result?.code) {
+        return null;
+      }
+      return { code: result.code, map: result.map };
+    },
+  };
+}
+
+// Directories with complex interactive components that benefit
+// most from the React Compiler's automatic memoization.
+const compilerTargets = [
+  /\/src\/components\/chat\//,
+  /\/src\/components\/canvas\//,
+  /\/src\/components\/data-list\//,
+  /\/src\/components\/navigation\//,
+  /\/src\/components\/settings\//,
+  /\/src\/pages\//,
+  /\/src\/providers\//,
+];
 
 export default defineConfig({
   plugins: [
-    react({
-      babel: {
-        plugins: [["babel-plugin-react-compiler", {}]],
-      },
-    }),
+    reactCompilerPlugin(compilerTargets),
+    react(), // No babel config → uses fast Oxc path for JSX + refresh
   ],
   resolve: {
     alias: {
