@@ -4,6 +4,7 @@ import {
   builtInImageModelSchema,
   builtInModelSchema,
   conversationSchema,
+  generationSchema,
   imageModelDefinitionSchema,
   messageFavoriteSchema,
   messageSchema,
@@ -161,6 +162,12 @@ export default defineSchema({
       dimensions: 1536,
       filterFields: ["userId"],
     }),
+
+  generations: defineTable(generationSchema)
+    .index("by_user_created", ["userId", "createdAt"])
+    .index("by_user_status", ["userId", "status", "createdAt"])
+    .index("by_replicate_id", ["replicateId"])
+    .index("by_batch", ["batchId", "createdAt"]),
 
   userFiles: defineTable(userFileSchema)
     .index("by_user_created", ["userId", "createdAt"])

@@ -19,6 +19,7 @@ export const ROUTES = {
     PERSONAS_NEW: "/settings/personas/new",
     PERSONAS_EDIT: (id: string) => `/settings/personas/${id}/edit`,
   },
+  CANVAS: "/canvas",
   FAVORITES: "/chat/favorites",
   NOT_FOUND: "/404",
 } as const;

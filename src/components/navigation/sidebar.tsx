@@ -1,4 +1,5 @@
 import { api } from "@convex/_generated/api";
+import { ImagesSquareIcon } from "@phosphor-icons/react";
 import { useQuery } from "convex/react";
 import {
   AnimatePresence,
@@ -470,6 +471,23 @@ export const Sidebar = ({ forceHidden = false }: { forceHidden?: boolean }) => {
                       </Button>
                     </Link>
                   )}
+
+                  <Link to={ROUTES.CANVAS}>
+                    <Button
+                      size="icon-sm"
+                      title="Canvas"
+                      variant="ghost"
+                      className="text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-hover h-8 w-8"
+                    >
+                      <ImagesSquareIcon
+                        className={cn(
+                          "size-4.5",
+                          location.pathname === ROUTES.CANVAS &&
+                            "[&_path]:fill-current"
+                        )}
+                      />
+                    </Button>
+                  </Link>
 
                   <Link to={ROUTES.HOME}>
                     <Button

@@ -137,3 +137,32 @@ export const getBatchMessageAttachments = query({
   },
   handler: getBatchMessageAttachmentsHandler,
 });
+
+import { getAuthUserId } from "./lib/auth";
+
+/** List generated images from conversations for the canvas merged view. */
+export const listGeneratedImages = query({
+  args: {},
+  handler: async ctx => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      return [];
+    }
+
+    const files = await ctx.db
+      .query("userFiles")
+      .withIndex("by_user_generated", q =>
+        q.eq("userId", userId).eq("isGenerated", true)
+      )
+      .order("desc")
+      .take(100);
+
+    // Resolve storage URLs
+    return Promise.all(
+      files.map(async file => {
+        const url = await ctx.storage.getUrl(file.storageId);
+        return { ...file, url };
+      })
+    );
+  },
+});

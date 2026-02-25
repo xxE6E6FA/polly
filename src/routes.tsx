@@ -52,6 +52,7 @@ const SettingsNewPersonaPage = lazy(
 const SettingsEditPersonaPage = lazy(
   () => import("./pages/settings/edit-persona-page")
 );
+const CanvasPage = lazy(() => import("./pages/canvas-page"));
 const SignOutPage = lazy(() => import("./pages/sign-out-page"));
 
 const PageLoader = ({
@@ -133,6 +134,15 @@ export const routes: RouteObject[] = [
             ),
           },
         ],
+      },
+      {
+        path: "canvas",
+        element: (
+          <ProtectedSuspense fallback={<PageLoader size="full" />}>
+            <CanvasPage />
+          </ProtectedSuspense>
+        ),
+        errorElement: routeErrorElement,
       },
       {
         path: "signout",
