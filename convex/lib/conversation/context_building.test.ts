@@ -251,4 +251,33 @@ describe("buildContextMessages", () => {
     const systemMsg = contextMessages[0];
     expect(systemMsg.content).toContain("pirate");
   });
+
+  test("retrieves memories without scheduling an action", async () => {
+    const messages = [makeMessage("user", "hello")];
+
+    let queryCallCount = 0;
+    const runQuery = mock((_fnRef: any, _args: any) => {
+      queryCallCount++;
+      // First call: getAllInConversationInternal
+      if (queryCallCount === 1) return Promise.resolve(messages);
+      // Second call: getUserMemorySettings (memory enabled)
+      if (queryCallCount === 2) return Promise.resolve({ memoryEnabled: true });
+      return Promise.resolve(null);
+    });
+    const runAction = mock(() => Promise.resolve([]));
+    const vectorSearch = mock(() => Promise.resolve([]));
+    const ctx = {
+      ...makeConvexCtx({ runQuery, runAction }),
+      vectorSearch,
+    } as unknown as ActionCtx;
+
+    const { contextMessages } = await buildContextMessages(ctx, {
+      userId,
+      conversationId,
+    });
+
+    expect(runAction).not.toHaveBeenCalled();
+    expect(contextMessages.length).toBeGreaterThanOrEqual(1);
+    expect(contextMessages[0].role).toBe("system");
+  });
 });

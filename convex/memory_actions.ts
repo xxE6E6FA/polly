@@ -18,53 +18,56 @@ import {
   extractedMemorySchema,
 } from "./lib/memory/extraction";
 
-/**
- * Retrieve relevant memories for a user message via vector search.
- * Must run in Node.js runtime because embedding generation uses AI SDK.
- */
+/** Retrieve relevant memories for a user message via vector search. */
+export async function retrieveMemoriesCore(
+  ctx: ActionCtx,
+  args: { userId: Id<"users">; messageContent: string }
+): Promise<Array<{ content: string; category: string }>> {
+  try {
+    const vector = await generateEmbedding(args.messageContent);
+
+    const results = await ctx.vectorSearch("userMemories", "by_embedding", {
+      vector,
+      limit: 8,
+      filter: q => q.eq("userId", args.userId),
+    });
+
+    if (results.length === 0) {
+      return [];
+    }
+
+    // Post-filter for isActive since vector search filters don't support AND.
+    const memories: Array<{ content: string; category: string }> = [];
+    for (const result of results) {
+      if (result._score < 0.1) {
+        continue;
+      }
+      const doc = await ctx.runQuery(internal.memory.getMemoryById, {
+        id: result._id,
+      });
+      if (doc?.isActive) {
+        memories.push({
+          content: doc.content,
+          category: doc.category,
+        });
+      }
+    }
+
+    return memories;
+  } catch (error) {
+    console.error("[retrieveMemories] Failed to retrieve memories:", error);
+    return [];
+  }
+}
+
+/** internalAction wrapper around retrieveMemoriesCore. */
 export const retrieveMemories = internalAction({
   args: {
     userId: v.id("users"),
     messageContent: v.string(),
   },
   returns: v.array(v.object({ content: v.string(), category: v.string() })),
-  handler: async (ctx, args) => {
-    try {
-      const vector = await generateEmbedding(args.messageContent);
-
-      const results = await ctx.vectorSearch("userMemories", "by_embedding", {
-        vector,
-        limit: 8,
-        filter: q => q.eq("userId", args.userId),
-      });
-
-      if (results.length === 0) {
-        return [];
-      }
-
-      // Post-filter for isActive since vector search filters don't support AND.
-      const memories: Array<{ content: string; category: string }> = [];
-      for (const result of results) {
-        if (result._score < 0.1) {
-          continue;
-        }
-        const doc = await ctx.runQuery(internal.memory.getMemoryById, {
-          id: result._id,
-        });
-        if (doc?.isActive) {
-          memories.push({
-            content: doc.content,
-            category: doc.category,
-          });
-        }
-      }
-
-      return memories;
-    } catch (error) {
-      console.error("[retrieveMemories] Failed to retrieve memories:", error);
-      return [];
-    }
-  },
+  handler: async (ctx, args) => retrieveMemoriesCore(ctx, args),
 });
 
 /**

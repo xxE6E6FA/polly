@@ -2,7 +2,7 @@ import type { Doc, Id } from "../../_generated/dataModel";
 import type { ActionCtx } from "../../_generated/server";
 import { api, internal } from "../../_generated/api";
 import { handleMessageDeletion } from "./message_handling";
-import { executeStreamMessage } from "../../streaming_actions";
+import { buildStreamArgs, executeStreamMessage } from "../../streaming_actions";
 import { getUserEffectiveModelWithCapabilities } from "../model_resolution";
 
 export async function handleReplicateUserRetry(
@@ -128,23 +128,16 @@ export async function handleUserRetry(
     },
   );
 
-  // Direct streaming call — skip scheduler hop
-  await executeStreamMessage(ctx, {
-    messageId: assistantMessageId,
-    conversationId,
-    model: streamingArgs.modelId,
-    provider: streamingArgs.provider,
-    personaId: effectivePersonaId,
-    reasoningConfig,
-    supportsTools: streamingArgs.supportsTools,
-    supportsImages: streamingArgs.supportsImages,
-    supportsFiles: streamingArgs.supportsFiles,
-    supportsReasoning: streamingArgs.supportsReasoning,
-    supportsTemperature: streamingArgs.supportsTemperature,
-    contextLength: streamingArgs.contextLength,
-    contextEndIndex: messageIndex,
-    userId: user._id,
-  });
+  await executeStreamMessage(ctx, buildStreamArgs(
+    { ...streamingArgs, contextEndIndex: messageIndex },
+    {
+      messageId: assistantMessageId,
+      conversationId,
+      personaId: effectivePersonaId,
+      reasoningConfig,
+      userId: user._id,
+    },
+  ));
 
   return { assistantMessageId };
 }

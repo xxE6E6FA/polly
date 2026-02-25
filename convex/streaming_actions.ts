@@ -130,6 +130,48 @@ export function stripAttachmentsFromOlderMessages(
   });
 }
 
+/** Model capability args returned by prepare* mutations */
+export type ModelStreamingArgs = {
+  modelId: string;
+  provider: string;
+  supportsTools: boolean;
+  supportsImages: boolean;
+  supportsFiles: boolean;
+  supportsReasoning: boolean;
+  supportsTemperature?: boolean;
+  contextLength?: number;
+  contextEndIndex?: number;
+};
+
+/** Build StreamMessageArgs from a mutation's streamingArgs + per-request fields. */
+export function buildStreamArgs(
+  streamingArgs: ModelStreamingArgs,
+  request: {
+    messageId: Id<"messages">;
+    conversationId: Id<"conversations">;
+    personaId?: Id<"personas">;
+    reasoningConfig?: { enabled: boolean };
+    userId: Id<"users">;
+  }
+): StreamMessageArgs {
+  return {
+    messageId: request.messageId,
+    conversationId: request.conversationId,
+    model: streamingArgs.modelId,
+    provider: streamingArgs.provider,
+    personaId: request.personaId,
+    reasoningConfig: request.reasoningConfig,
+    supportsTools: streamingArgs.supportsTools,
+    supportsImages: streamingArgs.supportsImages,
+    supportsFiles: streamingArgs.supportsFiles,
+    supportsReasoning: streamingArgs.supportsReasoning,
+    supportsTemperature: streamingArgs.supportsTemperature,
+    contextLength: streamingArgs.contextLength,
+    contextEndIndex: streamingArgs.contextEndIndex,
+    userId: request.userId,
+  };
+}
+
 /** Args type for executeStreamMessage */
 export type StreamMessageArgs = {
   messageId: Id<"messages">;
@@ -156,11 +198,7 @@ export type StreamMessageArgs = {
   userId?: Id<"users">;
 };
 
-/**
- * Core streaming logic extracted from streamMessage internalAction.
- * Can be called directly from action context (retry/edit paths) to skip
- * the ~50-200ms Convex scheduler hop.
- */
+/** Core streaming logic. Called directly from action handlers or via the streamMessage internalAction. */
 export async function executeStreamMessage(
   ctx: ActionCtx,
   args: StreamMessageArgs
@@ -398,10 +436,6 @@ export async function executeStreamMessage(
 /**
  * Server-side streaming action for conversation messages.
  * Uses Node.js runtime for 512 MiB memory (vs 64 MiB in default runtime).
- * This is necessary for providers like Gemini that may use more memory during streaming.
- *
- * NOTE: For retry/edit paths running in action context, prefer calling
- * executeStreamMessage() directly to skip the scheduler hop (~50-200ms).
  */
 export const streamMessage = internalAction({
   args: {
