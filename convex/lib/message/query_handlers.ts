@@ -157,6 +157,18 @@ export async function getConversationTokenEstimateHandler(
   return total;
 }
 
+export async function hasFavoritesHandler(ctx: QueryCtx) {
+  const userId = await getAuthUserId(ctx);
+  if (!userId) {
+    return false;
+  }
+  const first = await ctx.db
+    .query("messageFavorites")
+    .withIndex("by_user_created", q => q.eq("userId", userId))
+    .first();
+  return first !== null;
+}
+
 export async function isFavoritedHandler(
   ctx: QueryCtx,
   args: { messageId: Id<"messages"> }

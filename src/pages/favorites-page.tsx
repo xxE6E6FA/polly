@@ -6,7 +6,7 @@ import {
   HeartIcon,
   UserIcon,
 } from "@phosphor-icons/react";
-import { useMutation, usePaginatedQuery } from "convex/react";
+import { useMutation, usePaginatedQuery, useQuery } from "convex/react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -36,43 +36,25 @@ type FavoriteItem = {
 const ITEMS_PER_PAGE = 50;
 const PREVIEW_LENGTH = 300;
 
-/**
- * Strip markdown syntax to produce a clean plaintext preview.
- * Handles code blocks, inline code, headers, bold/italic, links, images, etc.
- */
 function stripMarkdown(text: string): string {
-  return (
-    text
-      // Remove code blocks (``` ... ```)
-      .replace(/```[\s\S]*?```/g, " ")
-      // Remove inline code
-      .replace(/`([^`]*)`/g, "$1")
-      // Remove images
-      .replace(/!\[([^\]]*)\]\([^)]*\)/g, "$1")
-      // Remove links but keep text
-      .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
-      // Remove headers
-      .replace(/^#{1,6}\s+/gm, "")
-      // Remove bold/italic
-      .replace(/(\*{1,3}|_{1,3})(.*?)\1/g, "$2")
-      // Remove strikethrough
-      .replace(/~~(.*?)~~/g, "$1")
-      // Remove blockquotes
-      .replace(/^\s*>\s?/gm, "")
-      // Remove horizontal rules
-      .replace(/^[-*_]{3,}\s*$/gm, "")
-      // Remove list markers
-      .replace(/^\s*[-*+]\s+/gm, "")
-      .replace(/^\s*\d+\.\s+/gm, "")
-      // Collapse whitespace
-      .replace(/\n{2,}/g, " \u00B7 ")
-      .replace(/\n/g, " ")
-      .replace(/\s{2,}/g, " ")
-      .trim()
-  );
+  return text
+    .replace(/```[\s\S]*?```/g, " ")
+    .replace(/`([^`]*)`/g, "$1")
+    .replace(/!\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/(\*{1,3}|_{1,3})(.*?)\1/g, "$2")
+    .replace(/~~(.*?)~~/g, "$1")
+    .replace(/^\s*>\s?/gm, "")
+    .replace(/^[-*_]{3,}\s*$/gm, "")
+    .replace(/^\s*[-*+]\s+/gm, "")
+    .replace(/^\s*\d+\.\s+/gm, "")
+    .replace(/\n{2,}/g, " \u00B7 ")
+    .replace(/\n/g, " ")
+    .replace(/\s{2,}/g, " ")
+    .trim();
 }
 
-// Loading skeleton that mimics the final card layout
 const FavoriteItemSkeleton = memo(() => (
   <div className="border-b border-border/40 px-5 py-4">
     <div className="flex items-center gap-2 mb-2.5">
@@ -87,7 +69,6 @@ const FavoriteItemSkeleton = memo(() => (
 ));
 FavoriteItemSkeleton.displayName = "FavoriteItemSkeleton";
 
-// Individual favorite row — clicking navigates to the conversation
 const FavoriteCard = memo(function FavoriteCard({
   item,
   onCopy,
@@ -111,7 +92,6 @@ const FavoriteCard = memo(function FavoriteCard({
   return (
     <div className="group border-b border-border/40 transition-colors hover:bg-muted/20">
       <div className="px-5 py-4">
-        {/* Header row: conversation context + actions */}
         <div className="flex items-center justify-between gap-3 mb-2">
           <div className="flex items-center gap-2 min-w-0 text-xs text-muted-foreground">
             {isAssistant ? (
@@ -131,7 +111,6 @@ const FavoriteCard = memo(function FavoriteCard({
             </span>
           </div>
 
-          {/* Actions — always visible on mobile, subtle on desktop */}
           <div className="flex items-center gap-0.5 shrink-0 opacity-60 group-hover:opacity-100 transition-opacity">
             <Button
               variant="ghost"
@@ -154,7 +133,6 @@ const FavoriteCard = memo(function FavoriteCard({
           </div>
         </div>
 
-        {/* Preview text — links to conversation */}
         <Link
           to={ROUTES.CHAT_CONVERSATION(item.conversation._id)}
           className="block text-sm leading-relaxed text-foreground/90 line-clamp-3 hover:text-foreground transition-colors"
@@ -166,7 +144,6 @@ const FavoriteCard = memo(function FavoriteCard({
   );
 });
 
-// Sentinel element for infinite scroll
 function LoadMoreSentinel({
   onVisible,
   isLoading,
@@ -208,10 +185,24 @@ function LoadMoreSentinel({
   );
 }
 
+const Skeletons = (
+  <div>
+    <FavoriteItemSkeleton />
+    <FavoriteItemSkeleton />
+    <FavoriteItemSkeleton />
+    <FavoriteItemSkeleton />
+    <FavoriteItemSkeleton />
+    <FavoriteItemSkeleton />
+  </div>
+);
+
 export default function FavoritesPage() {
   const { user } = useUserDataContext();
   const [search, setSearch] = useState("");
   const managedToast = useToast();
+
+  // Fast single-table check — no joins, resolves in one shot
+  const hasFavorites = useQuery(api.messages.hasFavorites, user ? {} : "skip");
 
   const { results, status, loadMore } = usePaginatedQuery(
     api.messages.listFavoritesPaginated,
@@ -243,20 +234,6 @@ export default function FavoritesPage() {
     );
   }, [results, search]);
 
-  // Convex can briefly return status="Exhausted" with empty results before
-  // the actual data arrives on the next render. A minimum skeleton time
-  // prevents a flash of the empty state during that gap.
-  const hasItems = items.length > 0;
-  const [ready, setReady] = useState(false);
-  useEffect(() => {
-    if (hasItems) {
-      setReady(true);
-      return;
-    }
-    const timer = setTimeout(() => setReady(true), 400);
-    return () => clearTimeout(timer);
-  }, [hasItems]);
-
   const handleCopy = useCallback(
     async (text: string) => {
       await navigator.clipboard.writeText(text);
@@ -277,7 +254,6 @@ export default function FavoritesPage() {
     [toggleFavorite, managedToast.success, managedToast.error]
   );
 
-  // Unauthenticated / anonymous
   if (!user || user.isAnonymous) {
     return (
       <div className="h-full overflow-y-auto">
@@ -293,6 +269,10 @@ export default function FavoritesPage() {
 
   const hasSearch = search.trim().length > 0;
 
+  // Loading: hasFavorites query hasn't resolved yet
+  // Empty: hasFavorites resolved to false (no favorites exist)
+  // Data loading: hasFavorites is true but enriched items haven't arrived yet
+  // Ready: items are populated
   const renderContent = () => {
     if (items.length > 0) {
       return (
@@ -315,7 +295,11 @@ export default function FavoritesPage() {
       );
     }
 
-    if (ready && (status === "Exhausted" || hasSearch)) {
+    // hasFavorites is the source of truth for empty vs loading.
+    // The paginated query can briefly return empty results while
+    // enrichment (joining messages + conversations) resolves, so
+    // we don't trust it for the empty/loading decision.
+    if (hasFavorites === false) {
       return (
         <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
           <div className="mb-4 rounded-full bg-muted/30 p-4">
@@ -325,41 +309,46 @@ export default function FavoritesPage() {
             />
           </div>
           <h2 className="text-base font-medium text-foreground/80 mb-1.5">
-            {hasSearch ? "No matches found" : "No favorites yet"}
+            No favorites yet
           </h2>
           <p className="text-sm text-muted-foreground max-w-xs mb-5 leading-relaxed">
-            {hasSearch
-              ? "Try a different search term."
-              : "Tap the heart icon on any message to save it here for quick access."}
+            Tap the heart icon on any message to save it here for quick access.
           </p>
-          {!hasSearch && (
-            <Link
-              to={ROUTES.HOME}
-              className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
-            >
-              Go to conversations
-            </Link>
-          )}
+          <Link
+            to={ROUTES.HOME}
+            className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+          >
+            Go to conversations
+          </Link>
         </div>
       );
     }
 
-    return (
-      <div>
-        <FavoriteItemSkeleton />
-        <FavoriteItemSkeleton />
-        <FavoriteItemSkeleton />
-        <FavoriteItemSkeleton />
-        <FavoriteItemSkeleton />
-        <FavoriteItemSkeleton />
-      </div>
-    );
+    if (hasSearch) {
+      return (
+        <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
+          <div className="mb-4 rounded-full bg-muted/30 p-4">
+            <HeartIcon
+              className="size-7 text-muted-foreground/50"
+              weight="regular"
+            />
+          </div>
+          <h2 className="text-base font-medium text-foreground/80 mb-1.5">
+            No matches found
+          </h2>
+          <p className="text-sm text-muted-foreground max-w-xs mb-5 leading-relaxed">
+            Try a different search term.
+          </p>
+        </div>
+      );
+    }
+
+    return Skeletons;
   };
 
   return (
     <div className="h-full overflow-y-auto">
       <div className="max-w-3xl mx-auto">
-        {/* Header */}
         <div className="sticky top-0 z-sticky bg-background/95 backdrop-blur-sm border-b border-border/40">
           <div className="flex items-center justify-between px-5 py-3">
             <div className="flex items-center gap-2.5">

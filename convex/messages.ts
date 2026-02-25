@@ -45,6 +45,7 @@ export {
   getLastAssistantModelHandler,
   getLastUsedModelHandler,
   getMessageCountHandler,
+  hasFavoritesHandler,
   hasStreamingMessageHandler,
   isFavoritedHandler,
   listFavoritesHandler,
@@ -96,6 +97,7 @@ import {
   getLastAssistantModelHandler,
   getLastUsedModelHandler,
   getMessageCountHandler,
+  hasFavoritesHandler,
   hasStreamingMessageHandler,
   isFavoritedHandler,
   listFavoritesHandler,
@@ -260,6 +262,11 @@ export const getMessageCount = query({
 export const getConversationTokenEstimate = query({
   args: { conversationId: v.id("conversations") },
   handler: getConversationTokenEstimateHandler,
+});
+
+export const hasFavorites = query({
+  args: {},
+  handler: hasFavoritesHandler,
 });
 
 export const isFavorited = query({
