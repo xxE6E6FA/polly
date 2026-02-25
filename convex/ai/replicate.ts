@@ -6,6 +6,7 @@ import { getApiKey } from "./encryption";
 import Replicate from "replicate";
 import type { Prediction } from "replicate";
 import { getUserFriendlyErrorMessage } from "./error_handlers";
+import { arrayBufferToBase64 } from "../lib/encoding";
 import { scheduleRunAfter } from "../lib/scheduler";
 import { validateFreeModelUsage } from "../lib/shared_utils";
 
@@ -43,7 +44,7 @@ export async function resolveImageUrlsFromAttachments(
           const response = await fetch(storageUrl);
           if (response.ok) {
             const buffer = await response.arrayBuffer();
-            const base64 = Buffer.from(buffer).toString("base64");
+            const base64 = arrayBufferToBase64(buffer);
             const mimeType =
               att.mimeType ||
               response.headers.get("content-type") ||
