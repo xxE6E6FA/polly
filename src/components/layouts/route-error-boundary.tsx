@@ -10,7 +10,7 @@ export const RouteErrorBoundary = () => {
   if (isRouteErrorResponse(error)) {
     if (error.status === 404) {
       return (
-        <div className="flex h-full w-full items-center justify-center">
+        <div className="flex min-h-[100dvh] w-full items-center justify-center bg-background">
           <div className="max-w-md text-center">
             <WarningIcon className="mb-4 h-16 w-16 text-destructive" />
             <h1 className="mb-2 text-2xl font-bold">404 - Page Not Found</h1>
@@ -26,7 +26,7 @@ export const RouteErrorBoundary = () => {
     }
 
     return (
-      <div className="flex h-full w-full items-center justify-center">
+      <div className="flex min-h-[100dvh] w-full items-center justify-center bg-background">
         <div className="max-w-md text-center">
           <WarningIcon className="mb-4 h-16 w-16 text-destructive" />
           <h1 className="mb-2 text-2xl font-bold">
@@ -44,7 +44,7 @@ export const RouteErrorBoundary = () => {
   }
 
   return (
-    <div className="flex h-full w-full items-center justify-center">
+    <div className="flex min-h-[100dvh] w-full items-center justify-center bg-background">
       <div className="flex max-w-md flex-col items-center text-center">
         <WarningIcon className="mb-4 h-16 w-16 text-destructive" />
         <h1 className="mb-2 text-2xl font-bold">Something went wrong</h1>

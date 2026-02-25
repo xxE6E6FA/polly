@@ -872,6 +872,7 @@
   /* Base UI: Portal isolation to prevent z-index conflicts */
   #root {
     isolation: isolate;
+    min-height: 100dvh;
   }
 
   /* Base UI: iOS 26+ Safari support for backdrops */
