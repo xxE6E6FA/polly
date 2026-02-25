@@ -277,55 +277,25 @@ export default function FavoritesPage() {
     );
   }
 
-  // Initial loading
-  if (status === "LoadingFirstPage") {
-    return (
-      <div className="h-full overflow-y-auto">
-        <div className="max-w-3xl mx-auto">
-          {/* Header skeleton */}
-          <div className="sticky top-0 z-sticky bg-background border-b border-border/40">
-            <div className="flex items-center justify-between px-5 py-4">
-              <div className="flex items-center gap-3">
-                <Skeleton className="h-6 w-24" />
-              </div>
-              <Skeleton className="h-9 w-56 rounded-md" />
-            </div>
-          </div>
-          {/* Item skeletons */}
-          <div>
-            <FavoriteItemSkeleton />
-            <FavoriteItemSkeleton />
-            <FavoriteItemSkeleton />
-            <FavoriteItemSkeleton />
-            <FavoriteItemSkeleton />
-            <FavoriteItemSkeleton />
-            <FavoriteItemSkeleton />
-            <FavoriteItemSkeleton />
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  const totalCount =
-    (results as unknown as FavoriteItem[] | undefined)?.length ?? 0;
+  const isLoading = items.length === 0 && status !== "Exhausted";
   const hasSearch = search.trim().length > 0;
+  const showEmpty = items.length === 0 && !isLoading;
 
   return (
     <div className="h-full overflow-y-auto">
       <div className="max-w-3xl mx-auto">
-        {/* Sticky header */}
+        {/* Header */}
         <div className="sticky top-0 z-sticky bg-background/95 backdrop-blur-sm border-b border-border/40">
           <div className="flex items-center justify-between px-5 py-3">
             <div className="flex items-center gap-2.5">
               <h1 className="text-base font-semibold">Favorites</h1>
-              {totalCount > 0 && (
+              {items.length > 0 && (
                 <span className="text-xs text-muted-foreground tabular-nums">
-                  {hasSearch ? `${items.length} of ${totalCount}` : totalCount}
+                  {items.length}
                 </span>
               )}
             </div>
-            {totalCount > 0 && (
+            {items.length > 0 && (
               <SearchInput
                 placeholder="Search favorites…"
                 value={search}
@@ -336,74 +306,68 @@ export default function FavoritesPage() {
           </div>
         </div>
 
-        {/* Content */}
-        {(() => {
-          // Still resolving first results — show skeletons to avoid empty-state flash
-          if (items.length === 0 && !hasSearch && status !== "Exhausted") {
-            return (
-              <div>
-                <FavoriteItemSkeleton />
-                <FavoriteItemSkeleton />
-                <FavoriteItemSkeleton />
-                <FavoriteItemSkeleton />
-                <FavoriteItemSkeleton />
-                <FavoriteItemSkeleton />
-              </div>
-            );
-          }
+        {/* Loading */}
+        {isLoading && !hasSearch && (
+          <div>
+            <FavoriteItemSkeleton />
+            <FavoriteItemSkeleton />
+            <FavoriteItemSkeleton />
+            <FavoriteItemSkeleton />
+            <FavoriteItemSkeleton />
+            <FavoriteItemSkeleton />
+          </div>
+        )}
 
-          if (items.length === 0) {
-            return (
-              <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
-                <div className="mb-4 rounded-full bg-muted/30 p-4">
-                  <HeartIcon
-                    className="size-7 text-muted-foreground/50"
-                    weight="regular"
-                  />
-                </div>
-                <h2 className="text-base font-medium text-foreground/80 mb-1.5">
-                  {hasSearch ? "No matches found" : "No favorites yet"}
-                </h2>
-                <p className="text-sm text-muted-foreground max-w-xs mb-5 leading-relaxed">
-                  {hasSearch
-                    ? "Try a different search term."
-                    : "Tap the heart icon on any message to save it here for quick access."}
-                </p>
-                {!hasSearch && (
-                  <Link
-                    to={ROUTES.HOME}
-                    className={cn(
-                      buttonVariants({ variant: "outline", size: "sm" })
-                    )}
-                  >
-                    Go to conversations
-                  </Link>
-                )}
-              </div>
-            );
-          }
-
-          return (
-            <div>
-              {items.map(item => (
-                <FavoriteCard
-                  key={String(item.favoriteId)}
-                  item={item}
-                  onCopy={handleCopy}
-                  onUnfavorite={handleUnfavorite}
-                />
-              ))}
-
-              {/* Infinite scroll sentinel */}
-              {status !== "Exhausted" && (
-                <LoadMoreSentinel
-                  onVisible={handleEndReached}
-                  isLoading={status === "LoadingMore"}
-                />
-              )}
+        {/* Empty */}
+        {showEmpty && (
+          <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
+            <div className="mb-4 rounded-full bg-muted/30 p-4">
+              <HeartIcon
+                className="size-7 text-muted-foreground/50"
+                weight="regular"
+              />
             </div>
-          );
-        })()}
+            <h2 className="text-base font-medium text-foreground/80 mb-1.5">
+              {hasSearch ? "No matches found" : "No favorites yet"}
+            </h2>
+            <p className="text-sm text-muted-foreground max-w-xs mb-5 leading-relaxed">
+              {hasSearch
+                ? "Try a different search term."
+                : "Tap the heart icon on any message to save it here for quick access."}
+            </p>
+            {!hasSearch && (
+              <Link
+                to={ROUTES.HOME}
+                className={cn(
+                  buttonVariants({ variant: "outline", size: "sm" })
+                )}
+              >
+                Go to conversations
+              </Link>
+            )}
+          </div>
+        )}
+
+        {/* Items */}
+        {items.length > 0 && (
+          <div>
+            {items.map(item => (
+              <FavoriteCard
+                key={String(item.favoriteId)}
+                item={item}
+                onCopy={handleCopy}
+                onUnfavorite={handleUnfavorite}
+              />
+            ))}
+
+            {status !== "Exhausted" && (
+              <LoadMoreSentinel
+                onVisible={handleEndReached}
+                isLoading={status === "LoadingMore"}
+              />
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
