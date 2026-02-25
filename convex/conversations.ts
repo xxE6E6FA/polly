@@ -12,8 +12,6 @@ import {
   createConversationActionHandler,
   createUserMessageHandler,
   editAndResendMessageHandler,
-  editMessageHandler,
-  retryFromMessageHandler,
   savePrivateConversationHandler,
   sendMessageHandler,
   startConversationHandler,
@@ -43,7 +41,6 @@ import {
   setStreamingHandler,
   stopGenerationHandler,
 } from "./lib/conversation/mutation_handlers";
-
 // --- Query handlers ---
 import {
   getByClientIdHandler,
@@ -57,6 +54,10 @@ import {
   searchHandler,
   searchWithMatchesHandler,
 } from "./lib/conversation/query_handlers";
+import {
+  editMessageHandler,
+  retryFromMessageHandler,
+} from "./lib/conversation/retry_handlers";
 import { paginationOptsSchema } from "./lib/pagination";
 import {
   attachmentSchema,
@@ -340,6 +341,7 @@ export const prepareEditAndResend = internalMutation({
     provider: v.optional(v.string()),
     personaId: v.optional(v.id("personas")),
     reasoningConfig: v.optional(reasoningConfigSchema),
+    scheduleStreaming: v.optional(v.boolean()),
   },
   handler: prepareEditAndResendHandler,
 });

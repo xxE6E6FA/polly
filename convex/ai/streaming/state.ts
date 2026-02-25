@@ -94,19 +94,19 @@ export async function initializeStreaming(
 // ── Tool Configuration ──────────────────────────────────────────────────
 
 /**
- * Determine which tools are available and inject tool-specific instructions
- * into the first system message.
+ * Determine which tools are available and return tool-specific instructions
+ * to append to the system message.
  *
- * @mutates messages — replaces the system message element in place when tools are enabled.
+ * Pure function — does NOT mutate messages. The caller is responsible for
+ * appending `toolInstructions` to the system message.
  */
 export function configureTools(
-  messages: ModelMessage[],
   supportsTools: boolean,
   exaApiKey: string | undefined,
   replicateApiKey: string | undefined,
   imageModels: ImageModelInfo[],
   messageId: Id<"messages">,
-): ToolConfig {
+): ToolConfig & { toolInstructions: string } {
   const useWebSearch = supportsTools && !!exaApiKey;
   const useImageGen =
     supportsTools && !!replicateApiKey && imageModels.length > 0;
@@ -121,25 +121,15 @@ export function configureTools(
     messageId,
   });
 
-  // Inject tool-specific instructions into the first system message.
-  // This is the single place where tool availability is known, so we co-locate
-  // the instructions here rather than plumbing flags through context building.
-  if (useWebSearch || useImageGen) {
-    const systemIdx = messages.findIndex((m) => m.role === "system");
-    if (systemIdx !== -1) {
-      const sys = messages[systemIdx] as { role: "system"; content: string };
-      let extra = "";
-      if (useWebSearch) {
-        extra += `\n\n${CITATION_INSTRUCTIONS}`;
-      }
-      if (useImageGen) {
-        extra += `\n\n${IMAGE_GENERATION_INSTRUCTIONS}`;
-      }
-      messages[systemIdx] = { role: "system", content: sys.content + extra };
-    }
+  let toolInstructions = "";
+  if (useWebSearch) {
+    toolInstructions += `\n\n${CITATION_INSTRUCTIONS}`;
+  }
+  if (useImageGen) {
+    toolInstructions += `\n\n${IMAGE_GENERATION_INSTRUCTIONS}`;
   }
 
-  return { useWebSearch, useImageGen, hasAnyTools };
+  return { useWebSearch, useImageGen, hasAnyTools, toolInstructions };
 }
 
 /**

@@ -1448,6 +1448,11 @@ export async function prepareEditAndResendHandler(
     provider?: string;
     personaId?: Id<"personas">;
     reasoningConfig?: { enabled: boolean };
+    /**
+     * When true (default), schedules `streamMessage` inside the mutation.
+     * Set to false when the caller handles streaming directly (e.g. `editMessageHandler`).
+     */
+    scheduleStreaming?: boolean;
   },
 ): Promise<{
   assistantMessageId: Id<"messages">;
@@ -1560,17 +1565,38 @@ export async function prepareEditAndResendHandler(
     updatedAt: Date.now(),
   });
 
+  const streamingArgs = {
+    modelId: fullModel.modelId,
+    provider: fullModel.provider,
+    supportsTools: fullModel.supportsTools ?? false,
+    supportsImages: fullModel.supportsImages ?? false,
+    supportsFiles: fullModel.supportsFiles ?? false,
+    supportsReasoning: fullModel.supportsReasoning ?? false,
+    supportsTemperature: fullModel.supportsTemperature ?? undefined,
+    contextLength: fullModel.contextLength,
+  };
+
+  // 8. Schedule streaming action (unless caller handles it directly)
+  if (args.scheduleStreaming !== false) {
+    await ctx.scheduler.runAfter(0, internal.streaming_actions.streamMessage, {
+      messageId: assistantMessageId,
+      conversationId,
+      model: streamingArgs.modelId,
+      provider: streamingArgs.provider,
+      personaId: effectivePersonaId,
+      reasoningConfig: args.reasoningConfig,
+      supportsTools: streamingArgs.supportsTools,
+      supportsImages: streamingArgs.supportsImages,
+      supportsFiles: streamingArgs.supportsFiles,
+      supportsReasoning: streamingArgs.supportsReasoning,
+      supportsTemperature: streamingArgs.supportsTemperature,
+      contextLength: streamingArgs.contextLength,
+      userId,
+    });
+  }
+
   return {
     assistantMessageId,
-    streamingArgs: {
-      modelId: fullModel.modelId,
-      provider: fullModel.provider,
-      supportsTools: fullModel.supportsTools ?? false,
-      supportsImages: fullModel.supportsImages ?? false,
-      supportsFiles: fullModel.supportsFiles ?? false,
-      supportsReasoning: fullModel.supportsReasoning ?? false,
-      supportsTemperature: fullModel.supportsTemperature ?? undefined,
-      contextLength: fullModel.contextLength,
-    },
+    streamingArgs,
   };
 }

@@ -78,14 +78,22 @@ export async function streamLLMToMessage({
   const buffer = createStreamBuffer({ ctx, messageId, conversationId });
 
   // ── Tools ─────────────────────────────────────────────────────────────
-  const toolConfig = configureTools(
-    messages,
+  const { toolInstructions, ...toolConfig } = configureTools(
     supportsTools,
     exaApiKey,
     replicateApiKey,
     imageModels,
     messageId,
   );
+
+  // Inject tool-specific instructions into the system message
+  if (toolInstructions) {
+    const systemIdx = messages.findIndex((m) => m.role === "system");
+    if (systemIdx !== -1) {
+      const sys = messages[systemIdx] as { role: "system"; content: string };
+      messages[systemIdx] = { role: "system", content: sys.content + toolInstructions };
+    }
+  }
 
   // Promote to streaming once first chunk arrives (folded into first flush)
   let setStreaming = false;
