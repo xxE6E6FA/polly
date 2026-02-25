@@ -131,7 +131,19 @@ export function downloadFile(
 export async function copyImageToClipboard(imageUrl: string): Promise<void> {
   const response = await fetch(imageUrl);
   const blob = await response.blob();
-  await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
+  // Clipboard API only supports image/png in most browsers — convert if needed
+  let pngBlob = blob;
+  if (blob.type !== "image/png") {
+    const bitmap = await createImageBitmap(blob);
+    const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+    const ctx = canvas.getContext("2d")!;
+    ctx.drawImage(bitmap, 0, 0);
+    pngBlob = await canvas.convertToBlob({ type: "image/png" });
+    bitmap.close();
+  }
+  await navigator.clipboard.write([
+    new ClipboardItem({ [pngBlob.type]: pngBlob }),
+  ]);
 }
 
 /**

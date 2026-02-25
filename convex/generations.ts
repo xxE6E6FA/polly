@@ -12,8 +12,32 @@ import {
 } from "./_generated/server";
 import { getApiKey } from "./ai/encryption";
 import { getUserFriendlyErrorMessage } from "./ai/error_handlers";
+import {
+  detectImageInputFromSchema,
+  findClosestAspectRatio,
+  getAllowedAspectRatios,
+  getImageInputConfig,
+  isImageEditingModel,
+} from "./ai/replicate_helpers";
 import { getAuthUserId } from "./lib/auth";
+import { arrayBufferToBase64 } from "./lib/encoding";
 import { scheduleRunAfter } from "./lib/scheduler";
+
+/**
+ * Parse allowed aspect ratios from a Replicate 422 error message.
+ * Handles escaped quotes like: \"1:1\", \"3:2\" and regular "1:1", "3:2".
+ */
+function parseAllowedAspectRatios(errorMsg: string): string[] | null {
+  if (!errorMsg.includes("aspect_ratio")) {
+    return null;
+  }
+  // Match ratio patterns like 1:1, 3:2, 16:9 regardless of surrounding quotes
+  const ratios = [...errorMsg.matchAll(/(\d+:\d+)/g)].map(m => m[1]!);
+
+  // Dedupe
+  const unique = [...new Set(ratios)];
+  return unique.length > 0 ? unique : null;
+}
 
 // ============================================================================
 // Queries
@@ -117,6 +141,7 @@ export const createGeneration = mutation({
         negativePrompt: v.optional(v.string()),
         count: v.optional(v.number()),
         quality: v.optional(v.number()),
+        referenceImageIds: v.optional(v.array(v.id("_storage"))),
       })
     ),
     batchId: v.optional(v.string()),
@@ -178,6 +203,40 @@ export const storeGenerationImages = internalMutation({
   },
 });
 
+export const cancelGeneration = mutation({
+  args: { id: v.id("generations") },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("Not authenticated");
+    }
+
+    const gen = await ctx.db.get(args.id);
+    if (!gen || gen.userId !== userId) {
+      throw new Error("Not found");
+    }
+
+    if (
+      gen.status !== "pending" &&
+      gen.status !== "starting" &&
+      gen.status !== "processing"
+    ) {
+      return;
+    }
+
+    await ctx.db.patch(args.id, { status: "canceled" });
+
+    if (gen.replicateId) {
+      await scheduleRunAfter(
+        ctx,
+        0,
+        internal.generations.cancelCanvasPrediction,
+        { predictionId: gen.replicateId, userId }
+      );
+    }
+  },
+});
+
 export const deleteGeneration = mutation({
   args: { id: v.id("generations") },
   handler: async (ctx, args) => {
@@ -189,6 +248,21 @@ export const deleteGeneration = mutation({
     const gen = await ctx.db.get(args.id);
     if (!gen || gen.userId !== userId) {
       throw new Error("Not found");
+    }
+
+    // Cancel active prediction if still running
+    if (
+      gen.replicateId &&
+      (gen.status === "pending" ||
+        gen.status === "starting" ||
+        gen.status === "processing")
+    ) {
+      await scheduleRunAfter(
+        ctx,
+        0,
+        internal.generations.cancelCanvasPrediction,
+        { predictionId: gen.replicateId, userId }
+      );
     }
 
     // Delete stored files
@@ -230,6 +304,31 @@ export const retryGeneration = mutation({
 // ============================================================================
 // Actions
 // ============================================================================
+
+export const cancelCanvasPrediction = internalAction({
+  args: {
+    predictionId: v.string(),
+    userId: v.id("users"),
+  },
+  handler: async (ctx, args) => {
+    try {
+      const apiKey = await getApiKey(
+        ctx,
+        "replicate",
+        undefined,
+        undefined,
+        args.userId
+      );
+      const replicate = new Replicate({ auth: apiKey });
+      await replicate.predictions.cancel(args.predictionId);
+    } catch (error) {
+      console.error(
+        "[canvas-gen] Failed to cancel prediction:",
+        error instanceof Error ? error.message : String(error)
+      );
+    }
+  },
+});
 
 // Helper: convert aspect ratio to width/height (reused from replicate.ts)
 function convertAspectRatioToDimensions(aspectRatio: string): {
@@ -322,6 +421,7 @@ export const startCanvasBatch = action({
         negativePrompt: v.optional(v.string()),
         count: v.optional(v.number()),
         quality: v.optional(v.number()),
+        referenceImageIds: v.optional(v.array(v.id("_storage"))),
       })
     ),
     batchId: v.string(),
@@ -379,6 +479,7 @@ export const internalCreateGeneration = internalMutation({
         negativePrompt: v.optional(v.string()),
         count: v.optional(v.number()),
         quality: v.optional(v.number()),
+        referenceImageIds: v.optional(v.array(v.id("_storage"))),
       })
     ),
     batchId: v.optional(v.string()),
@@ -465,7 +566,16 @@ export const runCanvasGeneration = internalAction({
       // Aspect ratio / dimensions
       if (gen.params?.aspectRatio) {
         if (aspectRatioMode === "aspect_ratio") {
-          input.aspect_ratio = gen.params.aspectRatio;
+          // Check if the model constrains aspect_ratio to specific enum values
+          const allowed = getAllowedAspectRatios(modelData);
+          if (allowed && !allowed.includes(gen.params.aspectRatio)) {
+            input.aspect_ratio = findClosestAspectRatio(
+              gen.params.aspectRatio,
+              allowed
+            );
+          } else {
+            input.aspect_ratio = gen.params.aspectRatio;
+          }
         } else if (aspectRatioMode === "dimensions") {
           const dims = convertAspectRatioToDimensions(gen.params.aspectRatio);
           input.width = dims.width;
@@ -548,15 +658,95 @@ export const runCanvasGeneration = internalAction({
         input.disable_safety_checker = true;
       }
 
-      // Create prediction
-      const prediction = await replicate.predictions.create({
-        version: latestVersion,
-        input,
-        webhook: process.env.CONVEX_SITE_URL
-          ? `${process.env.CONVEX_SITE_URL}/webhooks/replicate`
-          : undefined,
-        webhook_events_filter: ["start", "completed"],
-      });
+      // Reference images (image-to-image)
+      if (
+        gen.params?.referenceImageIds &&
+        gen.params.referenceImageIds.length > 0
+      ) {
+        // Detect image input parameter — mirror conversation-side logic:
+        // 1. Try schema introspection
+        // 2. Fall back to hardcoded config ONLY for known editing models
+        const schemaDetected = detectImageInputFromSchema(modelData);
+        const isEditing = isImageEditingModel(gen.model);
+        const imageInputConfig =
+          schemaDetected ?? (isEditing ? getImageInputConfig(gen.model) : null);
+
+        if (imageInputConfig) {
+          // Convert storage IDs to data URIs (same pattern as resolveImageUrlsFromAttachments)
+          const dataUris: string[] = [];
+          for (const storageId of gen.params.referenceImageIds) {
+            const storageUrl = await ctx.storage.getUrl(storageId);
+            if (!storageUrl) {
+              continue;
+            }
+            const imgResponse = await fetch(storageUrl);
+            if (!imgResponse.ok) {
+              continue;
+            }
+            const buffer = await imgResponse.arrayBuffer();
+            const base64 = arrayBufferToBase64(buffer);
+            const mimeType =
+              imgResponse.headers.get("content-type") || "image/jpeg";
+            dataUris.push(`data:${mimeType};base64,${base64}`);
+          }
+
+          if (dataUris.length > 0) {
+            if (imageInputConfig.isMessage) {
+              input[imageInputConfig.paramName] = [
+                {
+                  role: "user",
+                  content: [
+                    { type: "text", text: gen.prompt },
+                    ...dataUris.map(uri => ({
+                      type: "image_url",
+                      image_url: { url: uri },
+                    })),
+                  ],
+                },
+              ];
+            } else {
+              input[imageInputConfig.paramName] = imageInputConfig.isArray
+                ? dataUris
+                : dataUris[0];
+            }
+          }
+        }
+      }
+
+      // Create prediction (with aspect ratio retry on 422)
+      let prediction;
+      try {
+        prediction = await replicate.predictions.create({
+          version: latestVersion,
+          input,
+          webhook: process.env.CONVEX_SITE_URL
+            ? `${process.env.CONVEX_SITE_URL}/webhooks/replicate`
+            : undefined,
+          webhook_events_filter: ["start", "completed"],
+        });
+      } catch (predError: unknown) {
+        // If aspect_ratio was rejected with 422, parse allowed values and retry
+        const errorMsg =
+          predError instanceof Error ? predError.message : String(predError);
+        const errorStr = String(errorMsg ?? "");
+        const allowed = parseAllowedAspectRatios(errorStr);
+        if (allowed && input.aspect_ratio && gen.params?.aspectRatio) {
+          input.aspect_ratio = findClosestAspectRatio(
+            gen.params.aspectRatio,
+            allowed
+          );
+          prediction = await replicate.predictions.create({
+            version: latestVersion,
+            input,
+            webhook: process.env.CONVEX_SITE_URL
+              ? `${process.env.CONVEX_SITE_URL}/webhooks/replicate`
+              : undefined,
+            webhook_events_filter: ["start", "completed"],
+          });
+        } else {
+          throw predError;
+        }
+      }
 
       // Update generation with replicate ID
       await ctx.runMutation(internal.generations.updateGenerationStatus, {
@@ -587,6 +777,10 @@ export const runCanvasGeneration = internalAction({
         }
       );
     } catch (error) {
+      console.error(
+        "[canvas-gen] ERROR:",
+        error instanceof Error ? error.message : String(error)
+      );
       const friendlyError = getUserFriendlyErrorMessage(error);
       await ctx.runMutation(internal.generations.updateGenerationStatus, {
         id: args.generationId,

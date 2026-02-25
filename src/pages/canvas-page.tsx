@@ -119,20 +119,43 @@ export default function CanvasPage() {
         >
           {/* Panel header — mirrors sidebar header structure */}
           <div className="shrink-0 py-4 px-3">
-            <div className="flex items-center justify-between mb-4 pl-2 pr-2">
+            <div className="flex items-center justify-between pl-2 pr-2">
               <div className="flex items-center gap-2">
                 <Link
                   className="group flex items-center gap-2 text-sidebar-foreground/90 hover:text-sidebar-foreground transition-colors"
                   to={ROUTES.HOME}
+                  viewTransition
                 >
-                  <ArrowLeftIcon className="size-4.5" />
+                  <div
+                    className="polly-logo-gradient-unified flex-shrink-0 w-6 h-6"
+                    style={{
+                      maskImage: "url('/favicon.svg')",
+                      maskSize: "contain",
+                      maskRepeat: "no-repeat",
+                      maskPosition: "center",
+                      WebkitMaskImage: "url('/favicon.svg')",
+                      WebkitMaskSize: "contain",
+                      WebkitMaskRepeat: "no-repeat",
+                      WebkitMaskPosition: "center",
+                    }}
+                  />
                   <span className="font-semibold text-sm tracking-tight">
-                    Canvas
+                    Polly
                   </span>
                 </Link>
               </div>
 
               <div className="flex items-center gap-1">
+                <Link to={ROUTES.HOME} viewTransition>
+                  <Button
+                    size="icon-sm"
+                    title="Back to chat"
+                    variant="ghost"
+                    className="text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-hover h-8 w-8"
+                  >
+                    <ArrowLeftIcon className="size-4.5" />
+                  </Button>
+                </Link>
                 <Button
                   size="icon-sm"
                   title="Collapse panel"
@@ -170,7 +193,7 @@ export default function CanvasPage() {
         {/* Main content area */}
         <div className="flex flex-1 flex-col min-w-0">
           {/* Header */}
-          <header className="flex items-center gap-3 border-b border-border/40 px-4 py-3 shrink-0">
+          <header className="flex h-16 items-center gap-3 px-4 shrink-0">
             {/* Show expand button when panel is hidden */}
             {!isPanelVisible && (
               <Button
@@ -203,7 +226,7 @@ export default function CanvasPage() {
           </header>
 
           {/* Masonry grid */}
-          <div className="flex-1 overflow-y-auto p-4">
+          <div className="flex-1 overflow-y-auto px-4 pb-4">
             <CanvasMasonryGrid filterMode={filterMode} />
           </div>
         </div>

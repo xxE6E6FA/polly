@@ -1043,6 +1043,7 @@ export const generationSchema = v.object({
     negativePrompt: v.optional(v.string()),
     count: v.optional(v.number()),
     quality: v.optional(v.number()),
+    referenceImageIds: v.optional(v.array(v.id("_storage"))),
   })),
   duration: v.optional(v.number()),
   batchId: v.optional(v.string()), // Groups multi-model generations

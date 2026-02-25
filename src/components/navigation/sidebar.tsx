@@ -472,7 +472,7 @@ export const Sidebar = ({ forceHidden = false }: { forceHidden?: boolean }) => {
                     </Link>
                   )}
 
-                  <Link to={ROUTES.CANVAS}>
+                  <Link to={ROUTES.CANVAS} viewTransition>
                     <Button
                       size="icon-sm"
                       title="Canvas"
