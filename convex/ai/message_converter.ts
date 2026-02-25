@@ -14,6 +14,7 @@ import type { FilePart, ImagePart, TextPart } from "ai";
 import { api } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import type { ActionCtx } from "../_generated/server";
+import { arrayBufferToBase64 } from "../lib/encoding";
 import {
   getStoredPdfText,
   modelSupportsPdfNatively,
@@ -336,7 +337,7 @@ async function convertImageAttachment(
     try {
       const blob = await fetchStorageWithRetry(ctx, attachment.storageId);
       const arrayBuffer = await blob.arrayBuffer();
-      const base64 = bufferToBase64(new Uint8Array(arrayBuffer));
+      const base64 = arrayBufferToBase64(arrayBuffer);
       const mimeType = blob.type || attachment.mimeType || "image/jpeg";
       return { type: "image", image: `data:${mimeType};base64,${base64}` };
     } catch (error) {
@@ -672,39 +673,3 @@ function base64ToUint8Array(base64: string): Uint8Array {
   return bytes;
 }
 
-/**
- * Convert Uint8Array to base64 string
- * Uses pure JavaScript for Convex compatibility
- */
-function bufferToBase64(bytes: Uint8Array): string {
-  const base64chars =
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-  let result = "";
-  let i;
-
-  for (i = 0; i < bytes.length - 2; i += 3) {
-    const byte0 = bytes[i]!;
-    const byte1 = bytes[i + 1]!;
-    const byte2 = bytes[i + 2]!;
-    result += base64chars[byte0 >> 2];
-    result += base64chars[((byte0 & 3) << 4) | (byte1 >> 4)];
-    result += base64chars[((byte1 & 15) << 2) | (byte2 >> 6)];
-    result += base64chars[byte2 & 63];
-  }
-
-  if (i < bytes.length) {
-    const lastByte = bytes[i]!;
-    result += base64chars[lastByte >> 2];
-    if (i === bytes.length - 1) {
-      result += base64chars[(lastByte & 3) << 4];
-      result += "==";
-    } else {
-      const nextByte = bytes[i + 1]!;
-      result += base64chars[((lastByte & 3) << 4) | (nextByte >> 4)];
-      result += base64chars[(nextByte & 15) << 2];
-      result += "=";
-    }
-  }
-
-  return result;
-}

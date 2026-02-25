@@ -11,7 +11,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { downloadFromUrl } from "@/lib/export";
+import { downloadFromUrl, generateImageFilename } from "@/lib/export";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/providers/toast-context";
 import { ActionButton } from "./action-button";
@@ -110,22 +110,7 @@ export const ImageActions = ({
 
     setIsDownloading(true);
     try {
-      // Generate filename from prompt or use default
-      const timestamp = new Date().toISOString().split("T")[0];
-      const baseFilename = prompt
-        ? prompt
-            .slice(0, 50)
-            .replace(/[^\d\sA-Za-z-]/g, "")
-            .replace(/\s+/g, "-")
-            .toLowerCase()
-        : "generated-image";
-
-      // Extract file extension from URL or default to .png
-      const urlPath = new URL(imageUrl).pathname;
-      const extension = urlPath.split(".").pop() || "png";
-
-      const filename = `${baseFilename}-${timestamp}.${extension}`;
-
+      const filename = generateImageFilename(imageUrl, prompt);
       await downloadFromUrl(imageUrl, filename);
       managedToast.success("Image downloaded successfully");
     } catch (error) {

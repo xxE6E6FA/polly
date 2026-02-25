@@ -12,6 +12,7 @@ import type { ActionCtx } from "../_generated/server";
 import type { Id } from "../_generated/dataModel";
 import { api } from "../_generated/api";
 import { CONFIG } from "./config";
+import { arrayBufferToBase64 } from "../lib/encoding";
 import { shouldExtractPdfText } from "./pdf";
 
 /**
@@ -72,7 +73,7 @@ export const convertStorageToData = async (
 }> => {
   const blob = await fetchStorageWithRetry(ctx, storageId);
   const arrayBuffer = await blob.arrayBuffer();
-  const base64 = Buffer.from(new Uint8Array(arrayBuffer)).toString("base64");
+  const base64 = arrayBufferToBase64(arrayBuffer);
   const mimeType =
     (blob as any).type ||
     CONFIG.MIME_TYPES[

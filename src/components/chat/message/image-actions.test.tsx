@@ -13,12 +13,16 @@ Object.defineProperty(navigator, "clipboard", {
   writable: true,
 });
 
-// Mock the download function
+// Mock the download function — re-export the real generateImageFilename
 const mockDownloadFromUrl = mock((url: string, filename: string) =>
   Promise.resolve()
 );
+const { generateImageFilename: realGenerateImageFilename } = await import(
+  "@/lib/export"
+);
 mock.module("@/lib/export", () => ({
   downloadFromUrl: mockDownloadFromUrl,
+  generateImageFilename: realGenerateImageFilename,
 }));
 
 // Toast functionality is tested separately in ToastProvider tests
@@ -433,7 +437,7 @@ describe("ImageActions", () => {
         const filename = call[1];
         expect(url).toBe("https://example.com/image");
         expect(filename).toMatch(
-          /^a-beautiful-sunset-over-mountains-\d{4}-\d{2}-\d{2}\.\/image$/
+          /^a-beautiful-sunset-over-mountains-\d{4}-\d{2}-\d{2}\.png$/
         );
       }
     });

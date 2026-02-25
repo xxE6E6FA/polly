@@ -125,6 +125,69 @@ export function downloadFile(
   triggerBlobDownload(new Blob([content], { type: mimeType }), filename);
 }
 
+/**
+ * Copy an image from a URL to the clipboard.
+ */
+export async function copyImageToClipboard(imageUrl: string): Promise<void> {
+  const response = await fetch(imageUrl);
+  const blob = await response.blob();
+  await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
+}
+
+/**
+ * Extract a known image file extension from a URL pathname.
+ * Returns "png" if the URL has no recognizable image extension
+ * (e.g. Convex storage URLs like `/api/storage/abc123`).
+ */
+function extractImageExtension(imageUrl: string): string {
+  const knownExts = new Set([
+    "png",
+    "jpg",
+    "jpeg",
+    "webp",
+    "gif",
+    "svg",
+    "avif",
+  ]);
+  let urlPath: string;
+  try {
+    urlPath = new URL(imageUrl).pathname;
+  } catch {
+    return "png";
+  }
+  const lastSegment = urlPath.split("/").pop() ?? "";
+  const dotIndex = lastSegment.lastIndexOf(".");
+  if (dotIndex > 0) {
+    const ext = lastSegment.slice(dotIndex + 1).toLowerCase();
+    if (knownExts.has(ext)) {
+      return ext;
+    }
+  }
+  return "png";
+}
+
+/**
+ * Generate a download filename for a generated image.
+ */
+export function generateImageFilename(
+  imageUrl: string,
+  prompt?: string | null,
+  suffix?: string
+): string {
+  const timestamp = new Date().toISOString().split("T")[0];
+  const baseFilename = prompt
+    ? prompt
+        .slice(0, 50)
+        .replace(/[^\d\sA-Za-z-]/g, "")
+        .replace(/\s+/g, "-")
+        .toLowerCase()
+    : "generated-image";
+  const extension = extractImageExtension(imageUrl);
+  return suffix
+    ? `${baseFilename}-${timestamp}-${suffix}.${extension}`
+    : `${baseFilename}-${timestamp}.${extension}`;
+}
+
 export async function downloadFromUrl(
   downloadUrl: string,
   filename: string
