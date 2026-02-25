@@ -243,6 +243,20 @@ export default function FavoritesPage() {
     );
   }, [results, search]);
 
+  // Convex can briefly return status="Exhausted" with empty results before
+  // the actual data arrives on the next render. A minimum skeleton time
+  // prevents a flash of the empty state during that gap.
+  const hasItems = items.length > 0;
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    if (hasItems) {
+      setReady(true);
+      return;
+    }
+    const timer = setTimeout(() => setReady(true), 400);
+    return () => clearTimeout(timer);
+  }, [hasItems]);
+
   const handleCopy = useCallback(
     async (text: string) => {
       await navigator.clipboard.writeText(text);
@@ -301,7 +315,7 @@ export default function FavoritesPage() {
       );
     }
 
-    if (status === "Exhausted" || hasSearch) {
+    if (ready && (status === "Exhausted" || hasSearch)) {
       return (
         <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
           <div className="mb-4 rounded-full bg-muted/30 p-4">
