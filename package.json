@@ -58,7 +58,7 @@
     "jszip": "^3.10.1",
     "katex": "^0.16.27",
     "markdown-to-jsx": "^9.5.1",
-    "motion": "^12.34.2",
+    "motion": "^12.34.3",
     "postcss": "^8.5.4",
     "prism-react-renderer": "^2.4.1",
     "react": "19.2.3",
