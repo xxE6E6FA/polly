@@ -2962,3 +2962,34 @@ pre {
   animation: message-highlight 2s ease-out forwards;
   border-radius: 0.75rem;
 }
+
+/* Page view transitions — cross-fade between routes */
+@view-transition {
+  navigation: auto;
+}
+
+::view-transition-old(root) {
+  animation: 150ms ease-out both fade-out;
+}
+
+::view-transition-new(root) {
+  animation: 200ms ease-in 50ms both fade-in;
+}
+
+@keyframes fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}

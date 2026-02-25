@@ -96,6 +96,7 @@ import type * as lib_conversation_export_handlers from "../lib/conversation_expo
 import type * as lib_conversation_export_helpers from "../lib/conversation_export/helpers.js";
 import type * as lib_conversation_utils from "../lib/conversation_utils.js";
 import type * as lib_cors from "../lib/cors.js";
+import type * as lib_encoding from "../lib/encoding.js";
 import type * as lib_file_storage_attachment_queries from "../lib/file_storage/attachment_queries.js";
 import type * as lib_file_storage_file_queries from "../lib/file_storage/file_queries.js";
 import type * as lib_file_storage_helpers from "../lib/file_storage/helpers.js";
@@ -251,6 +252,7 @@ declare const fullApi: ApiFromModules<{
   "lib/conversation_export/helpers": typeof lib_conversation_export_helpers;
   "lib/conversation_utils": typeof lib_conversation_utils;
   "lib/cors": typeof lib_cors;
+  "lib/encoding": typeof lib_encoding;
   "lib/file_storage/attachment_queries": typeof lib_file_storage_attachment_queries;
   "lib/file_storage/file_queries": typeof lib_file_storage_file_queries;
   "lib/file_storage/helpers": typeof lib_file_storage_helpers;

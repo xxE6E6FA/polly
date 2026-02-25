@@ -1,14 +1,25 @@
 import { api } from "@convex/_generated/api";
 import {
   CaretDownIcon,
+  CheckIcon,
+  ImageIcon,
   MagnifyingGlassIcon,
+  PlusIcon,
   SparkleIcon,
+  XIcon,
 } from "@phosphor-icons/react";
 import { useAction } from "convex/react";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { useConvexFileUpload } from "@/hooks/use-convex-file-upload";
 import { useEnabledImageModels } from "@/hooks/use-enabled-image-models";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/providers/toast-context";
 import { useCanvasStore } from "@/stores/canvas-store";
 
 const ASPECT_RATIOS = [
@@ -40,6 +51,284 @@ function extractOwner(modelId: string): string | null {
   return null;
 }
 
+function getModelCapabilityTags(
+  model: ImageModel,
+  hasReferenceImages: boolean
+): { label: string; highlight: boolean }[] {
+  const tags: { label: string; highlight: boolean }[] = [];
+
+  if (model.supportsMultipleImages) {
+    tags.push({ label: "Multi", highlight: false });
+  }
+  if (model.supportsNegativePrompt) {
+    tags.push({ label: "Negative", highlight: false });
+  }
+  if (model.supportsImageToImage) {
+    tags.push({ label: "Img2Img", highlight: hasReferenceImages });
+  }
+
+  return tags;
+}
+
+type ReferenceImageRef = { storageId: string; previewUrl: string };
+
+function ModelPickerPopover({
+  models,
+  filteredModels,
+  selectedModelIds,
+  toggleModel,
+  showSearch,
+  searchQuery,
+  setSearchQuery,
+  referenceImages,
+}: {
+  models: ImageModel[];
+  filteredModels: ImageModel[] | undefined;
+  selectedModelIds: string[];
+  toggleModel: (modelId: string) => void;
+  showSearch: boolean;
+  searchQuery: string;
+  setSearchQuery: (q: string) => void;
+  referenceImages: ReferenceImageRef[];
+}) {
+  const [focusIndex, setFocusIndex] = useState(-1);
+  const listRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  // Reset focus index when filtered results change
+  const prevFilteredLen = useRef(filteredModels?.length);
+  if (filteredModels?.length !== prevFilteredLen.current) {
+    prevFilteredLen.current = filteredModels?.length;
+    if (focusIndex >= 0) {
+      setFocusIndex(-1);
+    }
+  }
+
+  const itemCount = filteredModels?.length ?? 0;
+
+  const scrollItemIntoView = useCallback((index: number) => {
+    const list = listRef.current;
+    if (!list) {
+      return;
+    }
+    const items = list.querySelectorAll("[data-model-item]");
+    items[index]?.scrollIntoView({ block: "nearest" });
+  }, []);
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (itemCount === 0) {
+        return;
+      }
+
+      const isInSearch =
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement;
+
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setFocusIndex(prev => {
+          const next = prev < itemCount - 1 ? prev + 1 : 0;
+          scrollItemIntoView(next);
+          return next;
+        });
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setFocusIndex(prev => {
+          const next = prev > 0 ? prev - 1 : itemCount - 1;
+          scrollItemIntoView(next);
+          return next;
+        });
+      } else if (
+        e.key === "Enter" &&
+        focusIndex >= 0 &&
+        filteredModels &&
+        focusIndex < filteredModels.length
+      ) {
+        e.preventDefault();
+        toggleModel(filteredModels[focusIndex].modelId);
+      } else if (
+        e.key === " " &&
+        !isInSearch &&
+        focusIndex >= 0 &&
+        filteredModels &&
+        focusIndex < filteredModels.length
+      ) {
+        e.preventDefault();
+        toggleModel(filteredModels[focusIndex].modelId);
+      } else if (e.key === "Home" && !isInSearch) {
+        e.preventDefault();
+        setFocusIndex(0);
+        scrollItemIntoView(0);
+      } else if (e.key === "End" && !isInSearch) {
+        e.preventDefault();
+        setFocusIndex(itemCount - 1);
+        scrollItemIntoView(itemCount - 1);
+      }
+    },
+    [itemCount, focusIndex, filteredModels, toggleModel, scrollItemIntoView]
+  );
+
+  // Resolve selected model names for display
+  const selectedNames = selectedModelIds
+    .map(id => models.find((m: ImageModel) => m.modelId === id)?.name)
+    .filter(Boolean) as string[];
+
+  return (
+    <Popover>
+      <PopoverTrigger
+        className={cn(
+          "flex w-full items-center justify-between rounded-lg border px-3 py-2 text-left text-sm transition-colors",
+          selectedModelIds.length > 0
+            ? "border-primary/30 bg-primary/5 text-sidebar-foreground"
+            : "border-border/50 bg-sidebar-hover text-sidebar-muted hover:border-border"
+        )}
+      >
+        <span className="min-w-0 truncate">
+          {selectedModelIds.length === 0
+            ? "Select models…"
+            : selectedNames.join(", ")}
+        </span>
+        <CaretDownIcon className="size-3.5 shrink-0 opacity-60" />
+      </PopoverTrigger>
+      {selectedNames.length > 1 && (
+        <div className="mt-1.5 flex flex-wrap gap-1">
+          {selectedNames.map(name => (
+            <span
+              key={name}
+              className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-1.5 py-0.5 text-[11px] font-medium text-primary"
+            >
+              {name}
+              <button
+                type="button"
+                className="rounded-sm opacity-60 hover:opacity-100"
+                onClick={() => {
+                  const id = models.find(
+                    (m: ImageModel) => m.name === name
+                  )?.modelId;
+                  if (id) {
+                    toggleModel(id);
+                  }
+                }}
+              >
+                <XIcon className="size-2.5" />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+      <PopoverContent
+        side="right"
+        align="start"
+        sideOffset={8}
+        className="w-[360px] p-0"
+      >
+        <div
+          className="flex max-h-[min(480px,60vh)] flex-col"
+          role="listbox"
+          aria-multiselectable="true"
+          aria-label="Select image models"
+          onKeyDown={handleKeyDown}
+        >
+          {showSearch && (
+            <div className="flex items-center gap-3 border-b border-border/40 px-3 py-2.5">
+              <MagnifyingGlassIcon className="size-4 shrink-0 text-muted-foreground/50" />
+              <input
+                ref={searchRef}
+                type="text"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                placeholder="Search models..."
+                className="w-full bg-transparent text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none"
+              />
+            </div>
+          )}
+          <div ref={listRef} className="overflow-y-auto scrollbar-thin">
+            {/* biome-ignore lint/suspicious/noExplicitAny: image model shape from dynamic query */}
+            {filteredModels?.map((model: any, index: number) => {
+              const isSelected = selectedModelIds.includes(model.modelId);
+              const owner = extractOwner(model.modelId);
+              const subtitle = model.description || owner;
+              const tags = getModelCapabilityTags(
+                model,
+                referenceImages.length > 0
+              );
+              const isFocused = index === focusIndex;
+              return (
+                <button
+                  key={model.modelId || model._id}
+                  type="button"
+                  data-model-item
+                  role="option"
+                  aria-selected={isSelected}
+                  className={cn(
+                    "flex w-full items-start gap-3 px-3 py-2.5 text-left transition-colors",
+                    isSelected ? "bg-primary/8" : "hover:bg-muted/50",
+                    isFocused && "ring-2 ring-inset ring-primary/40"
+                  )}
+                  onClick={() => toggleModel(model.modelId)}
+                  onMouseEnter={() => setFocusIndex(index)}
+                >
+                  <div
+                    className={cn(
+                      "mt-0.5 flex size-4 shrink-0 items-center justify-center rounded border transition-colors",
+                      isSelected
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-muted-foreground/30"
+                    )}
+                  >
+                    {isSelected && (
+                      <CheckIcon className="size-3" weight="bold" />
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-medium text-foreground">
+                      {model.name}
+                    </div>
+                    {subtitle && (
+                      <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
+                        {subtitle}
+                      </p>
+                    )}
+                    {tags.length > 0 && (
+                      <div className="mt-1 flex flex-wrap gap-1">
+                        {tags.map(t => (
+                          <span
+                            key={t.label}
+                            className={cn(
+                              "rounded px-1.5 py-0.5 text-[10px] font-medium leading-tight",
+                              t.highlight
+                                ? "bg-primary/15 text-primary"
+                                : "bg-muted text-muted-foreground"
+                            )}
+                          >
+                            {t.label}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+            {filteredModels?.length === 0 && searchQuery.trim() && (
+              <p className="px-3 py-4 text-center text-xs text-muted-foreground">
+                No models match "{searchQuery}"
+              </p>
+            )}
+          </div>
+          {selectedModelIds.length > 0 && (
+            <div className="border-t border-border/40 px-3 py-2 text-xs text-muted-foreground">
+              {selectedModelIds.length} model
+              {selectedModelIds.length !== 1 ? "s" : ""} selected
+            </div>
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 export function CanvasGenerationForm() {
   const prompt = useCanvasStore(s => s.prompt);
   const setPrompt = useCanvasStore(s => s.setPrompt);
@@ -50,9 +339,26 @@ export function CanvasGenerationForm() {
   const advancedParams = useCanvasStore(s => s.advancedParams);
   const setAdvancedParams = useCanvasStore(s => s.setAdvancedParams);
 
+  const referenceImages = useCanvasStore(s => s.referenceImages);
+  const addReferenceImage = useCanvasStore(s => s.addReferenceImage);
+  const removeReferenceImage = useCanvasStore(s => s.removeReferenceImage);
+  const clearReferenceImages = useCanvasStore(s => s.clearReferenceImages);
+
+  const managedToast = useToast();
+
+  // Revoke blob URLs for reference images on unmount
+  useEffect(() => {
+    return () => {
+      useCanvasStore.getState().clearReferenceImages();
+    };
+  }, []);
+
   const availableModels = useEnabledImageModels();
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { uploadFile } = useConvexFileUpload();
 
   // Filter out built-in free models (which are now disabled)
   // biome-ignore lint/suspicious/noExplicitAny: image model shape from dynamic query
@@ -69,7 +375,7 @@ export function CanvasGenerationForm() {
     );
   });
 
-  const showSearch = models && models.length >= 5;
+  const showSearch = (models?.length ?? 0) >= 5;
 
   const activeQuality = advancedParams.quality ?? 25;
 
@@ -80,16 +386,38 @@ export function CanvasGenerationForm() {
     }
   }, []);
 
+  const handleReferenceImageSelect = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const files = Array.from(e.target.files ?? []);
+      if (files.length === 0) {
+        return;
+      }
+      // Reset input so re-selecting the same file triggers onChange
+      e.target.value = "";
+
+      setIsUploading(true);
+      try {
+        for (const file of files) {
+          const attachment = await uploadFile(file);
+          if (attachment.storageId) {
+            const previewUrl = URL.createObjectURL(file);
+            addReferenceImage(attachment.storageId, previewUrl);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to upload reference image:", err);
+        managedToast.error("Failed to upload reference image");
+      } finally {
+        setIsUploading(false);
+      }
+    },
+    [uploadFile, addReferenceImage, managedToast.error]
+  );
+
   return (
     <div className="stack-md pb-2">
       {/* Prompt */}
       <div className="stack-xs">
-        <label
-          htmlFor="canvas-prompt"
-          className="text-xs font-medium text-sidebar-muted"
-        >
-          Prompt
-        </label>
         <textarea
           id="canvas-prompt"
           value={prompt}
@@ -101,16 +429,86 @@ export function CanvasGenerationForm() {
         />
       </div>
 
+      {/* Reference Images */}
+      <div className="stack-xs">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-medium text-sidebar-muted">
+            <ImageIcon className="mr-1 inline size-3.5 align-[-2px]" />
+            References
+            {referenceImages.length > 0 && (
+              <span className="ml-1 text-sidebar-foreground/70">
+                · {referenceImages.length}
+              </span>
+            )}
+          </span>
+          {referenceImages.length > 0 && (
+            <button
+              type="button"
+              className="text-[11px] text-sidebar-muted transition-colors hover:text-sidebar-foreground"
+              onClick={clearReferenceImages}
+            >
+              Clear
+            </button>
+          )}
+        </div>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          multiple
+          className="hidden"
+          onChange={handleReferenceImageSelect}
+        />
+        {referenceImages.length > 0 ? (
+          <div className="flex flex-wrap gap-2">
+            {referenceImages.map((img, index) => (
+              <div
+                key={img.storageId}
+                className="group relative h-14 w-14 shrink-0"
+              >
+                <img
+                  src={img.previewUrl}
+                  alt={`Reference ${index + 1}`}
+                  className="size-full rounded-md border border-border/50 object-cover"
+                />
+                <button
+                  type="button"
+                  className="absolute right-1 top-1 flex size-4 items-center justify-center rounded-full bg-black/70 text-white opacity-0 transition-opacity hover:bg-destructive group-hover:opacity-100"
+                  onClick={() => removeReferenceImage(index)}
+                  aria-label={`Remove reference ${index + 1}`}
+                >
+                  <XIcon className="size-2.5" />
+                </button>
+              </div>
+            ))}
+            <button
+              type="button"
+              disabled={isUploading}
+              className="flex h-14 w-14 shrink-0 items-center justify-center rounded-md border border-dashed border-border/50 text-sidebar-muted transition-colors hover:border-primary/40 hover:text-sidebar-foreground disabled:opacity-50"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <PlusIcon className="size-5" />
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            disabled={isUploading}
+            className="flex w-full items-center gap-2 rounded-lg border border-dashed border-border/50 bg-sidebar-hover/50 px-3 py-2.5 text-xs text-sidebar-muted transition-colors hover:border-primary/40 hover:text-sidebar-foreground disabled:opacity-50"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <PlusIcon className="size-3.5" />
+            {isUploading ? "Uploading..." : "Add reference images"}
+          </button>
+        )}
+        <p className="text-[10px] text-sidebar-muted/60">
+          Only models that support image input will use these
+        </p>
+      </div>
+
       {/* Model selection */}
       <div className="stack-xs">
-        <span className="text-xs font-medium text-sidebar-muted">
-          Models
-          {selectedModelIds.length > 0 && (
-            <span className="ml-1 text-sidebar-foreground/70">
-              · {selectedModelIds.length} selected
-            </span>
-          )}
-        </span>
+        <span className="text-xs font-medium text-sidebar-muted">Models</span>
         {!models || models.length === 0 ? (
           <p className="text-xs text-sidebar-muted/70">
             No image models available. Add models in{" "}
@@ -120,74 +518,16 @@ export function CanvasGenerationForm() {
             .
           </p>
         ) : (
-          <div className="stack-xs">
-            {showSearch && (
-              <div className="relative">
-                <MagnifyingGlassIcon className="absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-sidebar-muted/60" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                  placeholder="Search models..."
-                  className="w-full rounded-md border border-border/40 bg-sidebar-hover py-1.5 pl-7 pr-2.5 text-xs text-sidebar-foreground placeholder:text-sidebar-muted/50 focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/20"
-                />
-              </div>
-            )}
-            <div className="max-h-[200px] overflow-y-auto scrollbar-thin">
-              {/* biome-ignore lint/suspicious/noExplicitAny: image model shape from dynamic query */}
-              {filteredModels?.map((model: any) => {
-                const isSelected = selectedModelIds.includes(model.modelId);
-                const owner = extractOwner(model.modelId);
-                return (
-                  <button
-                    key={model.modelId || model._id}
-                    type="button"
-                    className={cn(
-                      "flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-sm transition-colors",
-                      isSelected
-                        ? "bg-primary/10"
-                        : "text-sidebar-foreground hover:bg-sidebar-hover"
-                    )}
-                    onClick={() => toggleModel(model.modelId)}
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm text-sidebar-foreground">
-                        {model.name}
-                      </div>
-                      {(() => {
-                        const subtitle = model.description || owner;
-                        if (!subtitle) {
-                          return null;
-                        }
-                        return (
-                          <div className="truncate text-[11px] text-sidebar-muted/70">
-                            {subtitle}
-                          </div>
-                        );
-                      })()}
-                    </div>
-                    <div
-                      className={cn(
-                        "flex size-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors",
-                        isSelected
-                          ? "border-primary bg-primary"
-                          : "border-sidebar-muted/40"
-                      )}
-                    >
-                      {isSelected && (
-                        <div className="size-2 rounded-full bg-primary-foreground" />
-                      )}
-                    </div>
-                  </button>
-                );
-              })}
-              {filteredModels?.length === 0 && searchQuery.trim() && (
-                <p className="px-2.5 py-1.5 text-xs text-sidebar-muted/70">
-                  No models match "{searchQuery}"
-                </p>
-              )}
-            </div>
-          </div>
+          <ModelPickerPopover
+            models={models}
+            filteredModels={filteredModels}
+            selectedModelIds={selectedModelIds}
+            toggleModel={toggleModel}
+            showSearch={showSearch}
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            referenceImages={referenceImages}
+          />
         )}
       </div>
 
@@ -376,6 +716,7 @@ export function CanvasGenerateButton() {
   const selectedModelIds = useCanvasStore(s => s.selectedModelIds);
   const aspectRatio = useCanvasStore(s => s.aspectRatio);
   const advancedParams = useCanvasStore(s => s.advancedParams);
+  const referenceImages = useCanvasStore(s => s.referenceImages);
   const resetForm = useCanvasStore(s => s.resetForm);
 
   const startBatch = useAction(api.generations.startCanvasBatch);
@@ -397,6 +738,9 @@ export function CanvasGenerateButton() {
         params: {
           aspectRatio,
           ...advancedParams,
+          ...(referenceImages.length > 0
+            ? { referenceImageIds: referenceImages.map(img => img.storageId) }
+            : {}),
         },
         batchId,
       });
@@ -410,6 +754,7 @@ export function CanvasGenerateButton() {
     selectedModelIds,
     aspectRatio,
     advancedParams,
+    referenceImages,
     startBatch,
     resetForm,
   ]);

@@ -1,7 +1,26 @@
-import { Dialog } from "@base-ui/react/dialog";
-import { CaretLeftIcon, CaretRightIcon, XIcon } from "@phosphor-icons/react";
-import { useCallback, useEffect } from "react";
+import {
+  CaretLeftIcon,
+  CaretRightIcon,
+  ClockIcon,
+  XIcon,
+} from "@phosphor-icons/react";
+import { useCallback, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
+import { CopyIcon } from "@/components/animate-ui/icons/copy";
+import { DownloadIcon } from "@/components/animate-ui/icons/download";
+import { TrashIcon } from "@/components/animate-ui/icons/trash";
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+  copyImageToClipboard,
+  downloadFromUrl,
+  generateImageFilename,
+} from "@/lib/export";
+import { useToast } from "@/providers/toast-context";
 import type { CanvasImage } from "@/types";
 
 type CanvasImageViewerProps = {
@@ -10,6 +29,7 @@ type CanvasImageViewerProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onIndexChange: (index: number) => void;
+  onRequestDelete?: (image: CanvasImage) => void;
 };
 
 export function CanvasImageViewer({
@@ -18,8 +38,11 @@ export function CanvasImageViewer({
   open,
   onOpenChange,
   onIndexChange,
+  onRequestDelete,
 }: CanvasImageViewerProps) {
   const image = images[currentIndex];
+  const managedToast = useToast();
+  const imageAreaRef = useRef<HTMLDivElement>(null);
 
   const goToPrevious = useCallback(() => {
     if (images.length === 0) {
@@ -85,43 +108,100 @@ export function CanvasImageViewer({
     images.length,
   ]);
 
-  if (!image) {
+  // Focus the image area when viewer opens so keyboard nav works immediately
+  useEffect(() => {
+    if (open) {
+      requestAnimationFrame(() => {
+        imageAreaRef.current?.focus();
+      });
+    }
+  }, [open]);
+
+  // Lock body scroll while open
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [open]);
+
+  const handleCopyImage = useCallback(async () => {
+    if (!image) {
+      return;
+    }
+    try {
+      await copyImageToClipboard(image.imageUrl);
+      managedToast.success("Image copied to clipboard");
+    } catch {
+      managedToast.error("Failed to copy image");
+    }
+  }, [image, managedToast]);
+
+  const handleDownload = useCallback(async () => {
+    if (!image) {
+      return;
+    }
+    try {
+      const filename = generateImageFilename(image.imageUrl, image.prompt);
+      await downloadFromUrl(image.imageUrl, filename);
+      managedToast.success("Image downloaded");
+    } catch {
+      managedToast.error("Failed to download image");
+    }
+  }, [image, managedToast]);
+
+  const handleCopyText = useCallback(
+    async (text: string, label: string) => {
+      try {
+        await navigator.clipboard.writeText(text);
+        managedToast.success(`${label} copied`);
+      } catch {
+        managedToast.error(`Failed to copy ${label.toLowerCase()}`);
+      }
+    },
+    [managedToast]
+  );
+
+  const handleDelete = useCallback(() => {
+    if (!image) {
+      return;
+    }
+    onRequestDelete?.(image);
+  }, [image, onRequestDelete]);
+
+  if (!(open && image)) {
     return null;
   }
 
-  return (
-    <Dialog.Root open={open} onOpenChange={onOpenChange}>
-      <Dialog.Portal>
-        {/* Backdrop */}
-        <Dialog.Backdrop
-          className="fixed inset-0 z-modal bg-background/95 backdrop-blur-lg
-                     data-[state=open]:animate-in data-[state=closed]:animate-out
-                     data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0
-                     data-[open]:animate-in data-[closed]:animate-out
-                     data-[closed]:fade-out-0 data-[open]:fade-in-0
-                     [animation-duration:200ms]"
-        />
+  return createPortal(
+    <div
+      role="dialog"
+      aria-label={`Image viewer: ${image.prompt || "Generated image"}`}
+      aria-modal="true"
+    >
+      {/* Backdrop */}
+      <div className="fixed inset-0 z-modal bg-background/95 backdrop-blur-lg animate-in fade-in-0 [animation-duration:200ms]" />
 
-        {/* Full-screen popup container */}
-        <Dialog.Popup
-          className="fixed inset-0 z-modal flex items-center justify-center focus:outline-none"
-          aria-label={`Image viewer: ${image.prompt || "Generated image"}`}
-        >
-          {/* Close button */}
-          <Button
-            variant="ghost"
-            size="lg"
-            onClick={e => {
-              e.stopPropagation();
+      {/* Full-screen container */}
+      <div className="fixed inset-0 z-modal flex">
+        {/* Image area (left) — receives initial focus for keyboard nav */}
+        <div
+          ref={imageAreaRef}
+          tabIndex={-1}
+          className="relative flex flex-1 items-center justify-center outline-none"
+          onClick={() => onOpenChange(false)}
+          onKeyDown={e => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
               onOpenChange(false);
-            }}
-            className="absolute right-4 top-4 z-20 h-10 w-10 rounded-full bg-card/90 text-foreground shadow-lg dark:ring-1 dark:ring-white/[0.06] backdrop-blur-md hover:bg-card transition-colors duration-200"
-            aria-label="Close"
-          >
-            <XIcon className="size-5" />
-          </Button>
-
-          {/* Navigation buttons */}
+            }
+          }}
+        >
+          {/* Navigation buttons — edges of image area */}
           {images.length > 1 && (
             <>
               <Button
@@ -152,61 +232,193 @@ export function CanvasImageViewer({
             </>
           )}
 
-          {/* Counter pill */}
+          {/* Counter pill — bottom of image area */}
           {images.length > 1 && (
             <div className="absolute bottom-4 left-1/2 z-10 -translate-x-1/2 rounded-full bg-card/90 px-3 py-1.5 text-xs font-medium tabular-nums text-muted-foreground shadow-lg backdrop-blur-md dark:ring-1 dark:ring-white/[0.06]">
               {currentIndex + 1} / {images.length}
             </div>
           )}
 
-          {/* Image + clickable backdrop area */}
-          <div
-            className="flex h-full w-full items-center justify-center p-8"
-            onClick={() => onOpenChange(false)}
-            onKeyDown={e => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                onOpenChange(false);
-              }
-            }}
-          >
-            <div className="flex h-full w-full max-w-7xl flex-col items-center justify-center gap-4 pointer-events-none transition-all duration-300 ease-out animate-in fade-in-0 zoom-in-95">
-              {/* Image */}
-              <img
-                key={image.id}
-                src={image.imageUrl}
-                alt={image.prompt || "Generated image"}
-                className="max-h-[calc(100%-4rem)] max-w-full object-contain pointer-events-auto rounded-lg drop-shadow-2xl"
-                draggable={false}
-                onClick={e => e.stopPropagation()}
-                onKeyDown={e => e.stopPropagation()}
-                tabIndex={-1}
-              />
+          {/* Image */}
+          <div className="flex h-full w-full items-center justify-center p-8 pointer-events-none transition-all duration-300 ease-out animate-in fade-in-0 zoom-in-95">
+            <img
+              key={image.id}
+              src={image.imageUrl}
+              alt={image.prompt || "Generated image"}
+              className="max-h-full max-w-full object-contain pointer-events-auto rounded-lg drop-shadow-2xl"
+              draggable={false}
+              onClick={e => e.stopPropagation()}
+              onKeyDown={e => e.stopPropagation()}
+              tabIndex={-1}
+            />
+          </div>
+        </div>
 
-              {/* Info bar */}
-              <div className="pointer-events-auto flex max-w-2xl items-center gap-3 rounded-full bg-card/90 px-4 py-2 shadow-lg backdrop-blur-md dark:ring-1 dark:ring-white/[0.06]">
-                {image.prompt && (
-                  <p className="line-clamp-1 text-xs text-foreground/80">
-                    {image.prompt}
-                  </p>
-                )}
-                <div className="flex shrink-0 items-center gap-2 text-[10px] text-muted-foreground">
-                  {image.model && <span>{formatModelName(image.model)}</span>}
-                  {image.seed !== undefined && <span>Seed: {image.seed}</span>}
-                  {image.duration !== undefined && (
-                    <span>{image.duration.toFixed(1)}s</span>
-                  )}
-                </div>
-              </div>
+        {/* Info panel (right) */}
+        <div
+          className="flex w-[380px] shrink-0 flex-col border-l border-border/50 bg-card/80 backdrop-blur-md animate-in slide-in-from-right-4 fade-in-0 duration-300"
+          onClick={e => e.stopPropagation()}
+          onKeyDown={e => e.stopPropagation()}
+        >
+          {/* Panel header with actions */}
+          <div className="flex items-start justify-between gap-3 border-b border-border/40 p-5">
+            <div className="min-w-0">
+              <h2 className="text-base font-semibold text-foreground">
+                {formatModelName(image.model)}
+              </h2>
+            </div>
+            <div className="flex shrink-0 items-center gap-1">
+              <Tooltip>
+                <TooltipTrigger>
+                  <button
+                    type="button"
+                    className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                    onClick={handleCopyImage}
+                    aria-label="Copy image"
+                  >
+                    <CopyIcon animateOnHover size={16} />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>Copy image</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger>
+                  <button
+                    type="button"
+                    className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                    onClick={handleDownload}
+                    aria-label="Download image"
+                  >
+                    <DownloadIcon animateOnHover size={16} />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>Download image</TooltipContent>
+              </Tooltip>
+              {image.source === "canvas" && image.generationId && (
+                <Tooltip>
+                  <TooltipTrigger>
+                    <button
+                      type="button"
+                      className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-destructive"
+                      onClick={handleDelete}
+                      aria-label="Delete image"
+                    >
+                      <TrashIcon animateOnHover size={16} />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>Delete image</TooltipContent>
+                </Tooltip>
+              )}
+              <div className="mx-1 h-4 w-px bg-border/60" />
+              <Tooltip>
+                <TooltipTrigger>
+                  <button
+                    type="button"
+                    className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                    onClick={() => onOpenChange(false)}
+                    aria-label="Close"
+                  >
+                    <XIcon className="size-4" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>Close</TooltipContent>
+              </Tooltip>
             </div>
           </div>
-        </Dialog.Popup>
-      </Dialog.Portal>
-    </Dialog.Root>
+
+          {/* Metadata badges */}
+          <div className="flex flex-wrap gap-2 border-b border-border/40 px-5 py-4">
+            {image.duration !== undefined && (
+              <span className="inline-flex items-center gap-1.5 rounded-md bg-muted px-2.5 py-1 text-xs font-medium text-foreground">
+                <ClockIcon className="size-3.5" />
+                {image.duration.toFixed(1)}s
+              </span>
+            )}
+            {image.aspectRatio && (
+              <span className="inline-flex items-center rounded-md bg-muted px-2.5 py-1 text-xs font-medium text-foreground">
+                {image.aspectRatio}
+              </span>
+            )}
+            {image.quality !== undefined && (
+              <span className="inline-flex items-center rounded-md bg-muted px-2.5 py-1 text-xs font-medium text-foreground">
+                Quality {image.quality}
+              </span>
+            )}
+            {image.seed !== undefined && (
+              <Tooltip>
+                <TooltipTrigger>
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-1.5 rounded-md bg-muted px-2.5 py-1 text-xs font-medium tabular-nums text-foreground transition-colors hover:bg-muted/80"
+                    onClick={() => handleCopyText(String(image.seed), "Seed")}
+                  >
+                    Seed {image.seed}
+                    <CopyIcon size={12} />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>Copy seed</TooltipContent>
+              </Tooltip>
+            )}
+          </div>
+
+          {/* Prompt */}
+          <div className="flex-1 overflow-y-auto px-5 py-4">
+            {image.prompt && (
+              <div className="stack-sm">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    Prompt
+                  </h3>
+                  <Tooltip>
+                    <TooltipTrigger>
+                      <button
+                        type="button"
+                        className="flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                        onClick={() =>
+                          handleCopyText(image.prompt ?? "", "Prompt")
+                        }
+                        aria-label="Copy prompt"
+                      >
+                        <CopyIcon animateOnHover size={14} />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>Copy prompt</TooltipContent>
+                  </Tooltip>
+                </div>
+                <p className="text-sm leading-relaxed text-foreground/90">
+                  {image.prompt}
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Timestamp footer */}
+          <div className="border-t border-border/40 px-5 py-3">
+            <p className="text-xs text-muted-foreground">
+              {formatTimestamp(image.createdAt)}
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>,
+    document.getElementById("root") ?? document.body
   );
 }
 
-function formatModelName(model: string): string {
+function formatModelName(model?: string): string {
+  if (!model) {
+    return "Generated Image";
+  }
   const parts = model.split("/");
   return parts[parts.length - 1] || model;
+}
+
+function formatTimestamp(ts: number): string {
+  return new Date(ts).toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
 }

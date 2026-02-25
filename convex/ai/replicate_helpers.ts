@@ -1,4 +1,5 @@
 import type { Doc } from "../_generated/dataModel";
+import { arrayBufferToBase64 } from "../lib/encoding";
 
 export function toMessageDoc(message: unknown): Doc<"messages"> | null {
   return message ? (message as Doc<"messages">) : null;
@@ -34,7 +35,7 @@ export async function resolveImageUrlsFromAttachments(
           const response = await fetch(storageUrl);
           if (response.ok) {
             const buffer = await response.arrayBuffer();
-            const base64 = Buffer.from(buffer).toString("base64");
+            const base64 = arrayBufferToBase64(buffer);
             const mimeType =
               att.mimeType ||
               response.headers.get("content-type") ||
@@ -128,6 +129,9 @@ export function detectImageInputFromSchema(
         });
         continue;
       }
+
+      // Skip known text-only parameters whose descriptions may mention "image"
+      if (k === "prompt" || k === "negative_prompt" || k === "neg_prompt") continue;
 
       const looksImagey =
         k.includes("image") ||
@@ -284,4 +288,90 @@ export function detectAspectRatioSupportFromSchema(
   } catch {
     return "none";
   }
+}
+
+/**
+ * Get the allowed aspect_ratio enum values from a model's OpenAPI schema.
+ * Returns null if there's no enum constraint (any value accepted).
+ */
+export function getAllowedAspectRatios(modelData: any): string[] | null {
+  try {
+    const arProp =
+      modelData?.latest_version?.openapi_schema?.components?.schemas?.Input
+        ?.properties?.aspect_ratio;
+    if (!arProp) {
+      return null;
+    }
+
+    // Search for enum values in all common OpenAPI schema patterns
+    const findEnum = (obj: any): string[] | null => {
+      if (!obj || typeof obj !== "object") return null;
+
+      // Direct enum
+      if (Array.isArray(obj.enum) && obj.enum.length > 0) {
+        return obj.enum;
+      }
+
+      // allOf / oneOf / anyOf wrappers
+      for (const key of ["allOf", "oneOf", "anyOf"] as const) {
+        if (Array.isArray(obj[key])) {
+          for (const item of obj[key]) {
+            const found = findEnum(item);
+            if (found) return found;
+          }
+        }
+      }
+
+      return null;
+    };
+
+    // Also check the description for patterns like 'must be one of: "1:1", "3:2"'
+    const fromSchema = findEnum(arProp);
+    if (fromSchema) {
+      return fromSchema;
+    }
+
+    // Fallback: parse from description string
+    if (typeof arProp.description === "string") {
+      const matches = arProp.description.match(/["'](\d+:\d+)["']/g);
+      if (matches && matches.length > 0) {
+        return matches.map((m: string) => m.replace(/["']/g, ""));
+      }
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Find the closest allowed aspect ratio to the requested one.
+ * Compares numeric ratios (w/h) to find the best match.
+ */
+export function findClosestAspectRatio(
+  requested: string,
+  allowed: string[]
+): string {
+  const toNumeric = (ratio: string): number => {
+    const [w, h] = ratio.split(":").map(Number);
+    if (w && h) {
+      return w / h;
+    }
+    return 1;
+  };
+
+  const target = toNumeric(requested);
+  let bestMatch = allowed[0]!;
+  let bestDiff = Math.abs(toNumeric(bestMatch) - target);
+
+  for (let i = 1; i < allowed.length; i++) {
+    const diff = Math.abs(toNumeric(allowed[i]!) - target);
+    if (diff < bestDiff) {
+      bestDiff = diff;
+      bestMatch = allowed[i]!;
+    }
+  }
+
+  return bestMatch;
 }

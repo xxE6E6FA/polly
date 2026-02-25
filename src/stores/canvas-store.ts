@@ -1,3 +1,4 @@
+import type { Id } from "@convex/_generated/dataModel";
 import { devtools } from "zustand/middleware";
 import { shallow } from "zustand/shallow";
 import { useStoreWithEqualityFn } from "zustand/traditional";
@@ -5,6 +6,11 @@ import { createStore, type StoreApi } from "zustand/vanilla";
 import { CACHE_KEYS, get, set } from "@/lib/local-storage";
 
 export type CanvasFilterMode = "all" | "canvas" | "conversations";
+
+export type ReferenceImage = {
+  storageId: Id<"_storage">;
+  previewUrl: string;
+};
 
 const MIN_PANEL_WIDTH = 300;
 const MAX_PANEL_WIDTH = 520;
@@ -33,6 +39,8 @@ export type CanvasState = {
   panelWidth: number;
   isResizing: boolean;
   isPanelVisible: boolean;
+  selectedImageIds: Set<string>;
+  referenceImages: ReferenceImage[];
 
   // Actions
   toggleModel: (modelId: string) => void;
@@ -46,6 +54,11 @@ export type CanvasState = {
   resetPanelWidth: () => void;
   resetForm: () => void;
   togglePanel: () => void;
+  toggleImageSelection: (imageId: string) => void;
+  clearImageSelection: () => void;
+  addReferenceImage: (storageId: Id<"_storage">, previewUrl: string) => void;
+  removeReferenceImage: (index: number) => void;
+  clearReferenceImages: () => void;
 };
 
 type CanvasStoreApi = StoreApi<CanvasState>;
@@ -97,6 +110,8 @@ const INITIAL_STATE = {
   panelWidth: getInitialPanelWidth(),
   isResizing: false,
   isPanelVisible: getInitialPanelVisible(),
+  selectedImageIds: new Set<string>(),
+  referenceImages: [] as ReferenceImage[],
 };
 
 function createCanvasState(
@@ -146,15 +161,56 @@ function createCanvasState(
       set_({ panelWidth: DEFAULT_PANEL_WIDTH });
       set(CACHE_KEYS.canvasPanelWidth, DEFAULT_PANEL_WIDTH);
     },
-    resetForm: () =>
+    resetForm: () => {
+      for (const img of get_().referenceImages) {
+        if (img.previewUrl.startsWith("blob:")) {
+          URL.revokeObjectURL(img.previewUrl);
+        }
+      }
       set_({
         prompt: "",
         advancedParams: {},
-      }),
+        referenceImages: [],
+      });
+    },
     togglePanel: () => {
       const next = !get_().isPanelVisible;
       set_({ isPanelVisible: next });
       set(CACHE_KEYS.canvasPanelVisible, next);
+    },
+    toggleImageSelection: imageId => {
+      const current = get_().selectedImageIds;
+      const next = new Set(current);
+      if (next.has(imageId)) {
+        next.delete(imageId);
+      } else {
+        next.add(imageId);
+      }
+      set_({ selectedImageIds: next });
+    },
+    clearImageSelection: () => {
+      set_({ selectedImageIds: new Set() });
+    },
+    addReferenceImage: (storageId, previewUrl) => {
+      set_({
+        referenceImages: [...get_().referenceImages, { storageId, previewUrl }],
+      });
+    },
+    removeReferenceImage: index => {
+      const prev = get_().referenceImages;
+      const removed = prev[index];
+      if (removed?.previewUrl.startsWith("blob:")) {
+        URL.revokeObjectURL(removed.previewUrl);
+      }
+      set_({ referenceImages: prev.filter((_, i) => i !== index) });
+    },
+    clearReferenceImages: () => {
+      for (const img of get_().referenceImages) {
+        if (img.previewUrl.startsWith("blob:")) {
+          URL.revokeObjectURL(img.previewUrl);
+        }
+      }
+      set_({ referenceImages: [] });
     },
   };
 }

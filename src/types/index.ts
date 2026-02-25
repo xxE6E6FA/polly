@@ -419,6 +419,7 @@ export type CanvasImage = {
   duration?: number;
   createdAt: number;
   aspectRatio?: string;
+  quality?: number;
   // Canvas-specific
   generationId?: Id<"generations">;
   batchId?: string;
