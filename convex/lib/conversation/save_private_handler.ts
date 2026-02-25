@@ -4,7 +4,6 @@ import type { ActionCtx } from "../../_generated/server";
 import type { Citation } from "../../types";
 import {
   incrementUserMessageStats,
-  processAttachmentsForStorage,
 } from "../conversation_utils";
 import { scheduleRunAfter } from "../scheduler";
 import { getAuthenticatedUserWithDataForAction } from "../shared_utils";
@@ -118,14 +117,11 @@ export async function savePrivateConversationHandler(
       continue;
     }
 
-    // Process attachments - upload base64 content to Convex storage
-    let processedAttachments = message.attachments;
-    if (message.attachments && message.attachments.length > 0) {
-      processedAttachments = await processAttachmentsForStorage(
-        ctx,
-        message.attachments
-      );
-    }
+    // Ensure attachment urls are never undefined
+    const processedAttachments = message.attachments?.map(a => ({
+      ...a,
+      url: a.url || "",
+    }));
 
     await ctx.runMutation(api.messages.create, {
       conversationId,
