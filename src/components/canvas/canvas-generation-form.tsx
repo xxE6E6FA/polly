@@ -1,26 +1,43 @@
 import { api } from "@convex/_generated/api";
+import type { Id } from "@convex/_generated/dataModel";
 import {
   CaretDownIcon,
   CheckIcon,
   ImageIcon,
   MagnifyingGlassIcon,
+  PencilSimpleIcon,
   PlusIcon,
   SparkleIcon,
+  UploadSimpleIcon,
   XIcon,
 } from "@phosphor-icons/react";
-import { useAction } from "convex/react";
+import { useAction, useQuery } from "convex/react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { FileSelectorDialog } from "@/components/files/file-selector-dialog";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { Spinner } from "@/components/ui/spinner";
 import { useConvexFileUpload } from "@/hooks/use-convex-file-upload";
 import { useEnabledImageModels } from "@/hooks/use-enabled-image-models";
+import { useModelCatalogStore } from "@/hooks/use-model-catalog";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/providers/toast-context";
 import { useCanvasStore } from "@/stores/canvas-store";
+import type { Attachment } from "@/types";
 
 const ASPECT_RATIOS = [
   { value: "1:1", w: 20, h: 20 },
@@ -329,6 +346,318 @@ function ModelPickerPopover({
   );
 }
 
+function PromptSparkleMenu() {
+  const prompt = useCanvasStore(s => s.prompt);
+  const setPrompt = useCanvasStore(s => s.setPrompt);
+  const referenceImages = useCanvasStore(s => s.referenceImages);
+  const isGeneratingPrompt = useCanvasStore(s => s.isGeneratingPrompt);
+  const setIsGeneratingPrompt = useCanvasStore(s => s.setIsGeneratingPrompt);
+  const promptModelId = useCanvasStore(s => s.promptModelId);
+  const promptModelProvider = useCanvasStore(s => s.promptModelProvider);
+  const setPromptModel = useCanvasStore(s => s.setPromptModel);
+  const promptPersonaId = useCanvasStore(s => s.promptPersonaId);
+  const setPromptPersonaId = useCanvasStore(s => s.setPromptPersonaId);
+
+  const managedToast = useToast();
+  const generatePrompt = useAction(
+    api.ai.prompt_generation.generateImagePrompt
+  );
+  const personas = useQuery(api.personas.list) ?? [];
+
+  const [showFilePicker, setShowFilePicker] = useState(false);
+  const describeFileInputRef = useRef<HTMLInputElement>(null);
+  const { uploadFile } = useConvexFileUpload();
+
+  // Get text models that support vision for the model picker
+  const textModels = useModelCatalogStore(s => s.userModels);
+  const visionModels = textModels.filter(m => m.supportsImages);
+
+  // Shared args for both modes
+  const sharedArgs = useCallback(() => {
+    return {
+      ...(promptModelId && promptModelProvider
+        ? { provider: promptModelProvider, modelId: promptModelId }
+        : {}),
+      ...(promptPersonaId
+        ? { personaId: promptPersonaId as Id<"personas"> }
+        : {}),
+    };
+  }, [promptModelId, promptModelProvider, promptPersonaId]);
+
+  const handleEnhancePrompt = useCallback(async () => {
+    setIsGeneratingPrompt(true);
+    try {
+      const result = await generatePrompt({
+        mode: "enhance_prompt",
+        simplePrompt: prompt || undefined,
+        ...sharedArgs(),
+      });
+      setPrompt(result);
+    } catch (err) {
+      console.error("Failed to enhance prompt:", err);
+      managedToast.error(
+        err instanceof Error ? err.message : "Failed to enhance prompt"
+      );
+    } finally {
+      setIsGeneratingPrompt(false);
+    }
+  }, [
+    prompt,
+    sharedArgs,
+    generatePrompt,
+    setPrompt,
+    setIsGeneratingPrompt,
+    managedToast.error,
+  ]);
+
+  const handleDescribeImage = useCallback(
+    async (storageId: Id<"_storage">) => {
+      setIsGeneratingPrompt(true);
+      try {
+        const result = await generatePrompt({
+          mode: "describe_image",
+          imageStorageId: storageId,
+          ...sharedArgs(),
+        });
+        setPrompt(result);
+      } catch (err) {
+        console.error("Failed to describe image:", err);
+        managedToast.error(
+          err instanceof Error ? err.message : "Failed to describe image"
+        );
+      } finally {
+        setIsGeneratingPrompt(false);
+      }
+    },
+    [
+      sharedArgs,
+      generatePrompt,
+      setPrompt,
+      setIsGeneratingPrompt,
+      managedToast.error,
+    ]
+  );
+
+  const handleLibrarySelect = useCallback(
+    (attachments: Attachment[]) => {
+      const imageAttachment = attachments.find(
+        a => a.type === "image" && a.storageId
+      );
+      if (imageAttachment?.storageId) {
+        handleDescribeImage(imageAttachment.storageId as Id<"_storage">);
+      } else {
+        managedToast.error("Please select an image file");
+      }
+    },
+    [handleDescribeImage, managedToast.error]
+  );
+
+  const handleUploadForDescribe = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      e.target.value = "";
+      if (!file) {
+        return;
+      }
+
+      setIsGeneratingPrompt(true);
+      try {
+        const attachment = await uploadFile(file);
+        if (attachment.storageId) {
+          const result = await generatePrompt({
+            mode: "describe_image",
+            imageStorageId: attachment.storageId,
+            ...sharedArgs(),
+          });
+          setPrompt(result);
+        }
+      } catch (err) {
+        console.error("Failed to upload and describe image:", err);
+        managedToast.error(
+          err instanceof Error ? err.message : "Failed to describe image"
+        );
+      } finally {
+        setIsGeneratingPrompt(false);
+      }
+    },
+    [
+      uploadFile,
+      generatePrompt,
+      sharedArgs,
+      setPrompt,
+      setIsGeneratingPrompt,
+      managedToast.error,
+    ]
+  );
+
+  const activePersona = personas.find(p => p._id === promptPersonaId);
+
+  return (
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          disabled={isGeneratingPrompt}
+          className={cn(
+            "absolute right-2 top-2 flex size-7 items-center justify-center rounded-md transition-colors",
+            isGeneratingPrompt
+              ? "text-primary"
+              : "text-sidebar-muted hover:bg-sidebar-hover hover:text-sidebar-foreground"
+          )}
+        >
+          {isGeneratingPrompt ? (
+            <Spinner className="size-4" />
+          ) : (
+            <SparkleIcon className="size-4" />
+          )}
+        </DropdownMenuTrigger>
+        <DropdownMenuContent side="bottom" align="end" sideOffset={4}>
+          <DropdownMenuItem onClick={handleEnhancePrompt}>
+            <SparkleIcon className="size-4" />
+            Enhance prompt
+          </DropdownMenuItem>
+
+          <DropdownMenuSeparator />
+
+          {/* Reference image thumbnails */}
+          {referenceImages.length > 0 && (
+            <div className="flex gap-1.5 px-2 py-1.5">
+              {referenceImages.map((img, i) => (
+                <button
+                  key={img.storageId}
+                  type="button"
+                  onClick={() =>
+                    handleDescribeImage(img.storageId as Id<"_storage">)
+                  }
+                  className="group relative size-9 shrink-0 overflow-hidden rounded-md border border-border/50 transition-all hover:border-primary/50 hover:ring-1 hover:ring-primary/20"
+                  title={`Describe reference ${i + 1}`}
+                >
+                  <img
+                    src={img.previewUrl}
+                    alt={`Reference ${i + 1}`}
+                    className="size-full object-cover"
+                  />
+                </button>
+              ))}
+            </div>
+          )}
+
+          <DropdownMenuItem
+            onClick={() => describeFileInputRef.current?.click()}
+          >
+            <UploadSimpleIcon className="size-4" />
+            Describe uploaded image
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => setShowFilePicker(true)}>
+            <ImageIcon className="size-4" />
+            Describe from library
+          </DropdownMenuItem>
+
+          {/* Settings submenus */}
+          <DropdownMenuSeparator />
+
+          {/* Model picker */}
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger className="text-xs text-muted-foreground">
+              <SparkleIcon className="size-3.5" />
+              Model
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent>
+              <DropdownMenuItem
+                onClick={() => setPromptModel(undefined, undefined)}
+              >
+                <CheckIcon
+                  className={cn(
+                    "size-3",
+                    promptModelId ? "opacity-0" : "opacity-100"
+                  )}
+                />
+                Built-in (default)
+              </DropdownMenuItem>
+              {visionModels.length > 0 && <DropdownMenuSeparator />}
+              {visionModels.map(model => (
+                <DropdownMenuItem
+                  key={`${model.provider}-${model.modelId}`}
+                  onClick={() => setPromptModel(model.modelId, model.provider)}
+                >
+                  <CheckIcon
+                    className={cn(
+                      "size-3",
+                      promptModelId === model.modelId &&
+                        promptModelProvider === model.provider
+                        ? "opacity-100"
+                        : "opacity-0"
+                    )}
+                  />
+                  {model.name}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+
+          {/* Persona picker */}
+          {personas.length > 0 && (
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger className="text-xs text-muted-foreground">
+                {activePersona?.icon ? (
+                  <span className="text-sm">{activePersona.icon}</span>
+                ) : (
+                  <PencilSimpleIcon className="size-3.5" />
+                )}
+                Persona
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent>
+                <DropdownMenuItem onClick={() => setPromptPersonaId(undefined)}>
+                  <CheckIcon
+                    className={cn(
+                      "size-3",
+                      promptPersonaId ? "opacity-0" : "opacity-100"
+                    )}
+                  />
+                  None
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                {personas.map(persona => (
+                  <DropdownMenuItem
+                    key={persona._id}
+                    onClick={() => setPromptPersonaId(persona._id)}
+                  >
+                    <CheckIcon
+                      className={cn(
+                        "size-3",
+                        promptPersonaId === persona._id
+                          ? "opacity-100"
+                          : "opacity-0"
+                      )}
+                    />
+                    {persona.icon && (
+                      <span className="text-sm">{persona.icon}</span>
+                    )}
+                    {persona.name}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <input
+        ref={describeFileInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleUploadForDescribe}
+      />
+      <FileSelectorDialog
+        open={showFilePicker}
+        onOpenChange={setShowFilePicker}
+        onSelectFiles={handleLibrarySelect}
+        supportsImages
+      />
+    </>
+  );
+}
+
 export function CanvasGenerationForm() {
   const prompt = useCanvasStore(s => s.prompt);
   const setPrompt = useCanvasStore(s => s.setPrompt);
@@ -343,6 +672,7 @@ export function CanvasGenerationForm() {
   const addReferenceImage = useCanvasStore(s => s.addReferenceImage);
   const removeReferenceImage = useCanvasStore(s => s.removeReferenceImage);
   const clearReferenceImages = useCanvasStore(s => s.clearReferenceImages);
+  const isGeneratingPrompt = useCanvasStore(s => s.isGeneratingPrompt);
 
   const managedToast = useToast();
 
@@ -418,15 +748,19 @@ export function CanvasGenerationForm() {
     <div className="stack-md pb-2">
       {/* Prompt */}
       <div className="stack-xs">
-        <textarea
-          id="canvas-prompt"
-          value={prompt}
-          onChange={e => setPrompt(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="Describe the image you want to generate..."
-          className="min-h-[100px] w-full resize-y rounded-lg border border-border/50 bg-sidebar-hover p-3 text-sm text-sidebar-foreground placeholder:text-sidebar-muted/50 focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/20"
-          rows={4}
-        />
+        <div className="relative">
+          <textarea
+            id="canvas-prompt"
+            value={prompt}
+            onChange={e => setPrompt(e.target.value)}
+            onKeyDown={handleKeyDown}
+            disabled={isGeneratingPrompt}
+            placeholder="Describe the image you want to generate..."
+            className="min-h-[100px] w-full resize-y rounded-lg border border-border/50 bg-sidebar-hover p-3 pr-10 text-sm text-sidebar-foreground placeholder:text-sidebar-muted/50 focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/20 disabled:opacity-60"
+            rows={4}
+          />
+          <PromptSparkleMenu />
+        </div>
       </div>
 
       {/* Reference Images */}

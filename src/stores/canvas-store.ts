@@ -41,6 +41,10 @@ export type CanvasState = {
   isPanelVisible: boolean;
   selectedImageIds: Set<string>;
   referenceImages: ReferenceImage[];
+  isGeneratingPrompt: boolean;
+  promptModelId?: string;
+  promptModelProvider?: string;
+  promptPersonaId?: string;
 
   // Actions
   toggleModel: (modelId: string) => void;
@@ -59,6 +63,9 @@ export type CanvasState = {
   addReferenceImage: (storageId: Id<"_storage">, previewUrl: string) => void;
   removeReferenceImage: (index: number) => void;
   clearReferenceImages: () => void;
+  setIsGeneratingPrompt: (v: boolean) => void;
+  setPromptModel: (modelId?: string, provider?: string) => void;
+  setPromptPersonaId: (id?: string) => void;
 };
 
 type CanvasStoreApi = StoreApi<CanvasState>;
@@ -112,6 +119,10 @@ const INITIAL_STATE = {
   isPanelVisible: getInitialPanelVisible(),
   selectedImageIds: new Set<string>(),
   referenceImages: [] as ReferenceImage[],
+  isGeneratingPrompt: false,
+  promptModelId: undefined as string | undefined,
+  promptModelProvider: undefined as string | undefined,
+  promptPersonaId: undefined as string | undefined,
 };
 
 function createCanvasState(
@@ -212,6 +223,10 @@ function createCanvasState(
       }
       set_({ referenceImages: [] });
     },
+    setIsGeneratingPrompt: v => set_({ isGeneratingPrompt: v }),
+    setPromptModel: (modelId, provider) =>
+      set_({ promptModelId: modelId, promptModelProvider: provider }),
+    setPromptPersonaId: id => set_({ promptPersonaId: id }),
   };
 }
 
