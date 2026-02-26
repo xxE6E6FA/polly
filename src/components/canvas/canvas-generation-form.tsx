@@ -187,53 +187,59 @@ function ModelPickerPopover({
   );
 
   // Resolve selected model names for display
-  const selectedNames = selectedModelIds
-    .map(id => models.find((m: ImageModel) => m.modelId === id)?.name)
-    .filter(Boolean) as string[];
-
   return (
     <Popover>
       <PopoverTrigger
         className={cn(
-          "flex w-full items-center justify-between rounded-lg border px-3 py-2 text-left text-sm transition-colors",
+          "flex min-h-9 w-full items-center gap-1 rounded-lg border px-2 py-1.5 text-left text-sm transition-colors",
           selectedModelIds.length > 0
             ? "border-primary/30 bg-primary/5 text-sidebar-foreground"
             : "border-border/50 bg-sidebar-hover text-sidebar-muted hover:border-border"
         )}
       >
-        <span className="min-w-0 truncate">
-          {selectedModelIds.length === 0
-            ? "Select models…"
-            : selectedNames.join(", ")}
-        </span>
+        {selectedModelIds.length === 0 ? (
+          <span className="min-w-0 flex-1 truncate px-1">Select models…</span>
+        ) : (
+          <span className="flex min-w-0 flex-1 flex-wrap gap-1">
+            {selectedModelIds.map(id => {
+              const name = models.find(
+                (m: ImageModel) => m.modelId === id
+              )?.name;
+              if (!name) {
+                return null;
+              }
+              return (
+                <span
+                  key={id}
+                  className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-1.5 py-0.5 text-[11px] font-medium text-primary"
+                >
+                  {name}
+                  {/* biome-ignore lint/a11y/useSemanticElements: nested inside PopoverTrigger button */}
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    className="rounded-sm opacity-60 hover:opacity-100"
+                    onClick={e => {
+                      e.stopPropagation();
+                      toggleModel(id);
+                    }}
+                    onKeyDown={e => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        toggleModel(id);
+                      }
+                    }}
+                  >
+                    <XIcon className="size-2.5" />
+                  </span>
+                </span>
+              );
+            })}
+          </span>
+        )}
         <CaretDownIcon className="size-3.5 shrink-0 opacity-60" />
       </PopoverTrigger>
-      {selectedNames.length > 1 && (
-        <div className="mt-1.5 flex flex-wrap gap-1">
-          {selectedNames.map(name => (
-            <span
-              key={name}
-              className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-1.5 py-0.5 text-[11px] font-medium text-primary"
-            >
-              {name}
-              <button
-                type="button"
-                className="rounded-sm opacity-60 hover:opacity-100"
-                onClick={() => {
-                  const id = models.find(
-                    (m: ImageModel) => m.name === name
-                  )?.modelId;
-                  if (id) {
-                    toggleModel(id);
-                  }
-                }}
-              >
-                <XIcon className="size-2.5" />
-              </button>
-            </span>
-          ))}
-        </div>
-      )}
       <PopoverContent
         side="right"
         align="start"
