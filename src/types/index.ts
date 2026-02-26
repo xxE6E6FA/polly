@@ -407,6 +407,28 @@ export type GenerationStatus =
   | "failed"
   | "canceled";
 
+export type UpscaleType = "standard" | "creative";
+
+/** Check whether an upscale entry is still running (pending/starting/processing). */
+export function isUpscaleInProgress(u: { status: string }): boolean {
+  return (
+    u.status === "pending" ||
+    u.status === "starting" ||
+    u.status === "processing"
+  );
+}
+
+export type UpscaleEntry = {
+  id: string;
+  type: UpscaleType;
+  status: "pending" | "starting" | "processing" | "succeeded" | "failed";
+  error?: string;
+  imageUrl?: string;
+  duration?: number;
+  startedAt?: number;
+  completedAt?: number;
+};
+
 /** Unified image type for the "All Images" merged view in canvas mode. */
 export type CanvasImage = {
   id: string;
@@ -420,9 +442,11 @@ export type CanvasImage = {
   createdAt: number;
   aspectRatio?: string;
   quality?: number;
+  error?: string;
   // Canvas-specific
   generationId?: Id<"generations">;
   batchId?: string;
+  upscales: UpscaleEntry[];
   // Conversation-specific
   messageId?: Id<"messages">;
   conversationId?: ConversationId;

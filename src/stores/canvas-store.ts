@@ -5,7 +5,7 @@ import { useStoreWithEqualityFn } from "zustand/traditional";
 import { createStore, type StoreApi } from "zustand/vanilla";
 import { CACHE_KEYS, get, set } from "@/lib/local-storage";
 
-export type CanvasFilterMode = "all" | "canvas" | "conversations";
+export type CanvasFilterMode = "all" | "canvas" | "conversations" | "upscaled";
 
 export type ReferenceImage = {
   storageId: Id<"_storage">;

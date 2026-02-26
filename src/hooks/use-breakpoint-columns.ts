@@ -1,9 +1,11 @@
 import { type RefObject, useEffect, useState } from "react";
 
 const BREAKPOINTS = [
-  { minWidth: 1280, columns: 4 }, // xl
-  { minWidth: 1024, columns: 3 }, // lg
-  { minWidth: 640, columns: 2 }, // sm
+  { minWidth: 1400, columns: 6 },
+  { minWidth: 1150, columns: 5 },
+  { minWidth: 900, columns: 4 },
+  { minWidth: 650, columns: 3 },
+  { minWidth: 400, columns: 2 },
 ];
 const DEFAULT_COLUMNS = 1;
 

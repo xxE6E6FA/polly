@@ -1217,6 +1217,9 @@ export function CanvasGenerateButton() {
         batchId,
       });
       resetForm();
+      document
+        .getElementById("canvas-grid-scroll")
+        ?.scrollTo({ top: 0, behavior: "smooth" });
     } finally {
       setIsGenerating(false);
     }

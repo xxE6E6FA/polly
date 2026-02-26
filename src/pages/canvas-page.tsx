@@ -56,6 +56,7 @@ const FILTER_OPTIONS: { label: string; value: CanvasFilterMode }[] = [
   { label: "All", value: "all" },
   { label: "Canvas", value: "canvas" },
   { label: "Conversations", value: "conversations" },
+  { label: "Upscaled", value: "upscaled" },
 ];
 
 export default function CanvasPage() {
@@ -226,7 +227,10 @@ export default function CanvasPage() {
           </header>
 
           {/* Masonry grid */}
-          <div className="flex-1 overflow-y-auto px-4 pb-4">
+          <div
+            id="canvas-grid-scroll"
+            className="flex-1 overflow-y-auto px-4 pb-4"
+          >
             <CanvasMasonryGrid filterMode={filterMode} />
           </div>
         </div>

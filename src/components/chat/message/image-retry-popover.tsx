@@ -42,6 +42,12 @@ interface ImageRetryPopoverProps {
   currentAspectRatio?: string;
   onRetry: (params: ImageRetryParams) => void;
   className?: string;
+  /** Custom trigger content (defaults to counter-clockwise arrow icon) */
+  trigger?: React.ReactNode;
+  /** Hide the aspect ratio picker (model-only mode) */
+  hideAspectRatio?: boolean;
+  /** When true, selecting a model immediately fires onRetry (no confirm step) */
+  autoRetryOnSelect?: boolean;
 }
 
 export function ImageRetryPopover({
@@ -49,6 +55,9 @@ export function ImageRetryPopover({
   currentAspectRatio = "1:1",
   onRetry,
   className,
+  trigger,
+  hideAspectRatio = false,
+  autoRetryOnSelect = false,
 }: ImageRetryPopoverProps) {
   const [open, setOpen] = useState(false);
   const [selectedModel, setSelectedModel] = useState(currentModel || "");
@@ -91,19 +100,31 @@ export function ImageRetryPopover({
     setOpen(false);
   };
 
+  const handleModelSelect = (modelId: string) => {
+    if (autoRetryOnSelect) {
+      onRetry({
+        model: modelId,
+        aspectRatio: selectedAspectRatio as AspectRatioValue,
+      });
+      setOpen(false);
+    } else {
+      setSelectedModel(modelId);
+    }
+  };
+
   const selectedModelData = imageModels.find(m => m.modelId === selectedModel);
   const selectedRatio = ASPECT_RATIOS.find(
     r => r.value === selectedAspectRatio
   );
 
-  const triggerContent = (
+  const triggerContent = trigger ?? (
     <ArrowCounterClockwiseIcon className="size-4" aria-hidden="true" />
   );
 
   return (
     <ResponsivePicker
       trigger={triggerContent}
-      title="Retry Image Generation"
+      title={autoRetryOnSelect ? "Retry with Model" : "Retry Image Generation"}
       tooltip="Retry with different settings"
       open={open}
       onOpenChange={handleOpenChange}
@@ -122,10 +143,12 @@ export function ImageRetryPopover({
           selectedModelData={selectedModelData}
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
-          onModelSelect={setSelectedModel}
+          onModelSelect={handleModelSelect}
           onAspectRatioSelect={setSelectedAspectRatio}
           onRetry={handleRetry}
           onCancel={() => setOpen(false)}
+          hideAspectRatio={hideAspectRatio}
+          autoRetryOnSelect={autoRetryOnSelect}
         />
       ) : (
         <MobileContent
@@ -136,10 +159,12 @@ export function ImageRetryPopover({
           selectedRatio={selectedRatio}
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
-          onModelSelect={setSelectedModel}
+          onModelSelect={handleModelSelect}
           onAspectRatioSelect={setSelectedAspectRatio}
           onRetry={handleRetry}
           onCancel={() => setOpen(false)}
+          hideAspectRatio={hideAspectRatio}
+          autoRetryOnSelect={autoRetryOnSelect}
         />
       )}
     </ResponsivePicker>
@@ -162,6 +187,8 @@ interface ContentProps {
   onAspectRatioSelect: (ratio: string) => void;
   onRetry: () => void;
   onCancel: () => void;
+  hideAspectRatio?: boolean;
+  autoRetryOnSelect?: boolean;
 }
 
 function DesktopContent({
@@ -174,6 +201,8 @@ function DesktopContent({
   onAspectRatioSelect,
   onRetry,
   onCancel,
+  hideAspectRatio,
+  autoRetryOnSelect,
 }: ContentProps) {
   return (
     <>
@@ -225,31 +254,35 @@ function DesktopContent({
         </PickerSection>
       </div>
 
-      <PickerSection label="Aspect Ratio" bordered>
-        {ASPECT_RATIOS.map(ratio => (
-          <PickerOptionCompact
-            key={ratio.value}
-            label={ratio.label}
-            icon={<ratio.icon size={14} />}
-            suffix={ratio.value}
-            selected={selectedAspectRatio === ratio.value}
-            onClick={() => onAspectRatioSelect(ratio.value)}
-          />
-        ))}
-      </PickerSection>
+      {!hideAspectRatio && (
+        <PickerSection label="Aspect Ratio" bordered>
+          {ASPECT_RATIOS.map(ratio => (
+            <PickerOptionCompact
+              key={ratio.value}
+              label={ratio.label}
+              icon={<ratio.icon size={14} />}
+              suffix={ratio.value}
+              selected={selectedAspectRatio === ratio.value}
+              onClick={() => onAspectRatioSelect(ratio.value)}
+            />
+          ))}
+        </PickerSection>
+      )}
 
-      <PickerFooter className="gap-2 justify-end">
-        <Button variant="ghost" size="sm" onClick={onCancel}>
-          Cancel
-        </Button>
-        <Button size="sm" onClick={onRetry} disabled={!selectedModel}>
-          <ArrowCounterClockwiseIcon
-            className="size-4 mr-1.5"
-            aria-hidden="true"
-          />
-          Retry
-        </Button>
-      </PickerFooter>
+      {!autoRetryOnSelect && (
+        <PickerFooter className="gap-2 justify-end">
+          <Button variant="ghost" size="sm" onClick={onCancel}>
+            Cancel
+          </Button>
+          <Button size="sm" onClick={onRetry} disabled={!selectedModel}>
+            <ArrowCounterClockwiseIcon
+              className="size-4 mr-1.5"
+              aria-hidden="true"
+            />
+            Retry
+          </Button>
+        </PickerFooter>
+      )}
     </>
   );
 }
@@ -264,6 +297,8 @@ function MobileContent({
   onAspectRatioSelect,
   onRetry,
   onCancel,
+  hideAspectRatio,
+  autoRetryOnSelect,
 }: ContentProps) {
   return (
     <div className="stack-lg">
@@ -322,50 +357,58 @@ function MobileContent({
         </div>
       </div>
 
-      <div className="stack-sm">
-        <div className="text-xs font-medium text-muted-foreground px-2">
-          Aspect Ratio
-        </div>
-        <div className="stack-xs">
-          {ASPECT_RATIOS.map(ratio => {
-            const Icon = ratio.icon;
-            const isSelected = selectedAspectRatio === ratio.value;
+      {!hideAspectRatio && (
+        <div className="stack-sm">
+          <div className="text-xs font-medium text-muted-foreground px-2">
+            Aspect Ratio
+          </div>
+          <div className="stack-xs">
+            {ASPECT_RATIOS.map(ratio => {
+              const Icon = ratio.icon;
+              const isSelected = selectedAspectRatio === ratio.value;
 
-            return (
-              <button
-                key={ratio.value}
-                type="button"
-                onClick={() => onAspectRatioSelect(ratio.value)}
-                className={cn(
-                  "flex items-center justify-between px-3 py-2.5 rounded-lg transition-colors",
-                  isSelected ? "bg-primary/10 text-primary" : "hover:bg-muted"
-                )}
-              >
-                <div className="flex items-center gap-3">
-                  <Icon className={DRAWER_ICON_SIZE} />
-                  <span className="text-sm font-medium">{ratio.label}</span>
-                </div>
-                <span className="text-xs font-mono text-muted-foreground">
-                  {ratio.value}
-                </span>
-              </button>
-            );
-          })}
+              return (
+                <button
+                  key={ratio.value}
+                  type="button"
+                  onClick={() => onAspectRatioSelect(ratio.value)}
+                  className={cn(
+                    "flex items-center justify-between px-3 py-2.5 rounded-lg transition-colors",
+                    isSelected ? "bg-primary/10 text-primary" : "hover:bg-muted"
+                  )}
+                >
+                  <div className="flex items-center gap-3">
+                    <Icon className={DRAWER_ICON_SIZE} />
+                    <span className="text-sm font-medium">{ratio.label}</span>
+                  </div>
+                  <span className="text-xs font-mono text-muted-foreground">
+                    {ratio.value}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
 
-      <div className="flex gap-2 pt-2">
-        <Button variant="outline" className="flex-1" onClick={onCancel}>
-          Cancel
-        </Button>
-        <Button className="flex-1" onClick={onRetry} disabled={!selectedModel}>
-          <ArrowCounterClockwiseIcon
-            className="size-4 mr-1.5"
-            aria-hidden="true"
-          />
-          Retry
-        </Button>
-      </div>
+      {!autoRetryOnSelect && (
+        <div className="flex gap-2 pt-2">
+          <Button variant="outline" className="flex-1" onClick={onCancel}>
+            Cancel
+          </Button>
+          <Button
+            className="flex-1"
+            onClick={onRetry}
+            disabled={!selectedModel}
+          >
+            <ArrowCounterClockwiseIcon
+              className="size-4 mr-1.5"
+              aria-hidden="true"
+            />
+            Retry
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
