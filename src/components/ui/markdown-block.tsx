@@ -6,10 +6,13 @@ import {
   bufferIncompleteEntities,
   convertCitationsToMarkdownLinks,
   decodeMinimalEntities,
+  MathCode,
   normalizeEscapedMarkdown,
   normalizeLatexDelimiters,
   removeParenthesesAroundItalics,
   renderTextWithMathAndCitations,
+  tryRenderMath,
+  wrapMathInCodeSpans,
 } from "@/lib/markdown-utils";
 import { CitationGroup } from "./citation-group";
 import { CitationLink } from "./citation-link";
@@ -50,10 +53,12 @@ const MarkdownBlockComponent: LLMOutputComponent = ({ blockMatch }) => {
     const buffered = bufferIncompleteEntities(markdown);
     const parenthesesRemoved = removeParenthesesAroundItalics(buffered);
     const normalizedLatex = normalizeLatexDelimiters(parenthesesRemoved);
-    const decoded = decodeMinimalEntities(normalizedLatex);
+    // Wrap math in backtick code spans so markdown-to-jsx preserves LaTeX verbatim.
+    // The MathCode override detects these and renders KaTeX.
+    const mathEscaped = wrapMathInCodeSpans(normalizedLatex);
+    const decoded = decodeMinimalEntities(mathEscaped);
     const unescaped = normalizeEscapedMarkdown(decoded);
-    const withCitationLinks = convertCitationsToMarkdownLinks(unescaped);
-    return withCitationLinks;
+    return convertCitationsToMarkdownLinks(unescaped);
   }, [markdown]);
 
   const overrides = useMemo(() => {
@@ -61,6 +66,7 @@ const MarkdownBlockComponent: LLMOutputComponent = ({ blockMatch }) => {
       em: { component: EmphasisOverride },
       a: { component: CitationLink },
       span: { component: SpanOverride },
+      code: { component: MathCode },
     } as const;
   }, []);
 
@@ -71,6 +77,16 @@ const MarkdownBlockComponent: LLMOutputComponent = ({ blockMatch }) => {
           disableParsingRawHTML: true,
           overrides,
           renderRule(next, node) {
+            // Inline code with math delimiters → render KaTeX directly
+            if (
+              node.type === RuleType.codeInline &&
+              typeof node.text === "string"
+            ) {
+              const mathNode = tryRenderMath(node.text);
+              if (mathNode) {
+                return mathNode;
+              }
+            }
             if (node.type === RuleType.text && typeof node.text === "string") {
               // Drop stray text nodes that are only backslashes + horizontal/invisible spaces
               if (new RegExp(`^\\\\+${WHITESPACE_CHARS}*$`).test(node.text)) {

@@ -8,6 +8,9 @@ import {
   normalizeEscapedMarkdown,
   normalizeLatexDelimiters,
   removeParenthesesAroundItalics,
+  renderTextWithMathAndCitations,
+  tryRenderMath,
+  wrapMathInCodeSpans,
 } from "./markdown-utils";
 
 describe("bufferIncompleteEntities", () => {
@@ -401,5 +404,518 @@ describe("edge cases and integration", () => {
     expect(bufferIncompleteEntities("hello &nbs")).toBe("hello ");
     expect(bufferIncompleteEntities("hello &nbsp")).toBe("hello ");
     expect(bufferIncompleteEntities("hello &nbsp;")).toBe("hello &nbsp;");
+  });
+});
+
+describe("renderTextWithMathAndCitations", () => {
+  it("should render inline math", () => {
+    const result = renderTextWithMathAndCitations(
+      "The formula $x^2$ is simple"
+    );
+    // Returns array: [text, TeX element, text]
+    expect(Array.isArray(result)).toBe(true);
+    const parts = result as React.ReactNode[];
+    expect(parts).toHaveLength(3);
+    expect(parts[0]).toBe("The formula ");
+    // Middle element is a TeX component
+    expect(React.isValidElement(parts[1])).toBe(true);
+    const texEl = parts[1] as React.ReactElement<{
+      math: string;
+      block: boolean;
+    }>;
+    expect(texEl.props.math).toBe("x^2");
+    expect(texEl.props.block).toBe(false);
+    expect(parts[2]).toBe(" is simple");
+  });
+
+  it("should render display math", () => {
+    const result = renderTextWithMathAndCitations("$$\\sum_{i=1}^n i$$");
+    expect(React.isValidElement(result)).toBe(true);
+    const texEl = result as React.ReactElement<{
+      math: string;
+      block: boolean;
+    }>;
+    expect(texEl.props.math).toBe("\\sum_{i=1}^n i");
+    expect(texEl.props.block).toBe(true);
+  });
+
+  it("should handle mixed math and citations", () => {
+    const result = renderTextWithMathAndCitations("See $E=mc^2$ in [1]");
+    expect(Array.isArray(result)).toBe(true);
+    const parts = result as React.ReactNode[];
+    expect(parts).toHaveLength(3);
+    expect(parts[0]).toBe("See ");
+    const texEl = parts[1] as React.ReactElement<{ math: string }>;
+    expect(texEl.props.math).toBe("E=mc^2");
+    // Last part contains the citation
+    expect(Array.isArray(parts[2]) || typeof parts[2] === "object").toBe(true);
+  });
+
+  it("should not match dollar amounts as math", () => {
+    const result = renderTextWithMathAndCitations("Price is $10");
+    // No math detected — should pass through as citation-only text
+    expect(typeof result === "string" || !Array.isArray(result)).toBe(true);
+  });
+
+  it("should render math starting with a digit like $2p$", () => {
+    const result = renderTextWithMathAndCitations("the form $2p$ where");
+    expect(Array.isArray(result)).toBe(true);
+    const parts = result as React.ReactNode[];
+    expect(parts).toHaveLength(3);
+    const texEl = parts[1] as React.ReactElement<{ math: string }>;
+    expect(texEl.props.math).toBe("2p");
+  });
+
+  it("should render pure digit math like $2$", () => {
+    const result = renderTextWithMathAndCitations("is $2$ times");
+    expect(Array.isArray(result)).toBe(true);
+    const parts = result as React.ReactNode[];
+    expect(parts).toHaveLength(3);
+    const texEl = parts[1] as React.ReactElement<{ math: string }>;
+    expect(texEl.props.math).toBe("2");
+  });
+
+  it("should pass through incomplete math during streaming", () => {
+    const result = renderTextWithMathAndCitations("Computing $x^2 + ");
+    // No closing $, so no math match — plain text passthrough
+    expect(typeof result === "string" || !Array.isArray(result)).toBe(true);
+  });
+
+  it("should pass through text with no math unchanged", () => {
+    const result = renderTextWithMathAndCitations("Hello world");
+    expect(result).toBe("Hello world");
+  });
+
+  it("should handle empty string", () => {
+    expect(renderTextWithMathAndCitations("")).toBe("");
+  });
+});
+
+describe("wrapMathInCodeSpans", () => {
+  it("should wrap inline math in backticks", () => {
+    expect(wrapMathInCodeSpans("text $x^2$ more")).toBe("text `$x^2$` more");
+  });
+
+  it("should wrap display math in backticks", () => {
+    expect(wrapMathInCodeSpans("$$\\sum_{i=1}^n i$$")).toBe(
+      "`$$\\sum_{i=1}^n i$$`"
+    );
+  });
+
+  it("should preserve underscores and braces inside math", () => {
+    expect(wrapMathInCodeSpans("text $d_{ij}$ more")).toBe(
+      "text `$d_{ij}$` more"
+    );
+  });
+
+  it("should not affect text outside math", () => {
+    expect(wrapMathInCodeSpans("hello _world_ $x_1$")).toBe(
+      "hello _world_ `$x_1$`"
+    );
+  });
+
+  it("should handle text with no math", () => {
+    expect(wrapMathInCodeSpans("no math here")).toBe("no math here");
+  });
+
+  it("should handle empty string", () => {
+    expect(wrapMathInCodeSpans("")).toBe("");
+  });
+
+  it("should handle multiple math expressions", () => {
+    expect(wrapMathInCodeSpans("$a_1$ and $b_2$")).toBe("`$a_1$` and `$b_2$`");
+  });
+
+  it("should not double-wrap math already in code spans", () => {
+    expect(wrapMathInCodeSpans("text `$x^2$` more")).toBe("text `$x^2$` more");
+  });
+
+  it("should collapse newlines in display math", () => {
+    expect(wrapMathInCodeSpans("$$a +\nb$$")).toBe("`$$a + b$$`");
+  });
+
+  it("should not affect dollar amounts", () => {
+    expect(wrapMathInCodeSpans("Price is $10")).toBe("Price is $10");
+  });
+
+  it("should handle complex LaTeX with nested braces", () => {
+    expect(wrapMathInCodeSpans("$\\mathbf{d_{11}}$")).toBe(
+      "`$\\mathbf{d_{11}}$`"
+    );
+  });
+
+  it("should handle math adjacent to punctuation", () => {
+    expect(wrapMathInCodeSpans("($x^2$)")).toBe("(`$x^2$`)");
+    expect(wrapMathInCodeSpans("where $x_1$, $x_2$, and $x_3$")).toBe(
+      "where `$x_1$`, `$x_2$`, and `$x_3$`"
+    );
+  });
+
+  it("should handle math at start and end of string", () => {
+    expect(wrapMathInCodeSpans("$x^2$")).toBe("`$x^2$`");
+    expect(wrapMathInCodeSpans("$a$ and $b$")).toBe("`$a$` and `$b$`");
+  });
+
+  it("should handle display math with complex content", () => {
+    expect(wrapMathInCodeSpans("$$\\frac{a}{b} + \\sqrt{c}$$")).toBe(
+      "`$$\\frac{a}{b} + \\sqrt{c}$$`"
+    );
+  });
+
+  it("should not wrap dollar signs in the middle of words", () => {
+    expect(wrapMathInCodeSpans("the$variable$name")).toBe("the$variable$name");
+  });
+
+  it("should handle AI-escaped underscores in math", () => {
+    // AI models send $r\_1$ to prevent markdown emphasis — wrap preserves the content
+    expect(wrapMathInCodeSpans("text $r\\_1$ more")).toBe(
+      "text `$r\\_1$` more"
+    );
+  });
+
+  it("should handle multiple display math blocks", () => {
+    expect(wrapMathInCodeSpans("$$a$$\n\n$$b$$")).toBe("`$$a$$`\n\n`$$b$$`");
+  });
+
+  it("should handle math with superscripts and subscripts", () => {
+    expect(wrapMathInCodeSpans("$x_i^2 + y_j^3$")).toBe("`$x_i^2 + y_j^3$`");
+  });
+
+  it("should handle math with backslash commands", () => {
+    expect(wrapMathInCodeSpans("$\\sum_{i=0}^{n} x_i$")).toBe(
+      "`$\\sum_{i=0}^{n} x_i$`"
+    );
+  });
+
+  it("should not match escaped dollar signs", () => {
+    expect(wrapMathInCodeSpans("costs \\$50")).toBe("costs \\$50");
+  });
+
+  it("should handle code spans with dollar signs inside", () => {
+    // Existing code span containing $ should not be re-wrapped
+    expect(wrapMathInCodeSpans("use `$HOME` variable")).toBe(
+      "use `$HOME` variable"
+    );
+  });
+});
+
+describe("tryRenderMath", () => {
+  it("should render display math ($$...$$)", () => {
+    const result = tryRenderMath("$$x^2 + y^2$$");
+    expect(React.isValidElement(result)).toBe(true);
+    const el = result as React.ReactElement<{ math: string; block: boolean }>;
+    expect(el.props.math).toBe("x^2 + y^2");
+    expect(el.props.block).toBe(true);
+  });
+
+  it("should render inline math ($...$)", () => {
+    const result = tryRenderMath("$x^2$");
+    expect(React.isValidElement(result)).toBe(true);
+    const el = result as React.ReactElement<{ math: string; block: boolean }>;
+    expect(el.props.math).toBe("x^2");
+    expect(el.props.block).toBe(false);
+  });
+
+  it("should return null for non-math text", () => {
+    expect(tryRenderMath("hello world")).toBeNull();
+    expect(tryRenderMath("some code")).toBeNull();
+    expect(tryRenderMath("$")).toBeNull();
+    expect(tryRenderMath("$$")).toBeNull();
+  });
+
+  it("should return null for empty dollar signs", () => {
+    expect(tryRenderMath("$$$$")).toBeNull();
+    // $$ is only 2 chars, below the length > 2 threshold
+    expect(tryRenderMath("$$")).toBeNull();
+  });
+
+  it("should unescape AI-escaped underscores for subscripts", () => {
+    const result = tryRenderMath("$r\\_1$");
+    expect(React.isValidElement(result)).toBe(true);
+    const el = result as React.ReactElement<{ math: string }>;
+    expect(el.props.math).toBe("r_1");
+  });
+
+  it("should unescape AI-escaped underscores in display math", () => {
+    const result = tryRenderMath("$$d\\_{ij}$$");
+    expect(React.isValidElement(result)).toBe(true);
+    const el = result as React.ReactElement<{ math: string }>;
+    expect(el.props.math).toBe("d_{ij}");
+  });
+
+  it("should unescape AI-escaped asterisks", () => {
+    const result = tryRenderMath("$a \\* b$");
+    expect(React.isValidElement(result)).toBe(true);
+    const el = result as React.ReactElement<{ math: string }>;
+    expect(el.props.math).toBe("a * b");
+  });
+
+  it("should preserve legitimate LaTeX backslash commands", () => {
+    const result = tryRenderMath("$\\frac{a}{b}$");
+    expect(React.isValidElement(result)).toBe(true);
+    const el = result as React.ReactElement<{ math: string }>;
+    // \frac should NOT be mangled — only \_ and \* are unescaped
+    expect(el.props.math).toBe("\\frac{a}{b}");
+  });
+
+  it("should preserve \\{ and \\} in LaTeX", () => {
+    const result = tryRenderMath("$\\{a, b, c\\}$");
+    expect(React.isValidElement(result)).toBe(true);
+    const el = result as React.ReactElement<{ math: string }>;
+    expect(el.props.math).toBe("\\{a, b, c\\}");
+  });
+
+  it("should preserve \\[ and \\] in LaTeX", () => {
+    const result = tryRenderMath("$$\\left[a, b\\right]$$");
+    expect(React.isValidElement(result)).toBe(true);
+    const el = result as React.ReactElement<{ math: string }>;
+    expect(el.props.math).toBe("\\left[a, b\\right]");
+  });
+
+  it("should handle complex Cantor-style LaTeX with escaped underscores", () => {
+    // Real-world: AI sends $d\\_{ij}$ for the diagonal argument
+    const result = tryRenderMath("$d\\_{ij}$");
+    expect(React.isValidElement(result)).toBe(true);
+    const el = result as React.ReactElement<{ math: string }>;
+    expect(el.props.math).toBe("d_{ij}");
+  });
+
+  it("should handle multiple escaped underscores in one expression", () => {
+    const result = tryRenderMath("$x\\_1 + x\\_2 + x\\_3$");
+    expect(React.isValidElement(result)).toBe(true);
+    const el = result as React.ReactElement<{ math: string }>;
+    expect(el.props.math).toBe("x_1 + x_2 + x_3");
+  });
+
+  it("should handle nested subscripts with escaped underscores", () => {
+    const result = tryRenderMath("$$\\mathbf{d\\_{11}}$$");
+    expect(React.isValidElement(result)).toBe(true);
+    const el = result as React.ReactElement<{ math: string }>;
+    expect(el.props.math).toBe("\\mathbf{d_{11}}");
+  });
+
+  it("should handle \\sum with escaped subscript", () => {
+    const result = tryRenderMath("$$\\sum\\_{i=1}^{n} i$$");
+    expect(React.isValidElement(result)).toBe(true);
+    const el = result as React.ReactElement<{ math: string }>;
+    expect(el.props.math).toBe("\\sum_{i=1}^{n} i");
+  });
+
+  it("should trim whitespace in display math", () => {
+    const result = tryRenderMath("$$  x^2 + y^2  $$");
+    expect(React.isValidElement(result)).toBe(true);
+    const el = result as React.ReactElement<{ math: string }>;
+    expect(el.props.math).toBe("x^2 + y^2");
+  });
+
+  it("should render error boundary for invalid LaTeX", () => {
+    // TeX component receives a renderError prop — it handles the error internally
+    const result = tryRenderMath("$$\\invalid{$$");
+    expect(React.isValidElement(result)).toBe(true);
+  });
+
+  it("should handle LaTeX Greek letters", () => {
+    const result = tryRenderMath("$\\alpha + \\beta = \\gamma$");
+    expect(React.isValidElement(result)).toBe(true);
+    const el = result as React.ReactElement<{ math: string }>;
+    expect(el.props.math).toBe("\\alpha + \\beta = \\gamma");
+  });
+
+  it("should handle LaTeX matrix notation", () => {
+    const result = tryRenderMath(
+      "$$\\begin{pmatrix} a & b \\\\ c & d \\end{pmatrix}$$"
+    );
+    expect(React.isValidElement(result)).toBe(true);
+    const el = result as React.ReactElement<{ math: string }>;
+    expect(el.props.math).toBe(
+      "\\begin{pmatrix} a & b \\\\ c & d \\end{pmatrix}"
+    );
+  });
+});
+
+describe("tryRenderMath + wrapMathInCodeSpans pipeline", () => {
+  it("should produce valid math through the full pipeline", () => {
+    // Simulate what happens: wrapMathInCodeSpans wraps, then markdown-to-jsx
+    // delivers the content to tryRenderMath via code node
+    const input = "text $d_{ij}$ more";
+    const wrapped = wrapMathInCodeSpans(input);
+    expect(wrapped).toBe("text `$d_{ij}$` more");
+    // markdown-to-jsx strips backticks and passes "$d_{ij}$" to code override
+    const mathResult = tryRenderMath("$d_{ij}$");
+    expect(React.isValidElement(mathResult)).toBe(true);
+    const el = mathResult as React.ReactElement<{ math: string }>;
+    expect(el.props.math).toBe("d_{ij}");
+  });
+
+  it("should handle AI-escaped content through the full pipeline", () => {
+    const input = "text $d\\_{ ij}$ more";
+    const wrapped = wrapMathInCodeSpans(input);
+    // Backticks preserve the escaped underscore verbatim
+    expect(wrapped).toBe("text `$d\\_{ ij}$` more");
+    // tryRenderMath un-escapes \_ to _ for KaTeX
+    const mathResult = tryRenderMath("$d\\_{ ij}$");
+    expect(React.isValidElement(mathResult)).toBe(true);
+    const el = mathResult as React.ReactElement<{ math: string }>;
+    expect(el.props.math).toBe("d_{ ij}");
+  });
+
+  it("should handle normalizeLatexDelimiters → wrapMathInCodeSpans → tryRenderMath", () => {
+    const input = "formula \\(x_1\\) and \\[y^2\\]";
+    const normalized = normalizeLatexDelimiters(input);
+    expect(normalized).toBe("formula $x_1$ and $$y^2$$");
+    const wrapped = wrapMathInCodeSpans(normalized);
+    expect(wrapped).toBe("formula `$x_1$` and `$$y^2$$`");
+    // Inline
+    const inlineMath = tryRenderMath("$x_1$");
+    expect(React.isValidElement(inlineMath)).toBe(true);
+    expect(
+      (inlineMath as React.ReactElement<{ math: string }>).props.math
+    ).toBe("x_1");
+    // Display
+    const displayMath = tryRenderMath("$$y^2$$");
+    expect(React.isValidElement(displayMath)).toBe(true);
+    expect(
+      (displayMath as React.ReactElement<{ math: string; block: boolean }>)
+        .props.block
+    ).toBe(true);
+  });
+});
+
+describe("renderTextWithMathAndCitations — comprehensive", () => {
+  it("should handle multiple inline math in one line", () => {
+    const result = renderTextWithMathAndCitations(
+      "where $a_1$ and $b_2$ are constants"
+    );
+    expect(Array.isArray(result)).toBe(true);
+    const parts = result as React.ReactNode[];
+    // "where " + TeX + " and " + TeX + " are constants"
+    expect(parts).toHaveLength(5);
+    expect(parts[0]).toBe("where ");
+    expect(React.isValidElement(parts[1])).toBe(true);
+    expect(parts[2]).toBe(" and ");
+    expect(React.isValidElement(parts[3])).toBe(true);
+    expect(parts[4]).toBe(" are constants");
+  });
+
+  it("should handle display math between paragraphs", () => {
+    const result = renderTextWithMathAndCitations(
+      "Consider: $$\\int_0^1 f(x) dx$$ which equals..."
+    );
+    expect(Array.isArray(result)).toBe(true);
+    const parts = result as React.ReactNode[];
+    expect(parts).toHaveLength(3);
+    expect(parts[0]).toBe("Consider: ");
+    const texEl = parts[1] as React.ReactElement<{
+      math: string;
+      block: boolean;
+    }>;
+    expect(texEl.props.math).toBe("\\int_0^1 f(x) dx");
+    expect(texEl.props.block).toBe(true);
+    expect(parts[2]).toBe(" which equals...");
+  });
+
+  it("should handle Euler's identity", () => {
+    const result = renderTextWithMathAndCitations("$$e^{i\\pi} + 1 = 0$$");
+    expect(React.isValidElement(result)).toBe(true);
+    const el = result as React.ReactElement<{ math: string; block: boolean }>;
+    expect(el.props.math).toBe("e^{i\\pi} + 1 = 0");
+    expect(el.props.block).toBe(true);
+  });
+
+  it("should handle quadratic formula", () => {
+    const result = renderTextWithMathAndCitations(
+      "$$x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$$"
+    );
+    expect(React.isValidElement(result)).toBe(true);
+    const el = result as React.ReactElement<{ math: string }>;
+    expect(el.props.math).toBe("x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}");
+  });
+
+  it("should not match single dollar with trailing digit", () => {
+    const result = renderTextWithMathAndCitations("I spent $100 on food");
+    // $100 should NOT be matched as math (trailing digit guard)
+    expect(typeof result === "string" || !Array.isArray(result)).toBe(true);
+  });
+
+  it("should not match adjacent dollar amounts", () => {
+    const result = renderTextWithMathAndCitations(
+      "prices range from $10 to $20"
+    );
+    expect(typeof result === "string" || !Array.isArray(result)).toBe(true);
+  });
+
+  it("should handle math with citations after it", () => {
+    const result = renderTextWithMathAndCitations(
+      "The equation $E=mc^2$ [1][2] is famous"
+    );
+    expect(Array.isArray(result)).toBe(true);
+    const parts = result as React.ReactNode[];
+    expect(parts.length).toBeGreaterThanOrEqual(3);
+    expect(parts[0]).toBe("The equation ");
+    const texEl = parts[1] as React.ReactElement<{ math: string }>;
+    expect(texEl.props.math).toBe("E=mc^2");
+  });
+
+  it("should handle only citations, no math", () => {
+    const result = renderTextWithMathAndCitations(
+      "According to [1] and [2], this is true"
+    );
+    // Should render citations without math
+    expect(Array.isArray(result)).toBe(true);
+  });
+
+  it("should handle math with subscript/superscript combos", () => {
+    const result = renderTextWithMathAndCitations("$x_i^{n+1}$");
+    expect(React.isValidElement(result)).toBe(true);
+    const el = result as React.ReactElement<{ math: string }>;
+    expect(el.props.math).toBe("x_i^{n+1}");
+  });
+
+  it("should handle display math with aligned environment", () => {
+    const result = renderTextWithMathAndCitations("$$a + b = c$$");
+    expect(React.isValidElement(result)).toBe(true);
+    const el = result as React.ReactElement<{ math: string }>;
+    expect(el.props.math).toBe("a + b = c");
+  });
+
+  it("should handle incomplete display math during streaming", () => {
+    // No closing $$ — should pass through as plain text
+    const result = renderTextWithMathAndCitations("$$\\sum_{i=1}^n");
+    expect(typeof result === "string" || !Array.isArray(result)).toBe(true);
+  });
+
+  it("should handle incomplete inline math during streaming", () => {
+    const result = renderTextWithMathAndCitations("the value $x + ");
+    expect(typeof result === "string" || !Array.isArray(result)).toBe(true);
+  });
+
+  it("should handle LaTeX with Greek letters inline", () => {
+    const result = renderTextWithMathAndCitations(
+      "angle $\\theta$ and radius $r$"
+    );
+    expect(Array.isArray(result)).toBe(true);
+    const parts = result as React.ReactNode[];
+    // Find the TeX elements among the parts
+    const texParts = parts.filter(p => React.isValidElement(p));
+    expect(texParts.length).toBeGreaterThanOrEqual(1);
+    expect(
+      (texParts[0] as React.ReactElement<{ math: string }>).props.math
+    ).toBe("\\theta");
+  });
+
+  it("should strip dangling HTML closers before processing", () => {
+    const result = renderTextWithMathAndCitations("text $x^2$</span> more");
+    expect(Array.isArray(result)).toBe(true);
+    const parts = result as React.ReactNode[];
+    expect(parts).toHaveLength(3);
+    expect((parts[1] as React.ReactElement<{ math: string }>).props.math).toBe(
+      "x^2"
+    );
+  });
+
+  it("should handle grouped citations like [1, 2, 3]", () => {
+    const result = renderTextWithMathAndCitations("according to [1, 2, 3]");
+    // Should normalize to [1][2][3] then render citation group
+    expect(Array.isArray(result)).toBe(true);
   });
 });

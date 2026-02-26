@@ -132,8 +132,7 @@ export default defineConfig({
             if (
               id.includes("/katex/") ||
               id.includes("/markdown-to-jsx/") ||
-              id.includes("/remark") ||
-              id.includes("/rehype") ||
+              id.includes("/react-katex/") ||
               id.includes("/unified/") ||
               id.includes("/micromark/") ||
               id.includes("/mdast")
