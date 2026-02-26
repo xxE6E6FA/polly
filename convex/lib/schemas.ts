@@ -1069,6 +1069,8 @@ export const generationSchema = v.object({
   })),
   duration: v.optional(v.number()),
   batchId: v.optional(v.string()), // Groups multi-model generations
+  parentGenerationId: v.optional(v.id("generations")),  // immediate parent edit
+  rootGenerationId: v.optional(v.id("generations")),     // root of edit tree (for grouping)
   /** @deprecated Use upscales array instead. Kept read-only for backward compat. */
   upscale: v.optional(v.object({
     status: replicateStatusValidator,

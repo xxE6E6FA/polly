@@ -6,6 +6,7 @@ import {
   CaretDownIcon,
   CheckCircleIcon,
   CircleIcon,
+  PencilSimpleIcon,
   XIcon,
 } from "@phosphor-icons/react";
 import { useMutation } from "convex/react";
@@ -34,12 +35,14 @@ import { type CanvasImage, isUpscaleInProgress } from "@/types";
 
 type CanvasGridCardProps = {
   image: CanvasImage;
-  onClick?: () => void;
+  editChildren?: CanvasImage[];
+  onClick?: (target?: CanvasImage) => void;
   onRequestDelete?: (image: CanvasImage) => void;
 };
 
 export function CanvasGridCard({
   image,
+  editChildren,
   onClick,
   onRequestDelete,
 }: CanvasGridCardProps) {
@@ -61,6 +64,7 @@ export function CanvasGridCard({
   return (
     <SucceededCard
       image={image}
+      editChildren={editChildren}
       onClick={onClick}
       onRequestDelete={onRequestDelete}
     />
@@ -224,11 +228,13 @@ function FailedCard({
 
 function SucceededCard({
   image,
+  editChildren,
   onClick,
   onRequestDelete,
 }: {
   image: CanvasImage;
-  onClick?: () => void;
+  editChildren?: CanvasImage[];
+  onClick?: (target?: CanvasImage) => void;
   onRequestDelete?: (image: CanvasImage) => void;
 }) {
   const selectedImageIds = useCanvasStore(s => s.selectedImageIds);
@@ -241,11 +247,21 @@ function SucceededCard({
   const inProgressUpscale = image.upscales.find(isUpscaleInProgress);
   const isUpscaling = !!inProgressUpscale;
 
+  // Filmstrip hover state — null means show original
+  const [hoveredEditIndex, setHoveredEditIndex] = useState<number | null>(null);
+  const edits = editChildren ?? [];
+  const hasEdits = edits.length > 0 && !image.parentGenerationId;
+
   // Show latest succeeded upscale, or original
   const latestSucceeded = image.upscales.findLast(
     u => u.status === "succeeded" && u.imageUrl
   );
-  const displayUrl = latestSucceeded?.imageUrl ?? image.imageUrl;
+  const originalUrl = latestSucceeded?.imageUrl ?? image.imageUrl;
+
+  // If hovering a filmstrip thumbnail, swap the displayed image
+  const hoveredEdit =
+    hoveredEditIndex !== null ? edits[hoveredEditIndex] : null;
+  const displayUrl = hoveredEdit?.imageUrl ?? originalUrl;
 
   const handleCopyImage = useCallback(
     async (e: React.MouseEvent) => {
@@ -309,7 +325,7 @@ function SucceededCard({
 
   return (
     <div
-      className={`group relative overflow-hidden rounded-lg border bg-muted/30 transition-all duration-200 hover:shadow-md ${
+      className={`group relative overflow-hidden rounded-lg border bg-muted/30 transition-[border-color,box-shadow] duration-200 hover:shadow-md ${
         isSelecting ? "cursor-pointer" : "cursor-zoom-in"
       } ${isSelected ? "border-primary ring-2 ring-primary/30" : "border-border/40"}`}
       onClick={handleClick}
@@ -424,7 +440,7 @@ function SucceededCard({
       <div
         className={`absolute inset-x-0 bottom-0 flex flex-col justify-end bg-gradient-to-t from-black/70 via-black/40 to-transparent p-2.5 pt-10 transition-opacity duration-200 ${
           isSelecting ? "opacity-0" : "opacity-0 group-hover:opacity-100"
-        }`}
+        } ${hasEdits ? "pb-12" : ""}`}
       >
         {image.prompt && (
           <p className="line-clamp-2 text-[11px] leading-snug text-white drop-shadow-sm">
@@ -442,9 +458,65 @@ function SucceededCard({
                 {u.type === "standard" ? "2x" : "2x+"}
               </span>
             ))}
+          {image.parentGenerationId && (
+            <span className="inline-flex items-center gap-1 rounded bg-white/25 px-1.5 py-0.5 font-medium backdrop-blur-sm">
+              <PencilSimpleIcon className="size-2.5" />
+              edit
+            </span>
+          )}
           {image.model && <span>{formatModelName(image.model)}</span>}
         </div>
       </div>
+
+      {/* Filmstrip — hover to scrub through edit versions */}
+      {hasEdits && !isSelecting && (
+        <div
+          className="absolute inset-x-0 bottom-0 z-10 flex items-end justify-center bg-gradient-to-t from-black/60 to-transparent px-2 pb-2 pt-8 opacity-0 transition-opacity duration-200 group-hover:opacity-100"
+          onMouseLeave={() => setHoveredEditIndex(null)}
+          onClick={e => e.stopPropagation()}
+          onKeyDown={e => e.stopPropagation()}
+        >
+          <div className="flex gap-1 overflow-x-auto rounded-md bg-black/40 p-1 backdrop-blur-sm">
+            {/* Original thumbnail */}
+            <button
+              type="button"
+              className={`relative size-8 shrink-0 overflow-hidden rounded-sm ring-1.5 transition-all ${
+                hoveredEditIndex === null
+                  ? "ring-white shadow-sm"
+                  : "ring-white/30 hover:ring-white/60"
+              }`}
+              onMouseEnter={() => setHoveredEditIndex(null)}
+              onClick={() => onClick?.()}
+            >
+              <img
+                src={originalUrl}
+                alt="Original"
+                className="size-full object-cover"
+              />
+            </button>
+            {/* Edit thumbnails */}
+            {edits.map((edit, idx) => (
+              <button
+                key={edit.id}
+                type="button"
+                className={`relative size-8 shrink-0 overflow-hidden rounded-sm ring-1.5 transition-all ${
+                  hoveredEditIndex === idx
+                    ? "ring-white shadow-sm"
+                    : "ring-white/30 hover:ring-white/60"
+                }`}
+                onMouseEnter={() => setHoveredEditIndex(idx)}
+                onClick={() => onClick?.(edit)}
+              >
+                <img
+                  src={edit.imageUrl}
+                  alt={`Edit ${idx + 1}`}
+                  className="size-full object-cover"
+                />
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

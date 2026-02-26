@@ -34,6 +34,10 @@ export function CanvasMasonryGrid({ filterMode }: CanvasMasonryGridProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const columnCount = useBreakpointColumns(containerRef);
   const managedToast = useToast();
+
+  // Image viewer state
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [viewerIndex, setViewerIndex] = useState(0);
   const deleteGeneration = useMutation(api.generations.deleteGeneration);
   const selectedImageIds = useCanvasStore(s => s.selectedImageIds);
   const clearImageSelection = useCanvasStore(s => s.clearImageSelection);
@@ -53,7 +57,11 @@ export function CanvasMasonryGrid({ filterMode }: CanvasMasonryGridProps) {
   // Conversation images
   const conversationImages = useQuery(
     api.fileStorage.listGeneratedImages,
-    filterMode !== "canvas" && filterMode !== "upscaled" ? {} : "skip"
+    filterMode !== "canvas" &&
+      filterMode !== "upscaled" &&
+      filterMode !== "edits"
+      ? {}
+      : "skip"
   );
 
   // Merge and normalize both sources
@@ -78,6 +86,10 @@ export function CanvasMasonryGrid({ filterMode }: CanvasMasonryGridProps) {
             quality: gen.params?.quality,
             generationId: gen._id,
             batchId: gen.batchId,
+            parentGenerationId: gen.parentGenerationId,
+            rootGenerationId: gen.rootGenerationId,
+            editCount: gen.editCount,
+            referenceImageUrls: gen.referenceImageUrls,
             upscales: gen.upscales.map(u => ({
               id: u.id,
               type: u.type,
@@ -106,6 +118,8 @@ export function CanvasMasonryGrid({ filterMode }: CanvasMasonryGridProps) {
           quality: gen.params?.quality,
           generationId: gen._id,
           batchId: gen.batchId,
+          parentGenerationId: gen.parentGenerationId,
+          rootGenerationId: gen.rootGenerationId,
           error: gen.error,
           upscales: [],
         });
@@ -141,20 +155,64 @@ export function CanvasMasonryGrid({ filterMode }: CanvasMasonryGridProps) {
     allImages.push(...upscaled);
   }
 
+  // Filter edits-only: only child edits, not originals
+  if (filterMode === "edits") {
+    const editTreeImages = allImages.filter(img => img.parentGenerationId);
+    allImages.length = 0;
+    allImages.push(...editTreeImages);
+  }
+
   // Sort by createdAt desc
   allImages.sort((a, b) => b.createdAt - a.createdAt);
 
-  // Viewer state
-  const [viewerOpen, setViewerOpen] = useState(false);
-  const [viewerIndex, setViewerIndex] = useState(0);
+  // Build edit children map: rootGenerationId → sorted child edits
+  const editChildrenMap = new Map<string, CanvasImage[]>();
+  if (filterMode !== "edits") {
+    for (const img of allImages) {
+      if (img.parentGenerationId && img.status === "succeeded") {
+        const rootId = img.rootGenerationId ?? img.parentGenerationId;
+        if (rootId) {
+          let children = editChildrenMap.get(rootId);
+          if (!children) {
+            children = [];
+            editChildrenMap.set(rootId, children);
+          }
+          children.push(img);
+        }
+      }
+    }
+    // Sort each group by createdAt ascending (oldest first)
+    for (const children of editChildrenMap.values()) {
+      children.sort((a, b) => a.createdAt - b.createdAt);
+    }
+  }
 
-  // Only succeeded images with URLs are viewable
-  const succeededImages = allImages.filter(
-    img => img.status === "succeeded" && img.imageUrl
-  );
+  // Always hide child edits from display (they appear in the filmstrip)
+  const displayImages =
+    filterMode === "edits"
+      ? allImages
+      : allImages.filter(img => !img.parentGenerationId);
 
-  const handleImageClick = (image: CanvasImage) => {
-    const idx = succeededImages.findIndex(img => img.id === image.id);
+  // Build viewer list: display images + all edit children (for filmstrip clicks)
+  const succeededImages: CanvasImage[] = [];
+  for (const img of displayImages) {
+    if (img.status === "succeeded" && img.imageUrl) {
+      succeededImages.push(img);
+      // Insert edit children right after their parent so viewer navigation is logical
+      const children = img.generationId
+        ? editChildrenMap.get(img.generationId)
+        : undefined;
+      if (children) {
+        for (const child of children) {
+          succeededImages.push(child);
+        }
+      }
+    }
+  }
+
+  const handleImageClick = (image: CanvasImage, target?: CanvasImage) => {
+    const toOpen = target ?? image;
+    const idx = succeededImages.findIndex(img => img.id === toOpen.id);
     if (idx >= 0) {
       setViewerIndex(idx);
       setViewerOpen(true);
@@ -261,16 +319,22 @@ export function CanvasMasonryGrid({ filterMode }: CanvasMasonryGridProps) {
       img.generationId
   ).length;
 
-  if (allImages.length === 0) {
+  if (displayImages.length === 0) {
     return (
       <div
         ref={containerRef}
         className="flex h-full items-center justify-center text-muted-foreground"
       >
         <p className="text-sm">
-          {filterMode === "conversations"
-            ? "No conversation images yet."
-            : "No images yet. Generate your first image!"}
+          {(() => {
+            if (filterMode === "conversations") {
+              return "No conversation images yet.";
+            }
+            if (filterMode === "edits") {
+              return "No edited images yet.";
+            }
+            return "No images yet. Generate your first image!";
+          })()}
         </p>
       </div>
     );
@@ -282,8 +346,8 @@ export function CanvasMasonryGrid({ filterMode }: CanvasMasonryGridProps) {
     { length: columnCount },
     () => []
   );
-  for (let i = 0; i < allImages.length; i++) {
-    const image = allImages[i];
+  for (let i = 0; i < displayImages.length; i++) {
+    const image = displayImages[i];
     if (image) {
       columns[i % columnCount]?.push(image);
     }
@@ -304,9 +368,14 @@ export function CanvasMasonryGrid({ filterMode }: CanvasMasonryGridProps) {
               <CanvasGridCard
                 key={image.id}
                 image={image}
+                editChildren={
+                  image.generationId
+                    ? editChildrenMap.get(image.generationId)
+                    : undefined
+                }
                 onClick={
                   image.status === "succeeded" && image.imageUrl
-                    ? () => handleImageClick(image)
+                    ? (target?: CanvasImage) => handleImageClick(image, target)
                     : undefined
                 }
                 onRequestDelete={handleRequestDelete}
@@ -314,15 +383,6 @@ export function CanvasMasonryGrid({ filterMode }: CanvasMasonryGridProps) {
             ))}
           </div>
         ))}
-
-        <CanvasImageViewer
-          images={succeededImages}
-          currentIndex={viewerIndex}
-          open={viewerOpen}
-          onOpenChange={setViewerOpen}
-          onIndexChange={setViewerIndex}
-          onRequestDelete={handleRequestDelete}
-        />
       </div>
 
       {/* Batch action bar */}
@@ -394,6 +454,16 @@ export function CanvasMasonryGrid({ filterMode }: CanvasMasonryGridProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Image viewer modal */}
+      <CanvasImageViewer
+        images={succeededImages}
+        currentIndex={viewerIndex}
+        open={viewerOpen}
+        onOpenChange={setViewerOpen}
+        onIndexChange={setViewerIndex}
+        onRequestDelete={handleRequestDelete}
+      />
     </>
   );
 }

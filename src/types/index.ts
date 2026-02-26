@@ -446,6 +446,10 @@ export type CanvasImage = {
   // Canvas-specific
   generationId?: Id<"generations">;
   batchId?: string;
+  parentGenerationId?: Id<"generations">;
+  rootGenerationId?: Id<"generations">;
+  editCount?: number;
+  referenceImageUrls?: string[];
   upscales: UpscaleEntry[];
   // Conversation-specific
   messageId?: Id<"messages">;

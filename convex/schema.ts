@@ -167,7 +167,9 @@ export default defineSchema({
     .index("by_user_created", ["userId", "createdAt"])
     .index("by_user_status", ["userId", "status", "createdAt"])
     .index("by_replicate_id", ["replicateId"])
-    .index("by_batch", ["batchId", "createdAt"]),
+    .index("by_batch", ["batchId", "createdAt"])
+    .index("by_parent", ["parentGenerationId", "createdAt"])
+    .index("by_root", ["rootGenerationId", "createdAt"]),
 
   userFiles: defineTable(userFileSchema)
     .index("by_user_created", ["userId", "createdAt"])
