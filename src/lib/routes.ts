@@ -20,6 +20,7 @@ export const ROUTES = {
     PERSONAS_EDIT: (id: string) => `/settings/personas/${id}/edit`,
   },
   CANVAS: "/canvas",
+  CANVAS_IMAGE: (generationId: string) => `/canvas/image/${generationId}`,
   FAVORITES: "/chat/favorites",
   NOT_FOUND: "/404",
 } as const;

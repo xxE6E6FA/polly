@@ -7,12 +7,17 @@ import {
   CaretLeftIcon,
   CaretRightIcon,
   ClockIcon,
+  ImageIcon,
+  PencilSimpleIcon,
   SparkleIcon,
+  StackSimpleIcon,
+  TreeStructureIcon,
   XIcon,
 } from "@phosphor-icons/react";
 import { useAction, useMutation } from "convex/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useNavigate } from "react-router-dom";
 import { CopyIcon } from "@/components/animate-ui/icons/copy";
 import { DownloadIcon } from "@/components/animate-ui/icons/download";
 import { TrashIcon } from "@/components/animate-ui/icons/trash";
@@ -28,6 +33,7 @@ import {
   downloadFromUrl,
   generateImageFilename,
 } from "@/lib/export";
+import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/providers/toast-context";
 import { useCanvasStore } from "@/stores/canvas-store";
@@ -91,6 +97,7 @@ export function CanvasImageViewer({
   const managedToast = useToast();
   const imageAreaRef = useRef<HTMLDivElement>(null);
   const [activeVersionId, setActiveVersionId] = useState<string>("original");
+  const [sourcePreviewUrl, setSourcePreviewUrl] = useState<string | null>(null);
   const [creativePreset, setCreativePreset] =
     useState<CreativePresetId>("auto");
   const [upscalePrompt, setUpscalePrompt] = useState("");
@@ -113,6 +120,7 @@ export function CanvasImageViewer({
   const upscaleCount = image?.upscales.length ?? 0;
   // biome-ignore lint/correctness/useExhaustiveDependencies: reset on image change or new upscale completion
   useEffect(() => {
+    setSourcePreviewUrl(null);
     if (succeededUpscales.length > 0) {
       const latest = succeededUpscales[succeededUpscales.length - 1];
       if (latest) {
@@ -122,6 +130,8 @@ export function CanvasImageViewer({
       setActiveVersionId("original");
     }
   }, [currentIndex, upscaleCount]);
+
+  const navigate = useNavigate();
 
   // Resolve active image URL
   const activeUpscale = succeededUpscales.find(u => u.id === activeVersionId);
@@ -527,19 +537,46 @@ export function CanvasImageViewer({
                 <TooltipContent>Download image</TooltipContent>
               </Tooltip>
               {image.source === "canvas" && image.generationId && (
-                <Tooltip>
-                  <TooltipTrigger>
-                    <button
-                      type="button"
-                      className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-destructive"
-                      onClick={handleDelete}
-                      aria-label="Delete image"
-                    >
-                      <TrashIcon animateOnHover size={16} />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent>Delete image</TooltipContent>
-                </Tooltip>
+                <>
+                  <Tooltip>
+                    <TooltipTrigger>
+                      <button
+                        type="button"
+                        className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-destructive"
+                        onClick={handleDelete}
+                        aria-label="Delete image"
+                      >
+                        <TrashIcon animateOnHover size={16} />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>Delete image</TooltipContent>
+                  </Tooltip>
+                  {image.status === "succeeded" && (
+                    <Tooltip>
+                      <TooltipTrigger>
+                        <button
+                          type="button"
+                          className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                          onClick={() => {
+                            if (!image.generationId) {
+                              return;
+                            }
+                            // Navigate directly — don't close the viewer first
+                            // to avoid a flash between the viewer closing and the
+                            // edit modal opening. The edit modal's backdrop covers
+                            // the viewer, and the viewer unmounts when the user
+                            // navigates back to /canvas.
+                            navigate(ROUTES.CANVAS_IMAGE(image.generationId));
+                          }}
+                          aria-label="Edit image"
+                        >
+                          <PencilSimpleIcon className="size-4" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent>Edit image</TooltipContent>
+                    </Tooltip>
+                  )}
+                </>
               )}
               <Tooltip>
                 <TooltipTrigger>
@@ -616,37 +653,103 @@ export function CanvasImageViewer({
           {/* Prompt + Upscale section (scrollable) */}
           <div className="flex-1 overflow-y-auto px-5 py-4">
             {image.prompt && (
-              <div className="stack-sm">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                    Prompt
-                  </h3>
-                  <Tooltip>
-                    <TooltipTrigger>
-                      <button
-                        type="button"
-                        className="flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                        onClick={() =>
-                          handleCopyText(image.prompt ?? "", "Prompt")
-                        }
-                        aria-label="Copy prompt"
-                      >
-                        <CopyIcon animateOnHover size={14} />
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent>Copy prompt</TooltipContent>
-                  </Tooltip>
-                </div>
-                <p className="text-sm leading-relaxed text-foreground/90">
+              <div className="group/prompt relative">
+                <p className="text-sm leading-relaxed text-foreground/90 pr-7">
                   {image.prompt}
                 </p>
+                <Tooltip>
+                  <TooltipTrigger>
+                    <button
+                      type="button"
+                      className="absolute right-0 top-0 flex size-6 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-all hover:bg-muted hover:text-foreground group-hover/prompt:opacity-100"
+                      onClick={() =>
+                        handleCopyText(image.prompt ?? "", "Prompt")
+                      }
+                      aria-label="Copy prompt"
+                    >
+                      <CopyIcon animateOnHover size={14} />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>Copy prompt</TooltipContent>
+                </Tooltip>
               </div>
             )}
+
+            {/* Input images section */}
+            {image.referenceImageUrls &&
+              image.referenceImageUrls.length > 0 && (
+                <div className="mt-4 border-t border-border/40 pt-4">
+                  <h3 className="mb-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    <ImageIcon className="mr-1.5 inline size-3.5 align-[-2px]" />
+                    Input Images
+                  </h3>
+                  <div className="flex gap-2">
+                    {image.referenceImageUrls.map((url, idx) => (
+                      <button
+                        key={url}
+                        type="button"
+                        className="relative size-14 shrink-0 overflow-hidden rounded-lg ring-1 ring-border/40 transition-all hover:ring-2 hover:ring-primary/50"
+                        onClick={() => setSourcePreviewUrl(url)}
+                      >
+                        <img
+                          src={url}
+                          alt={`Source ${idx + 1}`}
+                          className="h-full w-full object-cover"
+                        />
+                        <span className="absolute inset-x-0 bottom-0 bg-black/60 px-1.5 py-0.5 text-center text-[10px] font-medium text-white backdrop-blur-sm">
+                          Source
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+            {/* Edit tree section */}
+            {image.source === "canvas" &&
+              image.generationId &&
+              !image.parentGenerationId &&
+              (image.editCount ?? 0) > 0 && (
+                <div className="mt-4 border-t border-border/40 pt-4">
+                  <h3 className="mb-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    <TreeStructureIcon className="mr-1.5 inline size-3.5 align-[-2px]" />
+                    Edits ({image.editCount})
+                  </h3>
+                  <button
+                    type="button"
+                    className="flex w-full items-center gap-3 rounded-lg border border-border/40 p-2.5 text-left transition-colors hover:bg-muted/50"
+                    onClick={() => {
+                      if (image.generationId) {
+                        navigate(ROUTES.CANVAS_IMAGE(image.generationId));
+                      }
+                    }}
+                  >
+                    <div className="relative size-10 shrink-0 overflow-hidden rounded-md ring-1 ring-border/40">
+                      <img
+                        src={image.imageUrl}
+                        alt="Edit tree"
+                        className="h-full w-full object-cover"
+                      />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-foreground">
+                        {image.prompt || "Edit tree"}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {image.editCount} edit
+                        {(image.editCount ?? 0) > 1 ? "s" : ""}
+                      </p>
+                    </div>
+                    <CaretRightIcon className="size-4 shrink-0 text-muted-foreground" />
+                  </button>
+                </div>
+              )}
 
             {/* Upscale section */}
             {image.source === "canvas" && image.generationId && (
               <div className="mt-4 border-t border-border/40 pt-4">
                 <h3 className="mb-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  <ArrowsOutIcon className="mr-1.5 inline size-3.5 align-[-2px]" />
                   Upscale
                 </h3>
 
@@ -799,6 +902,7 @@ export function CanvasImageViewer({
                 {(succeededUpscales.length > 0 || inProgressUpscale) && (
                   <div className="mt-4 border-t border-border/40 pt-4">
                     <h3 className="mb-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                      <StackSimpleIcon className="mr-1.5 inline size-3.5 align-[-2px]" />
                       Versions
                     </h3>
                     <div className="grid grid-cols-3 gap-2">
@@ -895,6 +999,38 @@ export function CanvasImageViewer({
           </div>
         </div>
       </div>
+      {/* Source image preview modal */}
+      {sourcePreviewUrl && (
+        <div
+          className="fixed inset-0 z-modal flex items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in-0 [animation-duration:150ms]"
+          onClick={() => setSourcePreviewUrl(null)}
+          onKeyDown={e => {
+            if (e.key === "Escape") {
+              e.stopPropagation();
+              setSourcePreviewUrl(null);
+            }
+          }}
+        >
+          <div className="absolute right-4 top-4">
+            <button
+              type="button"
+              className="flex size-9 items-center justify-center rounded-full bg-white/10 text-white/80 transition-colors hover:bg-white/20"
+              onClick={() => setSourcePreviewUrl(null)}
+              aria-label="Close preview"
+            >
+              <XIcon className="size-5" />
+            </button>
+          </div>
+          <img
+            src={sourcePreviewUrl}
+            alt="Source preview"
+            className="max-h-[85vh] max-w-[85vw] rounded-lg object-contain drop-shadow-2xl animate-in zoom-in-95 fade-in-0 [animation-duration:150ms]"
+            onClick={e => e.stopPropagation()}
+            onKeyDown={e => e.stopPropagation()}
+            draggable={false}
+          />
+        </div>
+      )}
     </div>,
     document.getElementById("root") ?? document.body
   );

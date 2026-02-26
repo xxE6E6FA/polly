@@ -1,62 +1,24 @@
 import { ArrowLeftIcon } from "@phosphor-icons/react";
 import { useCallback } from "react";
-import { Link } from "react-router-dom";
+import { Link, Outlet } from "react-router-dom";
 import { PanelLeftIcon } from "@/components/animate-ui/icons/panel-left";
+import { CanvasGateCheck } from "@/components/canvas/canvas-gate-check";
 import {
   CanvasGenerateButton,
   CanvasGenerationForm,
 } from "@/components/canvas/canvas-generation-form";
 import { CanvasMasonryGrid } from "@/components/canvas/canvas-masonry-grid";
 import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
-import { useReplicateApiKey } from "@/hooks/use-replicate-api-key";
 import { ROUTES } from "@/lib/routes";
 import type { CanvasFilterMode } from "@/stores/canvas-store";
 import { useCanvasStore } from "@/stores/canvas-store";
-
-function CanvasGateCheck({ children }: { children: React.ReactNode }) {
-  const { hasReplicateApiKey, isLoading } = useReplicateApiKey();
-
-  if (isLoading) {
-    return (
-      <div className="flex h-[100dvh] items-center justify-center">
-        <Spinner />
-      </div>
-    );
-  }
-
-  if (!hasReplicateApiKey) {
-    return (
-      <div className="flex h-[100dvh] items-center justify-center">
-        <div className="mx-auto max-w-md text-center stack-md">
-          <h2 className="text-lg font-semibold">Replicate API Key Required</h2>
-          <p className="text-sm text-muted-foreground">
-            Canvas mode uses your Replicate API key for image generation. Add
-            your key in settings to get started.
-          </p>
-          <div className="flex items-center justify-center gap-3">
-            <Link to={ROUTES.HOME}>
-              <Button variant="ghost" size="sm">
-                Back to Chat
-              </Button>
-            </Link>
-            <Link to={ROUTES.SETTINGS.API_KEYS}>
-              <Button size="sm">Add API Key</Button>
-            </Link>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  return <>{children}</>;
-}
 
 const FILTER_OPTIONS: { label: string; value: CanvasFilterMode }[] = [
   { label: "All", value: "all" },
   { label: "Canvas", value: "canvas" },
   { label: "Conversations", value: "conversations" },
   { label: "Upscaled", value: "upscaled" },
+  { label: "Edits", value: "edits" },
 ];
 
 export default function CanvasPage() {
@@ -235,6 +197,9 @@ export default function CanvasPage() {
           </div>
         </div>
       </div>
+
+      {/* Child route overlay (image detail modal) */}
+      <Outlet />
     </CanvasGateCheck>
   );
 }

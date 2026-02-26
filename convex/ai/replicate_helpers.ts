@@ -205,39 +205,39 @@ export function convertAspectRatioToDimensions(aspectRatio: string): {
   width: number;
   height: number;
 } {
-  const baseSize = 1024; // Standard size for most models (already divisible by 8)
+  const baseSize = 1024; // Standard size for most models (already divisible by 16)
 
-  // Helper to round to nearest multiple of 8
-  const roundToMultipleOf8 = (value: number): number => {
-    return Math.round(value / 8) * 8;
+  // Helper to round to nearest multiple of 16 (some edit models require this)
+  const roundToMultipleOf16 = (value: number): number => {
+    return Math.round(value / 16) * 16;
   };
 
   switch (aspectRatio) {
     case "1:1":
       return { width: baseSize, height: baseSize }; // 1024x1024
     case "16:9":
-      // 16:9 ratio from 1024 height = 1820x1024, round to 1824x1024
+      // 16:9 ratio from 1024 height = 1820x1024, round to 1824x1024 (divisible by 16)
       return {
-        width: roundToMultipleOf8(baseSize * (16 / 9)),
+        width: roundToMultipleOf16(baseSize * (16 / 9)),
         height: baseSize,
       };
     case "9:16":
       // 9:16 ratio from 1024 width = 1024x1820, round to 1024x1824
       return {
         width: baseSize,
-        height: roundToMultipleOf8(baseSize * (16 / 9)),
+        height: roundToMultipleOf16(baseSize * (16 / 9)),
       };
     case "4:3":
-      // 4:3 ratio from 1024 height = 1365x1024, round to 1368x1024
+      // 4:3 ratio from 1024 height = 1365x1024, round to 1360x1024
       return {
-        width: roundToMultipleOf8(baseSize * (4 / 3)),
+        width: roundToMultipleOf16(baseSize * (4 / 3)),
         height: baseSize,
       };
     case "3:4":
-      // 3:4 ratio from 1024 width = 1024x1365, round to 1024x1368
+      // 3:4 ratio from 1024 width = 1024x1365, round to 1024x1360
       return {
         width: baseSize,
-        height: roundToMultipleOf8(baseSize * (4 / 3)),
+        height: roundToMultipleOf16(baseSize * (4 / 3)),
       };
     default: {
       // Parse custom ratio like "3:2"
@@ -247,14 +247,14 @@ export function convertAspectRatioToDimensions(aspectRatio: string): {
         if (ratio > 1) {
           // Landscape: fix height, calculate width
           return {
-            width: roundToMultipleOf8(baseSize * ratio),
+            width: roundToMultipleOf16(baseSize * ratio),
             height: baseSize,
           };
         } else {
           // Portrait: fix width, calculate height
           return {
             width: baseSize,
-            height: roundToMultipleOf8(baseSize / ratio),
+            height: roundToMultipleOf16(baseSize / ratio),
           };
         }
       }

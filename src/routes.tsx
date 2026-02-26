@@ -53,6 +53,7 @@ const SettingsEditPersonaPage = lazy(
   () => import("./pages/settings/edit-persona-page")
 );
 const CanvasPage = lazy(() => import("./pages/canvas-page"));
+const CanvasImagePage = lazy(() => import("./pages/canvas-image-page"));
 const SignOutPage = lazy(() => import("./pages/sign-out-page"));
 
 const PageLoader = ({
@@ -143,6 +144,12 @@ export const routes: RouteObject[] = [
           </ProtectedSuspense>
         ),
         errorElement: routeErrorElement,
+        children: [
+          {
+            path: "image/:generationId",
+            element: withSuspense(<CanvasImagePage />),
+          },
+        ],
       },
       {
         path: "signout",

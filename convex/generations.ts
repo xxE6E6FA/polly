@@ -13,6 +13,7 @@ import {
 import { getApiKey } from "./ai/encryption";
 import { getUserFriendlyErrorMessage } from "./ai/error_handlers";
 import {
+  convertAspectRatioToDimensions,
   detectImageInputFromSchema,
   findClosestAspectRatio,
   getAllowedAspectRatios,
@@ -20,7 +21,6 @@ import {
   isImageEditingModel,
 } from "./ai/replicate_helpers";
 import { getAuthUserId } from "./lib/auth";
-import { arrayBufferToBase64 } from "./lib/encoding";
 import { scheduleRunAfter } from "./lib/scheduler";
 import { replicateStatusValidator, type UpscaleEntryDoc } from "./lib/schemas";
 
@@ -163,7 +163,27 @@ export const listGenerations = query({
         }
         // Normalize legacy upscale → upscales array
         const upscales = await normalizeUpscales(ctx, gen);
-        return { ...gen, imageUrls, upscales };
+
+        // Count edit descendants for root images (no parentGenerationId)
+        let editCount = 0;
+        if (!gen.parentGenerationId) {
+          const descendants = await ctx.db
+            .query("generations")
+            .withIndex("by_root", q => q.eq("rootGenerationId", gen._id))
+            .collect();
+          editCount = descendants.length;
+        }
+
+        // Resolve reference image URLs
+        let referenceImageUrls: string[] = [];
+        if (gen.params?.referenceImageIds) {
+          const urls = await Promise.all(
+            gen.params.referenceImageIds.map(id => ctx.storage.getUrl(id))
+          );
+          referenceImageUrls = urls.filter((u): u is string => u !== null);
+        }
+
+        return { ...gen, imageUrls, upscales, editCount, referenceImageUrls };
       })
     );
 
@@ -455,58 +475,6 @@ async function fetchAndStoreImage(
   return ctx.storage.store(blob);
 }
 
-// Helper: convert aspect ratio to width/height (reused from replicate.ts)
-function convertAspectRatioToDimensions(aspectRatio: string): {
-  width: number;
-  height: number;
-} {
-  const baseSize = 1024;
-  const roundToMultipleOf8 = (value: number): number =>
-    Math.round(value / 8) * 8;
-
-  switch (aspectRatio) {
-    case "1:1":
-      return { width: baseSize, height: baseSize };
-    case "16:9":
-      return {
-        width: roundToMultipleOf8(baseSize * (16 / 9)),
-        height: baseSize,
-      };
-    case "9:16":
-      return {
-        width: baseSize,
-        height: roundToMultipleOf8(baseSize * (16 / 9)),
-      };
-    case "4:3":
-      return {
-        width: roundToMultipleOf8(baseSize * (4 / 3)),
-        height: baseSize,
-      };
-    case "3:4":
-      return {
-        width: baseSize,
-        height: roundToMultipleOf8(baseSize * (4 / 3)),
-      };
-    default: {
-      const [widthRatio, heightRatio] = aspectRatio.split(":").map(Number);
-      if (widthRatio && heightRatio) {
-        const ratio = widthRatio / heightRatio;
-        if (ratio > 1) {
-          return {
-            width: roundToMultipleOf8(baseSize * ratio),
-            height: baseSize,
-          };
-        }
-        return {
-          width: baseSize,
-          height: roundToMultipleOf8(baseSize / ratio),
-        };
-      }
-      return { width: baseSize, height: baseSize };
-    }
-  }
-}
-
 // Helper: detect aspect ratio support from OpenAPI schema
 function detectAspectRatioSupportFromSchema(
   // biome-ignore lint/suspicious/noExplicitAny: Replicate model data has dynamic schema structure
@@ -586,6 +554,136 @@ export const startCanvasBatch = action({
   },
 });
 
+export const startEditGeneration = action({
+  args: {
+    prompt: v.string(),
+    modelId: v.string(),
+    parentGenerationId: v.id("generations"),
+    params: v.optional(
+      v.object({
+        aspectRatio: v.optional(v.string()),
+      })
+    ),
+  },
+  returns: v.object({ generationId: v.id("generations") }),
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("Not authenticated");
+    }
+
+    // Fetch parent to get source image and lineage
+    // biome-ignore lint/suspicious/noExplicitAny: Break circular type inference in Convex action
+    const parent: any = await ctx.runQuery(
+      internal.generations.internalGetGeneration,
+      { id: args.parentGenerationId }
+    );
+    if (!parent || parent.userId !== userId) {
+      throw new Error("Parent generation not found");
+    }
+    if (parent.status !== "succeeded") {
+      throw new Error("Only succeeded images can be edited");
+    }
+    if (!parent.storageIds || parent.storageIds.length === 0) {
+      throw new Error("No image to edit");
+    }
+
+    // Compute root: inherit from parent, or parent IS the root
+    const rootGenerationId = parent.rootGenerationId ?? args.parentGenerationId;
+
+    // Inherit aspect ratio from parent if not specified
+    const aspectRatio = args.params?.aspectRatio ?? parent.params?.aspectRatio;
+
+    // Use parent's storageIds as reference images
+    const referenceImageIds = parent.storageIds;
+
+    const generationId: Id<"generations"> = await ctx.runMutation(
+      internal.generations.internalCreateGeneration,
+      {
+        userId,
+        prompt: args.prompt,
+        model: args.modelId,
+        provider: "replicate",
+        params: {
+          aspectRatio,
+          referenceImageIds,
+        },
+        parentGenerationId: args.parentGenerationId,
+        rootGenerationId,
+      }
+    );
+
+    // Schedule generation — reuses existing runner which handles referenceImageIds
+    await scheduleRunAfter(ctx, 0, internal.generations.runCanvasGeneration, {
+      generationId,
+      userId,
+    });
+
+    return { generationId };
+  },
+});
+
+export const getEditTree = query({
+  args: { rootId: v.id("generations") },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      return [];
+    }
+
+    // Fetch root
+    const root = await ctx.db.get(args.rootId);
+    if (!root || root.userId !== userId) {
+      return [];
+    }
+
+    // Fetch all descendants via by_root index
+    const descendants = await ctx.db
+      .query("generations")
+      .withIndex("by_root", q => q.eq("rootGenerationId", args.rootId))
+      .order("asc")
+      .collect();
+
+    // Combine root + descendants, resolve URLs
+    const all = [root, ...descendants];
+    return Promise.all(
+      all.map(async gen => {
+        let imageUrl: string | undefined;
+        if (gen.storageIds && gen.storageIds.length > 0 && gen.storageIds[0]) {
+          imageUrl = (await ctx.storage.getUrl(gen.storageIds[0])) ?? undefined;
+        }
+        return {
+          _id: gen._id,
+          prompt: gen.prompt,
+          model: gen.model,
+          status: gen.status,
+          parentGenerationId: gen.parentGenerationId,
+          rootGenerationId: gen.rootGenerationId,
+          imageUrl,
+          error: gen.error,
+          createdAt: gen.createdAt,
+          aspectRatio: gen.params?.aspectRatio,
+        };
+      })
+    );
+  },
+});
+
+export const getEditDescendantCount = query({
+  args: { rootId: v.id("generations") },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      return 0;
+    }
+    const descendants = await ctx.db
+      .query("generations")
+      .withIndex("by_root", q => q.eq("rootGenerationId", args.rootId))
+      .collect();
+    return descendants.filter(d => d.userId === userId).length;
+  },
+});
+
 // Internal mutation for actions to create generation rows
 export const internalCreateGeneration = internalMutation({
   args: {
@@ -608,6 +706,8 @@ export const internalCreateGeneration = internalMutation({
       })
     ),
     batchId: v.optional(v.string()),
+    parentGenerationId: v.optional(v.id("generations")),
+    rootGenerationId: v.optional(v.id("generations")),
   },
   handler: (ctx, args) => {
     return ctx.db.insert("generations", {
@@ -618,6 +718,8 @@ export const internalCreateGeneration = internalMutation({
       status: "pending",
       params: args.params,
       batchId: args.batchId,
+      parentGenerationId: args.parentGenerationId,
+      rootGenerationId: args.rootGenerationId,
       createdAt: Date.now(),
     });
   },
@@ -797,42 +899,35 @@ export const runCanvasGeneration = internalAction({
           schemaDetected ?? (isEditing ? getImageInputConfig(gen.model) : null);
 
         if (imageInputConfig) {
-          // Convert storage IDs to data URIs (same pattern as resolveImageUrlsFromAttachments)
-          const dataUris: string[] = [];
+          // Pass storage URLs directly to Replicate (avoids OOM from base64 encoding large images).
+          // Replicate fetches the URL server-side — same pattern as the upscaler.
+          const imageUrls: string[] = [];
           for (const storageId of gen.params.referenceImageIds) {
             const storageUrl = await ctx.storage.getUrl(storageId);
             if (!storageUrl) {
               continue;
             }
-            const imgResponse = await fetch(storageUrl);
-            if (!imgResponse.ok) {
-              continue;
-            }
-            const buffer = await imgResponse.arrayBuffer();
-            const base64 = arrayBufferToBase64(buffer);
-            const mimeType =
-              imgResponse.headers.get("content-type") || "image/jpeg";
-            dataUris.push(`data:${mimeType};base64,${base64}`);
+            imageUrls.push(storageUrl);
           }
 
-          if (dataUris.length > 0) {
+          if (imageUrls.length > 0) {
             if (imageInputConfig.isMessage) {
               input[imageInputConfig.paramName] = [
                 {
                   role: "user",
                   content: [
                     { type: "text", text: gen.prompt },
-                    ...dataUris.map(uri => ({
+                    ...imageUrls.map(url => ({
                       type: "image_url",
-                      image_url: { url: uri },
+                      image_url: { url },
                     })),
                   ],
                 },
               ];
             } else {
               input[imageInputConfig.paramName] = imageInputConfig.isArray
-                ? dataUris
-                : dataUris[0];
+                ? imageUrls
+                : imageUrls[0];
             }
           }
         }
