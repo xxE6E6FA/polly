@@ -90,20 +90,16 @@ function PendingCard({ image }: { image: CanvasImage }) {
 
   return (
     <div
-      className="group relative overflow-hidden rounded-lg border border-border/40 bg-muted/30"
+      className="group relative overflow-hidden rounded-lg border border-border/40"
       style={{ aspectRatio: formatAspectRatio(image.aspectRatio) }}
     >
-      <div className="absolute inset-0 animate-pulse bg-muted/50" />
+      <div className="absolute inset-0">
+        <div className="size-full skeleton-surface rounded-lg" />
+      </div>
       <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-4">
-        <Spinner />
         <span className="text-xs font-medium text-muted-foreground">
-          {formatModelName(image.model)}
+          Generating image…
         </span>
-        {image.prompt && (
-          <p className="line-clamp-2 text-center text-xs text-muted-foreground/70">
-            {image.prompt}
-          </p>
-        )}
       </div>
       {image.generationId && (
         <Tooltip>
@@ -247,6 +243,9 @@ function SucceededCard({
   const inProgressUpscale = image.upscales.find(isUpscaleInProgress);
   const isUpscaling = !!inProgressUpscale;
 
+  // Image load state — keeps skeleton visible until the image is decoded
+  const [imageLoaded, setImageLoaded] = useState(false);
+
   // Filmstrip hover state — null means show original
   const [hoveredEditIndex, setHoveredEditIndex] = useState<number | null>(null);
   const edits = editChildren ?? [];
@@ -328,6 +327,11 @@ function SucceededCard({
       className={`group relative overflow-hidden rounded-lg border bg-muted/30 transition-[border-color,box-shadow] duration-200 hover:shadow-md ${
         isSelecting ? "cursor-pointer" : "cursor-zoom-in"
       } ${isSelected ? "border-primary ring-2 ring-primary/30" : "border-border/40"}`}
+      style={
+        imageLoaded
+          ? undefined
+          : { aspectRatio: formatAspectRatio(image.aspectRatio) }
+      }
       onClick={handleClick}
       onKeyDown={e => {
         if (e.key === "Enter" || e.key === " ") {
@@ -338,11 +342,21 @@ function SucceededCard({
       tabIndex={0}
       role="button"
     >
+      {/* Skeleton — fades out when image loads */}
+      <div
+        className={`absolute inset-0 transition-opacity duration-500 ease-out ${
+          imageLoaded ? "pointer-events-none opacity-0" : "opacity-100"
+        }`}
+      >
+        <div className="size-full skeleton-surface rounded-lg" />
+      </div>
       <img
         src={displayUrl}
         alt={image.prompt || "Generated image"}
-        className="block w-full transition-transform duration-500 ease-out group-hover:scale-[1.03]"
-        loading="lazy"
+        className={`block w-full transition-[transform,opacity] duration-500 ease-out group-hover:scale-[1.03] ${
+          imageLoaded ? "opacity-100" : "opacity-0"
+        }`}
+        onLoad={() => setImageLoaded(true)}
       />
 
       {/* Upscaling overlay */}
@@ -495,25 +509,45 @@ function SucceededCard({
               />
             </button>
             {/* Edit thumbnails */}
-            {edits.map((edit, idx) => (
-              <button
-                key={edit.id}
-                type="button"
-                className={`relative size-8 shrink-0 overflow-hidden rounded-sm ring-1.5 transition-all ${
-                  hoveredEditIndex === idx
-                    ? "ring-white shadow-sm"
-                    : "ring-white/30 hover:ring-white/60"
-                }`}
-                onMouseEnter={() => setHoveredEditIndex(idx)}
-                onClick={() => onClick?.(edit)}
-              >
-                <img
-                  src={edit.imageUrl}
-                  alt={`Edit ${idx + 1}`}
-                  className="size-full object-cover"
-                />
-              </button>
-            ))}
+            {edits.map((edit, idx) => {
+              const editPending =
+                edit.status === "pending" ||
+                edit.status === "starting" ||
+                edit.status === "processing";
+              return (
+                <button
+                  key={edit.id}
+                  type="button"
+                  className={`relative size-8 shrink-0 overflow-hidden rounded-sm ring-1.5 transition-all ${
+                    hoveredEditIndex === idx
+                      ? "ring-white shadow-sm"
+                      : "ring-white/30 hover:ring-white/60"
+                  }`}
+                  onMouseEnter={() => {
+                    if (!editPending) {
+                      setHoveredEditIndex(idx);
+                    }
+                  }}
+                  onClick={() => {
+                    if (!editPending) {
+                      onClick?.(edit);
+                    }
+                  }}
+                >
+                  {editPending ? (
+                    <div className="flex size-full items-center justify-center bg-muted/30">
+                      <Spinner className="size-3" />
+                    </div>
+                  ) : (
+                    <img
+                      src={edit.imageUrl}
+                      alt={`Edit ${idx + 1}`}
+                      className="size-full object-cover"
+                    />
+                  )}
+                </button>
+              );
+            })}
           </div>
         </div>
       )}

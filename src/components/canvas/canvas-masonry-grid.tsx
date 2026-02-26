@@ -169,7 +169,11 @@ export function CanvasMasonryGrid({ filterMode }: CanvasMasonryGridProps) {
   const editChildrenMap = new Map<string, CanvasImage[]>();
   if (filterMode !== "edits") {
     for (const img of allImages) {
-      if (img.parentGenerationId && img.status === "succeeded") {
+      if (
+        img.parentGenerationId &&
+        img.status !== "failed" &&
+        img.status !== "canceled"
+      ) {
         const rootId = img.rootGenerationId ?? img.parentGenerationId;
         if (rootId) {
           let children = editChildrenMap.get(rootId);

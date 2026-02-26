@@ -335,12 +335,12 @@ export default function CanvasImagePage() {
             <Spinner className="size-5 text-muted-foreground" />
           </div>
         ) : (
-          <div className="flex items-center gap-3">
-            {/* Thumbnail strip */}
+          <div className="relative flex items-center justify-center">
+            {/* Thumbnail strip — positioned outside the hero so it doesn't shift centering */}
             {editTree.length > 1 && (
               <div
                 ref={thumbStripRef}
-                className="flex max-h-[70vh] flex-col gap-1.5 overflow-y-auto scrollbar-none"
+                className="absolute right-full mr-3 flex max-h-[70vh] flex-col gap-1.5 overflow-y-auto scrollbar-none"
               >
                 {editTree.map((node, idx) => (
                   <Tooltip key={node._id}>
@@ -525,12 +525,9 @@ export default function CanvasImagePage() {
                       className="relative flex items-center justify-center rounded-lg skeleton-surface"
                       style={sizeStyle}
                     >
-                      <div className="flex flex-col items-center gap-2">
-                        <Spinner />
-                        <span className="text-xs font-medium text-muted-foreground">
-                          Generating edit…
-                        </span>
-                      </div>
+                      <span className="text-xs font-medium text-muted-foreground">
+                        Generating edit…
+                      </span>
                       {activeNode && (
                         <Tooltip>
                           <TooltipTrigger>
