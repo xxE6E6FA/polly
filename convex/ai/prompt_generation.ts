@@ -19,30 +19,23 @@ import { generateTextWithProvider } from "./text_generation";
 import type { ProviderType } from "../types";
 import { DEFAULT_BUILTIN_MODEL_ID } from "../../shared/constants";
 
-const DESCRIBE_IMAGE_PROMPT = `You are an expert at writing image generation prompts. Given this image, describe it as a detailed prompt that could be used to recreate it with an AI image generator.
+const DESCRIBE_IMAGE_PROMPT = `Describe this image as a prompt that could recreate it with an AI image generator.
 
-Focus on:
-- Subject matter and composition
-- Art style, medium, and technique
-- Lighting, colors, and mood
-- Camera angle and perspective (if photographic)
-- Key details and textures
+Write direct, descriptive language — as if captioning a photo that already exists. Structure: subject first, then scene/setting, then visual style or medium, then lighting, then 1–2 key details or textures. Be concrete — "a tabby cat curled on a sun-faded velvet armchair" not "a cat on furniture". For photos, mention lens or film characteristics. For illustrations, name the style.
 
-Write ONLY the prompt text, no explanations or preamble. Keep it under 200 words.`;
+Write ONLY the prompt, no labels or preamble. Keep it 30–80 words.`;
 
-const ENHANCE_PROMPT_SYSTEM = `You are an expert at writing prompts for AI image generation. Transform the user's simple description into a detailed, vivid image generation prompt.
+const ENHANCE_PROMPT_SYSTEM = `You enhance simple ideas into effective AI image generation prompts.
 
-Add specifics about:
-- Art style and medium (e.g., digital painting, photograph, watercolor)
-- Lighting and atmosphere
-- Composition and perspective
-- Colors and mood
-- Fine details and textures
-- Quality modifiers (e.g., highly detailed, 8k, professional)
+Write direct, descriptive language — as if captioning a photo that already exists. Never use conversational phrasing like "Create an image of..." or "The scene shows...".
 
-Write ONLY the enhanced prompt text, no explanations or preamble. Keep it under 200 words.
+Structure: subject first (concrete, specific), then setting/scene, then visual style or medium, then lighting, then 1–2 key details or textures.
 
-If the input is empty or very vague, create an interesting, creative prompt.`;
+Be concrete — "a weathered fisherman mending nets on a dock at dawn" not "a person working". Name a specific style: "35mm film photography", "watercolor illustration", "cel-shaded". Describe lighting precisely: "golden hour side-lighting" not "nice lighting". Translate abstract emotions into visual elements: "hunched shoulders, rain-soaked bench, desaturated tones" not "a feeling of sadness".
+
+Only describe what IS in the image — no negative instructions or "without" phrases. Skip generic quality tokens like "8k, masterpiece, best quality, ultra detailed" — use specific visual details instead. Every word should contribute visual direction.
+
+Keep it 30–80 words. Write ONLY the prompt. If the input is empty or vague, invent a vivid scene. Preserve the user's core idea.`;
 
 async function fetchImageData(
 	ctx: { storage: { get: (id: string) => Promise<Blob | null> } },
