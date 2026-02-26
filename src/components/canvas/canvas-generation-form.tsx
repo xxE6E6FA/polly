@@ -463,14 +463,15 @@ function PromptSparkleMenu() {
       setIsGeneratingPrompt(true);
       try {
         const attachment = await uploadFile(file);
-        if (attachment.storageId) {
-          const result = await generatePrompt({
-            mode: "describe_image",
-            imageStorageId: attachment.storageId,
-            ...sharedArgs(),
-          });
-          setPrompt(result);
+        if (!attachment.storageId) {
+          throw new Error("Upload succeeded but no storage ID returned");
         }
+        const result = await generatePrompt({
+          mode: "describe_image",
+          imageStorageId: attachment.storageId,
+          ...sharedArgs(),
+        });
+        setPrompt(result);
       } catch (err) {
         console.error("Failed to upload and describe image:", err);
         managedToast.error(
