@@ -65,10 +65,13 @@ export {
   bufferIncompleteEntities,
   convertCitationsToMarkdownLinks,
   decodeMinimalEntities,
+  MathCode,
   normalizeEscapedMarkdown,
   normalizeLatexDelimiters,
   removeParenthesesAroundItalics,
   renderTextWithMathAndCitations,
+  tryRenderMath,
+  wrapMathInCodeSpans,
 } from "./markdown-utils";
 
 // =============================================================================

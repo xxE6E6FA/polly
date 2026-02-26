@@ -1,6 +1,13 @@
-import Markdown from "markdown-to-jsx/react";
+import Markdown, { RuleType } from "markdown-to-jsx/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Spinner } from "@/components/ui/spinner";
+import {
+  applyHardLineBreaks,
+  MathCode,
+  renderTextWithMathAndCitations,
+  tryRenderMath,
+  wrapMathInCodeSpans,
+} from "@/lib/markdown-utils";
 import { cn } from "@/lib/utils";
 
 const ICON_SIZE = "size-4";
@@ -74,6 +81,9 @@ export function ReasoningSegment({
 
   const isOpen = expanded || isActive;
 
+  // Wrap math in backtick code spans so markdown-to-jsx preserves LaTeX verbatim.
+  const safeText = useMemo(() => wrapMathInCodeSpans(text), [text]);
+
   const reasoningContent = (
     <div className="relative max-w-[74ch]">
       <div className="py-1 text-sm leading-relaxed text-muted-foreground">
@@ -81,9 +91,29 @@ export function ReasoningSegment({
           options={{
             forceBlock: true,
             overrides: markdownOverrides,
+            renderRule(next, node) {
+              // Inline code with math delimiters → render KaTeX directly
+              if (
+                node.type === RuleType.codeInline &&
+                typeof node.text === "string"
+              ) {
+                const mathNode = tryRenderMath(node.text);
+                if (mathNode) {
+                  return mathNode;
+                }
+              }
+              if (
+                node.type === RuleType.text &&
+                typeof node.text === "string"
+              ) {
+                const transformed = renderTextWithMathAndCitations(node.text);
+                return applyHardLineBreaks(transformed);
+              }
+              return next();
+            },
           }}
         >
-          {text}
+          {safeText}
         </Markdown>
       </div>
 
@@ -186,7 +216,7 @@ const markdownOverrides = {
     },
   },
   code: {
-    component: "code" as const,
+    component: MathCode,
     props: {
       className: "rounded bg-muted/40 px-1 py-0.5 text-xs font-medium",
     },

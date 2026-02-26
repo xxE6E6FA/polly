@@ -1,3 +1,4 @@
+import TeX from "@matejmazur/react-katex";
 import React, { type ReactNode } from "react";
 import { CitationGroup } from "@/components/ui/citation-group";
 
@@ -245,6 +246,123 @@ export function applyHardLineBreaks(node: React.ReactNode): React.ReactNode {
   return node;
 }
 
+// Match display math ($$...$$, multiline) and inline math ($...$, single-line).
+// Opening $ must be preceded by start-of-string or non-alphanumeric.
+// Closing $ must NOT be followed by a digit — this prevents false matches in text
+// like "$10 and $20" while allowing "$2$", "$2p$", etc.
+const MATH_PATTERN =
+  /\$\$([^$]+?)\$\$|(?:^|(?<=\s|[^\\$\w]))\$([^$\n]+?)\$(?!\d)/g;
+
+// Wrap math expressions in inline code spans to protect them from markdown parsing.
+// Content inside backticks is preserved verbatim by markdown-to-jsx, so underscores,
+// braces, asterisks etc. in LaTeX like $d_{ij}$ won't be mangled.
+// The MathCode component override detects these and renders KaTeX.
+export function wrapMathInCodeSpans(text: string): string {
+  if (!text) {
+    return text;
+  }
+  // Split on existing inline code spans to avoid double-wrapping
+  const CODE_SPAN = /(`[^`\n]+`)/g;
+  const parts = text.split(CODE_SPAN);
+  return parts
+    .map((part, i) => {
+      // Odd indices are existing code spans — leave them alone
+      if (i % 2 === 1) {
+        return part;
+      }
+      // Even indices are regular text — wrap math in backticks
+      MATH_PATTERN.lastIndex = 0;
+      return part.replace(MATH_PATTERN, match => {
+        // Collapse newlines to spaces (KaTeX doesn't need them)
+        const collapsed = match.replace(/\n/g, " ");
+        return `\`${collapsed}\``;
+      });
+    })
+    .join("");
+}
+
+// AI models often escape markdown-sensitive characters inside math expressions
+// (e.g. $d\_{ij}$ instead of $d_{ij}$) to prevent markdown parsers from
+// mangling them. Un-escape these so KaTeX gets clean LaTeX.
+// Only un-escapes chars that are markdown formatting but NOT meaningful LaTeX
+// math-mode commands: \_ → _ (subscript), \* → * (multiplication).
+// Does NOT un-escape \{ \} \[ \] which have legitimate LaTeX meaning.
+function unescapeMarkdownInLatex(latex: string): string {
+  return latex.replace(/\\_/g, "_").replace(/\\\*/g, "*");
+}
+
+// Try to render a string as KaTeX math if it has $ delimiters.
+// Returns null if the text doesn't look like math.
+// Used by both MathCode component and renderRule for codeInline nodes.
+export function tryRenderMath(text: string): ReactNode | null {
+  // Display math: $$...$$
+  if (text.startsWith("$$") && text.endsWith("$$") && text.length > 4) {
+    const latex = unescapeMarkdownInLatex(text.slice(2, -2).trim());
+    return renderMathSegment(latex, true, "dmath");
+  }
+  // Inline math: $...$
+  if (
+    text.startsWith("$") &&
+    text.endsWith("$") &&
+    text.length > 2 &&
+    !text.startsWith("$$")
+  ) {
+    const latex = unescapeMarkdownInLatex(text.slice(1, -1));
+    return renderMathSegment(latex, false, "imath");
+  }
+  return null;
+}
+
+// Component for inline code that detects math delimiters and renders KaTeX.
+// Used as a `code` override in markdown-to-jsx to intercept backtick-wrapped math.
+export const MathCode: React.FC<React.ComponentPropsWithoutRef<"code">> =
+  React.memo(function MathCode({ children, className, ...props }) {
+    // Extract text from children — handle string or single-element array
+    let text: string | null = null;
+    if (typeof children === "string") {
+      text = children;
+    } else if (
+      Array.isArray(children) &&
+      children.length === 1 &&
+      typeof children[0] === "string"
+    ) {
+      text = children[0];
+    }
+
+    if (text) {
+      const mathNode = tryRenderMath(text);
+      if (mathNode) {
+        return mathNode;
+      }
+    }
+    // Regular code — pass through with original styling
+    return (
+      <code className={className} {...props}>
+        {children}
+      </code>
+    );
+  });
+
+function renderMathSegment(
+  latex: string,
+  display: boolean,
+  key: string
+): ReactNode {
+  return (
+    <TeX
+      key={key}
+      math={latex}
+      block={display}
+      className={display ? "katex-display" : "katex-inline"}
+      renderError={error => (
+        <span className="katex-error" title={String(error)}>
+          {latex}
+        </span>
+      )}
+    />
+  );
+}
+
 function stripDanglingClosers(text: string): string {
   return text.replace(/<\/(?:span|a|div|p|em|strong|code|pre)>/gi, "");
 }
@@ -310,6 +428,38 @@ export function renderTextWithMathAndCitations(text: string): ReactNode {
         .join("")
     );
 
-  // Math rendering disabled: only apply citation transforms
-  return renderCitationsForPlainText(sanitized);
+  // Split on math patterns, render math with KaTeX, pass rest through citations
+  const parts: ReactNode[] = [];
+  let lastIndex = 0;
+  let mathIdx = 0;
+
+  MATH_PATTERN.lastIndex = 0;
+  let match: RegExpExecArray | null = MATH_PATTERN.exec(sanitized);
+
+  while (match) {
+    const before = sanitized.slice(lastIndex, match.index);
+    if (before) {
+      parts.push(renderCitationsForPlainText(before));
+    }
+
+    const displayLatex = match[1]; // $$...$$ capture
+    const inlineLatex = match[2]; // $...$ capture
+    const isDisplay = displayLatex != null;
+    const latex = (isDisplay ? displayLatex : inlineLatex) ?? "";
+
+    parts.push(renderMathSegment(latex, isDisplay, `math-${mathIdx++}`));
+
+    lastIndex = match.index + match[0].length;
+    match = MATH_PATTERN.exec(sanitized);
+  }
+
+  const tail = sanitized.slice(lastIndex);
+  if (tail) {
+    parts.push(renderCitationsForPlainText(tail));
+  }
+
+  if (parts.length === 0) {
+    return renderCitationsForPlainText(sanitized);
+  }
+  return parts.length === 1 ? parts[0] : parts;
 }
