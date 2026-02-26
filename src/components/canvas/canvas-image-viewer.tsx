@@ -6,6 +6,7 @@ import {
   CaretDownIcon,
   CaretLeftIcon,
   CaretRightIcon,
+  ChatCircleIcon,
   ClockIcon,
   ImageIcon,
   PencilSimpleIcon,
@@ -14,7 +15,7 @@ import {
   TreeStructureIcon,
   XIcon,
 } from "@phosphor-icons/react";
-import { useAction, useMutation } from "convex/react";
+import { useAction, useMutation, useQuery } from "convex/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
@@ -132,6 +133,14 @@ export function CanvasImageViewer({
   }, [currentIndex, upscaleCount]);
 
   const navigate = useNavigate();
+
+  // Fetch conversation title for conversation-sourced images
+  const conversation = useQuery(
+    api.conversations.get,
+    image?.source === "conversation" && image.conversationId
+      ? { id: image.conversationId }
+      : "skip"
+  );
 
   // Resolve active image URL
   const activeUpscale = succeededUpscales.find(u => u.id === activeVersionId);
@@ -744,6 +753,31 @@ export function CanvasImageViewer({
                   </button>
                 </div>
               )}
+
+            {/* Conversation link */}
+            {image.source === "conversation" && image.conversationId && (
+              <div className="mt-4 border-t border-border/40 pt-4">
+                <h3 className="mb-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  <ChatCircleIcon className="mr-1.5 inline size-3.5 align-[-2px]" />
+                  Conversation
+                </h3>
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-3 rounded-lg border border-border/40 p-2.5 text-left transition-colors hover:bg-muted/50"
+                  onClick={() => {
+                    navigate(
+                      ROUTES.CHAT_CONVERSATION(image.conversationId as string)
+                    );
+                    onOpenChange(false);
+                  }}
+                >
+                  <p className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
+                    {conversation?.title ?? "Conversation"}
+                  </p>
+                  <CaretRightIcon className="size-4 shrink-0 text-muted-foreground" />
+                </button>
+              </div>
+            )}
 
             {/* Upscale section */}
             {image.source === "canvas" && image.generationId && (
