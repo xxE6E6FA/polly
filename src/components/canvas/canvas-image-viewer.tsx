@@ -1,16 +1,23 @@
+import { api } from "@convex/_generated/api";
 import {
+  ArrowClockwiseIcon,
   ArrowsClockwiseIcon,
+  ArrowsOutIcon,
+  CaretDownIcon,
   CaretLeftIcon,
   CaretRightIcon,
   ClockIcon,
+  SparkleIcon,
   XIcon,
 } from "@phosphor-icons/react";
-import { useCallback, useEffect, useRef } from "react";
+import { useAction, useMutation } from "convex/react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { CopyIcon } from "@/components/animate-ui/icons/copy";
 import { DownloadIcon } from "@/components/animate-ui/icons/download";
 import { TrashIcon } from "@/components/animate-ui/icons/trash";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Tooltip,
   TooltipContent,
@@ -21,9 +28,47 @@ import {
   downloadFromUrl,
   generateImageFilename,
 } from "@/lib/export";
+import { cn } from "@/lib/utils";
 import { useToast } from "@/providers/toast-context";
 import { useCanvasStore } from "@/stores/canvas-store";
-import type { CanvasImage } from "@/types";
+import {
+  type CanvasImage,
+  isUpscaleInProgress,
+  type UpscaleEntry,
+} from "@/types";
+
+const CREATIVE_PRESETS = [
+  {
+    id: "auto",
+    label: "Auto",
+    description: "Balanced sharpening and detail",
+    creativity: 0.3,
+    resemblance: 0.7,
+  },
+  {
+    id: "sharpen",
+    label: "Sharpen",
+    description: "Minimal changes, just clean up",
+    creativity: 0.1,
+    resemblance: 0.9,
+  },
+  {
+    id: "enhance",
+    label: "Enhance",
+    description: "Add plausible detail",
+    creativity: 0.45,
+    resemblance: 0.55,
+  },
+  {
+    id: "reimagine",
+    label: "Reimagine",
+    description: "Creative reinterpretation",
+    creativity: 0.7,
+    resemblance: 0.35,
+  },
+] as const;
+
+type CreativePresetId = (typeof CREATIVE_PRESETS)[number]["id"];
 
 type CanvasImageViewerProps = {
   images: CanvasImage[];
@@ -45,6 +90,42 @@ export function CanvasImageViewer({
   const image = images[currentIndex];
   const managedToast = useToast();
   const imageAreaRef = useRef<HTMLDivElement>(null);
+  const [activeVersionId, setActiveVersionId] = useState<string>("original");
+  const [creativePreset, setCreativePreset] =
+    useState<CreativePresetId>("auto");
+  const [upscalePrompt, setUpscalePrompt] = useState("");
+  const [showUpscaleSettings, setShowUpscaleSettings] = useState(false);
+
+  const hasNonDefaultCreativeSettings =
+    creativePreset !== "auto" || upscalePrompt.trim().length > 0;
+
+  // Derived upscale state
+  const succeededUpscales =
+    image?.upscales.filter(
+      (u): u is UpscaleEntry & { imageUrl: string } =>
+        u.status === "succeeded" && !!u.imageUrl
+    ) ?? [];
+  const inProgressUpscale = image?.upscales.find(isUpscaleInProgress);
+  const failedUpscale = image?.upscales.find(u => u.status === "failed");
+  const hasAnyInProgress = !!inProgressUpscale;
+
+  // Default to latest succeeded upscale, or original
+  const upscaleCount = image?.upscales.length ?? 0;
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reset on image change or new upscale completion
+  useEffect(() => {
+    if (succeededUpscales.length > 0) {
+      const latest = succeededUpscales[succeededUpscales.length - 1];
+      if (latest) {
+        setActiveVersionId(latest.id);
+      }
+    } else {
+      setActiveVersionId("original");
+    }
+  }, [currentIndex, upscaleCount]);
+
+  // Resolve active image URL
+  const activeUpscale = succeededUpscales.find(u => u.id === activeVersionId);
+  const activeImageUrl = activeUpscale?.imageUrl ?? image?.imageUrl;
 
   const goToPrevious = useCallback(() => {
     if (images.length === 0) {
@@ -110,7 +191,7 @@ export function CanvasImageViewer({
     images.length,
   ]);
 
-  // Focus the image area when viewer opens so keyboard nav works immediately
+  // Focus the image area when viewer opens
   useEffect(() => {
     if (open) {
       requestAnimationFrame(() => {
@@ -132,29 +213,29 @@ export function CanvasImageViewer({
   }, [open]);
 
   const handleCopyImage = useCallback(async () => {
-    if (!image) {
+    if (!activeImageUrl) {
       return;
     }
     try {
-      await copyImageToClipboard(image.imageUrl);
+      await copyImageToClipboard(activeImageUrl);
       managedToast.success("Image copied to clipboard");
     } catch {
       managedToast.error("Failed to copy image");
     }
-  }, [image, managedToast]);
+  }, [activeImageUrl, managedToast]);
 
   const handleDownload = useCallback(async () => {
-    if (!image) {
+    if (!activeImageUrl) {
       return;
     }
     try {
-      const filename = generateImageFilename(image.imageUrl, image.prompt);
-      await downloadFromUrl(image.imageUrl, filename);
+      const filename = generateImageFilename(activeImageUrl, image?.prompt);
+      await downloadFromUrl(activeImageUrl, filename);
       managedToast.success("Image downloaded");
     } catch {
       managedToast.error("Failed to download image");
     }
-  }, [image, managedToast]);
+  }, [activeImageUrl, image?.prompt, managedToast]);
 
   const handleCopyText = useCallback(
     async (text: string, label: string) => {
@@ -174,6 +255,145 @@ export function CanvasImageViewer({
     }
     onRequestDelete?.(image);
   }, [image, onRequestDelete]);
+
+  const upscaleImageAction = useAction(api.generations.upscaleImage);
+  const removeUpscaleEntry = useMutation(api.generations.removeUpscaleEntry);
+  const [isUpscaling, setIsUpscaling] = useState(false);
+  const [isCancelingUpscale, setIsCancelingUpscale] = useState(false);
+
+  const handleStandardUpscale = useCallback(async () => {
+    if (!image?.generationId || isUpscaling) {
+      return;
+    }
+    setIsUpscaling(true);
+    try {
+      await upscaleImageAction({
+        generationId: image.generationId,
+        type: "standard",
+      });
+      managedToast.success("Upscale started");
+    } catch {
+      managedToast.error("Failed to start upscale");
+    } finally {
+      setIsUpscaling(false);
+    }
+  }, [image, isUpscaling, upscaleImageAction, managedToast]);
+
+  const handleCreativeUpscale = useCallback(async () => {
+    if (!image?.generationId || isUpscaling) {
+      return;
+    }
+    setIsUpscaling(true);
+    try {
+      const preset = CREATIVE_PRESETS.find(p => p.id === creativePreset);
+      await upscaleImageAction({
+        generationId: image.generationId,
+        type: "creative",
+        creativity: preset?.creativity,
+        resemblance: preset?.resemblance,
+        upscalePrompt: upscalePrompt.trim() || undefined,
+      });
+      managedToast.success("Creative enhance started");
+    } catch {
+      managedToast.error("Failed to start creative enhance");
+    } finally {
+      setIsUpscaling(false);
+    }
+  }, [
+    image,
+    isUpscaling,
+    upscaleImageAction,
+    managedToast,
+    creativePreset,
+    upscalePrompt,
+  ]);
+
+  const handleCancelUpscale = useCallback(async () => {
+    if (!(image?.generationId && inProgressUpscale) || isCancelingUpscale) {
+      return;
+    }
+    setIsCancelingUpscale(true);
+    try {
+      await removeUpscaleEntry({
+        id: image.generationId,
+        upscaleId: inProgressUpscale.id,
+      });
+    } catch {
+      managedToast.error("Failed to cancel upscale");
+    } finally {
+      setIsCancelingUpscale(false);
+    }
+  }, [
+    image,
+    inProgressUpscale,
+    isCancelingUpscale,
+    removeUpscaleEntry,
+    managedToast,
+  ]);
+
+  const handleRetryUpscale = useCallback(async () => {
+    if (!(image?.generationId && failedUpscale)) {
+      return;
+    }
+    setIsUpscaling(true);
+    try {
+      // Remove the failed entry
+      await removeUpscaleEntry({
+        id: image.generationId,
+        upscaleId: failedUpscale.id,
+      });
+      // Re-trigger based on original type
+      if (failedUpscale.type === "standard") {
+        await upscaleImageAction({
+          generationId: image.generationId,
+          type: "standard",
+        });
+      } else {
+        const preset = CREATIVE_PRESETS.find(p => p.id === creativePreset);
+        await upscaleImageAction({
+          generationId: image.generationId,
+          type: "creative",
+          creativity: preset?.creativity,
+          resemblance: preset?.resemblance,
+          upscalePrompt: upscalePrompt.trim() || undefined,
+        });
+      }
+      managedToast.success("Upscale restarted");
+    } catch {
+      managedToast.error("Failed to retry upscale");
+    } finally {
+      setIsUpscaling(false);
+    }
+  }, [
+    image,
+    failedUpscale,
+    removeUpscaleEntry,
+    upscaleImageAction,
+    managedToast,
+    creativePreset,
+    upscalePrompt,
+  ]);
+
+  const handleDeleteUpscaleVersion = useCallback(
+    async (upscaleId: string) => {
+      if (!image?.generationId) {
+        return;
+      }
+      try {
+        await removeUpscaleEntry({
+          id: image.generationId,
+          upscaleId,
+        });
+        if (activeVersionId === upscaleId) {
+          setActiveVersionId("original");
+        }
+        managedToast.success("Upscaled version removed");
+      } catch {
+        managedToast.error("Failed to remove upscaled version");
+      }
+    },
+    [image, removeUpscaleEntry, activeVersionId, managedToast]
+  );
 
   const loadImageSettings = useCanvasStore(s => s.loadImageSettings);
   const handleUseSettings = useCallback(() => {
@@ -200,7 +420,7 @@ export function CanvasImageViewer({
 
       {/* Full-screen container */}
       <div className="fixed inset-0 z-modal flex">
-        {/* Image area (left) — receives initial focus for keyboard nav */}
+        {/* Image area (left) */}
         <div
           ref={imageAreaRef}
           tabIndex={-1}
@@ -213,7 +433,7 @@ export function CanvasImageViewer({
             }
           }}
         >
-          {/* Navigation buttons — edges of image area */}
+          {/* Navigation buttons */}
           {images.length > 1 && (
             <>
               <Button
@@ -244,7 +464,7 @@ export function CanvasImageViewer({
             </>
           )}
 
-          {/* Counter pill — bottom of image area */}
+          {/* Counter pill */}
           {images.length > 1 && (
             <div className="absolute bottom-4 left-1/2 z-10 -translate-x-1/2 rounded-full bg-card/90 px-3 py-1.5 text-xs font-medium tabular-nums text-muted-foreground shadow-lg backdrop-blur-md dark:ring-1 dark:ring-white/[0.06]">
               {currentIndex + 1} / {images.length}
@@ -254,8 +474,8 @@ export function CanvasImageViewer({
           {/* Image */}
           <div className="flex h-full w-full items-center justify-center p-8 pointer-events-none transition-all duration-300 ease-out animate-in fade-in-0 zoom-in-95">
             <img
-              key={image.id}
-              src={image.imageUrl}
+              key={`${image.id}-${activeVersionId}`}
+              src={activeImageUrl}
               alt={image.prompt || "Generated image"}
               className="max-h-full max-w-full object-contain pointer-events-auto rounded-lg drop-shadow-2xl"
               draggable={false}
@@ -351,8 +571,8 @@ export function CanvasImageViewer({
             </div>
           </div>
 
-          {/* Metadata badges */}
-          <div className="flex flex-wrap gap-2 border-b border-border/40 px-5 py-4">
+          {/* Metadata badges + Version switcher */}
+          <div className="flex flex-wrap items-center gap-2 border-b border-border/40 px-5 py-4">
             {image.duration !== undefined && (
               <span className="inline-flex items-center gap-1.5 rounded-md bg-muted px-2.5 py-1 text-xs font-medium text-foreground">
                 <ClockIcon className="size-3.5" />
@@ -377,16 +597,23 @@ export function CanvasImageViewer({
                     className="inline-flex items-center gap-1.5 rounded-md bg-muted px-2.5 py-1 text-xs font-medium tabular-nums text-foreground transition-colors hover:bg-muted/80"
                     onClick={() => handleCopyText(String(image.seed), "Seed")}
                   >
-                    Seed {image.seed}
+                    {image.seed}
                     <CopyIcon size={12} />
                   </button>
                 </TooltipTrigger>
                 <TooltipContent>Copy seed</TooltipContent>
               </Tooltip>
             )}
+
+            {succeededUpscales.length > 0 && (
+              <span className="inline-flex items-center rounded-md bg-primary/15 px-2.5 py-1 text-xs font-medium text-primary">
+                {succeededUpscales.length} upscale
+                {succeededUpscales.length > 1 ? "s" : ""}
+              </span>
+            )}
           </div>
 
-          {/* Prompt */}
+          {/* Prompt + Upscale section (scrollable) */}
           <div className="flex-1 overflow-y-auto px-5 py-4">
             {image.prompt && (
               <div className="stack-sm">
@@ -413,6 +640,249 @@ export function CanvasImageViewer({
                 <p className="text-sm leading-relaxed text-foreground/90">
                   {image.prompt}
                 </p>
+              </div>
+            )}
+
+            {/* Upscale section */}
+            {image.source === "canvas" && image.generationId && (
+              <div className="mt-4 border-t border-border/40 pt-4">
+                <h3 className="mb-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  Upscale
+                </h3>
+
+                {/* Failed state */}
+                {!hasAnyInProgress && failedUpscale && (
+                  <div className="stack-sm mb-3">
+                    <p className="text-sm text-destructive">
+                      {failedUpscale.error ?? "Upscale failed"}
+                    </p>
+                    <Button
+                      variant="outline"
+                      className="w-full gap-2"
+                      onClick={handleRetryUpscale}
+                      disabled={isUpscaling}
+                    >
+                      <ArrowClockwiseIcon className="size-4" />
+                      {isUpscaling ? "Retrying..." : "Retry"}
+                    </Button>
+                  </div>
+                )}
+
+                {/* Upscale buttons — always visible, disabled when in-progress */}
+                <div className="stack-sm">
+                  {/* Standard upscale — primary */}
+                  <div className="relative">
+                    <Button
+                      className="w-full gap-2"
+                      onClick={handleStandardUpscale}
+                      disabled={isUpscaling || hasAnyInProgress}
+                    >
+                      {inProgressUpscale?.type === "standard" ? (
+                        <Spinner className="size-4" />
+                      ) : (
+                        <ArrowsOutIcon className="size-4" />
+                      )}
+                      {inProgressUpscale?.type === "standard"
+                        ? "Upscaling..."
+                        : "Upscale"}
+                    </Button>
+                    {inProgressUpscale?.type === "standard" && (
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        className="absolute right-1 top-1/2 -translate-y-1/2"
+                        onClick={handleCancelUpscale}
+                        disabled={isCancelingUpscale}
+                        aria-label="Cancel upscale"
+                      >
+                        <XIcon className="size-4" />
+                      </Button>
+                    )}
+                  </div>
+
+                  {/* Creative enhance — secondary */}
+                  <div className="relative">
+                    <Button
+                      variant="outline"
+                      className="w-full gap-2"
+                      onClick={handleCreativeUpscale}
+                      disabled={isUpscaling || hasAnyInProgress}
+                    >
+                      {inProgressUpscale?.type === "creative" ? (
+                        <Spinner className="size-4" />
+                      ) : (
+                        <SparkleIcon className="size-4" />
+                      )}
+                      {inProgressUpscale?.type === "creative"
+                        ? "Enhancing..."
+                        : "Creative Enhance"}
+                    </Button>
+                    {inProgressUpscale?.type === "creative" && (
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        className="absolute right-1 top-1/2 -translate-y-1/2"
+                        onClick={handleCancelUpscale}
+                        disabled={isCancelingUpscale}
+                        aria-label="Cancel upscale"
+                      >
+                        <XIcon className="size-4" />
+                      </Button>
+                    )}
+                  </div>
+
+                  {/* Creative settings collapsible */}
+                  <button
+                    type="button"
+                    className="flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
+                    onClick={() => setShowUpscaleSettings(!showUpscaleSettings)}
+                  >
+                    <CaretDownIcon
+                      className={cn(
+                        "size-3 transition-transform",
+                        showUpscaleSettings && "rotate-180"
+                      )}
+                    />
+                    Creative Settings
+                    {hasNonDefaultCreativeSettings && (
+                      <span className="size-1.5 rounded-full bg-primary" />
+                    )}
+                  </button>
+
+                  {showUpscaleSettings && (
+                    <div className="stack-sm rounded-lg border border-border/40 p-3">
+                      <div className="flex gap-1 rounded-lg bg-muted/50 p-1">
+                        {CREATIVE_PRESETS.map(preset => (
+                          <Tooltip key={preset.id}>
+                            <TooltipTrigger>
+                              <button
+                                type="button"
+                                className={cn(
+                                  "flex-1 rounded-md px-2 py-1.5 text-xs font-medium transition-all",
+                                  creativePreset === preset.id
+                                    ? "bg-background text-foreground shadow-sm"
+                                    : "text-muted-foreground hover:text-foreground"
+                                )}
+                                onClick={() => setCreativePreset(preset.id)}
+                              >
+                                {preset.label}
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              {preset.description}
+                            </TooltipContent>
+                          </Tooltip>
+                        ))}
+                      </div>
+
+                      <div className="stack-xs">
+                        <label
+                          htmlFor="upscale-prompt"
+                          className="text-xs text-muted-foreground"
+                        >
+                          Prompt
+                        </label>
+                        <textarea
+                          id="upscale-prompt"
+                          rows={2}
+                          className="w-full resize-none rounded-md border border-border/40 bg-background px-3 py-2 text-sm placeholder:text-muted-foreground/60 focus:border-primary focus:outline-none"
+                          placeholder="Guide the upscaler..."
+                          value={upscalePrompt}
+                          onChange={e => setUpscalePrompt(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Versions gallery */}
+                {(succeededUpscales.length > 0 || inProgressUpscale) && (
+                  <div className="mt-4 border-t border-border/40 pt-4">
+                    <h3 className="mb-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                      Versions
+                    </h3>
+                    <div className="grid grid-cols-3 gap-2">
+                      {/* Original thumbnail */}
+                      <div className="group/thumb relative">
+                        <button
+                          type="button"
+                          className={cn(
+                            "relative w-full overflow-hidden rounded-lg border-2 transition-all",
+                            activeVersionId === "original"
+                              ? "border-primary ring-1 ring-primary/30"
+                              : "border-transparent hover:border-border"
+                          )}
+                          onClick={() => setActiveVersionId("original")}
+                        >
+                          <img
+                            src={image.imageUrl}
+                            alt="Original"
+                            className="block aspect-square w-full object-cover"
+                          />
+                          <span className="absolute inset-x-0 bottom-0 bg-black/60 px-1.5 py-0.5 text-[10px] font-medium text-white backdrop-blur-sm">
+                            Original
+                          </span>
+                        </button>
+                      </div>
+
+                      {/* Succeeded upscale thumbnails */}
+                      {succeededUpscales.map(upscale => (
+                        <div key={upscale.id} className="group/thumb relative">
+                          <button
+                            type="button"
+                            className={cn(
+                              "relative w-full overflow-hidden rounded-lg border-2 transition-all",
+                              activeVersionId === upscale.id
+                                ? "border-primary ring-1 ring-primary/30"
+                                : "border-transparent hover:border-border"
+                            )}
+                            onClick={() => setActiveVersionId(upscale.id)}
+                          >
+                            <img
+                              src={upscale.imageUrl}
+                              alt={
+                                upscale.type === "standard"
+                                  ? "Standard 2x"
+                                  : "Creative 2x"
+                              }
+                              className="block aspect-square w-full object-cover"
+                            />
+                            <span className="absolute inset-x-0 bottom-0 bg-black/60 px-1.5 py-0.5 text-[10px] font-medium text-white backdrop-blur-sm">
+                              {upscale.type === "standard" ? "2x" : "2x+"}
+                            </span>
+                          </button>
+                          <button
+                            type="button"
+                            className="absolute -right-1 -top-1 z-10 flex size-5 items-center justify-center rounded-full bg-card text-muted-foreground opacity-0 shadow-sm ring-1 ring-border/40 transition-all hover:text-destructive group-hover/thumb:opacity-100"
+                            onClick={e => {
+                              e.stopPropagation();
+                              handleDeleteUpscaleVersion(upscale.id);
+                            }}
+                            aria-label="Remove version"
+                          >
+                            <XIcon className="size-3" />
+                          </button>
+                        </div>
+                      ))}
+
+                      {/* In-progress placeholder */}
+                      {inProgressUpscale && (
+                        <div className="relative">
+                          <div className="aspect-square w-full overflow-hidden rounded-lg border-2 border-dashed border-border/60 bg-muted/30">
+                            <div className="flex h-full flex-col items-center justify-center gap-1.5">
+                              <Spinner className="size-4 text-muted-foreground" />
+                              <span className="text-[10px] font-medium text-muted-foreground">
+                                {inProgressUpscale.type === "standard"
+                                  ? "2x"
+                                  : "2x+"}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

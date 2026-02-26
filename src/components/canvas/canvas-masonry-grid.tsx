@@ -53,7 +53,7 @@ export function CanvasMasonryGrid({ filterMode }: CanvasMasonryGridProps) {
   // Conversation images
   const conversationImages = useQuery(
     api.fileStorage.listGeneratedImages,
-    filterMode !== "canvas" ? {} : "skip"
+    filterMode !== "canvas" && filterMode !== "upscaled" ? {} : "skip"
   );
 
   // Merge and normalize both sources
@@ -78,6 +78,16 @@ export function CanvasMasonryGrid({ filterMode }: CanvasMasonryGridProps) {
             quality: gen.params?.quality,
             generationId: gen._id,
             batchId: gen.batchId,
+            upscales: gen.upscales.map(u => ({
+              id: u.id,
+              type: u.type,
+              status: u.status,
+              error: u.error,
+              imageUrl: u.imageUrl,
+              duration: u.duration,
+              startedAt: u.startedAt,
+              completedAt: u.completedAt,
+            })),
           });
         }
       } else {
@@ -96,6 +106,8 @@ export function CanvasMasonryGrid({ filterMode }: CanvasMasonryGridProps) {
           quality: gen.params?.quality,
           generationId: gen._id,
           batchId: gen.batchId,
+          error: gen.error,
+          upscales: [],
         });
       }
     }
@@ -114,9 +126,19 @@ export function CanvasMasonryGrid({ filterMode }: CanvasMasonryGridProps) {
           createdAt: file.createdAt,
           messageId: file.messageId,
           conversationId: file.conversationId,
+          upscales: [],
         });
       }
     }
+  }
+
+  // Filter upscaled-only when requested
+  if (filterMode === "upscaled") {
+    const upscaled = allImages.filter(img =>
+      img.upscales.some(u => u.status === "succeeded" && u.imageUrl)
+    );
+    allImages.length = 0;
+    allImages.push(...upscaled);
   }
 
   // Sort by createdAt desc
@@ -274,10 +296,10 @@ export function CanvasMasonryGrid({ filterMode }: CanvasMasonryGridProps) {
 
   return (
     <>
-      <div ref={containerRef} className="flex items-start gap-4">
+      <div ref={containerRef} className="flex items-start gap-3">
         {columns.map((col, colIdx) => (
           // biome-ignore lint/suspicious/noArrayIndexKey: stable column layout, index is the only meaningful key
-          <div key={colIdx} className="flex flex-1 flex-col gap-4">
+          <div key={colIdx} className="flex flex-1 flex-col gap-3">
             {col.map(image => (
               <CanvasGridCard
                 key={image.id}

@@ -2,6 +2,8 @@ import { api } from "@convex/_generated/api";
 import {
   ArrowClockwiseIcon,
   ArrowsClockwiseIcon,
+  ArrowsOutIcon,
+  CaretDownIcon,
   CheckCircleIcon,
   CircleIcon,
   XIcon,
@@ -11,7 +13,10 @@ import { useCallback, useState } from "react";
 import { CopyIcon } from "@/components/animate-ui/icons/copy";
 import { DownloadIcon } from "@/components/animate-ui/icons/download";
 import { TrashIcon } from "@/components/animate-ui/icons/trash";
-import { Button } from "@/components/ui/button";
+import {
+  type ImageRetryParams,
+  ImageRetryPopover,
+} from "@/components/chat/message/image-retry-popover";
 import { Spinner } from "@/components/ui/spinner";
 import {
   Tooltip,
@@ -25,7 +30,7 @@ import {
 } from "@/lib/export";
 import { useToast } from "@/providers/toast-context";
 import { useCanvasStore } from "@/stores/canvas-store";
-import type { CanvasImage } from "@/types";
+import { type CanvasImage, isUpscaleInProgress } from "@/types";
 
 type CanvasGridCardProps = {
   image: CanvasImage;
@@ -138,6 +143,21 @@ function FailedCard({
     }
   };
 
+  const handleRetryWithParams = async (params: ImageRetryParams) => {
+    if (!image.generationId) {
+      return;
+    }
+    setIsRetrying(true);
+    try {
+      await retryGeneration({
+        id: image.generationId,
+        model: params.model,
+      });
+    } finally {
+      setIsRetrying(false);
+    }
+  };
+
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
     onRequestDelete?.(image);
@@ -146,7 +166,7 @@ function FailedCard({
   return (
     <div className="relative overflow-hidden rounded-lg border border-destructive/30 bg-destructive/5">
       <div style={{ aspectRatio: formatAspectRatio(image.aspectRatio) }} />
-      <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-4">
+      <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-4">
         <span className="text-xs font-medium text-destructive">
           {image.status === "canceled" ? "Canceled" : "Failed"}
         </span>
@@ -155,28 +175,43 @@ function FailedCard({
             {formatModelName(image.model)}
           </span>
         )}
+        {image.error && (
+          <p className="line-clamp-2 text-center text-[10px] text-destructive/70">
+            {image.error}
+          </p>
+        )}
         {image.generationId && (
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
+          <div className="flex items-center gap-0.5 rounded-lg bg-background/80 p-0.5 shadow-sm ring-1 ring-border/40">
+            <button
+              type="button"
               onClick={handleRetry}
               disabled={isRetrying}
-              className="gap-1.5"
+              className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
             >
               <ArrowClockwiseIcon className="size-3.5" />
               Retry
-            </Button>
+            </button>
+            <div className="h-4 w-px bg-border/50" />
+            <ImageRetryPopover
+              currentModel={image.model}
+              currentAspectRatio={image.aspectRatio || "1:1"}
+              onRetry={handleRetryWithParams}
+              hideAspectRatio
+              autoRetryOnSelect
+              trigger={<CaretDownIcon className="size-3" />}
+              className="inline-flex items-center justify-center rounded-md size-7 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            />
+            <div className="h-4 w-px bg-border/50" />
             <Tooltip>
               <TooltipTrigger>
-                <Button
-                  variant="outline"
-                  size="icon-sm"
+                <button
+                  type="button"
                   onClick={handleDelete}
                   aria-label="Delete generation"
+                  className="inline-flex items-center justify-center rounded-md size-7 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
                 >
                   <TrashIcon className="size-3.5" />
-                </Button>
+                </button>
               </TooltipTrigger>
               <TooltipContent>Delete</TooltipContent>
             </Tooltip>
@@ -202,6 +237,15 @@ function SucceededCard({
   const isSelected = selectedImageIds.has(image.id);
   const isSelecting = selectedImageIds.size > 0;
   const managedToast = useToast();
+
+  const inProgressUpscale = image.upscales.find(isUpscaleInProgress);
+  const isUpscaling = !!inProgressUpscale;
+
+  // Show latest succeeded upscale, or original
+  const latestSucceeded = image.upscales.findLast(
+    u => u.status === "succeeded" && u.imageUrl
+  );
+  const displayUrl = latestSucceeded?.imageUrl ?? image.imageUrl;
 
   const handleCopyImage = useCallback(
     async (e: React.MouseEvent) => {
@@ -279,16 +323,19 @@ function SucceededCard({
       role="button"
     >
       <img
-        src={image.imageUrl}
+        src={displayUrl}
         alt={image.prompt || "Generated image"}
         className="block w-full transition-transform duration-500 ease-out group-hover:scale-[1.03]"
         loading="lazy"
       />
 
+      {/* Upscaling overlay */}
+      {isUpscaling && <UpscalingOverlay image={image} />}
+
       {/* Selection checkbox — fades in/out */}
       <button
         type="button"
-        className={`absolute left-2 top-2 z-10 flex items-center justify-center rounded-full transition-opacity duration-200 hover:scale-110 ${
+        className={`absolute left-1.5 top-1.5 z-10 flex items-center justify-center rounded-full transition-opacity duration-200 hover:scale-110 ${
           isSelected || isSelecting
             ? "opacity-100"
             : "opacity-0 group-hover:opacity-100"
@@ -299,19 +346,19 @@ function SucceededCard({
         {isSelected ? (
           <CheckCircleIcon
             weight="fill"
-            className="size-6 text-primary drop-shadow-md"
+            className="size-5 text-primary drop-shadow-md"
           />
         ) : (
           <CircleIcon
             weight="regular"
-            className="size-6 text-white/80 drop-shadow-md"
+            className="size-5 text-white/80 drop-shadow-md"
           />
         )}
       </button>
 
       {/* Action buttons — fade in on hover, hidden during multi-select */}
       <div
-        className={`absolute right-2 top-2 z-10 flex items-center gap-1 transition-opacity duration-200 ${
+        className={`absolute right-1.5 top-1.5 z-10 flex items-center gap-0.5 transition-opacity duration-200 ${
           isSelecting
             ? "pointer-events-none opacity-0"
             : "opacity-0 group-hover:opacity-100"
@@ -321,11 +368,11 @@ function SucceededCard({
           <TooltipTrigger>
             <button
               type="button"
-              className="flex size-8 items-center justify-center rounded-md bg-black/50 text-white/90 backdrop-blur-sm transition-colors hover:bg-black/70"
+              className="flex size-7 items-center justify-center rounded-md bg-black/50 text-white/90 backdrop-blur-sm transition-colors hover:bg-black/70"
               onClick={handleCopyImage}
               aria-label="Copy image"
             >
-              <CopyIcon animateOnHover size={16} />
+              <CopyIcon animateOnHover size={14} />
             </button>
           </TooltipTrigger>
           <TooltipContent>Copy image</TooltipContent>
@@ -334,11 +381,11 @@ function SucceededCard({
           <TooltipTrigger>
             <button
               type="button"
-              className="flex size-8 items-center justify-center rounded-md bg-black/50 text-white/90 backdrop-blur-sm transition-colors hover:bg-black/70"
+              className="flex size-7 items-center justify-center rounded-md bg-black/50 text-white/90 backdrop-blur-sm transition-colors hover:bg-black/70"
               onClick={handleDownload}
               aria-label="Download image"
             >
-              <DownloadIcon animateOnHover size={16} />
+              <DownloadIcon animateOnHover size={14} />
             </button>
           </TooltipTrigger>
           <TooltipContent>Download image</TooltipContent>
@@ -347,11 +394,11 @@ function SucceededCard({
           <TooltipTrigger>
             <button
               type="button"
-              className="flex size-8 items-center justify-center rounded-md bg-black/50 text-white/90 backdrop-blur-sm transition-colors hover:bg-black/70"
+              className="flex size-7 items-center justify-center rounded-md bg-black/50 text-white/90 backdrop-blur-sm transition-colors hover:bg-black/70"
               onClick={handleUseSettings}
               aria-label="Use settings"
             >
-              <ArrowsClockwiseIcon className="size-4" />
+              <ArrowsClockwiseIcon className="size-3.5" />
             </button>
           </TooltipTrigger>
           <TooltipContent>Use settings</TooltipContent>
@@ -361,11 +408,11 @@ function SucceededCard({
             <TooltipTrigger>
               <button
                 type="button"
-                className="flex size-8 items-center justify-center rounded-md bg-black/50 text-white/90 backdrop-blur-sm transition-colors hover:bg-red-600/70"
+                className="flex size-7 items-center justify-center rounded-md bg-black/50 text-white/90 backdrop-blur-sm transition-colors hover:bg-red-600/70"
                 onClick={handleDelete}
                 aria-label="Delete image"
               >
-                <TrashIcon animateOnHover size={16} />
+                <TrashIcon animateOnHover size={14} />
               </button>
             </TooltipTrigger>
             <TooltipContent>Delete image</TooltipContent>
@@ -375,22 +422,79 @@ function SucceededCard({
 
       {/* Info overlay — fades in at bottom on hover, hidden during multi-select */}
       <div
-        className={`absolute inset-x-0 bottom-0 flex flex-col justify-end bg-gradient-to-t from-black/70 via-black/40 to-transparent p-3 pt-12 transition-opacity duration-200 ${
+        className={`absolute inset-x-0 bottom-0 flex flex-col justify-end bg-gradient-to-t from-black/70 via-black/40 to-transparent p-2.5 pt-10 transition-opacity duration-200 ${
           isSelecting ? "opacity-0" : "opacity-0 group-hover:opacity-100"
         }`}
       >
         {image.prompt && (
-          <p className="line-clamp-3 text-xs text-white drop-shadow-sm">
+          <p className="line-clamp-2 text-[11px] leading-snug text-white drop-shadow-sm">
             {image.prompt}
           </p>
         )}
-        <div className="mt-1.5 flex items-center gap-2 text-[10px] text-white/80">
+        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] text-white/80">
+          {image.upscales
+            .filter(u => u.status === "succeeded" && u.imageUrl)
+            .map(u => (
+              <span
+                key={u.id}
+                className="rounded bg-white/25 px-1.5 py-0.5 font-medium backdrop-blur-sm"
+              >
+                {u.type === "standard" ? "2x" : "2x+"}
+              </span>
+            ))}
           {image.model && <span>{formatModelName(image.model)}</span>}
-          {image.seed !== undefined && <span>Seed: {image.seed}</span>}
-          {image.duration !== undefined && (
-            <span>{image.duration.toFixed(1)}s</span>
-          )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+function UpscalingOverlay({ image }: { image: CanvasImage }) {
+  const removeUpscaleEntry = useMutation(api.generations.removeUpscaleEntry);
+  const [isCanceling, setIsCanceling] = useState(false);
+
+  const inProgressEntry = image.upscales.find(isUpscaleInProgress);
+
+  const handleCancel = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!(image.generationId && inProgressEntry) || isCanceling) {
+      return;
+    }
+    setIsCanceling(true);
+    try {
+      await removeUpscaleEntry({
+        id: image.generationId,
+        upscaleId: inProgressEntry.id,
+      });
+    } finally {
+      setIsCanceling(false);
+    }
+  };
+
+  return (
+    <div className="absolute inset-0 animate-in fade-in-0 duration-300">
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-transparent to-primary/20 animate-pulse" />
+      <div className="absolute inset-0 bg-black/30 backdrop-blur-[2px]" />
+      <div className="relative flex h-full flex-col items-center justify-center gap-2.5">
+        <div className="relative">
+          <div className="absolute -inset-2 animate-ping rounded-full bg-primary/20" />
+          <div className="relative rounded-full bg-white/15 p-3 ring-1 ring-white/25 backdrop-blur-md">
+            <ArrowsOutIcon className="size-5 text-white" />
+          </div>
+        </div>
+        <span className="text-xs font-medium text-white drop-shadow-sm">
+          Upscaling
+        </span>
+        {image.generationId && (
+          <button
+            type="button"
+            className="mt-0.5 rounded-md bg-white/15 px-2.5 py-1 text-[10px] font-medium text-white/90 ring-1 ring-white/20 backdrop-blur-md transition-colors hover:bg-white/25 disabled:opacity-50"
+            onClick={handleCancel}
+            disabled={isCanceling}
+          >
+            {isCanceling ? "Canceling..." : "Cancel"}
+          </button>
+        )}
       </div>
     </div>
   );

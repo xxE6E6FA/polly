@@ -22,6 +22,7 @@ import {
 import { getAuthUserId } from "./lib/auth";
 import { arrayBufferToBase64 } from "./lib/encoding";
 import { scheduleRunAfter } from "./lib/scheduler";
+import { replicateStatusValidator, type UpscaleEntryDoc } from "./lib/schemas";
 
 /**
  * Parse allowed aspect ratios from a Replicate 422 error message.
@@ -37,6 +38,91 @@ function parseAllowedAspectRatios(errorMsg: string): string[] | null {
   // Dedupe
   const unique = [...new Set(ratios)];
   return unique.length > 0 ? unique : null;
+}
+
+// ============================================================================
+// Helpers
+// ============================================================================
+
+type UpscaleEntryWithUrl = Omit<UpscaleEntryDoc, "storageId"> & {
+  imageUrl?: string;
+};
+
+/**
+ * Normalize legacy `upscale` field + new `upscales` array into a single
+ * array with resolved image URLs.
+ */
+async function normalizeUpscales(
+  ctx: { storage: { getUrl: (id: Id<"_storage">) => Promise<string | null> } },
+  gen: {
+    upscale?: {
+      status: "pending" | "starting" | "processing" | "succeeded" | "failed";
+      replicateId?: string;
+      storageId?: Id<"_storage">;
+      error?: string;
+      duration?: number;
+      startedAt?: number;
+      completedAt?: number;
+    };
+    upscales?: Array<{
+      id: string;
+      type: "standard" | "creative";
+      status: "pending" | "starting" | "processing" | "succeeded" | "failed";
+      replicateId?: string;
+      storageId?: Id<"_storage">;
+      error?: string;
+      duration?: number;
+      startedAt?: number;
+      completedAt?: number;
+    }>;
+  }
+): Promise<UpscaleEntryWithUrl[]> {
+  const entries: UpscaleEntryWithUrl[] = [];
+
+  // Legacy upscale field → synthesize as creative entry
+  if (gen.upscale && !gen.upscales) {
+    let imageUrl: string | undefined;
+    if (gen.upscale.storageId) {
+      imageUrl = (await ctx.storage.getUrl(gen.upscale.storageId)) ?? undefined;
+    }
+    entries.push({
+      id: "legacy",
+      type: "creative",
+      status: gen.upscale.status,
+      replicateId: gen.upscale.replicateId,
+      error: gen.upscale.error,
+      imageUrl,
+      duration: gen.upscale.duration,
+      startedAt: gen.upscale.startedAt,
+      completedAt: gen.upscale.completedAt,
+    });
+  }
+
+  // New upscales array — resolve URLs in parallel
+  if (gen.upscales) {
+    const resolved = await Promise.all(
+      gen.upscales.map(async entry => {
+        let imageUrl: string | undefined;
+        if (entry.storageId) {
+          imageUrl = (await ctx.storage.getUrl(entry.storageId)) ?? undefined;
+        }
+        return {
+          id: entry.id,
+          type: entry.type,
+          status: entry.status,
+          replicateId: entry.replicateId,
+          error: entry.error,
+          imageUrl,
+          duration: entry.duration,
+          startedAt: entry.startedAt,
+          completedAt: entry.completedAt,
+        } satisfies UpscaleEntryWithUrl;
+      })
+    );
+    entries.push(...resolved);
+  }
+
+  return entries;
 }
 
 // ============================================================================
@@ -65,7 +151,7 @@ export const listGenerations = query({
     const hasMore = results.length > limit;
     const page = hasMore ? results.slice(0, limit) : results;
 
-    // Resolve storage URLs for images
+    // Resolve storage URLs for images (including upscales)
     const generations = await Promise.all(
       page.map(async gen => {
         let imageUrls: string[] = [];
@@ -75,7 +161,9 @@ export const listGenerations = query({
           );
           imageUrls = urls.filter((u): u is string => u !== null);
         }
-        return { ...gen, imageUrls };
+        // Normalize legacy upscale → upscales array
+        const upscales = await normalizeUpscales(ctx, gen);
+        return { ...gen, imageUrls, upscales };
       })
     );
 
@@ -106,7 +194,8 @@ export const getGeneration = query({
       );
       imageUrls = urls.filter((u): u is string => u !== null);
     }
-    return { ...gen, imageUrls };
+    const upscales = await normalizeUpscales(ctx, gen);
+    return { ...gen, imageUrls, upscales };
   },
 });
 
@@ -271,12 +360,24 @@ export const deleteGeneration = mutation({
         await ctx.storage.delete(storageId);
       }
     }
+    // Clean up upscale storage
+    for (const entry of gen.upscales ?? []) {
+      if (entry.storageId) {
+        await ctx.storage.delete(entry.storageId);
+      }
+    }
+    if (gen.upscale?.storageId) {
+      await ctx.storage.delete(gen.upscale.storageId);
+    }
     await ctx.db.delete(args.id);
   },
 });
 
 export const retryGeneration = mutation({
-  args: { id: v.id("generations") },
+  args: {
+    id: v.id("generations"),
+    model: v.optional(v.string()),
+  },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {
@@ -288,13 +389,20 @@ export const retryGeneration = mutation({
       throw new Error("Not found");
     }
 
-    // Reset status
+    // Reset status and optionally switch model
     await ctx.db.patch(args.id, {
       status: "pending",
       error: undefined,
       replicateId: undefined,
       completedAt: undefined,
       duration: undefined,
+      ...(args.model ? { model: args.model } : {}),
+    });
+
+    // Re-schedule the generation action
+    await scheduleRunAfter(ctx, 0, internal.generations.runCanvasGeneration, {
+      generationId: args.id,
+      userId,
     });
 
     return args.id;
@@ -329,6 +437,23 @@ export const cancelCanvasPrediction = internalAction({
     }
   },
 });
+
+/** Fetch a remote image, store it in Convex storage, and return the storage ID. */
+async function fetchAndStoreImage(
+  ctx: { storage: { store: (blob: Blob) => Promise<Id<"_storage">> } },
+  imageUrl: string,
+  defaultContentType = "image/jpeg"
+): Promise<Id<"_storage">> {
+  const response = await fetch(imageUrl);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch image: ${response.status}`);
+  }
+  const contentType =
+    response.headers.get("content-type") || defaultContentType;
+  const buffer = await response.arrayBuffer();
+  const blob = new globalThis.Blob([buffer], { type: contentType });
+  return ctx.storage.store(blob);
+}
 
 // Helper: convert aspect ratio to width/height (reused from replicate.ts)
 function convertAspectRatioToDimensions(aspectRatio: string): {
@@ -962,16 +1087,7 @@ export const storeCanvasImages = internalAction({
 
     for (const imageUrl of args.imageUrls) {
       try {
-        const response = await fetch(imageUrl);
-        if (!response.ok) {
-          continue;
-        }
-
-        const imageBuffer = await response.arrayBuffer();
-        const contentType =
-          response.headers.get("content-type") || "image/jpeg";
-        const blob = new globalThis.Blob([imageBuffer], { type: contentType });
-        const storageId = await ctx.storage.store(blob);
+        const storageId = await fetchAndStoreImage(ctx, imageUrl);
         storageIds.push(storageId);
       } catch (err) {
         console.error("Failed to store canvas image", {
@@ -985,6 +1101,481 @@ export const storeCanvasImages = internalAction({
       await ctx.runMutation(internal.generations.storeGenerationImages, {
         id: args.generationId,
         storageIds,
+      });
+    }
+  },
+});
+
+// ============================================================================
+// Upscale (multi-version)
+// ============================================================================
+
+/**
+ * Push a new upscale entry onto the upscales array.
+ * Idempotent: skips if entry with same id already exists.
+ * Atomic guard: throws if any entry is already in-progress.
+ */
+export const addUpscaleEntry = internalMutation({
+  args: {
+    id: v.id("generations"),
+    entry: v.object({
+      id: v.string(),
+      type: v.union(v.literal("standard"), v.literal("creative")),
+      status: replicateStatusValidator,
+      replicateId: v.optional(v.string()),
+      storageId: v.optional(v.id("_storage")),
+      error: v.optional(v.string()),
+      duration: v.optional(v.number()),
+      startedAt: v.optional(v.number()),
+      completedAt: v.optional(v.number()),
+    }),
+  },
+  handler: async (ctx, args) => {
+    const gen = await ctx.db.get(args.id);
+    if (!gen) {
+      return;
+    }
+    const existing = gen.upscales ?? [];
+
+    // Idempotent: already added (OCC retry)
+    if (existing.some(e => e.id === args.entry.id)) {
+      return;
+    }
+
+    // Atomic guard: no concurrent upscales
+    const isInProgress = (s: string) =>
+      s === "pending" || s === "starting" || s === "processing";
+    const hasInProgress = existing.some(e => isInProgress(e.status));
+    if (hasInProgress) {
+      throw new Error("An upscale is already in progress");
+    }
+
+    await ctx.db.patch(args.id, { upscales: [...existing, args.entry] });
+  },
+});
+
+/** Find entry by id in upscales array and merge partial update. */
+export const updateUpscaleEntry = internalMutation({
+  args: {
+    id: v.id("generations"),
+    upscaleId: v.string(),
+    update: v.object({
+      status: v.optional(replicateStatusValidator),
+      replicateId: v.optional(v.string()),
+      storageId: v.optional(v.id("_storage")),
+      error: v.optional(v.string()),
+      duration: v.optional(v.number()),
+      startedAt: v.optional(v.number()),
+      completedAt: v.optional(v.number()),
+    }),
+  },
+  handler: async (ctx, args) => {
+    const gen = await ctx.db.get(args.id);
+    if (!gen?.upscales) {
+      return;
+    }
+    const upscales = gen.upscales.map(entry => {
+      if (entry.id !== args.upscaleId) {
+        return entry;
+      }
+      const defined = Object.fromEntries(
+        Object.entries(args.update).filter(([, val]) => val !== undefined)
+      );
+      return { ...entry, ...defined };
+    });
+    await ctx.db.patch(args.id, { upscales });
+  },
+});
+
+/** Auth, delete storage, cancel prediction, filter out entry. */
+export const removeUpscaleEntry = mutation({
+  args: {
+    id: v.id("generations"),
+    upscaleId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("Not authenticated");
+    }
+
+    const gen = await ctx.db.get(args.id);
+    if (!gen || gen.userId !== userId) {
+      throw new Error("Not found");
+    }
+
+    const entry = gen.upscales?.find(e => e.id === args.upscaleId);
+    if (!entry) {
+      return;
+    }
+
+    // Delete stored upscaled image
+    if (entry.storageId) {
+      await ctx.storage.delete(entry.storageId);
+    }
+
+    // Cancel in-progress prediction
+    const isInProgress =
+      entry.status === "pending" ||
+      entry.status === "starting" ||
+      entry.status === "processing";
+    if (isInProgress && entry.replicateId) {
+      await scheduleRunAfter(
+        ctx,
+        0,
+        internal.generations.cancelCanvasPrediction,
+        { predictionId: entry.replicateId, userId }
+      );
+    }
+
+    // Filter out entry
+    const upscales = (gen.upscales ?? []).filter(e => e.id !== args.upscaleId);
+    await ctx.db.patch(args.id, { upscales });
+  },
+});
+
+export const upscaleImage = action({
+  args: {
+    generationId: v.id("generations"),
+    type: v.union(v.literal("standard"), v.literal("creative")),
+    creativity: v.optional(v.number()),
+    resemblance: v.optional(v.number()),
+    upscalePrompt: v.optional(v.string()),
+  },
+  handler: async (ctx, args): Promise<void> => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("Not authenticated");
+    }
+
+    const source = await ctx.runQuery(
+      internal.generations.internalGetGeneration,
+      { id: args.generationId }
+    );
+    if (!source || source.userId !== userId) {
+      throw new Error("Generation not found");
+    }
+    if (source.status !== "succeeded") {
+      throw new Error("Only succeeded images can be upscaled");
+    }
+    if (!source.storageIds || source.storageIds.length === 0) {
+      throw new Error("No image to upscale");
+    }
+
+    const sourceStorageId = source.storageIds[0];
+    if (!sourceStorageId) {
+      throw new Error("No image to upscale");
+    }
+
+    const upscaleId = crypto.randomUUID();
+
+    await ctx.runMutation(internal.generations.addUpscaleEntry, {
+      id: args.generationId,
+      entry: {
+        id: upscaleId,
+        type: args.type,
+        status: "pending",
+        startedAt: Date.now(),
+      },
+    });
+
+    await scheduleRunAfter(ctx, 0, internal.generations.runUpscaleGeneration, {
+      generationId: args.generationId,
+      upscaleId,
+      type: args.type,
+      sourceStorageId,
+      userId,
+      creativity: args.creativity,
+      resemblance: args.resemblance,
+      upscalePrompt: args.upscalePrompt,
+    });
+  },
+});
+
+export const runUpscaleGeneration = internalAction({
+  args: {
+    generationId: v.id("generations"),
+    upscaleId: v.string(),
+    type: v.union(v.literal("standard"), v.literal("creative")),
+    sourceStorageId: v.id("_storage"),
+    userId: v.id("users"),
+    creativity: v.optional(v.number()),
+    resemblance: v.optional(v.number()),
+    upscalePrompt: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    try {
+      const apiKey = await getApiKey(
+        ctx,
+        "replicate",
+        undefined,
+        undefined,
+        args.userId
+      );
+      const replicate = new Replicate({ auth: apiKey });
+
+      const storageUrl = await ctx.storage.getUrl(args.sourceStorageId);
+      if (!storageUrl) {
+        throw new Error("Source image not found in storage");
+      }
+
+      let prediction;
+
+      if (args.type === "standard") {
+        // Real-ESRGAN — faithful upscale, no prompt
+        prediction = await replicate.predictions.create({
+          model: "nightmareai/real-esrgan",
+          input: {
+            image: storageUrl,
+            scale: 2,
+            face_enhance: false,
+          },
+        });
+      } else {
+        // Creative — Clarity Upscaler with conservative defaults
+        const modelData = await replicate.models.get(
+          "philz1337x",
+          "clarity-upscaler"
+        );
+        const latestVersion = modelData.latest_version?.id;
+        if (!latestVersion) {
+          throw new Error("No version available for clarity-upscaler");
+        }
+
+        const qualityTags = "masterpiece, best quality, highres";
+        const prompt = args.upscalePrompt
+          ? `(${args.upscalePrompt}), ${qualityTags}`
+          : qualityTags;
+
+        prediction = await replicate.predictions.create({
+          version: latestVersion,
+          input: {
+            image: storageUrl,
+            scale_factor: 2,
+            creativity: args.creativity ?? 0.3,
+            resemblance: args.resemblance ?? 0.7,
+            prompt,
+            negative_prompt: "(worst quality, low quality, normal quality:2)",
+            output_format: "png",
+          },
+        });
+      }
+
+      await ctx.runMutation(internal.generations.updateUpscaleEntry, {
+        id: args.generationId,
+        upscaleId: args.upscaleId,
+        update: {
+          status: prediction.status as "starting" | "processing",
+          replicateId: prediction.id,
+        },
+      });
+
+      await scheduleRunAfter(
+        ctx,
+        2000,
+        internal.generations.pollUpscaleGeneration,
+        {
+          generationId: args.generationId,
+          upscaleId: args.upscaleId,
+          predictionId: prediction.id,
+          userId: args.userId,
+          maxAttempts: 120,
+          attempt: 1,
+        }
+      );
+    } catch (error) {
+      console.error(
+        "[canvas-upscale] ERROR:",
+        error instanceof Error ? error.message : String(error)
+      );
+      const friendlyError = getUserFriendlyErrorMessage(error);
+      await ctx.runMutation(internal.generations.updateUpscaleEntry, {
+        id: args.generationId,
+        upscaleId: args.upscaleId,
+        update: { status: "failed", error: friendlyError },
+      });
+    }
+  },
+});
+
+export const pollUpscaleGeneration = internalAction({
+  args: {
+    generationId: v.id("generations"),
+    upscaleId: v.string(),
+    predictionId: v.string(),
+    userId: v.id("users"),
+    maxAttempts: v.number(),
+    attempt: v.number(),
+  },
+  handler: async (ctx, args) => {
+    if (args.attempt > args.maxAttempts) {
+      await ctx.runMutation(internal.generations.updateUpscaleEntry, {
+        id: args.generationId,
+        upscaleId: args.upscaleId,
+        update: { status: "failed", error: "Upscale timed out" },
+      });
+      return;
+    }
+
+    try {
+      const gen = await ctx.runQuery(
+        internal.generations.internalGetGeneration,
+        { id: args.generationId }
+      );
+      const entry = gen?.upscales?.find(e => e.id === args.upscaleId);
+      if (!entry) {
+        return;
+      }
+      if (entry.status === "succeeded" || entry.status === "failed") {
+        return;
+      }
+
+      const apiKey = await getApiKey(
+        ctx,
+        "replicate",
+        undefined,
+        undefined,
+        args.userId
+      );
+      const replicate = new Replicate({ auth: apiKey });
+      const prediction = await replicate.predictions.get(args.predictionId);
+
+      if (prediction.status === "succeeded") {
+        const outputUrl = Array.isArray(prediction.output)
+          ? prediction.output[0]
+          : prediction.output;
+
+        if (outputUrl) {
+          await scheduleRunAfter(
+            ctx,
+            0,
+            internal.generations.storeUpscaledImage,
+            {
+              generationId: args.generationId,
+              upscaleId: args.upscaleId,
+              imageUrl: outputUrl,
+              duration: prediction.metrics?.predict_time,
+            }
+          );
+        } else {
+          await ctx.runMutation(internal.generations.updateUpscaleEntry, {
+            id: args.generationId,
+            upscaleId: args.upscaleId,
+            update: { status: "failed", error: "No output from upscale" },
+          });
+        }
+        return;
+      }
+
+      if (prediction.status === "failed") {
+        const errorMessage = prediction.error
+          ? getUserFriendlyErrorMessage(new Error(String(prediction.error)))
+          : "Upscale failed";
+        await ctx.runMutation(internal.generations.updateUpscaleEntry, {
+          id: args.generationId,
+          upscaleId: args.upscaleId,
+          update: { status: "failed", error: errorMessage },
+        });
+        return;
+      }
+
+      if (prediction.status === "canceled") {
+        await ctx.runMutation(internal.generations.updateUpscaleEntry, {
+          id: args.generationId,
+          upscaleId: args.upscaleId,
+          update: { status: "failed", error: "Upscale was canceled" },
+        });
+        return;
+      }
+
+      if (
+        prediction.status === "processing" ||
+        prediction.status === "starting"
+      ) {
+        await ctx.runMutation(internal.generations.updateUpscaleEntry, {
+          id: args.generationId,
+          upscaleId: args.upscaleId,
+          update: { status: prediction.status },
+        });
+      }
+
+      const nextDelay = args.attempt <= 3 ? 2000 : 5000;
+      await scheduleRunAfter(
+        ctx,
+        nextDelay,
+        internal.generations.pollUpscaleGeneration,
+        { ...args, attempt: args.attempt + 1 }
+      );
+    } catch {
+      if (args.attempt < args.maxAttempts) {
+        const retryDelay = Math.min(10000, 2000 * 2 ** (args.attempt - 1));
+        await scheduleRunAfter(
+          ctx,
+          retryDelay,
+          internal.generations.pollUpscaleGeneration,
+          { ...args, attempt: args.attempt + 1 }
+        );
+      } else {
+        await ctx.runMutation(internal.generations.updateUpscaleEntry, {
+          id: args.generationId,
+          upscaleId: args.upscaleId,
+          update: {
+            status: "failed",
+            error: "Failed to check upscale status",
+          },
+        });
+      }
+    }
+  },
+});
+
+export const storeUpscaledImage = internalAction({
+  args: {
+    generationId: v.id("generations"),
+    upscaleId: v.string(),
+    imageUrl: v.string(),
+    duration: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    try {
+      // Check if already stored
+      const gen = await ctx.runQuery(
+        internal.generations.internalGetGeneration,
+        { id: args.generationId }
+      );
+      const entry = gen?.upscales?.find(e => e.id === args.upscaleId);
+      if (entry?.storageId) {
+        return;
+      }
+
+      const storageId = await fetchAndStoreImage(
+        ctx,
+        args.imageUrl,
+        "image/png"
+      );
+
+      await ctx.runMutation(internal.generations.updateUpscaleEntry, {
+        id: args.generationId,
+        upscaleId: args.upscaleId,
+        update: {
+          status: "succeeded",
+          storageId,
+          duration: args.duration,
+          completedAt: Date.now(),
+        },
+      });
+    } catch (error) {
+      console.error(
+        "[canvas-upscale] Failed to store upscaled image:",
+        error instanceof Error ? error.message : String(error)
+      );
+      await ctx.runMutation(internal.generations.updateUpscaleEntry, {
+        id: args.generationId,
+        upscaleId: args.upscaleId,
+        update: {
+          status: "failed",
+          error: "Failed to store upscaled image",
+        },
       });
     }
   },

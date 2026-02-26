@@ -1016,6 +1016,28 @@ export const userFileSchema = v.object({
   generatedImagePrompt: v.optional(v.string()), // Prompt used for generation
 });
 
+// Shared Replicate prediction status validator
+export const replicateStatusValidator = v.union(
+  v.literal("pending"),
+  v.literal("starting"),
+  v.literal("processing"),
+  v.literal("succeeded"),
+  v.literal("failed"),
+);
+
+// Upscale entry schema for multi-version upscaling
+export const upscaleEntrySchema = v.object({
+  id: v.string(), // crypto.randomUUID()
+  type: v.union(v.literal("standard"), v.literal("creative")),
+  status: replicateStatusValidator,
+  replicateId: v.optional(v.string()),
+  storageId: v.optional(v.id("_storage")),
+  error: v.optional(v.string()),
+  duration: v.optional(v.number()),
+  startedAt: v.optional(v.number()),
+  completedAt: v.optional(v.number()),
+});
+
 // Standalone generation schema (canvas mode, decoupled from chat)
 export const generationSchema = v.object({
   userId: v.id("users"),
@@ -1047,6 +1069,17 @@ export const generationSchema = v.object({
   })),
   duration: v.optional(v.number()),
   batchId: v.optional(v.string()), // Groups multi-model generations
+  /** @deprecated Use upscales array instead. Kept read-only for backward compat. */
+  upscale: v.optional(v.object({
+    status: replicateStatusValidator,
+    replicateId: v.optional(v.string()),
+    storageId: v.optional(v.id("_storage")),
+    error: v.optional(v.string()),
+    duration: v.optional(v.number()),
+    startedAt: v.optional(v.number()),
+    completedAt: v.optional(v.number()),
+  })),
+  upscales: v.optional(v.array(upscaleEntrySchema)),
   createdAt: v.number(),
   completedAt: v.optional(v.number()),
 });
@@ -1075,3 +1108,4 @@ export type CreatePersonaArgs = Infer<typeof personaImportSchema>;
 export type UpdateUserSettingsArgs = Infer<typeof userSettingsUpdateSchema>;
 export type CreateUserModelArgs = Infer<typeof userModelSchema>;
 export type GenerationDoc = Infer<typeof generationSchema>;
+export type UpscaleEntryDoc = Infer<typeof upscaleEntrySchema>;
