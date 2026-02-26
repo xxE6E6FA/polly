@@ -8,6 +8,7 @@ export const ANONYMOUS_MESSAGE_LIMIT = 10;
 
 // Built-in model constants
 export const DEFAULT_BUILTIN_MODEL_ID = "gemini-2.5-flash-lite";
+export const DEFAULT_BUILTIN_VISION_MODEL_ID = "gemini-flash-latest";
 
 // Streaming defaults
 export const DEFAULT_TEMPERATURE = 0.7;

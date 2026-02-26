@@ -1,4 +1,5 @@
 import {
+  ArrowsClockwiseIcon,
   CaretLeftIcon,
   CaretRightIcon,
   ClockIcon,
@@ -21,6 +22,7 @@ import {
   generateImageFilename,
 } from "@/lib/export";
 import { useToast } from "@/providers/toast-context";
+import { useCanvasStore } from "@/stores/canvas-store";
 import type { CanvasImage } from "@/types";
 
 type CanvasImageViewerProps = {
@@ -173,6 +175,16 @@ export function CanvasImageViewer({
     onRequestDelete?.(image);
   }, [image, onRequestDelete]);
 
+  const loadImageSettings = useCanvasStore(s => s.loadImageSettings);
+  const handleUseSettings = useCallback(() => {
+    if (!image) {
+      return;
+    }
+    loadImageSettings(image);
+    onOpenChange(false);
+    managedToast.success("Settings loaded into form");
+  }, [image, loadImageSettings, onOpenChange, managedToast]);
+
   if (!(open && image)) {
     return null;
   }
@@ -309,6 +321,19 @@ export function CanvasImageViewer({
                   <TooltipContent>Delete image</TooltipContent>
                 </Tooltip>
               )}
+              <Tooltip>
+                <TooltipTrigger>
+                  <button
+                    type="button"
+                    className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                    onClick={handleUseSettings}
+                    aria-label="Use settings"
+                  >
+                    <ArrowsClockwiseIcon className="size-4" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>Use settings</TooltipContent>
+              </Tooltip>
               <div className="mx-1 h-4 w-px bg-border/60" />
               <Tooltip>
                 <TooltipTrigger>

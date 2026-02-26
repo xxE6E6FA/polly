@@ -9,7 +9,7 @@ import { useConvexFileUpload } from "@/hooks/use-convex-file-upload";
 import { useNotificationDialog } from "@/hooks/use-dialog-management";
 import {
   base64ToUint8Array,
-  convertImageToWebP,
+  compressImage,
   isHeicFile,
   readFileAsBase64,
   readFileAsText,
@@ -97,7 +97,7 @@ async function processImageFile(file: File): Promise<
   const isHeic = isHeicFile(file);
 
   try {
-    const converted = await convertImageToWebP(file);
+    const converted = await compressImage(file);
     const thumbnail = `data:${converted.mimeType};base64,${converted.base64}`;
     const processedFile = new File(
       [base64ToUint8Array(converted.base64)],

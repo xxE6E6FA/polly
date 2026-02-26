@@ -1,6 +1,7 @@
 import { api } from "@convex/_generated/api";
 import {
   ArrowClockwiseIcon,
+  ArrowsClockwiseIcon,
   CheckCircleIcon,
   CircleIcon,
   XIcon,
@@ -197,6 +198,7 @@ function SucceededCard({
 }) {
   const selectedImageIds = useCanvasStore(s => s.selectedImageIds);
   const toggleImageSelection = useCanvasStore(s => s.toggleImageSelection);
+  const loadImageSettings = useCanvasStore(s => s.loadImageSettings);
   const isSelected = selectedImageIds.has(image.id);
   const isSelecting = selectedImageIds.size > 0;
   const managedToast = useToast();
@@ -242,6 +244,15 @@ function SucceededCard({
       toggleImageSelection(image.id);
     },
     [image.id, toggleImageSelection]
+  );
+
+  const handleUseSettings = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      loadImageSettings(image);
+      managedToast.success("Settings loaded into form");
+    },
+    [image, loadImageSettings, managedToast]
   );
 
   const handleClick = useCallback(() => {
@@ -331,6 +342,19 @@ function SucceededCard({
             </button>
           </TooltipTrigger>
           <TooltipContent>Download image</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger>
+            <button
+              type="button"
+              className="flex size-8 items-center justify-center rounded-md bg-black/50 text-white/90 backdrop-blur-sm transition-colors hover:bg-black/70"
+              onClick={handleUseSettings}
+              aria-label="Use settings"
+            >
+              <ArrowsClockwiseIcon className="size-4" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>Use settings</TooltipContent>
         </Tooltip>
         {image.source === "canvas" && image.generationId && (
           <Tooltip>
