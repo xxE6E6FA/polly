@@ -43,7 +43,7 @@ export { validateApiKey } from "./validation";
 
 export {
   base64ToUint8Array,
-  convertImageToWebP,
+  compressImage,
   FILE_EXTENSION_TO_LANGUAGE,
   generateThumbnail,
   generateVideoThumbnail,

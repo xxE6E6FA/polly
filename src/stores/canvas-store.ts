@@ -66,6 +66,13 @@ export type CanvasState = {
   setIsGeneratingPrompt: (v: boolean) => void;
   setPromptModel: (modelId?: string, provider?: string) => void;
   setPromptPersonaId: (id?: string) => void;
+  loadImageSettings: (image: {
+    prompt?: string;
+    model?: string;
+    seed?: number;
+    aspectRatio?: string;
+    quality?: number;
+  }) => void;
 };
 
 type CanvasStoreApi = StoreApi<CanvasState>;
@@ -227,6 +234,30 @@ function createCanvasState(
     setPromptModel: (modelId, provider) =>
       set_({ promptModelId: modelId, promptModelProvider: provider }),
     setPromptPersonaId: id => set_({ promptPersonaId: id }),
+    loadImageSettings: image => {
+      const updates: Partial<CanvasState> = {};
+      if (image.prompt !== undefined) {
+        updates.prompt = image.prompt;
+      }
+      if (image.model) {
+        updates.selectedModelIds = [image.model];
+      }
+      const advancedUpdates: CanvasState["advancedParams"] = {
+        ...get_().advancedParams,
+      };
+      if (image.seed !== undefined) {
+        advancedUpdates.seed = image.seed;
+      }
+      if (image.quality !== undefined) {
+        advancedUpdates.quality = image.quality;
+      }
+      updates.advancedParams = advancedUpdates;
+      if (image.aspectRatio) {
+        updates.aspectRatio = image.aspectRatio;
+      }
+      set_(updates);
+      persistSelections(get_);
+    },
   };
 }
 

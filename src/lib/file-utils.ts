@@ -72,10 +72,11 @@ function scaleDimensions(
   return { width: Math.round((width * maxSize) / height), height: maxSize };
 }
 
-export async function convertImageToWebP(
+export async function compressImage(
   file: File,
   maxDimension = FILE_LIMITS.MAX_DIMENSION,
-  quality = FILE_LIMITS.IMAGE_QUALITY
+  quality = FILE_LIMITS.IMAGE_QUALITY,
+  format: "image/webp" | "image/jpeg" = "image/webp"
 ): Promise<{
   base64: string;
   mimeType: string;
@@ -124,7 +125,7 @@ export async function convertImageToWebP(
                 }
                 resolve({
                   base64,
-                  mimeType: "image/webp",
+                  mimeType: format,
                   width: scaled.width,
                   height: scaled.height,
                 });
@@ -136,7 +137,7 @@ export async function convertImageToWebP(
               reject(new Error("Failed to convert image"));
             }
           },
-          "image/webp",
+          format,
           quality
         );
       };

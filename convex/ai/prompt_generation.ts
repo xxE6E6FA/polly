@@ -17,7 +17,7 @@ import { CONFIG } from "./config";
 import { createLanguageModel } from "./server_streaming";
 import { generateTextWithProvider } from "./text_generation";
 import type { ProviderType } from "../types";
-import { DEFAULT_BUILTIN_MODEL_ID } from "../../shared/constants";
+import { DEFAULT_BUILTIN_VISION_MODEL_ID } from "../../shared/constants";
 
 const DESCRIBE_IMAGE_PROMPT = `Describe this image as a prompt that could recreate it with an AI image generator.
 
@@ -111,7 +111,7 @@ export const generateImagePrompt = action({
 							],
 						},
 					],
-					maxOutputTokens: 500,
+					maxOutputTokens: 2048,
 					temperature: 0.7,
 				});
 
@@ -123,7 +123,7 @@ export const generateImagePrompt = action({
 				model: languageModel,
 				system: ENHANCE_PROMPT_SYSTEM + personaStyle,
 				prompt: args.simplePrompt || "Create a visually striking and creative image",
-				maxOutputTokens: 500,
+				maxOutputTokens: 2048,
 				temperature: 0.8,
 			});
 
@@ -146,7 +146,7 @@ export const generateImagePrompt = action({
 			const imageData = await fetchImageData(ctx, args.imageStorageId);
 
 			const google = createGoogleGenerativeAI({ apiKey });
-			const model = google.chat(DEFAULT_BUILTIN_MODEL_ID);
+			const model = google.chat(DEFAULT_BUILTIN_VISION_MODEL_ID);
 
 			const result = await generateText({
 				model,
@@ -159,7 +159,7 @@ export const generateImagePrompt = action({
 						],
 					},
 				],
-				maxOutputTokens: 500,
+				maxOutputTokens: 2048,
 				temperature: 0.7,
 			});
 
@@ -169,7 +169,7 @@ export const generateImagePrompt = action({
 		// enhance_prompt with internal model
 		return generateTextWithProvider({
 			prompt: `${ENHANCE_PROMPT_SYSTEM}${personaStyle}\n\nUser prompt: ${args.simplePrompt || "Create a visually striking and creative image"}`,
-			maxOutputTokens: 500,
+			maxOutputTokens: 2048,
 			temperature: 0.8,
 		});
 	},

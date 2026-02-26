@@ -34,6 +34,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { useConvexFileUpload } from "@/hooks/use-convex-file-upload";
 import { useEnabledImageModels } from "@/hooks/use-enabled-image-models";
 import { useModelCatalogStore } from "@/hooks/use-model-catalog";
+import { base64ToUint8Array, compressImage } from "@/lib/file-utils";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/providers/toast-context";
 import { useCanvasStore } from "@/stores/canvas-store";
@@ -468,7 +469,12 @@ function PromptSparkleMenu() {
 
       setIsGeneratingPrompt(true);
       try {
-        const attachment = await uploadFile(file);
+        const converted = await compressImage(file, 1024, 0.8, "image/jpeg");
+        const bytes = base64ToUint8Array(converted.base64);
+        const compressedFile = new File([bytes], file.name || "image.jpg", {
+          type: converted.mimeType,
+        });
+        const attachment = await uploadFile(compressedFile);
         if (!attachment.storageId) {
           throw new Error("Upload succeeded but no storage ID returned");
         }
@@ -723,6 +729,116 @@ export function CanvasGenerationForm() {
     }
   }, []);
 
+  const setIsGeneratingPrompt = useCanvasStore(s => s.setIsGeneratingPrompt);
+  const promptModelId = useCanvasStore(s => s.promptModelId);
+  const promptModelProvider = useCanvasStore(s => s.promptModelProvider);
+  const promptPersonaId = useCanvasStore(s => s.promptPersonaId);
+  const generatePrompt = useAction(
+    api.ai.prompt_generation.generateImagePrompt
+  );
+
+  const [isDragging, setIsDragging] = useState(false);
+
+  const describeImageFromFile = useCallback(
+    async (file: File) => {
+      setIsGeneratingPrompt(true);
+      try {
+        const converted = await compressImage(file, 1024, 0.8, "image/jpeg");
+        const bytes = base64ToUint8Array(converted.base64);
+        const compressedFile = new File([bytes], file.name || "image.jpg", {
+          type: converted.mimeType,
+        });
+        const attachment = await uploadFile(compressedFile);
+        if (!attachment.storageId) {
+          throw new Error("Upload succeeded but no storage ID returned");
+        }
+        const sharedArgs = {
+          ...(promptModelId && promptModelProvider
+            ? { provider: promptModelProvider, modelId: promptModelId }
+            : {}),
+          ...(promptPersonaId
+            ? { personaId: promptPersonaId as Id<"personas"> }
+            : {}),
+        };
+        const result = await generatePrompt({
+          mode: "describe_image",
+          imageStorageId: attachment.storageId,
+          ...sharedArgs,
+        });
+        setPrompt(result);
+      } catch (err) {
+        console.error("Failed to describe image:", err);
+        managedToast.error(
+          err instanceof Error ? err.message : "Failed to describe image"
+        );
+      } finally {
+        setIsGeneratingPrompt(false);
+      }
+    },
+    [
+      uploadFile,
+      generatePrompt,
+      setPrompt,
+      setIsGeneratingPrompt,
+      promptModelId,
+      promptModelProvider,
+      promptPersonaId,
+      managedToast.error,
+    ]
+  );
+
+  const handlePaste = useCallback(
+    async (e: React.ClipboardEvent) => {
+      const files = Array.from(e.clipboardData.files);
+      const imageFile = files.find(f => f.type.startsWith("image/"));
+      if (!imageFile) {
+        return;
+      }
+      e.preventDefault();
+      // Materialize the clipboard data immediately — the browser may
+      // revoke access to the underlying blob after the event returns.
+      const buffer = await imageFile.arrayBuffer();
+      const file = new File([buffer], imageFile.name || "pasted-image.png", {
+        type: imageFile.type,
+      });
+      describeImageFromFile(file);
+    },
+    [describeImageFromFile]
+  );
+
+  const handleDragOver = useCallback(
+    (e: React.DragEvent) => {
+      const hasImageType = Array.from(e.dataTransfer.types).includes("Files");
+      if (hasImageType) {
+        e.preventDefault();
+        if (!isDragging) {
+          setIsDragging(true);
+        }
+      }
+    },
+    [isDragging]
+  );
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    // Only reset if leaving the container (not entering a child)
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+      setIsDragging(false);
+    }
+  }, []);
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      setIsDragging(false);
+      const files = Array.from(e.dataTransfer.files);
+      const imageFile = files.find(f => f.type.startsWith("image/"));
+      if (imageFile) {
+        describeImageFromFile(imageFile);
+      }
+    },
+    [describeImageFromFile]
+  );
+
   const handleReferenceImageSelect = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
       const files = Array.from(e.target.files ?? []);
@@ -755,15 +871,24 @@ export function CanvasGenerationForm() {
     <div className="stack-md pb-2">
       {/* Prompt */}
       <div className="stack-xs">
-        <div className="relative">
+        <div
+          className="relative"
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+        >
           <textarea
             id="canvas-prompt"
             value={prompt}
             onChange={e => setPrompt(e.target.value)}
             onKeyDown={handleKeyDown}
+            onPaste={handlePaste}
             disabled={isGeneratingPrompt}
             placeholder="Describe the image you want to generate..."
-            className="min-h-[100px] w-full resize-y rounded-lg border border-border/50 bg-sidebar-hover p-3 pr-10 text-sm text-sidebar-foreground placeholder:text-sidebar-muted/50 focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/20 disabled:opacity-60"
+            className={cn(
+              "min-h-[100px] w-full resize-y rounded-lg border bg-sidebar-hover p-3 pr-10 text-sm text-sidebar-foreground placeholder:text-sidebar-muted/50 focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/20 disabled:opacity-60",
+              isDragging ? "border-primary border-dashed" : "border-border/50"
+            )}
             rows={4}
           />
           <PromptSparkleMenu />
@@ -950,6 +1075,12 @@ export function CanvasGenerationForm() {
           )}
         />
         Advanced Settings
+        {(advancedParams.steps !== undefined ||
+          advancedParams.guidanceScale !== undefined ||
+          advancedParams.seed !== undefined ||
+          !!advancedParams.negativePrompt) && (
+          <span className="size-1.5 rounded-full bg-primary" />
+        )}
       </button>
 
       {showAdvanced && (
