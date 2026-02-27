@@ -82,6 +82,12 @@ const CLERK_SETTLE_DELAY_MS = 1_000;
 // Grace period before declaring both auth methods failed.
 const AUTH_FALLBACK_DELAY_MS = 3_000;
 
+// How long to wait for Clerk's SDK to initialize before giving up and falling
+// through to anonymous auth. Covers the case where stale session cookies or
+// network issues cause `isLoaded` to stay `false` indefinitely (e.g. after
+// overnight idle).
+const CLERK_LOAD_TIMEOUT_MS = 8_000;
+
 /**
  * Custom useAuth hook that wraps Clerk's useAuth with anonymous JWT support.
  *
@@ -96,6 +102,7 @@ function useAuthWithAnonymous() {
   const [anonReady, setAnonReady] = useState(false);
   const [anonToken, setAnonToken] = useState<string | null>(null);
   const [bothFailed, setBothFailed] = useState(false);
+  const [clerkTimedOut, setClerkTimedOut] = useState(false);
   const fetchingRef = useRef(false);
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wasSignedInRef = useRef(false);
@@ -121,6 +128,24 @@ function useAuthWithAnonymous() {
       clearClerkCookies();
     }
   }, [clerkAuth.isLoaded, clerkAuth.isSignedIn]);
+
+  // Timeout: if Clerk's SDK fails to load (e.g. stale cookies after overnight
+  // idle), clear cookies and let anonymous auth proceed instead of hanging.
+  useEffect(() => {
+    if (clerkAuth.isLoaded || clerkTimedOut) {
+      return;
+    }
+    const timer = setTimeout(() => {
+      console.warn(
+        "[Auth] Clerk failed to load within timeout — clearing cookies and falling back to anonymous auth"
+      );
+      clearClerkCookies();
+      setClerkTimedOut(true);
+    }, CLERK_LOAD_TIMEOUT_MS);
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [clerkAuth.isLoaded, clerkTimedOut]);
 
   // Schedule a token refresh before expiry
   const scheduleRefresh = useCallback(
@@ -173,12 +198,12 @@ function useAuthWithAnonymous() {
       return;
     }
 
-    // Clerk is not loaded yet — wait
-    if (!clerkAuth.isLoaded) {
+    // Clerk is not loaded yet — wait (unless we've timed out)
+    if (!(clerkAuth.isLoaded || clerkTimedOut)) {
       return;
     }
 
-    // Clerk is loaded and NOT signed in — set up anonymous auth
+    // Clerk is loaded (or timed out) and NOT signed in — set up anonymous auth
     if (fetchingRef.current) {
       return;
     }
@@ -270,13 +295,19 @@ function useAuthWithAnonymous() {
         clearTimeout(refreshTimerRef.current);
       }
     };
-  }, [clerkAuth.isSignedIn, clerkAuth.isLoaded, siteUrl, scheduleRefresh]);
+  }, [
+    clerkAuth.isSignedIn,
+    clerkAuth.isLoaded,
+    clerkTimedOut,
+    siteUrl,
+    scheduleRefresh,
+  ]);
 
   // Detect genuinely-stuck state: both Clerk and anon resolved, neither succeeded.
   // Uses a delay to avoid flashing unauthenticated during normal Clerk token restore.
   useEffect(() => {
     if (
-      clerkAuth.isLoaded &&
+      (clerkAuth.isLoaded || clerkTimedOut) &&
       !clerkAuth.isSignedIn &&
       anonReady &&
       !anonToken
@@ -290,15 +321,51 @@ function useAuthWithAnonymous() {
       };
     }
     setBothFailed(false);
-  }, [clerkAuth.isLoaded, clerkAuth.isSignedIn, anonReady, anonToken]);
+  }, [
+    clerkAuth.isLoaded,
+    clerkTimedOut,
+    clerkAuth.isSignedIn,
+    anonReady,
+    anonToken,
+  ]);
+
+  // Recover when the tab becomes visible again (e.g. after overnight sleep).
+  // If Clerk timed out, a full reload gives it a fresh chance to initialize.
+  // If the anonymous token expired while backgrounded, trigger a refresh.
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState !== "visible") {
+        return;
+      }
+      if (clerkTimedOut) {
+        window.location.reload();
+        return;
+      }
+      const session = getAnonymousSession();
+      if (session && isSessionExpired(session)) {
+        refreshAnonymousToken(siteUrl, session)
+          .then(newSession => {
+            setAnonToken(newSession.token);
+            scheduleRefresh(newSession.expiresAt);
+          })
+          .catch(err => {
+            console.error("[Auth] Visibility refresh failed:", err);
+          });
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [clerkTimedOut, siteUrl, scheduleRefresh]);
 
   // Clerk is signed in — pass through Clerk's auth directly
   if (clerkAuth.isSignedIn) {
     return clerkAuth;
   }
 
-  // Clerk is loaded but not signed in — use anonymous auth
-  if (clerkAuth.isLoaded && anonReady && anonToken) {
+  // Clerk is loaded (or timed out) but not signed in — use anonymous auth
+  if ((clerkAuth.isLoaded || clerkTimedOut) && anonReady && anonToken) {
     return {
       isLoaded: true,
       isSignedIn: true as const,
@@ -354,10 +421,25 @@ function useAuthWithAnonymous() {
   };
 }
 
-function ClerkServiceBanner({ message }: { message: string }) {
+function ClerkServiceBanner({
+  message,
+  showReload,
+}: {
+  message: string;
+  showReload?: boolean;
+}) {
   return (
     <div className="fixed top-0 inset-x-0 z-banner bg-amber-500/90 text-amber-950 text-center text-sm py-1.5 px-4">
       {message}
+      {showReload && (
+        <button
+          type="button"
+          onClick={() => window.location.reload()}
+          className="ml-2 underline font-medium hover:text-amber-800"
+        >
+          Reload
+        </button>
+      )}
     </div>
   );
 }
@@ -378,7 +460,10 @@ export const ConvexProvider = ({ children }: ConvexProviderProps) => {
         <ClerkServiceBanner message="Sign-in is temporarily experiencing issues. You can continue using the app." />
       </ClerkDegraded>
       <ClerkFailed>
-        <ClerkServiceBanner message="Sign-in is currently unavailable. You can continue using the app as a guest." />
+        <ClerkServiceBanner
+          message="Sign-in is currently unavailable. You can continue using the app as a guest."
+          showReload
+        />
       </ClerkFailed>
       <ConvexProviderWithClerk client={client} useAuth={useAuthWithAnonymous}>
         {children}
