@@ -76,6 +76,7 @@ export { useProfiles } from "./use-profiles";
 // =============================================================================
 
 export { useArchiveConversation } from "./use-archive-conversation";
+export { useArchiveGeneration } from "./use-archive-generation";
 export { useConversationImport } from "./use-conversation-import";
 export { useConversationLimit } from "./use-conversation-limit";
 export { useDeleteConversation } from "./use-delete-conversation";

@@ -7,18 +7,9 @@ import {
 } from "@phosphor-icons/react";
 import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { type RefObject, useCallback, useRef, useState } from "react";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useArchiveGeneration } from "@/hooks/use-archive-generation";
 import { useBreakpointColumns } from "@/hooks/use-breakpoint-columns";
 import { useVirtualizedPaginatedQuery } from "@/hooks/use-virtualized-paginated-query";
 import { downloadFromUrl, generateImageFilename } from "@/lib/export";
@@ -41,6 +32,7 @@ type PaginatedGeneration = {
   batchId?: string;
   parentGenerationId?: Id<"generations">;
   rootGenerationId?: Id<"generations">;
+  isArchived?: boolean;
   params?: {
     aspectRatio?: string;
     seed?: number;
@@ -48,7 +40,7 @@ type PaginatedGeneration = {
     referenceImageIds?: Id<"_storage">[];
   };
   imageUrls: string[];
-  upscales: UpscaleEntry[];
+  upscales: (UpscaleEntry & { isArchived?: boolean })[];
   editCount: number;
   referenceImageUrls: string[];
 };
@@ -71,14 +63,9 @@ export function CanvasMasonryGrid({
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerIndex, setViewerIndex] = useState(0);
   const deleteGeneration = useMutation(api.generations.deleteGeneration);
+  const { archiveGeneration, unarchiveGeneration } = useArchiveGeneration();
   const selectedImageIds = useCanvasStore(s => s.selectedImageIds);
   const clearImageSelection = useCanvasStore(s => s.clearImageSelection);
-
-  // Delete confirmation state
-  const [deleteTarget, setDeleteTarget] = useState<
-    { type: "single"; image: CanvasImage } | { type: "batch" } | null
-  >(null);
-  const [isDeleting, setIsDeleting] = useState(false);
 
   // Canvas and conversation images are kept completely separate to avoid
   // column redistribution when paginated canvas results grow.
@@ -134,7 +121,11 @@ export function CanvasMasonryGrid({
     }
   } else if (canvasGenerations) {
     // Canvas-only views: all, canvas, upscaled, edits
+    // Client-side filtering hides archived items (server-side would break pagination cursor stability)
     for (const gen of canvasGenerations) {
+      if (gen.isArchived) {
+        continue;
+      }
       if (gen.status === "succeeded" && gen.imageUrls.length > 0) {
         for (const url of gen.imageUrls) {
           allImages.push({
@@ -155,16 +146,18 @@ export function CanvasMasonryGrid({
             rootGenerationId: gen.rootGenerationId,
             editCount: gen.editCount,
             referenceImageUrls: gen.referenceImageUrls,
-            upscales: gen.upscales.map(u => ({
-              id: u.id,
-              type: u.type,
-              status: u.status,
-              error: u.error,
-              imageUrl: u.imageUrl,
-              duration: u.duration,
-              startedAt: u.startedAt,
-              completedAt: u.completedAt,
-            })),
+            upscales: gen.upscales
+              .filter(u => !u.isArchived)
+              .map(u => ({
+                id: u.id,
+                type: u.type,
+                status: u.status,
+                error: u.error,
+                imageUrl: u.imageUrl,
+                duration: u.duration,
+                startedAt: u.startedAt,
+                completedAt: u.completedAt,
+              })),
           });
         }
       } else {
@@ -269,62 +262,42 @@ export function CanvasMasonryGrid({
     }
   };
 
-  const handleRequestDelete = useCallback((image: CanvasImage) => {
-    setDeleteTarget({ type: "single", image });
-  }, []);
-
-  const handleConfirmDelete = useCallback(async () => {
-    setIsDeleting(true);
-    try {
-      if (deleteTarget?.type === "single") {
-        const { image } = deleteTarget;
-        if (image.source === "canvas" && image.generationId) {
-          await deleteGeneration({ id: image.generationId });
-          managedToast.success("Image deleted");
-        }
-      } else if (deleteTarget?.type === "batch") {
-        // Collect unique generationIds from selected images
-        const seen = new Set<string>();
-        const toDelete: CanvasImage[] = [];
-        for (const img of allImages) {
-          if (
-            selectedImageIds.has(img.id) &&
-            img.source === "canvas" &&
-            img.generationId &&
-            !seen.has(img.generationId)
-          ) {
-            seen.add(img.generationId);
-            toDelete.push(img);
-          }
-        }
-        await Promise.all(
-          toDelete.map(img => {
-            // generationId is guaranteed non-null by the filter above
-            const genId = img.generationId;
-            if (!genId) {
-              return Promise.resolve();
-            }
-            return deleteGeneration({ id: genId });
-          })
-        );
-        managedToast.success(
-          `${toDelete.length} image${toDelete.length === 1 ? "" : "s"} deleted`
-        );
-        clearImageSelection();
+  const handleRequestDelete = useCallback(
+    async (image: CanvasImage) => {
+      if (!(image.source === "canvas" && image.generationId)) {
+        return;
       }
-    } catch {
-      managedToast.error("Failed to delete");
-    } finally {
-      setIsDeleting(false);
-      setDeleteTarget(null);
-    }
-  }, [
-    deleteTarget,
-    deleteGeneration,
-    managedToast,
-    selectedImageIds,
-    clearImageSelection,
-  ]);
+      const genId = image.generationId;
+      try {
+        await archiveGeneration(genId);
+        let undone = false;
+        managedToast.success("Image deleted", {
+          id: `delete-gen-${genId}`,
+          duration: 5000,
+          isUndo: true,
+          action: {
+            label: "Undo",
+            onClick: () => {
+              undone = true;
+              unarchiveGeneration(genId);
+            },
+          },
+          onAutoClose: async () => {
+            if (!undone) {
+              try {
+                await deleteGeneration({ id: genId });
+              } catch {
+                // Already archived, permanent delete failed — acceptable
+              }
+            }
+          },
+        });
+      } catch {
+        managedToast.error("Failed to delete");
+      }
+    },
+    [archiveGeneration, unarchiveGeneration, deleteGeneration, managedToast]
+  );
 
   const handleBatchDownload = useCallback(async () => {
     const selected = allImages.filter(
@@ -356,9 +329,65 @@ export function CanvasMasonryGrid({
     );
   }, [selectedImageIds, managedToast]);
 
-  const handleBatchDelete = useCallback(() => {
-    setDeleteTarget({ type: "batch" });
-  }, []);
+  const handleBatchDelete = useCallback(async () => {
+    // Collect unique generationIds from selected images
+    const seen = new Set<string>();
+    const toArchive: Id<"generations">[] = [];
+    for (const img of allImages) {
+      if (
+        selectedImageIds.has(img.id) &&
+        img.source === "canvas" &&
+        img.generationId &&
+        !seen.has(img.generationId)
+      ) {
+        seen.add(img.generationId);
+        toArchive.push(img.generationId);
+      }
+    }
+    if (toArchive.length === 0) {
+      return;
+    }
+
+    try {
+      await Promise.all(toArchive.map(id => archiveGeneration(id)));
+      clearImageSelection();
+
+      let undone = false;
+      const count = toArchive.length;
+      managedToast.success(`${count} image${count === 1 ? "" : "s"} deleted`, {
+        id: "delete-gen-batch",
+        duration: 5000,
+        isUndo: true,
+        action: {
+          label: "Undo",
+          onClick: () => {
+            undone = true;
+            for (const id of toArchive) {
+              unarchiveGeneration(id);
+            }
+          },
+        },
+        onAutoClose: async () => {
+          if (!undone) {
+            try {
+              await Promise.all(toArchive.map(id => deleteGeneration({ id })));
+            } catch {
+              // Acceptable — already archived
+            }
+          }
+        },
+      });
+    } catch {
+      managedToast.error("Failed to delete");
+    }
+  }, [
+    selectedImageIds,
+    archiveGeneration,
+    unarchiveGeneration,
+    deleteGeneration,
+    clearImageSelection,
+    managedToast,
+  ]);
 
   // Count how many selected images are deletable (canvas-sourced)
   const selectedCount = selectedImageIds.size;
@@ -440,11 +469,6 @@ export function CanvasMasonryGrid({
     }
   }
 
-  const deleteMessage =
-    deleteTarget?.type === "single"
-      ? "This will permanently delete this image and cannot be undone."
-      : `This will permanently delete ${selectedDeletableCount} image${selectedDeletableCount === 1 ? "" : "s"} and cannot be undone.`;
-
   return (
     <>
       <div ref={containerRef} className="flex items-start gap-3">
@@ -516,37 +540,6 @@ export function CanvasMasonryGrid({
           </Button>
         </div>
       )}
-
-      {/* Delete confirmation dialog */}
-      <AlertDialog
-        open={deleteTarget !== null}
-        onOpenChange={open => {
-          if (!open) {
-            setDeleteTarget(null);
-          }
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              {deleteTarget?.type === "batch"
-                ? `Delete ${selectedDeletableCount} image${selectedDeletableCount === 1 ? "" : "s"}?`
-                : "Delete image?"}
-            </AlertDialogTitle>
-            <AlertDialogDescription>{deleteMessage}</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleConfirmDelete}
-              disabled={isDeleting}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {isDeleting ? "Deleting..." : "Delete"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
       {/* Image viewer modal */}
       <CanvasImageViewer

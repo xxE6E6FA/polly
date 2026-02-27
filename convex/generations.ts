@@ -172,7 +172,7 @@ export const listGenerations = query({
             .query("generations")
             .withIndex("by_root", q => q.eq("rootGenerationId", gen._id))
             .collect();
-          editCount = descendants.length;
+          editCount = descendants.filter(d => !d.isArchived).length;
         }
 
         // Resolve reference image URLs
@@ -233,7 +233,7 @@ export const listGenerationsPaginated = query({
             .query("generations")
             .withIndex("by_root", q => q.eq("rootGenerationId", gen._id))
             .collect();
-          editCount = descendants.length;
+          editCount = descendants.filter(d => !d.isArchived).length;
         }
 
         let referenceImageUrls: string[] = [];
@@ -451,6 +451,78 @@ export const deleteGeneration = mutation({
       await ctx.storage.delete(gen.upscale.storageId);
     }
     await ctx.db.delete(args.id);
+  },
+});
+
+export const archiveGeneration = mutation({
+  args: { id: v.id("generations") },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("Not authenticated");
+    }
+    const gen = await ctx.db.get(args.id);
+    if (!gen || gen.userId !== userId) {
+      throw new Error("Not found");
+    }
+    await ctx.db.patch(args.id, { isArchived: true });
+  },
+});
+
+export const unarchiveGeneration = mutation({
+  args: { id: v.id("generations") },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("Not authenticated");
+    }
+    const gen = await ctx.db.get(args.id);
+    if (!gen || gen.userId !== userId) {
+      throw new Error("Not found");
+    }
+    await ctx.db.patch(args.id, { isArchived: false });
+  },
+});
+
+export const archiveUpscaleEntry = mutation({
+  args: {
+    id: v.id("generations"),
+    upscaleId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("Not authenticated");
+    }
+    const gen = await ctx.db.get(args.id);
+    if (!gen || gen.userId !== userId) {
+      throw new Error("Not found");
+    }
+    const upscales = (gen.upscales ?? []).map(e =>
+      e.id === args.upscaleId ? { ...e, isArchived: true } : e
+    );
+    await ctx.db.patch(args.id, { upscales });
+  },
+});
+
+export const unarchiveUpscaleEntry = mutation({
+  args: {
+    id: v.id("generations"),
+    upscaleId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("Not authenticated");
+    }
+    const gen = await ctx.db.get(args.id);
+    if (!gen || gen.userId !== userId) {
+      throw new Error("Not found");
+    }
+    const upscales = (gen.upscales ?? []).map(e =>
+      e.id === args.upscaleId ? { ...e, isArchived: false } : e
+    );
+    await ctx.db.patch(args.id, { upscales });
   },
 });
 
@@ -705,8 +777,8 @@ export const getEditTree = query({
       .order("asc")
       .collect();
 
-    // Combine root + descendants, resolve URLs
-    const all = [root, ...descendants];
+    // Combine root + descendants, exclude archived
+    const all = [root, ...descendants].filter(g => !g.isArchived);
     return Promise.all(
       all.map(async gen => {
         let imageUrl: string | undefined;
@@ -741,7 +813,7 @@ export const getEditDescendantCount = query({
       .query("generations")
       .withIndex("by_root", q => q.eq("rootGenerationId", args.rootId))
       .collect();
-    return descendants.filter(d => d.userId === userId).length;
+    return descendants.filter(d => d.userId === userId && !d.isArchived).length;
   },
 });
 

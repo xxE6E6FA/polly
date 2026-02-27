@@ -24,6 +24,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useArchiveGeneration } from "@/hooks/use-archive-generation";
 import { useEnabledImageModels } from "@/hooks/use-enabled-image-models";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useRequiredParam } from "@/hooks/use-required-param";
@@ -93,6 +94,7 @@ export default function CanvasImagePage() {
 
   const startEditGeneration = useAction(api.generations.startEditGeneration);
   const deleteGeneration = useMutation(api.generations.deleteGeneration);
+  const { archiveGeneration, unarchiveGeneration } = useArchiveGeneration();
   const cancelGeneration = useMutation(api.generations.cancelGeneration);
   const imageModels = useEnabledImageModels();
   const img2imgModels = imageModels?.filter(m => m.supportsImageToImage) ?? [];
@@ -235,9 +237,7 @@ export default function CanvasImagePage() {
   const handleDeleteNode = useCallback(
     async (nodeId: Id<"generations">) => {
       try {
-        await deleteGeneration({ id: nodeId });
-        managedToast.success("Edit deleted");
-        // If we deleted the active node, select the previous one
+        // Select previous node before archiving (tree will reactively update)
         if (activeNode?._id === nodeId && editTree) {
           const idx = editTree.findIndex(n => n._id === nodeId);
           const prev = editTree[idx - 1];
@@ -245,11 +245,42 @@ export default function CanvasImagePage() {
             setSelectedNodeId(prev._id);
           }
         }
+
+        await archiveGeneration(nodeId);
+        let undone = false;
+        managedToast.success("Edit deleted", {
+          id: `delete-edit-${nodeId}`,
+          duration: 5000,
+          isUndo: true,
+          action: {
+            label: "Undo",
+            onClick: () => {
+              undone = true;
+              unarchiveGeneration(nodeId);
+            },
+          },
+          onAutoClose: async () => {
+            if (!undone) {
+              try {
+                await deleteGeneration({ id: nodeId });
+              } catch {
+                // Already archived, permanent delete failed — acceptable
+              }
+            }
+          },
+        });
       } catch {
         managedToast.error("Failed to delete edit");
       }
     },
-    [deleteGeneration, managedToast, activeNode, editTree]
+    [
+      archiveGeneration,
+      unarchiveGeneration,
+      deleteGeneration,
+      managedToast,
+      activeNode,
+      editTree,
+    ]
   );
 
   const handleCancelGeneration = useCallback(

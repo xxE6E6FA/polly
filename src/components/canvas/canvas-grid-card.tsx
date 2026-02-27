@@ -28,6 +28,11 @@ import { useCanvasStore } from "@/stores/canvas-store";
 import { type CanvasImage, isUpscaleInProgress } from "@/types";
 import { FailedGenerationCard } from "./failed-generation-card";
 
+// Track image URLs that have been loaded at least once so that cards
+// remounted after grid re-layout (e.g. after a deletion) don't replay
+// the fade-in animation.
+const loadedImageUrls = new Set<string>();
+
 type CanvasGridCardProps = {
   image: CanvasImage;
   editChildren?: CanvasImage[];
@@ -195,11 +200,14 @@ function SucceededCard({
   const isUpscaling = !!inProgressUpscale;
 
   // Image load state — keeps skeleton visible until the image is decoded.
-  // Use a ref callback to detect browser-cached images immediately,
-  // avoiding a skeleton flash when the component re-mounts during pagination.
-  const [imageLoaded, setImageLoaded] = useState(false);
+  // Initialize to true if this URL was already loaded (avoids fade-in replay
+  // when cards remount after grid re-layout from deletions/filter changes).
+  const [imageLoaded, setImageLoaded] = useState(() =>
+    loadedImageUrls.has(image.imageUrl)
+  );
   const imgRefCallback = useCallback((el: HTMLImageElement | null) => {
     if (el?.complete && el.naturalWidth > 0) {
+      loadedImageUrls.add(el.src);
       setImageLoaded(true);
     }
   }, []);
@@ -317,7 +325,10 @@ function SucceededCard({
         className={`block w-full transition-[transform,opacity] duration-500 ease-out group-hover:scale-[1.03] ${
           imageLoaded ? "opacity-100" : "opacity-0"
         }`}
-        onLoad={() => setImageLoaded(true)}
+        onLoad={e => {
+          loadedImageUrls.add(e.currentTarget.src);
+          setImageLoaded(true);
+        }}
       />
 
       {/* Upscaling overlay */}
