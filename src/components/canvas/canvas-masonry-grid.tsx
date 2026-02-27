@@ -355,7 +355,7 @@ export function CanvasMasonryGrid({
       let undone = false;
       const count = toArchive.length;
       managedToast.success(`${count} image${count === 1 ? "" : "s"} deleted`, {
-        id: "delete-gen-batch",
+        id: `delete-gen-batch-${Date.now()}`,
         duration: 5000,
         isUndo: true,
         action: {
