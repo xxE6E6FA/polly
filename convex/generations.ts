@@ -75,6 +75,7 @@ async function normalizeUpscales(
       duration?: number;
       startedAt?: number;
       completedAt?: number;
+      isArchived?: boolean;
     }>;
   }
 ): Promise<UpscaleEntryWithUrl[]> {
@@ -117,6 +118,7 @@ async function normalizeUpscales(
           duration: entry.duration,
           startedAt: entry.startedAt,
           completedAt: entry.completedAt,
+          isArchived: entry.isArchived,
         } satisfies UpscaleEntryWithUrl;
       })
     );
