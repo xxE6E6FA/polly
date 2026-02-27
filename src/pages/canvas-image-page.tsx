@@ -411,8 +411,8 @@ export default function CanvasImagePage() {
                         }}
                       />
 
-                      {/* Download button — top-right on hover */}
-                      <div className="absolute right-2 top-2 opacity-0 transition-opacity duration-200 group-hover/hero:opacity-100">
+                      {/* Download + Delete buttons — top-right on hover */}
+                      <div className="absolute right-2 top-2 flex items-center gap-1 opacity-0 transition-opacity duration-200 group-hover/hero:opacity-100">
                         <Tooltip>
                           <TooltipTrigger>
                             <button
@@ -429,6 +429,24 @@ export default function CanvasImagePage() {
                           </TooltipTrigger>
                           <TooltipContent>Download</TooltipContent>
                         </Tooltip>
+                        {nodeIndex > 0 && activeNode && (
+                          <Tooltip>
+                            <TooltipTrigger>
+                              <button
+                                type="button"
+                                className="flex size-8 items-center justify-center rounded-md bg-black/40 text-white/80 backdrop-blur-sm transition-all hover:bg-red-500/60"
+                                onClick={e => {
+                                  e.stopPropagation();
+                                  handleDeleteNode(activeNode._id);
+                                }}
+                                aria-label="Delete this edit"
+                              >
+                                <TrashSimpleIcon className="size-4" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent>Delete this edit</TooltipContent>
+                          </Tooltip>
+                        )}
                       </div>
 
                       {/* Info overlay — bottom gradient on hover */}
@@ -493,24 +511,6 @@ export default function CanvasImagePage() {
                                   ? "Use this model for edits"
                                   : "Not available for image editing"}
                               </TooltipContent>
-                            </Tooltip>
-                          )}
-                          {/* Delete button — only for non-root edits */}
-                          {nodeIndex > 0 && activeNode && (
-                            <Tooltip>
-                              <TooltipTrigger>
-                                <button
-                                  type="button"
-                                  className="rounded px-1.5 py-0.5 text-white/60 transition-colors hover:bg-red-500/30 hover:text-white"
-                                  onClick={e => {
-                                    e.stopPropagation();
-                                    handleDeleteNode(activeNode._id);
-                                  }}
-                                >
-                                  <TrashSimpleIcon className="size-3.5" />
-                                </button>
-                              </TooltipTrigger>
-                              <TooltipContent>Delete this edit</TooltipContent>
                             </Tooltip>
                           )}
                         </div>
