@@ -1,5 +1,4 @@
 import { api } from "@convex/_generated/api";
-import { ImagesSquareIcon } from "@phosphor-icons/react";
 import { useQuery } from "convex/react";
 import {
   AnimatePresence,
@@ -12,6 +11,7 @@ import {
 } from "framer-motion";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
+import { GalleryHorizontalIcon } from "@/components/animate-ui/icons/gallery-horizontal";
 import { HeartIcon } from "@/components/animate-ui/icons/heart";
 import { PanelLeftIcon } from "@/components/animate-ui/icons/panel-left";
 import { SquarePenIcon } from "@/components/animate-ui/icons/square-pen";
@@ -479,12 +479,9 @@ export const Sidebar = ({ forceHidden = false }: { forceHidden?: boolean }) => {
                       variant="ghost"
                       className="text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-hover h-8 w-8"
                     >
-                      <ImagesSquareIcon
-                        className={cn(
-                          "size-4.5",
-                          location.pathname === ROUTES.CANVAS &&
-                            "[&_path]:fill-current"
-                        )}
+                      <GalleryHorizontalIcon
+                        animateOnHover
+                        className="size-4.5"
                       />
                     </Button>
                   </Link>
