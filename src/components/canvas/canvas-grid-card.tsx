@@ -10,7 +10,7 @@ import {
   XIcon,
 } from "@phosphor-icons/react";
 import { useMutation } from "convex/react";
-import { useCallback, useState } from "react";
+import { memo, useCallback, useState } from "react";
 import { CopyIcon } from "@/components/animate-ui/icons/copy";
 import { DownloadIcon } from "@/components/animate-ui/icons/download";
 import { TrashIcon } from "@/components/animate-ui/icons/trash";
@@ -40,7 +40,7 @@ type CanvasGridCardProps = {
   onRequestDelete?: (image: CanvasImage) => void;
 };
 
-export function CanvasGridCard({
+function CanvasGridCardInner({
   image,
   editChildren,
   onClick,
@@ -70,6 +70,44 @@ export function CanvasGridCard({
     />
   );
 }
+
+export const CanvasGridCard = memo(CanvasGridCardInner, (prev, next) => {
+  const a = prev.image;
+  const b = next.image;
+  if (a.id !== b.id || a.status !== b.status || a.imageUrl !== b.imageUrl) {
+    return false;
+  }
+  if (a.editCount !== b.editCount) {
+    return false;
+  }
+  // Compare upscale statuses (they can transition from processing → succeeded)
+  if (a.upscales.length !== b.upscales.length) {
+    return false;
+  }
+  for (let i = 0; i < a.upscales.length; i++) {
+    if (a.upscales[i]?.status !== b.upscales[i]?.status) {
+      return false;
+    }
+  }
+  // Compare edit children by count and identity
+  const ac = prev.editChildren;
+  const bc = next.editChildren;
+  if (ac?.length !== bc?.length) {
+    return false;
+  }
+  if (ac && bc) {
+    for (let i = 0; i < ac.length; i++) {
+      if (
+        ac[i]?.id !== bc[i]?.id ||
+        ac[i]?.status !== bc[i]?.status ||
+        ac[i]?.imageUrl !== bc[i]?.imageUrl
+      ) {
+        return false;
+      }
+    }
+  }
+  return true;
+});
 
 function PendingCard({ image }: { image: CanvasImage }) {
   const cancelGeneration = useMutation(api.generations.cancelGeneration);
@@ -243,8 +281,15 @@ function SucceededCard({
   const inProgressUpscale = image.upscales.find(isUpscaleInProgress);
   const isUpscaling = !!inProgressUpscale;
 
-  // Image load state — keeps skeleton visible until the image is decoded
+  // Image load state — keeps skeleton visible until the image is decoded.
+  // Use a ref callback to detect browser-cached images immediately,
+  // avoiding a skeleton flash when the component re-mounts during pagination.
   const [imageLoaded, setImageLoaded] = useState(false);
+  const imgRefCallback = useCallback((el: HTMLImageElement | null) => {
+    if (el?.complete && el.naturalWidth > 0) {
+      setImageLoaded(true);
+    }
+  }, []);
 
   // Filmstrip hover state — null means show original
   const [hoveredEditIndex, setHoveredEditIndex] = useState<number | null>(null);
@@ -351,8 +396,11 @@ function SucceededCard({
         <div className="size-full skeleton-surface rounded-lg" />
       </div>
       <img
+        ref={imgRefCallback}
         src={displayUrl}
         alt={image.prompt || "Generated image"}
+        loading="lazy"
+        decoding="async"
         className={`block w-full transition-[transform,opacity] duration-500 ease-out group-hover:scale-[1.03] ${
           imageLoaded ? "opacity-100" : "opacity-0"
         }`}
@@ -505,6 +553,8 @@ function SucceededCard({
               <img
                 src={originalUrl}
                 alt="Original"
+                loading="lazy"
+                decoding="async"
                 className="size-full object-cover"
               />
             </button>
@@ -542,6 +592,8 @@ function SucceededCard({
                     <img
                       src={edit.imageUrl}
                       alt={`Edit ${idx + 1}`}
+                      loading="lazy"
+                      decoding="async"
                       className="size-full object-cover"
                     />
                   )}

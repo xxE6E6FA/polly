@@ -140,16 +140,19 @@ export function useVirtualizedPaginatedQuery<TItem>({
   // Use refs for values needed in scroll handler to avoid effect re-runs
   const canLoadMoreRef = useRef(canLoadMore);
   const loadMoreRef = useRef(paginatedResult.loadMore);
+  const statusRef = useRef(status);
 
   canLoadMoreRef.current = canLoadMore;
   loadMoreRef.current = paginatedResult.loadMore;
+  statusRef.current = status;
 
   // Handle scroll to detect when near bottom
   useEffect(() => {
     const scrollContainer = effectiveScrollContainerRef?.current;
 
     const handleScroll = () => {
-      if (!canLoadMoreRef.current) {
+      // Only load more when we can AND aren't already loading
+      if (!canLoadMoreRef.current || statusRef.current === "LoadingMore") {
         return;
       }
 
@@ -180,10 +183,16 @@ export function useVirtualizedPaginatedQuery<TItem>({
 
     const target = scrollContainer ?? window;
     target.addEventListener("scroll", handleScroll, { passive: true });
-    handleScroll();
+
+    // Defer initial check to after first paint so the DOM has content
+    // and we don't eagerly cascade loadMore before anything renders.
+    const rafId = requestAnimationFrame(() => {
+      handleScroll();
+    });
 
     return () => {
       target.removeEventListener("scroll", handleScroll);
+      cancelAnimationFrame(rafId);
     };
   }, [loadMoreThreshold, loadMoreCount, effectiveScrollContainerRef]);
 

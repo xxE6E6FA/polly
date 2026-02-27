@@ -46,13 +46,32 @@ const groupModels = (models: AvailableModel[]): ModelGroups => {
 
 type CatalogStoreApi = StoreApi<CatalogState>;
 
+/** Read localStorage cache synchronously so the very first render has models. */
+function loadCachedModels(): {
+  initialized: boolean;
+  userModels: AvailableModel[];
+  modelGroups: ModelGroups;
+} {
+  const cached = get<AvailableModel[] | null>(CACHE_KEYS.modelCatalog, null);
+  if (cached && Array.isArray(cached) && cached.length > 0) {
+    return {
+      initialized: true,
+      userModels: cached,
+      modelGroups: groupModels(cached),
+    };
+  }
+  return {
+    initialized: false,
+    userModels: [],
+    modelGroups: { freeModels: [], providerModels: {} },
+  };
+}
+
 const createCatalogState = (
   set: CatalogStoreApi["setState"],
   _get: CatalogStoreApi["getState"]
 ): CatalogState => ({
-  initialized: false,
-  userModels: [],
-  modelGroups: { freeModels: [], providerModels: {} },
+  ...loadCachedModels(),
   setCatalog: (models: AvailableModel[]) =>
     set({
       initialized: true,
@@ -119,22 +138,8 @@ export function useModelCatalog() {
   ) as AvailableModel[] | undefined;
 
   const setCatalog = useModelCatalogStore(s => s.setCatalog);
-  const initialized = useModelCatalogStore(s => s.initialized);
 
-  // Initialize from localStorage cache on first render for instant display
-  useEffect(() => {
-    if (!initialized) {
-      const cached = get<AvailableModel[] | null>(
-        CACHE_KEYS.modelCatalog,
-        null
-      );
-      if (cached && Array.isArray(cached) && cached.length > 0) {
-        setCatalog(cached);
-      }
-    }
-  }, [initialized, setCatalog]);
-
-  // Update store and cache when fresh data arrives
+  // Update store and cache when fresh data arrives from the server
   useEffect(() => {
     if (Array.isArray(availableModels)) {
       setCatalog(availableModels);

@@ -24,7 +24,7 @@ function hasStoredKey(k: unknown): k is ApiKeyInfo {
  * Consumes apiKeys from UserDataContext to avoid duplicate queries.
  */
 export function useReplicateApiKey() {
-  const { apiKeys, user } = useUserDataContext();
+  const { apiKeys, user, capabilitiesReady } = useUserDataContext();
 
   const hasReplicateApiKey = useMemo(() => {
     // Anonymous users can't have API keys
@@ -47,7 +47,6 @@ export function useReplicateApiKey() {
 
   return {
     hasReplicateApiKey,
-    // No longer loading since we consume from context which handles loading state
-    isLoading: false,
+    isLoading: !capabilitiesReady,
   };
 }
