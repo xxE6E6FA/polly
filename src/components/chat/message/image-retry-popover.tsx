@@ -48,6 +48,8 @@ interface ImageRetryPopoverProps {
   hideAspectRatio?: boolean;
   /** When true, selecting a model immediately fires onRetry (no confirm step) */
   autoRetryOnSelect?: boolean;
+  /** Only show models that support image-to-image (editing) */
+  imageToImageOnly?: boolean;
 }
 
 export function ImageRetryPopover({
@@ -58,6 +60,7 @@ export function ImageRetryPopover({
   trigger,
   hideAspectRatio = false,
   autoRetryOnSelect = false,
+  imageToImageOnly = false,
 }: ImageRetryPopoverProps) {
   const [open, setOpen] = useState(false);
   const [selectedModel, setSelectedModel] = useState(currentModel || "");
@@ -66,7 +69,10 @@ export function ImageRetryPopover({
   const [searchQuery, setSearchQuery] = useState("");
 
   const isDesktop = useMediaQuery("(min-width: 640px)");
-  const imageModels = useEnabledImageModels() || [];
+  const allImageModels = useEnabledImageModels() || [];
+  const imageModels = imageToImageOnly
+    ? allImageModels.filter(m => m.supportsImageToImage)
+    : allImageModels;
 
   const filteredModels = useMemo(() => {
     if (!searchQuery.trim()) {

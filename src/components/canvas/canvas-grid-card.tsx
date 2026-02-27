@@ -1,9 +1,7 @@
 import { api } from "@convex/_generated/api";
 import {
-  ArrowClockwiseIcon,
   ArrowsClockwiseIcon,
   ArrowsOutIcon,
-  CaretDownIcon,
   CheckCircleIcon,
   CircleIcon,
   PencilSimpleIcon,
@@ -14,10 +12,6 @@ import { memo, useCallback, useState } from "react";
 import { CopyIcon } from "@/components/animate-ui/icons/copy";
 import { DownloadIcon } from "@/components/animate-ui/icons/download";
 import { TrashIcon } from "@/components/animate-ui/icons/trash";
-import {
-  type ImageRetryParams,
-  ImageRetryPopover,
-} from "@/components/chat/message/image-retry-popover";
 import { Spinner } from "@/components/ui/spinner";
 import {
   Tooltip,
@@ -32,6 +26,7 @@ import {
 import { useToast } from "@/providers/toast-context";
 import { useCanvasStore } from "@/stores/canvas-store";
 import { type CanvasImage, isUpscaleInProgress } from "@/types";
+import { FailedGenerationCard } from "./failed-generation-card";
 
 type CanvasGridCardProps = {
   image: CanvasImage;
@@ -166,97 +161,15 @@ function FailedCard({
   image: CanvasImage;
   onRequestDelete?: (image: CanvasImage) => void;
 }) {
-  const retryGeneration = useMutation(api.generations.retryGeneration);
-  const [isRetrying, setIsRetrying] = useState(false);
-
-  const handleRetry = async () => {
-    if (!image.generationId) {
-      return;
-    }
-    setIsRetrying(true);
-    try {
-      await retryGeneration({ id: image.generationId });
-    } finally {
-      setIsRetrying(false);
-    }
-  };
-
-  const handleRetryWithParams = async (params: ImageRetryParams) => {
-    if (!image.generationId) {
-      return;
-    }
-    setIsRetrying(true);
-    try {
-      await retryGeneration({
-        id: image.generationId,
-        model: params.model,
-      });
-    } finally {
-      setIsRetrying(false);
-    }
-  };
-
-  const handleDelete = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    onRequestDelete?.(image);
-  };
-
   return (
-    <div className="relative overflow-hidden rounded-lg border border-destructive/30 bg-destructive/5">
-      <div style={{ aspectRatio: formatAspectRatio(image.aspectRatio) }} />
-      <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-4">
-        <span className="text-xs font-medium text-destructive">
-          {image.status === "canceled" ? "Canceled" : "Failed"}
-        </span>
-        {image.model && (
-          <span className="text-xs text-muted-foreground">
-            {formatModelName(image.model)}
-          </span>
-        )}
-        {image.error && (
-          <p className="line-clamp-2 text-center text-[10px] text-destructive/70">
-            {image.error}
-          </p>
-        )}
-        {image.generationId && (
-          <div className="flex items-center gap-0.5 rounded-lg bg-background/80 p-0.5 shadow-sm ring-1 ring-border/40">
-            <button
-              type="button"
-              onClick={handleRetry}
-              disabled={isRetrying}
-              className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
-            >
-              <ArrowClockwiseIcon className="size-3.5" />
-              Retry
-            </button>
-            <div className="h-4 w-px bg-border/50" />
-            <ImageRetryPopover
-              currentModel={image.model}
-              currentAspectRatio={image.aspectRatio || "1:1"}
-              onRetry={handleRetryWithParams}
-              hideAspectRatio
-              autoRetryOnSelect
-              trigger={<CaretDownIcon className="size-3" />}
-              className="inline-flex items-center justify-center rounded-md size-7 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            />
-            <div className="h-4 w-px bg-border/50" />
-            <Tooltip>
-              <TooltipTrigger>
-                <button
-                  type="button"
-                  onClick={handleDelete}
-                  aria-label="Delete generation"
-                  className="inline-flex items-center justify-center rounded-md size-7 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
-                >
-                  <TrashIcon className="size-3.5" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent>Delete</TooltipContent>
-            </Tooltip>
-          </div>
-        )}
-      </div>
-    </div>
+    <FailedGenerationCard
+      generationId={image.generationId}
+      status={image.status}
+      model={image.model}
+      error={image.error}
+      aspectRatio={image.aspectRatio}
+      onDelete={onRequestDelete ? () => onRequestDelete(image) : undefined}
+    />
   );
 }
 

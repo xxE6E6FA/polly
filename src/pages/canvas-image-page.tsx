@@ -1,7 +1,6 @@
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import {
-  ArrowClockwiseIcon,
   ArrowLeftIcon,
   CaretDown,
   CheckIcon,
@@ -15,6 +14,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { DownloadIcon } from "@/components/animate-ui/icons/download";
+import { FailedGenerationCard } from "@/components/canvas/failed-generation-card";
 import { ProviderIcon } from "@/components/models/provider-icons";
 import { Button } from "@/components/ui/button";
 import { ResponsivePicker } from "@/components/ui/responsive-picker";
@@ -94,7 +94,6 @@ export default function CanvasImagePage() {
   const startEditGeneration = useAction(api.generations.startEditGeneration);
   const deleteGeneration = useMutation(api.generations.deleteGeneration);
   const cancelGeneration = useMutation(api.generations.cancelGeneration);
-  const retryGeneration = useMutation(api.generations.retryGeneration);
   const imageModels = useEnabledImageModels();
   const img2imgModels = imageModels?.filter(m => m.supportsImageToImage) ?? [];
 
@@ -262,17 +261,6 @@ export default function CanvasImagePage() {
       }
     },
     [cancelGeneration, managedToast]
-  );
-
-  const handleRetryGeneration = useCallback(
-    async (nodeId: Id<"generations">) => {
-      try {
-        await retryGeneration({ id: nodeId });
-      } catch {
-        managedToast.error("Failed to retry");
-      }
-    },
-    [retryGeneration, managedToast]
   );
 
   // ---- Derived state ----
@@ -549,41 +537,21 @@ export default function CanvasImagePage() {
                   );
                 }
                 if (isFailed) {
-                  const sizeStyle = placeholderSize;
                   return (
-                    <div
-                      className="relative flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-destructive/30 bg-destructive/5 px-8 text-center"
-                      style={sizeStyle}
-                    >
-                      <WarningCircleIcon className="size-6 text-destructive" />
-                      <span className="text-sm text-destructive">
-                        {activeNode?.status === "canceled"
-                          ? "Canceled"
-                          : activeNode?.error || "Generation failed"}
-                      </span>
-                      {activeNode && (
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            className="inline-flex items-center gap-1.5 rounded-md bg-background/80 px-2.5 py-1.5 text-xs font-medium text-foreground shadow-sm ring-1 ring-border/40 transition-colors hover:bg-muted"
-                            onClick={() =>
-                              handleRetryGeneration(activeNode._id)
-                            }
-                          >
-                            <ArrowClockwiseIcon className="size-3.5" />
-                            Retry
-                          </button>
-                          <button
-                            type="button"
-                            className="inline-flex items-center gap-1.5 rounded-md bg-background/80 px-2.5 py-1.5 text-xs font-medium text-destructive shadow-sm ring-1 ring-border/40 transition-colors hover:bg-muted"
-                            onClick={() => handleDeleteNode(activeNode._id)}
-                          >
-                            <TrashSimpleIcon className="size-3.5" />
-                            Delete
-                          </button>
-                        </div>
-                      )}
-                    </div>
+                    <FailedGenerationCard
+                      generationId={activeNode?._id}
+                      status={activeNode?.status ?? "failed"}
+                      model={activeNode?.model}
+                      error={activeNode?.error}
+                      aspectRatio={rootAspectRatio}
+                      imageToImageOnly
+                      onDelete={
+                        activeNode
+                          ? () => handleDeleteNode(activeNode._id)
+                          : undefined
+                      }
+                      style={placeholderSize}
+                    />
                   );
                 }
                 return null;
