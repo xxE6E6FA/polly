@@ -1,3 +1,4 @@
+import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
 import Replicate from "replicate";
 import { internal } from "./_generated/api";
@@ -190,6 +191,66 @@ export const listGenerations = query({
     return {
       generations,
       continueCursor: hasMore ? page[page.length - 1]?._id : null,
+    };
+  },
+});
+
+export const listGenerationsPaginated = query({
+  args: {
+    paginationOpts: paginationOptsValidator,
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      return { page: [], isDone: true, continueCursor: "" };
+    }
+
+    // No post-filtering — return all items to keep pagination cursors stable.
+    // Client-side filtering handles filterMode to avoid cursor drift that
+    // causes scroll jumps when pages reactively re-evaluate.
+    const paginatedResult = await ctx.db
+      .query("generations")
+      .withIndex("by_user_created", q => q.eq("userId", userId))
+      .order("desc")
+      .paginate(args.paginationOpts);
+
+    // Resolve storage URLs, upscales, and edit counts in parallel
+    const generations = await Promise.all(
+      paginatedResult.page.map(async gen => {
+        let imageUrls: string[] = [];
+        if (gen.storageIds) {
+          const urls = await Promise.all(
+            gen.storageIds.map(id => ctx.storage.getUrl(id))
+          );
+          imageUrls = urls.filter((u): u is string => u !== null);
+        }
+        const upscales = await normalizeUpscales(ctx, gen);
+
+        // Only count edit descendants for root images
+        let editCount = 0;
+        if (!gen.parentGenerationId) {
+          const descendants = await ctx.db
+            .query("generations")
+            .withIndex("by_root", q => q.eq("rootGenerationId", gen._id))
+            .collect();
+          editCount = descendants.length;
+        }
+
+        let referenceImageUrls: string[] = [];
+        if (gen.params?.referenceImageIds) {
+          const urls = await Promise.all(
+            gen.params.referenceImageIds.map(id => ctx.storage.getUrl(id))
+          );
+          referenceImageUrls = urls.filter((u): u is string => u !== null);
+        }
+
+        return { ...gen, imageUrls, upscales, editCount, referenceImageUrls };
+      })
+    );
+
+    return {
+      ...paginatedResult,
+      page: generations,
     };
   },
 });

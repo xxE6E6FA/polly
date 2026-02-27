@@ -1,18 +1,16 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
 import { useReplicateApiKey } from "@/hooks/use-replicate-api-key";
 import { ROUTES } from "@/lib/routes";
 
 export function CanvasGateCheck({ children }: { children: React.ReactNode }) {
   const { hasReplicateApiKey, isLoading } = useReplicateApiKey();
 
+  // While loading, render children normally — the masonry grid has its own
+  // loading state (spinner). This avoids flashing "API key required" before
+  // capabilities are resolved.
   if (isLoading) {
-    return (
-      <div className="flex h-[100dvh] items-center justify-center">
-        <Spinner />
-      </div>
-    );
+    return <>{children}</>;
   }
 
   if (!hasReplicateApiKey) {

@@ -1,11 +1,12 @@
 import { api } from "@convex/_generated/api";
+import type { Id } from "@convex/_generated/dataModel";
 import {
   DownloadSimpleIcon,
   TrashSimpleIcon,
   XIcon,
 } from "@phosphor-icons/react";
-import { useMutation, useQuery } from "convex/react";
-import { useCallback, useRef, useState } from "react";
+import { useConvexAuth, useMutation, useQuery } from "convex/react";
+import { type RefObject, useCallback, useRef, useState } from "react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,23 +18,54 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useBreakpointColumns } from "@/hooks/use-breakpoint-columns";
+import { useVirtualizedPaginatedQuery } from "@/hooks/use-virtualized-paginated-query";
 import { downloadFromUrl, generateImageFilename } from "@/lib/export";
 import { useToast } from "@/providers/toast-context";
 import type { CanvasFilterMode } from "@/stores/canvas-store";
 import { useCanvasStore } from "@/stores/canvas-store";
-import type { CanvasImage } from "@/types";
+import type { CanvasImage, GenerationStatus, UpscaleEntry } from "@/types";
 import { CanvasGridCard } from "./canvas-grid-card";
 import { CanvasImageViewer } from "./canvas-image-viewer";
 
-type CanvasMasonryGridProps = {
-  filterMode: CanvasFilterMode;
+/** Shape of an enriched generation from the paginated query */
+type PaginatedGeneration = {
+  _id: Id<"generations">;
+  prompt: string;
+  model: string;
+  status: GenerationStatus;
+  createdAt: number;
+  duration?: number;
+  error?: string;
+  batchId?: string;
+  parentGenerationId?: Id<"generations">;
+  rootGenerationId?: Id<"generations">;
+  params?: {
+    aspectRatio?: string;
+    seed?: number;
+    quality?: number;
+    referenceImageIds?: Id<"_storage">[];
+  };
+  imageUrls: string[];
+  upscales: UpscaleEntry[];
+  editCount: number;
+  referenceImageUrls: string[];
 };
 
-export function CanvasMasonryGrid({ filterMode }: CanvasMasonryGridProps) {
+type CanvasMasonryGridProps = {
+  filterMode: CanvasFilterMode;
+  scrollContainerRef?: RefObject<HTMLElement | null>;
+};
+
+export function CanvasMasonryGrid({
+  filterMode,
+  scrollContainerRef,
+}: CanvasMasonryGridProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const columnCount = useBreakpointColumns(containerRef);
   const managedToast = useToast();
+  const { isAuthenticated } = useConvexAuth();
 
   // Image viewer state
   const [viewerOpen, setViewerOpen] = useState(false);
@@ -48,29 +80,62 @@ export function CanvasMasonryGrid({ filterMode }: CanvasMasonryGridProps) {
   >(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Canvas generations
-  const canvasData = useQuery(
-    api.generations.listGenerations,
-    filterMode !== "conversations" ? {} : "skip"
-  );
+  // Canvas and conversation images are kept completely separate to avoid
+  // column redistribution when paginated canvas results grow.
+  const isConversationView = filterMode === "conversations";
 
-  // Conversation images
+  // Skip queries until Convex auth resolves — otherwise the server returns
+  // { page: [], isDone: true } (no userId), which the client interprets as
+  // "no data" and briefly flashes the empty state before real results arrive.
+  const skipCanvas = isConversationView || !isAuthenticated;
+  const skipConversation = !(isConversationView && isAuthenticated);
+
+  // Canvas generations (paginated)
+  const {
+    results: canvasGenerations,
+    isLoading: isLoadingCanvas,
+    status: paginationStatus,
+  } = useVirtualizedPaginatedQuery<PaginatedGeneration>({
+    query: api.generations.listGenerationsPaginated,
+    queryArgs: skipCanvas ? "skip" : {},
+    initialNumItems: 50,
+    loadMoreCount: 30,
+    scrollContainerRef,
+  });
+
+  // Conversation images (non-paginated, capped at 100)
   const conversationImages = useQuery(
     api.fileStorage.listGeneratedImages,
-    filterMode !== "canvas" &&
-      filterMode !== "upscaled" &&
-      filterMode !== "edits"
-      ? {}
-      : "skip"
+    skipConversation ? "skip" : {}
   );
 
-  // Merge and normalize both sources
+  // Build the image list from a single source based on filterMode
   const allImages: CanvasImage[] = [];
 
-  if (filterMode !== "conversations" && canvasData?.generations) {
-    for (const gen of canvasData.generations) {
+  if (isConversationView) {
+    // Conversation-only view
+    if (conversationImages) {
+      for (const file of conversationImages) {
+        if (file.url) {
+          allImages.push({
+            id: `conv-${file._id}`,
+            source: "conversation",
+            imageUrl: file.url,
+            prompt: file.generatedImagePrompt,
+            model: file.generatedImageModel,
+            status: "succeeded",
+            createdAt: file.createdAt,
+            messageId: file.messageId,
+            conversationId: file.conversationId,
+            upscales: [],
+          });
+        }
+      }
+    }
+  } else if (canvasGenerations) {
+    // Canvas-only views: all, canvas, upscaled, edits
+    for (const gen of canvasGenerations) {
       if (gen.status === "succeeded" && gen.imageUrls.length > 0) {
-        // Create one CanvasImage per output image
         for (const url of gen.imageUrls) {
           allImages.push({
             id: `canvas-${gen._id}-${url}`,
@@ -127,26 +192,7 @@ export function CanvasMasonryGrid({ filterMode }: CanvasMasonryGridProps) {
     }
   }
 
-  if (filterMode !== "canvas" && conversationImages) {
-    for (const file of conversationImages) {
-      if (file.url) {
-        allImages.push({
-          id: `conv-${file._id}`,
-          source: "conversation",
-          imageUrl: file.url,
-          prompt: file.generatedImagePrompt,
-          model: file.generatedImageModel,
-          status: "succeeded",
-          createdAt: file.createdAt,
-          messageId: file.messageId,
-          conversationId: file.conversationId,
-          upscales: [],
-        });
-      }
-    }
-  }
-
-  // Filter upscaled-only when requested
+  // Client-side filtering for canvas sub-views
   if (filterMode === "upscaled") {
     const upscaled = allImages.filter(img =>
       img.upscales.some(u => u.status === "succeeded" && u.imageUrl)
@@ -155,19 +201,21 @@ export function CanvasMasonryGrid({ filterMode }: CanvasMasonryGridProps) {
     allImages.push(...upscaled);
   }
 
-  // Filter edits-only: only child edits, not originals
   if (filterMode === "edits") {
     const editTreeImages = allImages.filter(img => img.parentGenerationId);
     allImages.length = 0;
     allImages.push(...editTreeImages);
   }
 
-  // Sort by createdAt desc
-  allImages.sort((a, b) => b.createdAt - a.createdAt);
+  if (filterMode === "canvas") {
+    const canvasOnly = allImages.filter(img => !img.parentGenerationId);
+    allImages.length = 0;
+    allImages.push(...canvasOnly);
+  }
 
   // Build edit children map: rootGenerationId → sorted child edits
   const editChildrenMap = new Map<string, CanvasImage[]>();
-  if (filterMode !== "edits") {
+  if (filterMode !== "edits" && filterMode !== "conversations") {
     for (const img of allImages) {
       if (
         img.parentGenerationId &&
@@ -185,15 +233,14 @@ export function CanvasMasonryGrid({ filterMode }: CanvasMasonryGridProps) {
         }
       }
     }
-    // Sort each group by createdAt ascending (oldest first)
     for (const children of editChildrenMap.values()) {
       children.sort((a, b) => a.createdAt - b.createdAt);
     }
   }
 
-  // Always hide child edits from display (they appear in the filmstrip)
+  // Hide child edits from display (they appear in the filmstrip)
   const displayImages =
-    filterMode === "edits"
+    filterMode === "edits" || filterMode === "conversations"
       ? allImages
       : allImages.filter(img => !img.parentGenerationId);
 
@@ -202,7 +249,6 @@ export function CanvasMasonryGrid({ filterMode }: CanvasMasonryGridProps) {
   for (const img of displayImages) {
     if (img.status === "succeeded" && img.imageUrl) {
       succeededImages.push(img);
-      // Insert edit children right after their parent so viewer navigation is logical
       const children = img.generationId
         ? editChildrenMap.get(img.generationId)
         : undefined;
@@ -323,6 +369,43 @@ export function CanvasMasonryGrid({ filterMode }: CanvasMasonryGridProps) {
       img.generationId
   ).length;
 
+  // Show skeleton while auth is pending or the first page is loading.
+  // Since queries are skipped until auth resolves, isLoadingCanvas stays
+  // true (LoadingFirstPage) until real data arrives — no false "Exhausted".
+  const isLoading =
+    !isAuthenticated ||
+    (isConversationView ? conversationImages === undefined : isLoadingCanvas);
+
+  if (isLoading) {
+    const skeletonCount = columnCount * 4;
+    const skeletonHeights = [180, 240, 200, 260, 220, 190, 250, 210];
+    return (
+      <div ref={containerRef} className="flex items-start gap-3">
+        {Array.from({ length: columnCount }, (_, colIdx) => (
+          // biome-ignore lint/suspicious/noArrayIndexKey: skeleton placeholder
+          <div key={colIdx} className="flex flex-1 flex-col gap-3">
+            {Array.from(
+              { length: Math.ceil(skeletonCount / columnCount) },
+              (_, i) => (
+                <Skeleton
+                  // biome-ignore lint/suspicious/noArrayIndexKey: skeleton placeholder
+                  key={i}
+                  className="w-full rounded-xl"
+                  style={{
+                    height:
+                      skeletonHeights[
+                        (colIdx * 3 + i) % skeletonHeights.length
+                      ],
+                  }}
+                />
+              )
+            )}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   if (displayImages.length === 0) {
     return (
       <div
@@ -388,6 +471,12 @@ export function CanvasMasonryGrid({ filterMode }: CanvasMasonryGridProps) {
           </div>
         ))}
       </div>
+
+      {/* Invisible scroll sentinel — triggers loadMore when scrolled into view.
+          Zero height so it never causes layout shift or visible spinners. */}
+      {paginationStatus === "CanLoadMore" && (
+        <div aria-hidden className="h-0 w-full" />
+      )}
 
       {/* Batch action bar */}
       {selectedCount > 0 && (

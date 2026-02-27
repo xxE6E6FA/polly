@@ -1,5 +1,5 @@
 import { ArrowLeftIcon } from "@phosphor-icons/react";
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 import { Link, Outlet } from "react-router-dom";
 import { PanelLeftIcon } from "@/components/animate-ui/icons/panel-left";
 import { CanvasGateCheck } from "@/components/canvas/canvas-gate-check";
@@ -15,10 +15,9 @@ import { useCanvasStore } from "@/stores/canvas-store";
 
 const FILTER_OPTIONS: { label: string; value: CanvasFilterMode }[] = [
   { label: "All", value: "all" },
-  { label: "Canvas", value: "canvas" },
-  { label: "Conversations", value: "conversations" },
-  { label: "Upscaled", value: "upscaled" },
   { label: "Edits", value: "edits" },
+  { label: "Upscaled", value: "upscaled" },
+  { label: "Chat", value: "conversations" },
 ];
 
 export default function CanvasPage() {
@@ -30,6 +29,7 @@ export default function CanvasPage() {
   const resetPanelWidth = useCanvasStore(s => s.resetPanelWidth);
   const isPanelVisible = useCanvasStore(s => s.isPanelVisible);
   const togglePanel = useCanvasStore(s => s.togglePanel);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const handleResizeStart = useCallback(
     (e: React.MouseEvent) => {
@@ -190,10 +190,15 @@ export default function CanvasPage() {
 
           {/* Masonry grid */}
           <div
+            ref={scrollContainerRef}
             id="canvas-grid-scroll"
             className="flex-1 overflow-y-auto px-4 pb-4"
+            style={{ overflowAnchor: "auto" }}
           >
-            <CanvasMasonryGrid filterMode={filterMode} />
+            <CanvasMasonryGrid
+              filterMode={filterMode}
+              scrollContainerRef={scrollContainerRef}
+            />
           </div>
         </div>
       </div>

@@ -975,26 +975,53 @@ export function CanvasGenerationForm() {
       {/* Model selection */}
       <div className="stack-xs">
         <span className="text-xs font-medium text-sidebar-muted">Models</span>
-        {!models || models.length === 0 ? (
-          <p className="text-xs text-sidebar-muted/70">
-            No image models available. Add models in{" "}
-            <a href="/settings/models/image" className="text-primary underline">
-              Settings
-            </a>
-            .
-          </p>
-        ) : (
-          <ModelPickerPopover
-            models={models}
-            filteredModels={filteredModels}
-            selectedModelIds={selectedModelIds}
-            toggleModel={toggleModel}
-            showSearch={showSearch}
-            searchQuery={searchQuery}
-            setSearchQuery={setSearchQuery}
-            referenceImages={referenceImages}
-          />
-        )}
+        {(() => {
+          if (models === undefined) {
+            /* Loading — spinner in the trigger shape */
+            return (
+              <div className="flex min-h-9 w-full items-center gap-2 rounded-lg border border-border/50 bg-sidebar-hover px-3 py-1.5">
+                <Spinner className="size-3.5" />
+                <span className="text-sm text-sidebar-muted">
+                  Loading models…
+                </span>
+              </div>
+            );
+          }
+          if (models.length === 0) {
+            /* No models — disabled trigger with settings link */
+            return (
+              <div>
+                <div className="flex min-h-9 w-full items-center gap-1 rounded-lg border border-border/50 bg-sidebar-hover px-2 py-1.5 opacity-50">
+                  <span className="min-w-0 flex-1 truncate px-1 text-sm text-sidebar-muted">
+                    No models available
+                  </span>
+                  <CaretDownIcon className="size-3.5 shrink-0 opacity-40" />
+                </div>
+                <p className="mt-1.5 text-[11px] text-sidebar-muted/70">
+                  Enable image models in{" "}
+                  <a
+                    href="/settings/models/image"
+                    className="text-primary hover:underline"
+                  >
+                    Settings
+                  </a>
+                </p>
+              </div>
+            );
+          }
+          return (
+            <ModelPickerPopover
+              models={models}
+              filteredModels={filteredModels}
+              selectedModelIds={selectedModelIds}
+              toggleModel={toggleModel}
+              showSearch={showSearch}
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
+              referenceImages={referenceImages}
+            />
+          );
+        })()}
       </div>
 
       {/* Aspect ratio */}
