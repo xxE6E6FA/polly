@@ -48,7 +48,6 @@ import { TextInputDialog } from "@/components/ui/text-input-dialog";
 import { useArchiveConversation } from "@/hooks/use-archive-conversation";
 import { useConversationImport } from "@/hooks/use-conversation-import";
 import { useDebounce } from "@/hooks/use-debounce";
-import { useDeleteConversation } from "@/hooks/use-delete-conversation";
 import { useModelCatalog } from "@/hooks/use-model-catalog";
 import { useOnline } from "@/hooks/use-online";
 import { useSelectedModel } from "@/hooks/use-selected-model";
@@ -59,6 +58,7 @@ import {
   exportAsMarkdown,
   generateFilename,
 } from "@/lib/export";
+import { CACHE_KEYS, del } from "@/lib/local-storage";
 import { ROUTES } from "@/lib/routes";
 import { useToast } from "@/providers/toast-context";
 import { useUserIdentity } from "@/providers/user-data-context";
@@ -229,9 +229,14 @@ export function CommandPalette({
     ? (currentConversation.resolvedId as ConversationId)
     : undefined;
 
-  const { deleteConversation: performDelete } = useDeleteConversation({
-    currentConversationId: currentResolvedId,
-  });
+  const removeConversation = useMutation(api.conversations.remove);
+  const performDelete = useCallback(
+    async (id: ConversationId) => {
+      await removeConversation({ id: id as Id<"conversations"> });
+      del(CACHE_KEYS.conversations);
+    },
+    [removeConversation]
+  );
 
   const { archiveConversation: performArchive, unarchiveConversation } =
     useArchiveConversation({

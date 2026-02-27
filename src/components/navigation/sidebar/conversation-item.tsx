@@ -1,5 +1,6 @@
 import { ContextMenu } from "@base-ui/react/context-menu";
 import { api } from "@convex/_generated/api";
+import type { Id } from "@convex/_generated/dataModel";
 import { CheckIcon, CircleIcon, GitBranchIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery } from "convex/react";
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
@@ -9,7 +10,6 @@ import { ControlledShareConversationDialog } from "@/components/ui/share-convers
 import { Spinner } from "@/components/ui/spinner";
 import { useArchiveConversation } from "@/hooks/use-archive-conversation";
 import { useBackgroundJobs } from "@/hooks/use-background-jobs";
-import { useDeleteConversation } from "@/hooks/use-delete-conversation";
 import { useConfirmationDialog } from "@/hooks/use-dialog-management";
 import {
   downloadFile,
@@ -17,6 +17,7 @@ import {
   exportAsMarkdown,
   generateFilename,
 } from "@/lib/export";
+import { CACHE_KEYS, del } from "@/lib/local-storage";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import { useBatchSelection } from "@/providers/batch-selection-context";
@@ -96,9 +97,14 @@ const ConversationItemComponent = ({
 
   // Mutations
   const patchConversation = useMutation(api.conversations.patch);
-  const { deleteConversation: performDelete } = useDeleteConversation({
-    currentConversationId,
-  });
+  const removeConversation = useMutation(api.conversations.remove);
+  const performDelete = useCallback(
+    async (id: ConversationId) => {
+      await removeConversation({ id: id as Id<"conversations"> });
+      del(CACHE_KEYS.conversations);
+    },
+    [removeConversation]
+  );
   const { archiveConversation: performArchive, unarchiveConversation } =
     useArchiveConversation({
       currentConversationId,
