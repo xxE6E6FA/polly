@@ -29,6 +29,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useArchiveGeneration } from "@/hooks/use-archive-generation";
 import {
   copyImageToClipboard,
   downloadFromUrl,
@@ -277,6 +278,7 @@ export function CanvasImageViewer({
 
   const upscaleImageAction = useAction(api.generations.upscaleImage);
   const removeUpscaleEntry = useMutation(api.generations.removeUpscaleEntry);
+  const { archiveUpscaleEntry, unarchiveUpscaleEntry } = useArchiveGeneration();
   const [isUpscaling, setIsUpscaling] = useState(false);
   const [isCancelingUpscale, setIsCancelingUpscale] = useState(false);
 
@@ -398,20 +400,50 @@ export function CanvasImageViewer({
       if (!image?.generationId) {
         return;
       }
+      const genId = image.generationId;
+      const wasActive = activeVersionId === upscaleId;
       try {
-        await removeUpscaleEntry({
-          id: image.generationId,
-          upscaleId,
-        });
-        if (activeVersionId === upscaleId) {
+        if (wasActive) {
           setActiveVersionId("original");
         }
-        managedToast.success("Upscaled version removed");
+        await archiveUpscaleEntry(genId, upscaleId);
+        let undone = false;
+        managedToast.success("Upscaled version removed", {
+          id: `delete-upscale-${upscaleId}`,
+          duration: 5000,
+          isUndo: true,
+          action: {
+            label: "Undo",
+            onClick: () => {
+              undone = true;
+              unarchiveUpscaleEntry(genId, upscaleId);
+              if (wasActive) {
+                setActiveVersionId(upscaleId);
+              }
+            },
+          },
+          onAutoClose: async () => {
+            if (!undone) {
+              try {
+                await removeUpscaleEntry({ id: genId, upscaleId });
+              } catch {
+                // Already archived, permanent delete failed — acceptable
+              }
+            }
+          },
+        });
       } catch {
         managedToast.error("Failed to remove upscaled version");
       }
     },
-    [image, removeUpscaleEntry, activeVersionId, managedToast]
+    [
+      image,
+      archiveUpscaleEntry,
+      unarchiveUpscaleEntry,
+      removeUpscaleEntry,
+      activeVersionId,
+      managedToast,
+    ]
   );
 
   const loadImageSettings = useCanvasStore(s => s.loadImageSettings);

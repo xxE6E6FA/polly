@@ -1036,6 +1036,7 @@ export const upscaleEntrySchema = v.object({
   duration: v.optional(v.number()),
   startedAt: v.optional(v.number()),
   completedAt: v.optional(v.number()),
+  isArchived: v.optional(v.boolean()),
 });
 
 // Standalone generation schema (canvas mode, decoupled from chat)
@@ -1082,6 +1083,7 @@ export const generationSchema = v.object({
     completedAt: v.optional(v.number()),
   })),
   upscales: v.optional(v.array(upscaleEntrySchema)),
+  isArchived: v.optional(v.boolean()),
   createdAt: v.number(),
   completedAt: v.optional(v.number()),
 });
