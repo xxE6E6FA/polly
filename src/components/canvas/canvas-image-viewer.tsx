@@ -30,6 +30,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useArchiveGeneration } from "@/hooks/use-archive-generation";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import {
   copyImageToClipboard,
   downloadFromUrl,
@@ -446,6 +447,9 @@ export function CanvasImageViewer({
     ]
   );
 
+  const isDesktop = useMediaQuery("(min-width: 768px)");
+  const [mobileInfoOpen, setMobileInfoOpen] = useState(false);
+
   const loadImageSettings = useCanvasStore(s => s.loadImageSettings);
   const handleUseSettings = useCallback(() => {
     if (!image) {
@@ -470,13 +474,17 @@ export function CanvasImageViewer({
       <div className="fixed inset-0 z-modal bg-background/95 backdrop-blur-lg animate-in fade-in-0 [animation-duration:200ms]" />
 
       {/* Full-screen container */}
-      <div className="fixed inset-0 z-modal flex">
-        {/* Image area (left) */}
+      <div className="fixed inset-0 z-modal flex flex-col md:flex-row">
+        {/* Image area */}
         <div
           ref={imageAreaRef}
           tabIndex={-1}
-          className="relative flex flex-1 items-center justify-center outline-none"
-          onClick={() => onOpenChange(false)}
+          className="relative flex flex-1 items-center justify-center outline-none min-h-0"
+          onClick={() => {
+            if (isDesktop) {
+              onOpenChange(false);
+            }
+          }}
           onKeyDown={e => {
             if (e.key === "Enter" || e.key === " ") {
               e.preventDefault();
@@ -484,6 +492,46 @@ export function CanvasImageViewer({
             }
           }}
         >
+          {/* Mobile: Close + Info buttons at top */}
+          {!isDesktop && (
+            <div className="absolute left-3 right-3 top-3 z-10 flex items-center justify-between">
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => onOpenChange(false)}
+                className="h-9 w-9 rounded-full bg-card/90 text-foreground shadow-lg dark:ring-1 dark:ring-white/[0.06] backdrop-blur-md"
+                aria-label="Close"
+              >
+                <XIcon className="size-4" />
+              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={handleDownload}
+                  className="h-9 w-9 rounded-full bg-card/90 text-foreground shadow-lg dark:ring-1 dark:ring-white/[0.06] backdrop-blur-md"
+                  aria-label="Download"
+                >
+                  <DownloadIcon size={16} />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={() => setMobileInfoOpen(!mobileInfoOpen)}
+                  className="h-9 w-9 rounded-full bg-card/90 text-foreground shadow-lg dark:ring-1 dark:ring-white/[0.06] backdrop-blur-md"
+                  aria-label="Image details"
+                >
+                  <CaretDownIcon
+                    className={cn(
+                      "size-4 transition-transform",
+                      mobileInfoOpen && "rotate-180"
+                    )}
+                  />
+                </Button>
+              </div>
+            </div>
+          )}
+
           {/* Navigation buttons */}
           {images.length > 1 && (
             <>
@@ -494,10 +542,10 @@ export function CanvasImageViewer({
                   e.stopPropagation();
                   goToPrevious();
                 }}
-                className="absolute left-4 top-1/2 -translate-y-1/2 z-10 h-12 w-12 rounded-full bg-card/90 text-foreground shadow-lg dark:ring-1 dark:ring-white/[0.06] backdrop-blur-md hover:bg-card transition-colors duration-200"
+                className="absolute left-2 top-1/2 -translate-y-1/2 z-10 h-9 w-9 rounded-full bg-card/90 text-foreground shadow-lg dark:ring-1 dark:ring-white/[0.06] backdrop-blur-md hover:bg-card transition-colors duration-200 md:left-4 md:h-12 md:w-12"
                 aria-label="Previous image"
               >
-                <CaretLeftIcon className="size-6" />
+                <CaretLeftIcon className="size-4 md:size-6" />
               </Button>
 
               <Button
@@ -507,23 +555,23 @@ export function CanvasImageViewer({
                   e.stopPropagation();
                   goToNext();
                 }}
-                className="absolute right-4 top-1/2 -translate-y-1/2 z-10 h-12 w-12 rounded-full bg-card/90 text-foreground shadow-lg dark:ring-1 dark:ring-white/[0.06] backdrop-blur-md hover:bg-card transition-colors duration-200"
+                className="absolute right-2 top-1/2 -translate-y-1/2 z-10 h-9 w-9 rounded-full bg-card/90 text-foreground shadow-lg dark:ring-1 dark:ring-white/[0.06] backdrop-blur-md hover:bg-card transition-colors duration-200 md:right-4 md:h-12 md:w-12"
                 aria-label="Next image"
               >
-                <CaretRightIcon className="size-6" />
+                <CaretRightIcon className="size-4 md:size-6" />
               </Button>
             </>
           )}
 
           {/* Counter pill */}
           {images.length > 1 && (
-            <div className="absolute bottom-4 left-1/2 z-10 -translate-x-1/2 rounded-full bg-card/90 px-3 py-1.5 text-xs font-medium tabular-nums text-muted-foreground shadow-lg backdrop-blur-md dark:ring-1 dark:ring-white/[0.06]">
+            <div className="absolute bottom-3 left-1/2 z-10 -translate-x-1/2 rounded-full bg-card/90 px-3 py-1.5 text-xs font-medium tabular-nums text-muted-foreground shadow-lg backdrop-blur-md dark:ring-1 dark:ring-white/[0.06] md:bottom-4">
               {currentIndex + 1} / {images.length}
             </div>
           )}
 
           {/* Image */}
-          <div className="flex h-full w-full items-center justify-center p-8 pointer-events-none transition-all duration-300 ease-out animate-in fade-in-0 zoom-in-95">
+          <div className="flex h-full w-full items-center justify-center p-4 pointer-events-none transition-all duration-300 ease-out animate-in fade-in-0 zoom-in-95 md:p-8">
             <img
               key={`${image.id}-${activeVersionId}`}
               src={activeImageUrl}
@@ -537,533 +585,583 @@ export function CanvasImageViewer({
           </div>
         </div>
 
-        {/* Info panel (right) */}
-        <div
-          className="flex w-[380px] shrink-0 flex-col border-l border-border/50 bg-card/80 backdrop-blur-md animate-in slide-in-from-right-4 fade-in-0 duration-300"
-          onClick={e => e.stopPropagation()}
-          onKeyDown={e => e.stopPropagation()}
-        >
-          {/* Panel header with actions */}
-          <div className="flex items-start justify-between gap-3 border-b border-border/40 p-5">
-            <div className="min-w-0">
-              <h2 className="text-base font-semibold text-foreground">
-                {formatModelName(image.model)}
-              </h2>
-            </div>
-            <div className="flex shrink-0 items-center gap-1">
-              <Tooltip>
-                <TooltipTrigger>
-                  <button
-                    type="button"
-                    className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                    onClick={handleCopyImage}
-                    aria-label="Copy image"
-                  >
-                    <CopyIcon animateOnHover size={16} />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>Copy image</TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger>
-                  <button
-                    type="button"
-                    className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                    onClick={handleDownload}
-                    aria-label="Download image"
-                  >
-                    <DownloadIcon animateOnHover size={16} />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>Download image</TooltipContent>
-              </Tooltip>
-              {image.source === "canvas" && image.generationId && (
-                <>
-                  <Tooltip>
-                    <TooltipTrigger>
-                      <button
-                        type="button"
-                        className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-destructive"
-                        onClick={handleDelete}
-                        aria-label="Delete image"
-                      >
-                        <TrashIcon animateOnHover size={16} />
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent>Delete image</TooltipContent>
-                  </Tooltip>
-                  {image.status === "succeeded" && (
-                    <Tooltip>
-                      <TooltipTrigger>
-                        <button
-                          type="button"
-                          className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                          onClick={() => {
-                            if (!image.generationId) {
-                              return;
-                            }
-                            // Navigate directly — don't close the viewer first
-                            // to avoid a flash between the viewer closing and the
-                            // edit modal opening. The edit modal's backdrop covers
-                            // the viewer, and the viewer unmounts when the user
-                            // navigates back to /canvas.
-                            navigate(ROUTES.CANVAS_IMAGE(image.generationId));
-                          }}
-                          aria-label="Edit image"
-                        >
-                          <PencilSimpleIcon className="size-4" />
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent>Edit image</TooltipContent>
-                    </Tooltip>
-                  )}
-                </>
-              )}
-              <Tooltip>
-                <TooltipTrigger>
-                  <button
-                    type="button"
-                    className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                    onClick={handleUseSettings}
-                    aria-label="Use settings"
-                  >
-                    <ArrowsClockwiseIcon className="size-4" />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>Use settings</TooltipContent>
-              </Tooltip>
-              <div className="mx-1 h-4 w-px bg-border/60" />
-              <Tooltip>
-                <TooltipTrigger>
-                  <button
-                    type="button"
-                    className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                    onClick={() => onOpenChange(false)}
-                    aria-label="Close"
-                  >
-                    <XIcon className="size-4" />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>Close</TooltipContent>
-              </Tooltip>
-            </div>
+        {/* Mobile: Expandable info panel (bottom sheet style) */}
+        {!isDesktop && mobileInfoOpen && (
+          <div
+            className="shrink-0 max-h-[50dvh] overflow-y-auto border-t border-border/50 bg-card/95 backdrop-blur-md animate-in slide-in-from-bottom-4 fade-in-0 duration-200 scrollbar-thin"
+            onClick={e => e.stopPropagation()}
+            onKeyDown={e => e.stopPropagation()}
+          >
+            <ViewerInfoPanelContent
+              image={image}
+              activeVersionId={activeVersionId}
+              setActiveVersionId={setActiveVersionId}
+              succeededUpscales={succeededUpscales}
+              inProgressUpscale={inProgressUpscale}
+              failedUpscale={failedUpscale}
+              hasAnyInProgress={hasAnyInProgress}
+              isUpscaling={isUpscaling}
+              isCancelingUpscale={isCancelingUpscale}
+              showUpscaleSettings={showUpscaleSettings}
+              setShowUpscaleSettings={setShowUpscaleSettings}
+              creativePreset={creativePreset}
+              setCreativePreset={setCreativePreset}
+              upscalePrompt={upscalePrompt}
+              setUpscalePrompt={setUpscalePrompt}
+              hasNonDefaultCreativeSettings={hasNonDefaultCreativeSettings}
+              handleCopyImage={handleCopyImage}
+              handleDownload={handleDownload}
+              handleDelete={handleDelete}
+              handleCopyText={handleCopyText}
+              handleStandardUpscale={handleStandardUpscale}
+              handleCreativeUpscale={handleCreativeUpscale}
+              handleCancelUpscale={handleCancelUpscale}
+              handleRetryUpscale={handleRetryUpscale}
+              handleDeleteUpscaleVersion={handleDeleteUpscaleVersion}
+              handleUseSettings={handleUseSettings}
+              onOpenChange={onOpenChange}
+              navigate={navigate}
+              sourcePreviewUrl={sourcePreviewUrl}
+              setSourcePreviewUrl={setSourcePreviewUrl}
+              conversation={conversation}
+            />
           </div>
+        )}
 
-          {/* Metadata badges + Version switcher */}
-          <div className="flex flex-wrap items-center gap-2 border-b border-border/40 px-5 py-4">
-            {image.duration !== undefined && (
-              <span className="inline-flex items-center gap-1.5 rounded-md bg-muted px-2.5 py-1 text-xs font-medium text-foreground">
-                <ClockIcon className="size-3.5" />
-                {image.duration.toFixed(1)}s
-              </span>
-            )}
-            {image.aspectRatio && (
-              <span className="inline-flex items-center rounded-md bg-muted px-2.5 py-1 text-xs font-medium text-foreground">
-                {image.aspectRatio}
-              </span>
-            )}
-            {image.quality !== undefined && (
-              <span className="inline-flex items-center rounded-md bg-muted px-2.5 py-1 text-xs font-medium text-foreground">
-                Quality {image.quality}
-              </span>
-            )}
-            {image.seed !== undefined && (
-              <Tooltip>
-                <TooltipTrigger>
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-1.5 rounded-md bg-muted px-2.5 py-1 text-xs font-medium tabular-nums text-foreground transition-colors hover:bg-muted/80"
-                    onClick={() => handleCopyText(String(image.seed), "Seed")}
-                  >
-                    {image.seed}
-                    <CopyIcon size={12} />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>Copy seed</TooltipContent>
-              </Tooltip>
-            )}
-
-            {succeededUpscales.length > 0 && (
-              <span className="inline-flex items-center rounded-md bg-primary/15 px-2.5 py-1 text-xs font-medium text-primary">
-                {succeededUpscales.length} upscale
-                {succeededUpscales.length > 1 ? "s" : ""}
-              </span>
-            )}
-          </div>
-
-          {/* Prompt + Upscale section (scrollable) */}
-          <div className="flex-1 overflow-y-auto px-5 py-4">
-            {image.prompt && (
-              <div className="group/prompt relative">
-                <p className="text-sm leading-relaxed text-foreground/90 pr-7">
-                  {image.prompt}
-                </p>
+        {/* Desktop: Info panel (right) */}
+        {isDesktop && (
+          <div
+            className="flex w-[380px] shrink-0 flex-col border-l border-border/50 bg-card/80 backdrop-blur-md animate-in slide-in-from-right-4 fade-in-0 duration-300"
+            onClick={e => e.stopPropagation()}
+            onKeyDown={e => e.stopPropagation()}
+          >
+            {/* Panel header with actions */}
+            <div className="flex items-start justify-between gap-3 border-b border-border/40 p-5">
+              <div className="min-w-0">
+                <h2 className="text-base font-semibold text-foreground">
+                  {formatModelName(image.model)}
+                </h2>
+              </div>
+              <div className="flex shrink-0 items-center gap-1">
                 <Tooltip>
                   <TooltipTrigger>
                     <button
                       type="button"
-                      className="absolute right-0 top-0 flex size-6 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-all hover:bg-muted hover:text-foreground group-hover/prompt:opacity-100"
-                      onClick={() =>
-                        handleCopyText(image.prompt ?? "", "Prompt")
-                      }
-                      aria-label="Copy prompt"
+                      className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                      onClick={handleCopyImage}
+                      aria-label="Copy image"
                     >
-                      <CopyIcon animateOnHover size={14} />
+                      <CopyIcon animateOnHover size={16} />
                     </button>
                   </TooltipTrigger>
-                  <TooltipContent>Copy prompt</TooltipContent>
+                  <TooltipContent>Copy image</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger>
+                    <button
+                      type="button"
+                      className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                      onClick={handleDownload}
+                      aria-label="Download image"
+                    >
+                      <DownloadIcon animateOnHover size={16} />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>Download image</TooltipContent>
+                </Tooltip>
+                {image.source === "canvas" && image.generationId && (
+                  <>
+                    <Tooltip>
+                      <TooltipTrigger>
+                        <button
+                          type="button"
+                          className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-destructive"
+                          onClick={handleDelete}
+                          aria-label="Delete image"
+                        >
+                          <TrashIcon animateOnHover size={16} />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent>Delete image</TooltipContent>
+                    </Tooltip>
+                    {image.status === "succeeded" && (
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <button
+                            type="button"
+                            className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                            onClick={() => {
+                              if (!image.generationId) {
+                                return;
+                              }
+                              // Navigate directly — don't close the viewer first
+                              // to avoid a flash between the viewer closing and the
+                              // edit modal opening. The edit modal's backdrop covers
+                              // the viewer, and the viewer unmounts when the user
+                              // navigates back to /canvas.
+                              navigate(ROUTES.CANVAS_IMAGE(image.generationId));
+                            }}
+                            aria-label="Edit image"
+                          >
+                            <PencilSimpleIcon className="size-4" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent>Edit image</TooltipContent>
+                      </Tooltip>
+                    )}
+                  </>
+                )}
+                <Tooltip>
+                  <TooltipTrigger>
+                    <button
+                      type="button"
+                      className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                      onClick={handleUseSettings}
+                      aria-label="Use settings"
+                    >
+                      <ArrowsClockwiseIcon className="size-4" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>Use settings</TooltipContent>
+                </Tooltip>
+                <div className="mx-1 h-4 w-px bg-border/60" />
+                <Tooltip>
+                  <TooltipTrigger>
+                    <button
+                      type="button"
+                      className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                      onClick={() => onOpenChange(false)}
+                      aria-label="Close"
+                    >
+                      <XIcon className="size-4" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>Close</TooltipContent>
                 </Tooltip>
               </div>
-            )}
+            </div>
 
-            {/* Input images section */}
-            {image.referenceImageUrls &&
-              image.referenceImageUrls.length > 0 && (
-                <div className="mt-4 border-t border-border/40 pt-4">
-                  <h3 className="mb-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                    <ImageIcon className="mr-1.5 inline size-3.5 align-[-2px]" />
-                    Input Images
-                  </h3>
-                  <div className="flex gap-2">
-                    {image.referenceImageUrls.map((url, idx) => (
+            {/* Metadata badges + Version switcher */}
+            <div className="flex flex-wrap items-center gap-2 border-b border-border/40 px-5 py-4">
+              {image.duration !== undefined && (
+                <span className="inline-flex items-center gap-1.5 rounded-md bg-muted px-2.5 py-1 text-xs font-medium text-foreground">
+                  <ClockIcon className="size-3.5" />
+                  {image.duration.toFixed(1)}s
+                </span>
+              )}
+              {image.aspectRatio && (
+                <span className="inline-flex items-center rounded-md bg-muted px-2.5 py-1 text-xs font-medium text-foreground">
+                  {image.aspectRatio}
+                </span>
+              )}
+              {image.quality !== undefined && (
+                <span className="inline-flex items-center rounded-md bg-muted px-2.5 py-1 text-xs font-medium text-foreground">
+                  Quality {image.quality}
+                </span>
+              )}
+              {image.seed !== undefined && (
+                <Tooltip>
+                  <TooltipTrigger>
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1.5 rounded-md bg-muted px-2.5 py-1 text-xs font-medium tabular-nums text-foreground transition-colors hover:bg-muted/80"
+                      onClick={() => handleCopyText(String(image.seed), "Seed")}
+                    >
+                      {image.seed}
+                      <CopyIcon size={12} />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>Copy seed</TooltipContent>
+                </Tooltip>
+              )}
+
+              {succeededUpscales.length > 0 && (
+                <span className="inline-flex items-center rounded-md bg-primary/15 px-2.5 py-1 text-xs font-medium text-primary">
+                  {succeededUpscales.length} upscale
+                  {succeededUpscales.length > 1 ? "s" : ""}
+                </span>
+              )}
+            </div>
+
+            {/* Prompt + Upscale section (scrollable) */}
+            <div className="flex-1 overflow-y-auto px-5 py-4">
+              {image.prompt && (
+                <div className="group/prompt relative">
+                  <p className="text-sm leading-relaxed text-foreground/90 pr-7">
+                    {image.prompt}
+                  </p>
+                  <Tooltip>
+                    <TooltipTrigger>
                       <button
-                        key={url}
                         type="button"
-                        className="relative size-14 shrink-0 overflow-hidden rounded-lg ring-1 ring-border/40 transition-all hover:ring-2 hover:ring-primary/50"
-                        onClick={() => setSourcePreviewUrl(url)}
+                        className="absolute right-0 top-0 flex size-6 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-all hover:bg-muted hover:text-foreground group-hover/prompt:opacity-100"
+                        onClick={() =>
+                          handleCopyText(image.prompt ?? "", "Prompt")
+                        }
+                        aria-label="Copy prompt"
                       >
-                        <img
-                          src={url}
-                          alt={`Source ${idx + 1}`}
-                          className="h-full w-full object-cover"
-                        />
-                        <span className="absolute inset-x-0 bottom-0 bg-black/60 px-1.5 py-0.5 text-center text-[10px] font-medium text-white backdrop-blur-sm">
-                          Source
-                        </span>
+                        <CopyIcon animateOnHover size={14} />
                       </button>
-                    ))}
-                  </div>
+                    </TooltipTrigger>
+                    <TooltipContent>Copy prompt</TooltipContent>
+                  </Tooltip>
                 </div>
               )}
 
-            {/* Edit tree section */}
-            {image.source === "canvas" &&
-              image.generationId &&
-              !image.parentGenerationId &&
-              (image.editCount ?? 0) > 0 && (
+              {/* Input images section */}
+              {image.referenceImageUrls &&
+                image.referenceImageUrls.length > 0 && (
+                  <div className="mt-4 border-t border-border/40 pt-4">
+                    <h3 className="mb-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                      <ImageIcon className="mr-1.5 inline size-3.5 align-[-2px]" />
+                      Input Images
+                    </h3>
+                    <div className="flex gap-2">
+                      {image.referenceImageUrls.map((url, idx) => (
+                        <button
+                          key={url}
+                          type="button"
+                          className="relative size-14 shrink-0 overflow-hidden rounded-lg ring-1 ring-border/40 transition-all hover:ring-2 hover:ring-primary/50"
+                          onClick={() => setSourcePreviewUrl(url)}
+                        >
+                          <img
+                            src={url}
+                            alt={`Source ${idx + 1}`}
+                            className="h-full w-full object-cover"
+                          />
+                          <span className="absolute inset-x-0 bottom-0 bg-black/60 px-1.5 py-0.5 text-center text-[10px] font-medium text-white backdrop-blur-sm">
+                            Source
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+              {/* Edit tree section */}
+              {image.source === "canvas" &&
+                image.generationId &&
+                !image.parentGenerationId &&
+                (image.editCount ?? 0) > 0 && (
+                  <div className="mt-4 border-t border-border/40 pt-4">
+                    <h3 className="mb-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                      <TreeStructureIcon className="mr-1.5 inline size-3.5 align-[-2px]" />
+                      Edits ({image.editCount})
+                    </h3>
+                    <button
+                      type="button"
+                      className="flex w-full items-center gap-3 rounded-lg border border-border/40 p-2.5 text-left transition-colors hover:bg-muted/50"
+                      onClick={() => {
+                        if (image.generationId) {
+                          navigate(ROUTES.CANVAS_IMAGE(image.generationId));
+                        }
+                      }}
+                    >
+                      <div className="relative size-10 shrink-0 overflow-hidden rounded-md ring-1 ring-border/40">
+                        <img
+                          src={image.imageUrl}
+                          alt="Edit tree"
+                          className="h-full w-full object-cover"
+                        />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-foreground">
+                          {image.prompt || "Edit tree"}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {image.editCount} edit
+                          {(image.editCount ?? 0) > 1 ? "s" : ""}
+                        </p>
+                      </div>
+                      <CaretRightIcon className="size-4 shrink-0 text-muted-foreground" />
+                    </button>
+                  </div>
+                )}
+
+              {/* Conversation link */}
+              {image.source === "conversation" && image.conversationId && (
                 <div className="mt-4 border-t border-border/40 pt-4">
                   <h3 className="mb-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                    <TreeStructureIcon className="mr-1.5 inline size-3.5 align-[-2px]" />
-                    Edits ({image.editCount})
+                    <ChatCircleIcon className="mr-1.5 inline size-3.5 align-[-2px]" />
+                    Conversation
                   </h3>
                   <button
                     type="button"
                     className="flex w-full items-center gap-3 rounded-lg border border-border/40 p-2.5 text-left transition-colors hover:bg-muted/50"
                     onClick={() => {
-                      if (image.generationId) {
-                        navigate(ROUTES.CANVAS_IMAGE(image.generationId));
-                      }
+                      navigate(
+                        ROUTES.CHAT_CONVERSATION(image.conversationId as string)
+                      );
+                      onOpenChange(false);
                     }}
                   >
-                    <div className="relative size-10 shrink-0 overflow-hidden rounded-md ring-1 ring-border/40">
-                      <img
-                        src={image.imageUrl}
-                        alt="Edit tree"
-                        className="h-full w-full object-cover"
-                      />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-foreground">
-                        {image.prompt || "Edit tree"}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {image.editCount} edit
-                        {(image.editCount ?? 0) > 1 ? "s" : ""}
-                      </p>
-                    </div>
+                    <p className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
+                      {conversation?.title ?? "Conversation"}
+                    </p>
                     <CaretRightIcon className="size-4 shrink-0 text-muted-foreground" />
                   </button>
                 </div>
               )}
 
-            {/* Conversation link */}
-            {image.source === "conversation" && image.conversationId && (
-              <div className="mt-4 border-t border-border/40 pt-4">
-                <h3 className="mb-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  <ChatCircleIcon className="mr-1.5 inline size-3.5 align-[-2px]" />
-                  Conversation
-                </h3>
-                <button
-                  type="button"
-                  className="flex w-full items-center gap-3 rounded-lg border border-border/40 p-2.5 text-left transition-colors hover:bg-muted/50"
-                  onClick={() => {
-                    navigate(
-                      ROUTES.CHAT_CONVERSATION(image.conversationId as string)
-                    );
-                    onOpenChange(false);
-                  }}
-                >
-                  <p className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
-                    {conversation?.title ?? "Conversation"}
-                  </p>
-                  <CaretRightIcon className="size-4 shrink-0 text-muted-foreground" />
-                </button>
-              </div>
-            )}
+              {/* Upscale section */}
+              {image.source === "canvas" && image.generationId && (
+                <div className="mt-4 border-t border-border/40 pt-4">
+                  <h3 className="mb-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    <ArrowsOutIcon className="mr-1.5 inline size-3.5 align-[-2px]" />
+                    Upscale
+                  </h3>
 
-            {/* Upscale section */}
-            {image.source === "canvas" && image.generationId && (
-              <div className="mt-4 border-t border-border/40 pt-4">
-                <h3 className="mb-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  <ArrowsOutIcon className="mr-1.5 inline size-3.5 align-[-2px]" />
-                  Upscale
-                </h3>
-
-                {/* Failed state */}
-                {!hasAnyInProgress && failedUpscale && (
-                  <div className="stack-sm mb-3">
-                    <p className="text-sm text-destructive">
-                      {failedUpscale.error ?? "Upscale failed"}
-                    </p>
-                    <Button
-                      variant="outline"
-                      className="w-full gap-2"
-                      onClick={handleRetryUpscale}
-                      disabled={isUpscaling}
-                    >
-                      <ArrowClockwiseIcon className="size-4" />
-                      {isUpscaling ? "Retrying..." : "Retry"}
-                    </Button>
-                  </div>
-                )}
-
-                {/* Upscale buttons — always visible, disabled when in-progress */}
-                <div className="stack-sm">
-                  {/* Standard upscale — primary */}
-                  <div className="relative">
-                    <Button
-                      className="w-full gap-2"
-                      onClick={handleStandardUpscale}
-                      disabled={isUpscaling || hasAnyInProgress}
-                    >
-                      {inProgressUpscale?.type === "standard" ? (
-                        <Spinner className="size-4" />
-                      ) : (
-                        <ArrowsOutIcon className="size-4" />
-                      )}
-                      {inProgressUpscale?.type === "standard"
-                        ? "Upscaling..."
-                        : "Upscale"}
-                    </Button>
-                    {inProgressUpscale?.type === "standard" && (
+                  {/* Failed state */}
+                  {!hasAnyInProgress && failedUpscale && (
+                    <div className="stack-sm mb-3">
+                      <p className="text-sm text-destructive">
+                        {failedUpscale.error ?? "Upscale failed"}
+                      </p>
                       <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        className="absolute right-1 top-1/2 -translate-y-1/2"
-                        onClick={handleCancelUpscale}
-                        disabled={isCancelingUpscale}
-                        aria-label="Cancel upscale"
+                        variant="outline"
+                        className="w-full gap-2"
+                        onClick={handleRetryUpscale}
+                        disabled={isUpscaling}
                       >
-                        <XIcon className="size-4" />
+                        <ArrowClockwiseIcon className="size-4" />
+                        {isUpscaling ? "Retrying..." : "Retry"}
                       </Button>
-                    )}
-                  </div>
-
-                  {/* Creative enhance — secondary */}
-                  <div className="relative">
-                    <Button
-                      variant="outline"
-                      className="w-full gap-2"
-                      onClick={handleCreativeUpscale}
-                      disabled={isUpscaling || hasAnyInProgress}
-                    >
-                      {inProgressUpscale?.type === "creative" ? (
-                        <Spinner className="size-4" />
-                      ) : (
-                        <SparkleIcon className="size-4" />
-                      )}
-                      {inProgressUpscale?.type === "creative"
-                        ? "Enhancing..."
-                        : "Creative Enhance"}
-                    </Button>
-                    {inProgressUpscale?.type === "creative" && (
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        className="absolute right-1 top-1/2 -translate-y-1/2"
-                        onClick={handleCancelUpscale}
-                        disabled={isCancelingUpscale}
-                        aria-label="Cancel upscale"
-                      >
-                        <XIcon className="size-4" />
-                      </Button>
-                    )}
-                  </div>
-
-                  {/* Creative settings collapsible */}
-                  <button
-                    type="button"
-                    className="flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
-                    onClick={() => setShowUpscaleSettings(!showUpscaleSettings)}
-                  >
-                    <CaretDownIcon
-                      className={cn(
-                        "size-3 transition-transform",
-                        showUpscaleSettings && "rotate-180"
-                      )}
-                    />
-                    Creative Settings
-                    {hasNonDefaultCreativeSettings && (
-                      <span className="size-1.5 rounded-full bg-primary" />
-                    )}
-                  </button>
-
-                  {showUpscaleSettings && (
-                    <div className="stack-sm rounded-lg border border-border/40 p-3">
-                      <div className="flex gap-1 rounded-lg bg-muted/50 p-1">
-                        {CREATIVE_PRESETS.map(preset => (
-                          <Tooltip key={preset.id}>
-                            <TooltipTrigger>
-                              <button
-                                type="button"
-                                className={cn(
-                                  "flex-1 rounded-md px-2 py-1.5 text-xs font-medium transition-all",
-                                  creativePreset === preset.id
-                                    ? "bg-background text-foreground shadow-sm"
-                                    : "text-muted-foreground hover:text-foreground"
-                                )}
-                                onClick={() => setCreativePreset(preset.id)}
-                              >
-                                {preset.label}
-                              </button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              {preset.description}
-                            </TooltipContent>
-                          </Tooltip>
-                        ))}
-                      </div>
-
-                      <div className="stack-xs">
-                        <label
-                          htmlFor="upscale-prompt"
-                          className="text-xs text-muted-foreground"
-                        >
-                          Prompt
-                        </label>
-                        <textarea
-                          id="upscale-prompt"
-                          rows={2}
-                          className="w-full resize-none rounded-md border border-border/40 bg-background px-3 py-2 text-sm placeholder:text-muted-foreground/60 focus:border-primary focus:outline-none"
-                          placeholder="Guide the upscaler..."
-                          value={upscalePrompt}
-                          onChange={e => setUpscalePrompt(e.target.value)}
-                        />
-                      </div>
                     </div>
                   )}
-                </div>
 
-                {/* Versions gallery */}
-                {(succeededUpscales.length > 0 || inProgressUpscale) && (
-                  <div className="mt-4 border-t border-border/40 pt-4">
-                    <h3 className="mb-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                      <StackSimpleIcon className="mr-1.5 inline size-3.5 align-[-2px]" />
-                      Versions
-                    </h3>
-                    <div className="grid grid-cols-3 gap-2">
-                      {/* Original thumbnail */}
-                      <div className="group/thumb relative">
-                        <button
-                          type="button"
-                          className={cn(
-                            "relative w-full overflow-hidden rounded-lg border-2 transition-all",
-                            activeVersionId === "original"
-                              ? "border-primary ring-1 ring-primary/30"
-                              : "border-transparent hover:border-border"
-                          )}
-                          onClick={() => setActiveVersionId("original")}
+                  {/* Upscale buttons — always visible, disabled when in-progress */}
+                  <div className="stack-sm">
+                    {/* Standard upscale — primary */}
+                    <div className="relative">
+                      <Button
+                        className="w-full gap-2"
+                        onClick={handleStandardUpscale}
+                        disabled={isUpscaling || hasAnyInProgress}
+                      >
+                        {inProgressUpscale?.type === "standard" ? (
+                          <Spinner className="size-4" />
+                        ) : (
+                          <ArrowsOutIcon className="size-4" />
+                        )}
+                        {inProgressUpscale?.type === "standard"
+                          ? "Upscaling..."
+                          : "Upscale"}
+                      </Button>
+                      {inProgressUpscale?.type === "standard" && (
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          className="absolute right-1 top-1/2 -translate-y-1/2"
+                          onClick={handleCancelUpscale}
+                          disabled={isCancelingUpscale}
+                          aria-label="Cancel upscale"
                         >
-                          <img
-                            src={image.imageUrl}
-                            alt="Original"
-                            className="block aspect-square w-full object-cover"
-                          />
-                          <span className="absolute inset-x-0 bottom-0 bg-black/60 px-1.5 py-0.5 text-[10px] font-medium text-white backdrop-blur-sm">
-                            Original
-                          </span>
-                        </button>
-                      </div>
+                          <XIcon className="size-4" />
+                        </Button>
+                      )}
+                    </div>
 
-                      {/* Succeeded upscale thumbnails */}
-                      {succeededUpscales.map(upscale => (
-                        <div key={upscale.id} className="group/thumb relative">
+                    {/* Creative enhance — secondary */}
+                    <div className="relative">
+                      <Button
+                        variant="outline"
+                        className="w-full gap-2"
+                        onClick={handleCreativeUpscale}
+                        disabled={isUpscaling || hasAnyInProgress}
+                      >
+                        {inProgressUpscale?.type === "creative" ? (
+                          <Spinner className="size-4" />
+                        ) : (
+                          <SparkleIcon className="size-4" />
+                        )}
+                        {inProgressUpscale?.type === "creative"
+                          ? "Enhancing..."
+                          : "Creative Enhance"}
+                      </Button>
+                      {inProgressUpscale?.type === "creative" && (
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          className="absolute right-1 top-1/2 -translate-y-1/2"
+                          onClick={handleCancelUpscale}
+                          disabled={isCancelingUpscale}
+                          aria-label="Cancel upscale"
+                        >
+                          <XIcon className="size-4" />
+                        </Button>
+                      )}
+                    </div>
+
+                    {/* Creative settings collapsible */}
+                    <button
+                      type="button"
+                      className="flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
+                      onClick={() =>
+                        setShowUpscaleSettings(!showUpscaleSettings)
+                      }
+                    >
+                      <CaretDownIcon
+                        className={cn(
+                          "size-3 transition-transform",
+                          showUpscaleSettings && "rotate-180"
+                        )}
+                      />
+                      Creative Settings
+                      {hasNonDefaultCreativeSettings && (
+                        <span className="size-1.5 rounded-full bg-primary" />
+                      )}
+                    </button>
+
+                    {showUpscaleSettings && (
+                      <div className="stack-sm rounded-lg border border-border/40 p-3">
+                        <div className="flex gap-1 rounded-lg bg-muted/50 p-1">
+                          {CREATIVE_PRESETS.map(preset => (
+                            <Tooltip key={preset.id}>
+                              <TooltipTrigger>
+                                <button
+                                  type="button"
+                                  className={cn(
+                                    "flex-1 rounded-md px-2 py-1.5 text-xs font-medium transition-all",
+                                    creativePreset === preset.id
+                                      ? "bg-background text-foreground shadow-sm"
+                                      : "text-muted-foreground hover:text-foreground"
+                                  )}
+                                  onClick={() => setCreativePreset(preset.id)}
+                                >
+                                  {preset.label}
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                {preset.description}
+                              </TooltipContent>
+                            </Tooltip>
+                          ))}
+                        </div>
+
+                        <div className="stack-xs">
+                          <label
+                            htmlFor="upscale-prompt"
+                            className="text-xs text-muted-foreground"
+                          >
+                            Prompt
+                          </label>
+                          <textarea
+                            id="upscale-prompt"
+                            rows={2}
+                            className="w-full resize-none rounded-md border border-border/40 bg-background px-3 py-2 text-sm placeholder:text-muted-foreground/60 focus:border-primary focus:outline-none"
+                            placeholder="Guide the upscaler..."
+                            value={upscalePrompt}
+                            onChange={e => setUpscalePrompt(e.target.value)}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Versions gallery */}
+                  {(succeededUpscales.length > 0 || inProgressUpscale) && (
+                    <div className="mt-4 border-t border-border/40 pt-4">
+                      <h3 className="mb-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                        <StackSimpleIcon className="mr-1.5 inline size-3.5 align-[-2px]" />
+                        Versions
+                      </h3>
+                      <div className="grid grid-cols-3 gap-2">
+                        {/* Original thumbnail */}
+                        <div className="group/thumb relative">
                           <button
                             type="button"
                             className={cn(
                               "relative w-full overflow-hidden rounded-lg border-2 transition-all",
-                              activeVersionId === upscale.id
+                              activeVersionId === "original"
                                 ? "border-primary ring-1 ring-primary/30"
                                 : "border-transparent hover:border-border"
                             )}
-                            onClick={() => setActiveVersionId(upscale.id)}
+                            onClick={() => setActiveVersionId("original")}
                           >
                             <img
-                              src={upscale.imageUrl}
-                              alt={
-                                upscale.type === "standard"
-                                  ? "Standard 2x"
-                                  : "Creative 2x"
-                              }
+                              src={image.imageUrl}
+                              alt="Original"
                               className="block aspect-square w-full object-cover"
                             />
                             <span className="absolute inset-x-0 bottom-0 bg-black/60 px-1.5 py-0.5 text-[10px] font-medium text-white backdrop-blur-sm">
-                              {upscale.type === "standard" ? "2x" : "2x+"}
+                              Original
                             </span>
                           </button>
-                          <button
-                            type="button"
-                            className="absolute -right-1 -top-1 z-10 flex size-5 items-center justify-center rounded-full bg-card text-muted-foreground opacity-0 shadow-sm ring-1 ring-border/40 transition-all hover:text-destructive group-hover/thumb:opacity-100"
-                            onClick={e => {
-                              e.stopPropagation();
-                              handleDeleteUpscaleVersion(upscale.id);
-                            }}
-                            aria-label="Remove version"
-                          >
-                            <XIcon className="size-3" />
-                          </button>
                         </div>
-                      ))}
 
-                      {/* In-progress placeholder */}
-                      {inProgressUpscale && (
-                        <div className="relative">
-                          <div className="aspect-square w-full overflow-hidden rounded-lg border-2 border-dashed border-border/60 bg-muted/30">
-                            <div className="flex h-full flex-col items-center justify-center gap-1.5">
-                              <Spinner className="size-4 text-muted-foreground" />
-                              <span className="text-[10px] font-medium text-muted-foreground">
-                                {inProgressUpscale.type === "standard"
-                                  ? "2x"
-                                  : "2x+"}
+                        {/* Succeeded upscale thumbnails */}
+                        {succeededUpscales.map(upscale => (
+                          <div
+                            key={upscale.id}
+                            className="group/thumb relative"
+                          >
+                            <button
+                              type="button"
+                              className={cn(
+                                "relative w-full overflow-hidden rounded-lg border-2 transition-all",
+                                activeVersionId === upscale.id
+                                  ? "border-primary ring-1 ring-primary/30"
+                                  : "border-transparent hover:border-border"
+                              )}
+                              onClick={() => setActiveVersionId(upscale.id)}
+                            >
+                              <img
+                                src={upscale.imageUrl}
+                                alt={
+                                  upscale.type === "standard"
+                                    ? "Standard 2x"
+                                    : "Creative 2x"
+                                }
+                                className="block aspect-square w-full object-cover"
+                              />
+                              <span className="absolute inset-x-0 bottom-0 bg-black/60 px-1.5 py-0.5 text-[10px] font-medium text-white backdrop-blur-sm">
+                                {upscale.type === "standard" ? "2x" : "2x+"}
                               </span>
+                            </button>
+                            <button
+                              type="button"
+                              className="absolute -right-1 -top-1 z-10 flex size-5 items-center justify-center rounded-full bg-card text-muted-foreground opacity-0 shadow-sm ring-1 ring-border/40 transition-all hover:text-destructive group-hover/thumb:opacity-100"
+                              onClick={e => {
+                                e.stopPropagation();
+                                handleDeleteUpscaleVersion(upscale.id);
+                              }}
+                              aria-label="Remove version"
+                            >
+                              <XIcon className="size-3" />
+                            </button>
+                          </div>
+                        ))}
+
+                        {/* In-progress placeholder */}
+                        {inProgressUpscale && (
+                          <div className="relative">
+                            <div className="aspect-square w-full overflow-hidden rounded-lg border-2 border-dashed border-border/60 bg-muted/30">
+                              <div className="flex h-full flex-col items-center justify-center gap-1.5">
+                                <Spinner className="size-4 text-muted-foreground" />
+                                <span className="text-[10px] font-medium text-muted-foreground">
+                                  {inProgressUpscale.type === "standard"
+                                    ? "2x"
+                                    : "2x+"}
+                                </span>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+                  )}
+                </div>
+              )}
+            </div>
 
-          {/* Timestamp footer */}
-          <div className="border-t border-border/40 px-5 py-3">
-            <p className="text-xs text-muted-foreground">
-              {formatTimestamp(image.createdAt)}
-            </p>
+            {/* Timestamp footer */}
+            <div className="border-t border-border/40 px-5 py-3">
+              <p className="text-xs text-muted-foreground">
+                {formatTimestamp(image.createdAt)}
+              </p>
+            </div>
           </div>
-        </div>
+        )}
       </div>
       {/* Source image preview modal */}
       {sourcePreviewUrl && (
@@ -1099,6 +1197,239 @@ export function CanvasImageViewer({
       )}
     </div>,
     document.getElementById("root") ?? document.body
+  );
+}
+
+// biome-ignore lint/suspicious/noExplicitAny: shared props for mobile info panel
+function ViewerInfoPanelContent(props: any) {
+  const {
+    image,
+    activeVersionId,
+    setActiveVersionId,
+    succeededUpscales,
+    inProgressUpscale,
+    handleCopyImage,
+    handleDownload,
+    handleDelete,
+    handleCopyText,
+    handleStandardUpscale,
+    handleCreativeUpscale,
+    handleUseSettings,
+    onOpenChange,
+    navigate,
+    isUpscaling,
+    hasAnyInProgress,
+    conversation,
+  } = props;
+
+  return (
+    <div className="px-4 py-3 stack-sm">
+      {/* Model + actions row */}
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="text-sm font-semibold text-foreground truncate">
+          {formatModelName(image.model)}
+        </h2>
+        <div className="flex shrink-0 items-center gap-0.5">
+          <button
+            type="button"
+            className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            onClick={handleCopyImage}
+            aria-label="Copy image"
+          >
+            <CopyIcon size={14} />
+          </button>
+          <button
+            type="button"
+            className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            onClick={handleDownload}
+            aria-label="Download"
+          >
+            <DownloadIcon size={14} />
+          </button>
+          {image.source === "canvas" && image.generationId && (
+            <>
+              <button
+                type="button"
+                className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-destructive"
+                onClick={handleDelete}
+                aria-label="Delete"
+              >
+                <TrashIcon size={14} />
+              </button>
+              {image.status === "succeeded" && (
+                <button
+                  type="button"
+                  className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  onClick={() => {
+                    if (image.generationId) {
+                      navigate(ROUTES.CANVAS_IMAGE(image.generationId));
+                    }
+                  }}
+                  aria-label="Edit image"
+                >
+                  <PencilSimpleIcon className="size-4" />
+                </button>
+              )}
+            </>
+          )}
+          <button
+            type="button"
+            className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            onClick={handleUseSettings}
+            aria-label="Use settings"
+          >
+            <ArrowsClockwiseIcon className="size-4" />
+          </button>
+        </div>
+      </div>
+
+      {/* Metadata badges */}
+      <div className="flex flex-wrap items-center gap-1.5">
+        {image.duration !== undefined && (
+          <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-[11px] font-medium text-foreground">
+            <ClockIcon className="size-3" />
+            {image.duration.toFixed(1)}s
+          </span>
+        )}
+        {image.aspectRatio && (
+          <span className="inline-flex items-center rounded-md bg-muted px-2 py-0.5 text-[11px] font-medium text-foreground">
+            {image.aspectRatio}
+          </span>
+        )}
+        {image.seed !== undefined && (
+          <button
+            type="button"
+            className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-[11px] font-medium tabular-nums text-foreground transition-colors hover:bg-muted/80"
+            onClick={() => handleCopyText(String(image.seed), "Seed")}
+          >
+            {image.seed}
+            <CopyIcon size={10} />
+          </button>
+        )}
+        {succeededUpscales.length > 0 && (
+          <span className="inline-flex items-center rounded-md bg-primary/15 px-2 py-0.5 text-[11px] font-medium text-primary">
+            {succeededUpscales.length} upscale
+            {succeededUpscales.length > 1 ? "s" : ""}
+          </span>
+        )}
+      </div>
+
+      {/* Prompt */}
+      {image.prompt && (
+        <p className="text-sm leading-relaxed text-foreground/90 line-clamp-4">
+          {image.prompt}
+        </p>
+      )}
+
+      {/* Conversation link */}
+      {image.source === "conversation" && image.conversationId && (
+        <button
+          type="button"
+          className="flex w-full items-center gap-3 rounded-lg border border-border/40 p-2.5 text-left transition-colors hover:bg-muted/50"
+          onClick={() => {
+            navigate(ROUTES.CHAT_CONVERSATION(image.conversationId as string));
+            onOpenChange(false);
+          }}
+        >
+          <ChatCircleIcon className="size-4 shrink-0 text-muted-foreground" />
+          <p className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
+            {conversation?.title ?? "Conversation"}
+          </p>
+          <CaretRightIcon className="size-4 shrink-0 text-muted-foreground" />
+        </button>
+      )}
+
+      {/* Upscale + Versions */}
+      {image.source === "canvas" && image.generationId && (
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            className="flex-1 gap-1.5"
+            onClick={handleStandardUpscale}
+            disabled={isUpscaling || hasAnyInProgress}
+          >
+            {inProgressUpscale?.type === "standard" ? (
+              <Spinner className="size-3.5" />
+            ) : (
+              <ArrowsOutIcon className="size-3.5" />
+            )}
+            {inProgressUpscale?.type === "standard"
+              ? "Upscaling..."
+              : "Upscale"}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex-1 gap-1.5"
+            onClick={handleCreativeUpscale}
+            disabled={isUpscaling || hasAnyInProgress}
+          >
+            {inProgressUpscale?.type === "creative" ? (
+              <Spinner className="size-3.5" />
+            ) : (
+              <SparkleIcon className="size-3.5" />
+            )}
+            {inProgressUpscale?.type === "creative"
+              ? "Enhancing..."
+              : "Enhance"}
+          </Button>
+        </div>
+      )}
+
+      {/* Version thumbnails (horizontal scroll) */}
+      {succeededUpscales.length > 0 && (
+        <div className="flex gap-2 overflow-x-auto scrollbar-none pb-1">
+          <button
+            type="button"
+            className={cn(
+              "relative size-12 shrink-0 overflow-hidden rounded-lg border-2 transition-all",
+              activeVersionId === "original"
+                ? "border-primary ring-1 ring-primary/30"
+                : "border-transparent hover:border-border"
+            )}
+            onClick={() => setActiveVersionId("original")}
+          >
+            <img
+              src={image.imageUrl}
+              alt="Original"
+              className="size-full object-cover"
+            />
+            <span className="absolute inset-x-0 bottom-0 bg-black/60 text-center text-[8px] font-medium text-white">
+              Orig
+            </span>
+          </button>
+          {succeededUpscales.map(
+            (upscale: UpscaleEntry & { imageUrl: string }) => (
+              <button
+                key={upscale.id}
+                type="button"
+                className={cn(
+                  "relative size-12 shrink-0 overflow-hidden rounded-lg border-2 transition-all",
+                  activeVersionId === upscale.id
+                    ? "border-primary ring-1 ring-primary/30"
+                    : "border-transparent hover:border-border"
+                )}
+                onClick={() => setActiveVersionId(upscale.id)}
+              >
+                <img
+                  src={upscale.imageUrl}
+                  alt={upscale.type === "standard" ? "2x" : "2x+"}
+                  className="size-full object-cover"
+                />
+                <span className="absolute inset-x-0 bottom-0 bg-black/60 text-center text-[8px] font-medium text-white">
+                  {upscale.type === "standard" ? "2x" : "2x+"}
+                </span>
+              </button>
+            )
+          )}
+        </div>
+      )}
+
+      {/* Timestamp */}
+      <p className="text-[11px] text-muted-foreground">
+        {formatTimestamp(image.createdAt)}
+      </p>
+    </div>
   );
 }
 

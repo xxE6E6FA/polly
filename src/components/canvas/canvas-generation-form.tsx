@@ -242,10 +242,10 @@ function ModelPickerPopover({
         <CaretDownIcon className="size-3.5 shrink-0 opacity-60" />
       </PopoverTrigger>
       <PopoverContent
-        side="right"
+        side="bottom"
         align="start"
         sideOffset={8}
-        className="w-[360px] p-0"
+        className="w-[min(360px,calc(100vw-2rem))] p-0"
       >
         <div
           className="flex max-h-[min(480px,60vh)] flex-col"

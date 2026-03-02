@@ -331,7 +331,7 @@ export default function CanvasImagePage() {
       className="fixed inset-0 z-modal flex flex-col bg-background"
     >
       {/* Back button — always visible, top-left */}
-      <div className="absolute left-4 top-4 z-10">
+      <div className="absolute left-3 top-3 z-10 sm:left-4 sm:top-4">
         <Button
           variant="ghost"
           size="sm"
@@ -339,7 +339,7 @@ export default function CanvasImagePage() {
           onClick={handleBack}
         >
           <ArrowLeftIcon className="size-4" />
-          Canvas
+          <span className="hidden sm:inline">Canvas</span>
         </Button>
       </div>
 
@@ -354,12 +354,12 @@ export default function CanvasImagePage() {
             <Spinner className="size-5 text-muted-foreground" />
           </div>
         ) : (
-          <div className="relative flex items-center justify-center">
-            {/* Thumbnail strip — positioned outside the hero so it doesn't shift centering */}
+          <div className="relative flex flex-col items-center justify-center md:flex-row">
+            {/* Desktop: Thumbnail strip — vertical, positioned left of hero */}
             {editTree.length > 1 && (
               <div
                 ref={thumbStripRef}
-                className="absolute right-full mr-3 flex max-h-[70vh] flex-col gap-1.5 overflow-y-auto scrollbar-none"
+                className="hidden md:flex absolute right-full mr-3 max-h-[70vh] flex-col gap-1.5 overflow-y-auto scrollbar-none"
               >
                 {editTree.map((node, idx) => (
                   <Tooltip key={node._id}>
@@ -419,7 +419,7 @@ export default function CanvasImagePage() {
                         key={activeNode?._id}
                         src={heroImageUrl}
                         alt={activeNode?.prompt || "Generated image"}
-                        className="max-h-[calc(100dvh-180px)] rounded-lg object-contain drop-shadow-2xl animate-in fade-in-0 duration-300"
+                        className="max-h-[calc(100dvh-240px)] rounded-lg object-contain drop-shadow-2xl animate-in fade-in-0 duration-300 md:max-h-[calc(100dvh-180px)]"
                         draggable={false}
                         onLoad={e => {
                           const img = e.currentTarget;
@@ -588,13 +588,57 @@ export default function CanvasImagePage() {
                 return null;
               })()}
             </div>
+
+            {/* Mobile: Thumbnail strip — horizontal, below hero */}
+            {editTree.length > 1 && (
+              <div className="mt-2 flex gap-1.5 overflow-x-auto px-2 pb-1 scrollbar-none md:hidden">
+                {editTree.map((node, idx) => {
+                  const nodePending =
+                    node.status === "pending" ||
+                    node.status === "starting" ||
+                    node.status === "processing";
+                  return (
+                    <button
+                      key={node._id}
+                      type="button"
+                      data-node-id={node._id}
+                      className={cn(
+                        "relative size-11 shrink-0 overflow-hidden rounded-lg border-2 transition-all",
+                        node._id === activeNode?._id
+                          ? "border-primary ring-1 ring-primary/30"
+                          : "border-transparent hover:border-border/60"
+                      )}
+                      onClick={() => setSelectedNodeId(node._id)}
+                    >
+                      {node.imageUrl && (
+                        <img
+                          src={node.imageUrl}
+                          alt={idx === 0 ? "Original" : `Edit ${idx}`}
+                          className="h-full w-full object-cover"
+                        />
+                      )}
+                      {!node.imageUrl && nodePending && (
+                        <div className="flex h-full w-full items-center justify-center bg-muted/30">
+                          <Spinner className="size-3" />
+                        </div>
+                      )}
+                      {!(node.imageUrl || nodePending) && (
+                        <div className="flex h-full w-full items-center justify-center bg-destructive/5">
+                          <WarningCircleIcon className="size-3 text-destructive" />
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
       </div>
 
       {/* Bottom edit input */}
       {!isLoading && lastSucceededNode && (
-        <div className="shrink-0 px-4 pb-4 pt-2">
+        <div className="shrink-0 px-3 pb-3 pt-2 sm:px-4 sm:pb-4">
           <div className="mx-auto max-w-2xl">
             <div className="chat-input-container">
               {/* Source image thumbnail */}
