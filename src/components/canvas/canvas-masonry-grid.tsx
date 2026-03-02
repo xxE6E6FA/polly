@@ -409,10 +409,10 @@ export function CanvasMasonryGrid({
     const skeletonCount = columnCount * 4;
     const skeletonHeights = [180, 240, 200, 260, 220, 190, 250, 210];
     return (
-      <div ref={containerRef} className="flex items-start gap-3">
+      <div ref={containerRef} className="flex items-start gap-2 sm:gap-3">
         {Array.from({ length: columnCount }, (_, colIdx) => (
           // biome-ignore lint/suspicious/noArrayIndexKey: skeleton placeholder
-          <div key={colIdx} className="flex flex-1 flex-col gap-3">
+          <div key={colIdx} className="flex flex-1 flex-col gap-2 sm:gap-3">
             {Array.from(
               { length: Math.ceil(skeletonCount / columnCount) },
               (_, i) => (
@@ -471,10 +471,10 @@ export function CanvasMasonryGrid({
 
   return (
     <>
-      <div ref={containerRef} className="flex items-start gap-3">
+      <div ref={containerRef} className="flex items-start gap-2 sm:gap-3">
         {columns.map((col, colIdx) => (
           // biome-ignore lint/suspicious/noArrayIndexKey: stable column layout, index is the only meaningful key
-          <div key={colIdx} className="flex flex-1 flex-col gap-3">
+          <div key={colIdx} className="flex flex-1 flex-col gap-2 sm:gap-3">
             {col.map(image => (
               <CanvasGridCard
                 key={image.id}
@@ -504,8 +504,8 @@ export function CanvasMasonryGrid({
 
       {/* Batch action bar */}
       {selectedCount > 0 && (
-        <div className="fixed bottom-6 left-1/2 z-modal -translate-x-1/2 flex items-center gap-3 rounded-xl bg-card px-4 py-2.5 shadow-xl ring-1 ring-border/50 backdrop-blur-md dark:ring-white/[0.08]">
-          <span className="text-sm font-medium tabular-nums">
+        <div className="fixed bottom-4 left-3 right-20 z-modal flex items-center justify-center gap-2 rounded-xl bg-card px-3 py-2 shadow-xl ring-1 ring-border/50 backdrop-blur-md dark:ring-white/[0.08] sm:bottom-6 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 sm:gap-3 sm:px-4 sm:py-2.5">
+          <span className="text-xs font-medium tabular-nums sm:text-sm">
             {selectedCount} selected
           </span>
           <div className="h-4 w-px bg-border" />
@@ -516,7 +516,7 @@ export function CanvasMasonryGrid({
             onClick={handleBatchDownload}
           >
             <DownloadSimpleIcon className="size-4" />
-            Download
+            <span className="hidden sm:inline">Download</span>
           </Button>
           {selectedDeletableCount > 0 && (
             <Button
@@ -526,7 +526,7 @@ export function CanvasMasonryGrid({
               onClick={handleBatchDelete}
             >
               <TrashSimpleIcon className="size-4" />
-              Delete
+              <span className="hidden sm:inline">Delete</span>
             </Button>
           )}
           <div className="h-4 w-px bg-border" />

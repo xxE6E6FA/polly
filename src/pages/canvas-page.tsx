@@ -1,5 +1,5 @@
-import { ArrowLeftIcon } from "@phosphor-icons/react";
-import { useCallback, useRef } from "react";
+import { ArrowLeftIcon, PlusIcon } from "@phosphor-icons/react";
+import { useCallback, useRef, useState } from "react";
 import { Link, Outlet } from "react-router-dom";
 import { PanelLeftIcon } from "@/components/animate-ui/icons/panel-left";
 import { CanvasGateCheck } from "@/components/canvas/canvas-gate-check";
@@ -9,6 +9,14 @@ import {
 } from "@/components/canvas/canvas-generation-form";
 import { CanvasMasonryGrid } from "@/components/canvas/canvas-masonry-grid";
 import { Button } from "@/components/ui/button";
+import {
+  Drawer,
+  DrawerBody,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+} from "@/components/ui/drawer";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import { ROUTES } from "@/lib/routes";
 import type { CanvasFilterMode } from "@/stores/canvas-store";
 import { useCanvasStore } from "@/stores/canvas-store";
@@ -30,6 +38,8 @@ export default function CanvasPage() {
   const isPanelVisible = useCanvasStore(s => s.isPanelVisible);
   const togglePanel = useCanvasStore(s => s.togglePanel);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const isDesktop = useMediaQuery("(min-width: 768px)");
+  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
 
   const handleResizeStart = useCallback(
     (e: React.MouseEvent) => {
@@ -65,8 +75,8 @@ export default function CanvasPage() {
   return (
     <CanvasGateCheck>
       <div className="flex h-[100dvh] bg-background">
-        {/* Expand zone when panel is hidden */}
-        {!isPanelVisible && (
+        {/* Desktop: Expand zone when panel is hidden */}
+        {isDesktop && !isPanelVisible && (
           <button
             type="button"
             aria-label="Expand panel"
@@ -75,90 +85,105 @@ export default function CanvasPage() {
           />
         )}
 
-        {/* Side panel (left) — matches main sidebar styling */}
-        <aside
-          className="relative flex flex-col shrink-0 bg-sidebar dark:bg-sidebar border-r border-border/40 transition-[width] duration-300 ease-out overflow-hidden"
-          style={{ width: isPanelVisible ? panelWidth : 0 }}
-        >
-          {/* Panel header — mirrors sidebar header structure */}
-          <div className="shrink-0 py-4 px-3">
-            <div className="flex items-center justify-between pl-2 pr-2">
-              <div className="flex items-center gap-2">
-                <Link
-                  className="group flex items-center gap-2 text-sidebar-foreground/90 hover:text-sidebar-foreground transition-colors"
-                  to={ROUTES.HOME}
-                  viewTransition
-                >
-                  <div
-                    className="polly-logo-gradient-unified flex-shrink-0 w-6 h-6"
-                    style={{
-                      maskImage: "url('/favicon.svg')",
-                      maskSize: "contain",
-                      maskRepeat: "no-repeat",
-                      maskPosition: "center",
-                      WebkitMaskImage: "url('/favicon.svg')",
-                      WebkitMaskSize: "contain",
-                      WebkitMaskRepeat: "no-repeat",
-                      WebkitMaskPosition: "center",
-                    }}
-                  />
-                  <span className="font-semibold text-sm tracking-tight">
-                    Polly
-                  </span>
-                </Link>
-              </div>
+        {/* Desktop: Side panel (left) — matches main sidebar styling */}
+        {isDesktop && (
+          <aside
+            className="relative flex flex-col shrink-0 bg-sidebar dark:bg-sidebar border-r border-border/40 transition-[width] duration-300 ease-out overflow-hidden"
+            style={{ width: isPanelVisible ? panelWidth : 0 }}
+          >
+            {/* Panel header — mirrors sidebar header structure */}
+            <div className="shrink-0 py-4 px-3">
+              <div className="flex items-center justify-between pl-2 pr-2">
+                <div className="flex items-center gap-2">
+                  <Link
+                    className="group flex items-center gap-2 text-sidebar-foreground/90 hover:text-sidebar-foreground transition-colors"
+                    to={ROUTES.HOME}
+                    viewTransition
+                  >
+                    <div
+                      className="polly-logo-gradient-unified flex-shrink-0 w-6 h-6"
+                      style={{
+                        maskImage: "url('/favicon.svg')",
+                        maskSize: "contain",
+                        maskRepeat: "no-repeat",
+                        maskPosition: "center",
+                        WebkitMaskImage: "url('/favicon.svg')",
+                        WebkitMaskSize: "contain",
+                        WebkitMaskRepeat: "no-repeat",
+                        WebkitMaskPosition: "center",
+                      }}
+                    />
+                    <span className="font-semibold text-sm tracking-tight">
+                      Polly
+                    </span>
+                  </Link>
+                </div>
 
-              <div className="flex items-center gap-1">
-                <Link to={ROUTES.HOME} viewTransition>
+                <div className="flex items-center gap-1">
+                  <Link to={ROUTES.HOME} viewTransition>
+                    <Button
+                      size="icon-sm"
+                      title="Back to chat"
+                      variant="ghost"
+                      className="text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-hover h-8 w-8"
+                    >
+                      <ArrowLeftIcon className="size-4.5" />
+                    </Button>
+                  </Link>
                   <Button
                     size="icon-sm"
-                    title="Back to chat"
+                    title="Collapse panel"
                     variant="ghost"
                     className="text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-hover h-8 w-8"
+                    onClick={togglePanel}
                   >
-                    <ArrowLeftIcon className="size-4.5" />
+                    <PanelLeftIcon animateOnHover className="size-4.5" />
                   </Button>
-                </Link>
-                <Button
-                  size="icon-sm"
-                  title="Collapse panel"
-                  variant="ghost"
-                  className="text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-hover h-8 w-8"
-                  onClick={togglePanel}
-                >
-                  <PanelLeftIcon animateOnHover className="size-4.5" />
-                </Button>
+                </div>
               </div>
             </div>
-          </div>
 
-          <div className="flex-1 overflow-y-auto px-3 scrollbar-thin min-h-0">
-            <CanvasGenerationForm />
-          </div>
-
-          {/* Fixed generate button footer */}
-          <div className="shrink-0 border-t border-border/40 px-3 py-3">
-            <CanvasGenerateButton />
-          </div>
-
-          {/* Resize handle */}
-          {isPanelVisible && (
-            <div
-              className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-primary/10 active:bg-primary/20 transition-colors z-10 group"
-              onMouseDown={handleResizeStart}
-              onDoubleClick={handleDoubleClick}
-            >
-              <div className="absolute right-0 top-0 bottom-0 w-[1px] bg-transparent group-hover:bg-border/50 transition-colors" />
+            <div className="flex-1 overflow-y-auto px-3 scrollbar-thin min-h-0">
+              <CanvasGenerationForm />
             </div>
-          )}
-        </aside>
+
+            {/* Fixed generate button footer */}
+            <div className="shrink-0 border-t border-border/40 px-3 py-3">
+              <CanvasGenerateButton />
+            </div>
+
+            {/* Resize handle */}
+            {isPanelVisible && (
+              <div
+                className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-primary/10 active:bg-primary/20 transition-colors z-10 group"
+                onMouseDown={handleResizeStart}
+                onDoubleClick={handleDoubleClick}
+              >
+                <div className="absolute right-0 top-0 bottom-0 w-[1px] bg-transparent group-hover:bg-border/50 transition-colors" />
+              </div>
+            )}
+          </aside>
+        )}
 
         {/* Main content area */}
         <div className="flex flex-1 flex-col min-w-0">
           {/* Header */}
-          <header className="flex h-16 items-center gap-3 px-4 shrink-0">
-            {/* Show expand button when panel is hidden */}
-            {!isPanelVisible && (
+          <header className="flex h-14 items-center gap-2 px-3 shrink-0 sm:h-16 sm:gap-3 sm:px-4">
+            {/* Mobile: back button */}
+            {!isDesktop && (
+              <Link to={ROUTES.HOME} viewTransition>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  className="text-muted-foreground hover:text-foreground h-8 w-8"
+                >
+                  <ArrowLeftIcon className="size-4" />
+                </Button>
+              </Link>
+            )}
+
+            {/* Desktop: Show expand button when panel is hidden */}
+            {isDesktop && !isPanelVisible && (
               <Button
                 variant="ghost"
                 size="icon-sm"
@@ -169,13 +194,13 @@ export default function CanvasPage() {
               </Button>
             )}
 
-            {/* Filter toggle — left side */}
-            <div className="flex items-center gap-1 rounded-lg bg-muted/50 p-0.5">
+            {/* Filter toggle */}
+            <div className="flex items-center gap-1 overflow-x-auto rounded-lg bg-muted/50 p-0.5 scrollbar-none">
               {FILTER_OPTIONS.map(opt => (
                 <button
                   key={opt.value}
                   type="button"
-                  className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
+                  className={`whitespace-nowrap rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
                     filterMode === opt.value
                       ? "bg-background text-foreground shadow-sm"
                       : "text-muted-foreground hover:text-foreground"
@@ -192,7 +217,7 @@ export default function CanvasPage() {
           <div
             ref={scrollContainerRef}
             id="canvas-grid-scroll"
-            className="flex-1 overflow-y-auto px-4 pb-4"
+            className="flex-1 overflow-y-auto px-3 pb-4 sm:px-4"
             style={{ overflowAnchor: "auto" }}
           >
             <CanvasMasonryGrid
@@ -201,6 +226,34 @@ export default function CanvasPage() {
             />
           </div>
         </div>
+
+        {/* Mobile: FAB to open generation form */}
+        {!isDesktop && (
+          <Button
+            className="fixed bottom-5 right-4 z-modal h-14 w-14 rounded-full shadow-lg"
+            onClick={() => setMobileDrawerOpen(true)}
+            aria-label="New generation"
+          >
+            <PlusIcon className="size-6" weight="bold" />
+          </Button>
+        )}
+
+        {/* Mobile: Generation form drawer */}
+        {!isDesktop && (
+          <Drawer open={mobileDrawerOpen} onOpenChange={setMobileDrawerOpen}>
+            <DrawerContent>
+              <DrawerHeader>
+                <DrawerTitle>Generate Image</DrawerTitle>
+              </DrawerHeader>
+              <DrawerBody className="scrollbar-thin">
+                <CanvasGenerationForm />
+                <div className="mt-4 pb-2">
+                  <CanvasGenerateButton />
+                </div>
+              </DrawerBody>
+            </DrawerContent>
+          </Drawer>
+        )}
       </div>
 
       {/* Child route overlay (image detail modal) */}

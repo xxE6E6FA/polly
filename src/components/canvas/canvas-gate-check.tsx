@@ -15,7 +15,7 @@ export function CanvasGateCheck({ children }: { children: React.ReactNode }) {
 
   if (!hasReplicateApiKey) {
     return (
-      <div className="flex h-[100dvh] items-center justify-center">
+      <div className="flex h-[100dvh] items-center justify-center px-4">
         <div className="mx-auto max-w-md text-center stack-md">
           <h2 className="text-lg font-semibold">Replicate API Key Required</h2>
           <p className="text-sm text-muted-foreground">
