@@ -602,13 +602,6 @@ export function CanvasImageViewer({
               hasAnyInProgress={hasAnyInProgress}
               isUpscaling={isUpscaling}
               isCancelingUpscale={isCancelingUpscale}
-              showUpscaleSettings={showUpscaleSettings}
-              setShowUpscaleSettings={setShowUpscaleSettings}
-              creativePreset={creativePreset}
-              setCreativePreset={setCreativePreset}
-              upscalePrompt={upscalePrompt}
-              setUpscalePrompt={setUpscalePrompt}
-              hasNonDefaultCreativeSettings={hasNonDefaultCreativeSettings}
               handleCopyImage={handleCopyImage}
               handleDownload={handleDownload}
               handleDelete={handleDelete}
@@ -621,8 +614,6 @@ export function CanvasImageViewer({
               handleUseSettings={handleUseSettings}
               onOpenChange={onOpenChange}
               navigate={navigate}
-              sourcePreviewUrl={sourcePreviewUrl}
-              setSourcePreviewUrl={setSourcePreviewUrl}
               conversation={conversation}
             />
           </div>
@@ -1200,30 +1191,55 @@ export function CanvasImageViewer({
   );
 }
 
-// biome-ignore lint/suspicious/noExplicitAny: shared props for mobile info panel
-function ViewerInfoPanelContent(props: any) {
-  const {
-    image,
-    activeVersionId,
-    setActiveVersionId,
-    succeededUpscales,
-    inProgressUpscale,
-    failedUpscale,
-    handleCopyImage,
-    handleDownload,
-    handleDelete,
-    handleCopyText,
-    handleStandardUpscale,
-    handleCreativeUpscale,
-    handleRetryUpscale,
-    handleUseSettings,
-    onOpenChange,
-    navigate,
-    isUpscaling,
-    hasAnyInProgress,
-    conversation,
-  } = props;
+interface ViewerInfoPanelContentProps {
+  image: CanvasImage;
+  activeVersionId: string;
+  setActiveVersionId: (id: string) => void;
+  succeededUpscales: (UpscaleEntry & { imageUrl: string })[];
+  inProgressUpscale: UpscaleEntry | undefined;
+  failedUpscale: UpscaleEntry | undefined;
+  handleCopyImage: () => void;
+  handleDownload: () => void;
+  handleDelete: () => void;
+  handleCopyText: (text: string, label: string) => void;
+  handleStandardUpscale: () => void;
+  handleCreativeUpscale: () => void;
+  handleRetryUpscale: () => void;
+  handleCancelUpscale: () => void;
+  handleDeleteUpscaleVersion: (upscaleId: string) => void;
+  handleUseSettings: () => void;
+  onOpenChange: (open: boolean) => void;
+  navigate: ReturnType<typeof useNavigate>;
+  isUpscaling: boolean;
+  isCancelingUpscale: boolean;
+  hasAnyInProgress: boolean;
+  conversation: { title?: string } | null | undefined;
+}
 
+function ViewerInfoPanelContent({
+  image,
+  activeVersionId,
+  setActiveVersionId,
+  succeededUpscales,
+  inProgressUpscale,
+  failedUpscale,
+  handleCopyImage,
+  handleDownload,
+  handleDelete,
+  handleCopyText,
+  handleStandardUpscale,
+  handleCreativeUpscale,
+  handleRetryUpscale,
+  handleCancelUpscale,
+  handleDeleteUpscaleVersion,
+  handleUseSettings,
+  onOpenChange,
+  navigate,
+  isUpscaling,
+  isCancelingUpscale,
+  hasAnyInProgress,
+  conversation,
+}: ViewerInfoPanelContentProps) {
   return (
     <div className="px-4 py-3 stack-sm">
       {/* Model + actions row */}
@@ -1363,37 +1379,65 @@ function ViewerInfoPanelContent(props: any) {
       {/* Upscale + Versions */}
       {image.source === "canvas" && image.generationId && (
         <div className="flex gap-2">
-          <Button
-            size="sm"
-            className="flex-1 gap-1.5"
-            onClick={handleStandardUpscale}
-            disabled={isUpscaling || hasAnyInProgress}
-          >
-            {inProgressUpscale?.type === "standard" ? (
-              <Spinner className="size-3.5" />
-            ) : (
-              <ArrowsOutIcon className="size-3.5" />
+          <div className="relative flex-1">
+            <Button
+              size="sm"
+              className="w-full gap-1.5"
+              onClick={handleStandardUpscale}
+              disabled={isUpscaling || hasAnyInProgress}
+            >
+              {inProgressUpscale?.type === "standard" ? (
+                <Spinner className="size-3.5" />
+              ) : (
+                <ArrowsOutIcon className="size-3.5" />
+              )}
+              {inProgressUpscale?.type === "standard"
+                ? "Upscaling..."
+                : "Upscale"}
+            </Button>
+            {inProgressUpscale?.type === "standard" && (
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className="absolute right-1 top-1/2 -translate-y-1/2"
+                onClick={handleCancelUpscale}
+                disabled={isCancelingUpscale}
+                aria-label="Cancel upscale"
+              >
+                <XIcon className="size-4" />
+              </Button>
             )}
-            {inProgressUpscale?.type === "standard"
-              ? "Upscaling..."
-              : "Upscale"}
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="flex-1 gap-1.5"
-            onClick={handleCreativeUpscale}
-            disabled={isUpscaling || hasAnyInProgress}
-          >
-            {inProgressUpscale?.type === "creative" ? (
-              <Spinner className="size-3.5" />
-            ) : (
-              <SparkleIcon className="size-3.5" />
+          </div>
+          <div className="relative flex-1">
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full gap-1.5"
+              onClick={handleCreativeUpscale}
+              disabled={isUpscaling || hasAnyInProgress}
+            >
+              {inProgressUpscale?.type === "creative" ? (
+                <Spinner className="size-3.5" />
+              ) : (
+                <SparkleIcon className="size-3.5" />
+              )}
+              {inProgressUpscale?.type === "creative"
+                ? "Enhancing..."
+                : "Enhance"}
+            </Button>
+            {inProgressUpscale?.type === "creative" && (
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className="absolute right-1 top-1/2 -translate-y-1/2"
+                onClick={handleCancelUpscale}
+                disabled={isCancelingUpscale}
+                aria-label="Cancel upscale"
+              >
+                <XIcon className="size-4" />
+              </Button>
             )}
-            {inProgressUpscale?.type === "creative"
-              ? "Enhancing..."
-              : "Enhance"}
-          </Button>
+          </div>
         </div>
       )}
 
@@ -1421,26 +1465,38 @@ function ViewerInfoPanelContent(props: any) {
           </button>
           {succeededUpscales.map(
             (upscale: UpscaleEntry & { imageUrl: string }) => (
-              <button
-                key={upscale.id}
-                type="button"
-                className={cn(
-                  "relative size-12 shrink-0 overflow-hidden rounded-lg border-2 transition-all",
-                  activeVersionId === upscale.id
-                    ? "border-primary ring-1 ring-primary/30"
-                    : "border-transparent hover:border-border"
-                )}
-                onClick={() => setActiveVersionId(upscale.id)}
-              >
-                <img
-                  src={upscale.imageUrl}
-                  alt={upscale.type === "standard" ? "2x" : "2x+"}
-                  className="size-full object-cover"
-                />
-                <span className="absolute inset-x-0 bottom-0 bg-black/60 text-center text-[8px] font-medium text-white">
-                  {upscale.type === "standard" ? "2x" : "2x+"}
-                </span>
-              </button>
+              <div key={upscale.id} className="relative shrink-0">
+                <button
+                  type="button"
+                  className={cn(
+                    "relative size-12 overflow-hidden rounded-lg border-2 transition-all",
+                    activeVersionId === upscale.id
+                      ? "border-primary ring-1 ring-primary/30"
+                      : "border-transparent hover:border-border"
+                  )}
+                  onClick={() => setActiveVersionId(upscale.id)}
+                >
+                  <img
+                    src={upscale.imageUrl}
+                    alt={upscale.type === "standard" ? "2x" : "2x+"}
+                    className="size-full object-cover"
+                  />
+                  <span className="absolute inset-x-0 bottom-0 bg-black/60 text-center text-[8px] font-medium text-white">
+                    {upscale.type === "standard" ? "2x" : "2x+"}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  className="absolute -right-1 -top-1 z-10 flex size-5 items-center justify-center rounded-full bg-card text-muted-foreground shadow-sm ring-1 ring-border/40 transition-colors hover:text-destructive"
+                  onClick={e => {
+                    e.stopPropagation();
+                    handleDeleteUpscaleVersion(upscale.id);
+                  }}
+                  aria-label="Remove version"
+                >
+                  <XIcon className="size-3" />
+                </button>
+              </div>
             )
           )}
         </div>

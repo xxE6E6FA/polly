@@ -504,7 +504,7 @@ export function CanvasMasonryGrid({
 
       {/* Batch action bar */}
       {selectedCount > 0 && (
-        <div className="fixed bottom-4 left-3 right-3 z-modal flex items-center justify-center gap-2 rounded-xl bg-card px-3 py-2 shadow-xl ring-1 ring-border/50 backdrop-blur-md dark:ring-white/[0.08] sm:bottom-6 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 sm:gap-3 sm:px-4 sm:py-2.5">
+        <div className="fixed bottom-4 left-3 right-20 z-modal flex items-center justify-center gap-2 rounded-xl bg-card px-3 py-2 shadow-xl ring-1 ring-border/50 backdrop-blur-md dark:ring-white/[0.08] sm:bottom-6 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 sm:gap-3 sm:px-4 sm:py-2.5">
           <span className="text-xs font-medium tabular-nums sm:text-sm">
             {selectedCount} selected
           </span>
