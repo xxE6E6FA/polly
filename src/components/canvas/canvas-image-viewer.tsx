@@ -1208,12 +1208,14 @@ function ViewerInfoPanelContent(props: any) {
     setActiveVersionId,
     succeededUpscales,
     inProgressUpscale,
+    failedUpscale,
     handleCopyImage,
     handleDownload,
     handleDelete,
     handleCopyText,
     handleStandardUpscale,
     handleCreativeUpscale,
+    handleRetryUpscale,
     handleUseSettings,
     onOpenChange,
     navigate,
@@ -1337,6 +1339,25 @@ function ViewerInfoPanelContent(props: any) {
           </p>
           <CaretRightIcon className="size-4 shrink-0 text-muted-foreground" />
         </button>
+      )}
+
+      {/* Failed upscale state */}
+      {!hasAnyInProgress && failedUpscale && (
+        <div className="stack-sm">
+          <p className="text-sm text-destructive">
+            {failedUpscale.error ?? "Upscale failed"}
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full gap-2"
+            onClick={handleRetryUpscale}
+            disabled={isUpscaling}
+          >
+            <ArrowClockwiseIcon className="size-4" />
+            {isUpscaling ? "Retrying..." : "Retry"}
+          </Button>
+        </div>
       )}
 
       {/* Upscale + Versions */}
