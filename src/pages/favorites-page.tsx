@@ -289,12 +289,6 @@ export default function FavoritesPage() {
               onUnfavorite={handleUnfavorite}
             />
           ))}
-          {status !== "Exhausted" && (
-            <LoadMoreSentinel
-              onVisible={handleEndReached}
-              isLoading={status === "LoadingMore"}
-            />
-          )}
         </div>
       );
     }
@@ -354,6 +348,12 @@ export default function FavoritesPage() {
         </div>
 
         {renderContent()}
+        {!isLoading && status !== "Exhausted" && (
+          <LoadMoreSentinel
+            onVisible={handleEndReached}
+            isLoading={status === "LoadingMore"}
+          />
+        )}
       </div>
     </div>
   );
