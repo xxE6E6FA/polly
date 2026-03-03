@@ -843,6 +843,7 @@ export const internalCreateGeneration = internalMutation({
     batchId: v.optional(v.string()),
     parentGenerationId: v.optional(v.id("generations")),
     rootGenerationId: v.optional(v.id("generations")),
+    explanation: v.optional(v.string()),
   },
   handler: (ctx, args) => {
     return ctx.db.insert("generations", {
@@ -855,6 +856,7 @@ export const internalCreateGeneration = internalMutation({
       batchId: args.batchId,
       parentGenerationId: args.parentGenerationId,
       rootGenerationId: args.rootGenerationId,
+      explanation: args.explanation,
       createdAt: Date.now(),
     });
   },

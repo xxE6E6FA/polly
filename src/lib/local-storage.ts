@@ -28,6 +28,8 @@ export const CACHE_KEYS = {
   canvasSelections: "canvas-selections",
   canvasPanelVisible: "canvas-panel-visible",
   canvasLastEditModel: "canvas-last-edit-model",
+  discoveryPanelWidth: "discovery-panel-width",
+  discoveryPanelVisible: "discovery-panel-visible",
 } as const;
 
 export type CacheKey = (typeof CACHE_KEYS)[keyof typeof CACHE_KEYS];

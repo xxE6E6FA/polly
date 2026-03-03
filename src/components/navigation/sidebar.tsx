@@ -1,4 +1,5 @@
 import { api } from "@convex/_generated/api";
+import { CompassIcon } from "@phosphor-icons/react";
 import { useQuery } from "convex/react";
 import {
   AnimatePresence,
@@ -471,6 +472,17 @@ export const Sidebar = ({ forceHidden = false }: { forceHidden?: boolean }) => {
                       </Button>
                     </Link>
                   )}
+
+                  <Link to={ROUTES.DISCOVER} viewTransition>
+                    <Button
+                      size="icon-sm"
+                      title="Discover"
+                      variant="ghost"
+                      className="text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-hover h-8 w-8"
+                    >
+                      <CompassIcon className="size-4.5" />
+                    </Button>
+                  </Link>
 
                   <Link to={ROUTES.CANVAS} viewTransition>
                     <Button

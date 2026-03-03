@@ -54,6 +54,13 @@ const SettingsEditPersonaPage = lazy(
 );
 const CanvasPage = lazy(() => import("./pages/canvas-page"));
 const CanvasImagePage = lazy(() => import("./pages/canvas-image-page"));
+const DiscoveryRouteLayout = lazy(
+  () => import("./components/layouts/discovery-route-layout")
+);
+const DiscoveryPage = lazy(() => import("./pages/discovery-page"));
+const DiscoverySessionPage = lazy(
+  () => import("./pages/discovery-session-page")
+);
 const SignOutPage = lazy(() => import("./pages/sign-out-page"));
 
 const PageLoader = ({
@@ -148,6 +155,25 @@ export const routes: RouteObject[] = [
           {
             path: "image/:generationId",
             element: withSuspense(<CanvasImagePage />),
+          },
+        ],
+      },
+      {
+        path: "discover",
+        element: (
+          <ProtectedSuspense fallback={<PageLoader size="full" />}>
+            <DiscoveryRouteLayout />
+          </ProtectedSuspense>
+        ),
+        errorElement: routeErrorElement,
+        children: [
+          {
+            index: true,
+            element: withSuspense(<DiscoveryPage />),
+          },
+          {
+            path: ":sessionId",
+            element: withSuspense(<DiscoverySessionPage />),
           },
         ],
       },

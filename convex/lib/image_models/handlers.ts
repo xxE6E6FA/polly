@@ -99,6 +99,48 @@ export async function getAvailableImageModelsHandler(ctx: QueryCtx) {
   return [...userModelsWithFlag, ...availableBuiltInModels];
 }
 
+export async function getAvailableImageModelsInternalHandler(
+  ctx: QueryCtx,
+  args: { userId: Id<"users"> }
+) {
+  const userId = args.userId;
+
+  // Get built-in image models
+  const builtInModels = await ctx.db
+    .query("builtInImageModels")
+    .filter(q => q.eq(q.field("isActive"), true))
+    .collect();
+
+  // Get user's image models
+  const userModels = await ctx.db
+    .query("userImageModels")
+    .withIndex("by_user", q => q.eq("userId", userId))
+    .collect();
+
+  // Create a set of user model keys to filter out conflicts
+  const userModelKeys = new Set(
+    userModels.map(model => `${model.modelId}:${model.provider}`)
+  );
+
+  // Filter out built-in models that have been overridden by user models
+  const availableBuiltInModels = builtInModels
+    .filter(
+      builtInModel =>
+        !userModelKeys.has(`${builtInModel.modelId}:${builtInModel.provider}`)
+    )
+    .map(model => ({
+      ...model,
+      isBuiltIn: true as const,
+    }));
+
+  const userModelsWithFlag = userModels.map(model => ({
+    ...model,
+    isBuiltIn: false as const,
+  }));
+
+  return [...userModelsWithFlag, ...availableBuiltInModels];
+}
+
 export async function getSelectedImageModelWithFallbackHandler(ctx: QueryCtx) {
   const userId = await getAuthUserId(ctx);
 

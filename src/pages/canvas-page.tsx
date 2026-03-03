@@ -1,4 +1,4 @@
-import { ArrowLeftIcon } from "@phosphor-icons/react";
+import { ArrowLeftIcon, CompassIcon } from "@phosphor-icons/react";
 import { useCallback, useRef } from "react";
 import { Link, Outlet } from "react-router-dom";
 import { PanelLeftIcon } from "@/components/animate-ui/icons/panel-left";
@@ -185,6 +185,19 @@ export default function CanvasPage() {
                   {opt.label}
                 </button>
               ))}
+            </div>
+
+            <div className="ml-auto">
+              <Link to={ROUTES.DISCOVER}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gap-1.5 text-muted-foreground hover:text-foreground"
+                >
+                  <CompassIcon className="size-4" />
+                  Discover
+                </Button>
+              </Link>
             </div>
           </header>
 

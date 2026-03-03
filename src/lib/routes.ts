@@ -21,6 +21,8 @@ export const ROUTES = {
   },
   CANVAS: "/canvas",
   CANVAS_IMAGE: (generationId: string) => `/canvas/image/${generationId}`,
+  DISCOVER: "/discover",
+  DISCOVER_SESSION: (sessionId: string) => `/discover/${sessionId}`,
   FAVORITES: "/chat/favorites",
   NOT_FOUND: "/404",
 } as const;

@@ -4,6 +4,7 @@ import {
   builtInImageModelSchema,
   builtInModelSchema,
   conversationSchema,
+  discoverySessionSchema,
   generationSchema,
   imageModelDefinitionSchema,
   messageFavoriteSchema,
@@ -170,6 +171,10 @@ export default defineSchema({
     .index("by_batch", ["batchId", "createdAt"])
     .index("by_parent", ["parentGenerationId", "createdAt"])
     .index("by_root", ["rootGenerationId", "createdAt"]),
+
+  discoverySessions: defineTable(discoverySessionSchema)
+    .index("by_user_updated", ["userId", "updatedAt"])
+    .index("by_session_id", ["sessionId"]),
 
   userFiles: defineTable(userFileSchema)
     .index("by_user_created", ["userId", "createdAt"])

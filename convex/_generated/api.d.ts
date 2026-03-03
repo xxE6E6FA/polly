@@ -11,6 +11,7 @@
 import type * as ai_chat_helpers from "../ai/chat_helpers.js";
 import type * as ai_chat_stream from "../ai/chat_stream.js";
 import type * as ai_config from "../ai/config.js";
+import type * as ai_discovery_prompt from "../ai/discovery_prompt.js";
 import type * as ai_elevenlabs from "../ai/elevenlabs.js";
 import type * as ai_elevenlabs_stream from "../ai/elevenlabs_stream.js";
 import type * as ai_elevenlabs_utils from "../ai/elevenlabs_utils.js";
@@ -61,6 +62,8 @@ import type * as conversationSummary from "../conversationSummary.js";
 import type * as conversation_search from "../conversation_search.js";
 import type * as conversations from "../conversations.js";
 import type * as crons from "../crons.js";
+import type * as discovery from "../discovery.js";
+import type * as discoverySessions from "../discoverySessions.js";
 import type * as fileStorage from "../fileStorage.js";
 import type * as generations from "../generations.js";
 import type * as http from "../http.js";
@@ -168,6 +171,7 @@ declare const fullApi: ApiFromModules<{
   "ai/chat_helpers": typeof ai_chat_helpers;
   "ai/chat_stream": typeof ai_chat_stream;
   "ai/config": typeof ai_config;
+  "ai/discovery_prompt": typeof ai_discovery_prompt;
   "ai/elevenlabs": typeof ai_elevenlabs;
   "ai/elevenlabs_stream": typeof ai_elevenlabs_stream;
   "ai/elevenlabs_utils": typeof ai_elevenlabs_utils;
@@ -218,6 +222,8 @@ declare const fullApi: ApiFromModules<{
   conversation_search: typeof conversation_search;
   conversations: typeof conversations;
   crons: typeof crons;
+  discovery: typeof discovery;
+  discoverySessions: typeof discoverySessions;
   fileStorage: typeof fileStorage;
   generations: typeof generations;
   http: typeof http;

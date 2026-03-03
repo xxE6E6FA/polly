@@ -1083,6 +1083,7 @@ export const generationSchema = v.object({
     completedAt: v.optional(v.number()),
   })),
   upscales: v.optional(v.array(upscaleEntrySchema)),
+  explanation: v.optional(v.string()),
   isArchived: v.optional(v.boolean()),
   createdAt: v.number(),
   completedAt: v.optional(v.number()),
@@ -1113,3 +1114,37 @@ export type UpdateUserSettingsArgs = Infer<typeof userSettingsUpdateSchema>;
 export type CreateUserModelArgs = Infer<typeof userModelSchema>;
 export type GenerationDoc = Infer<typeof generationSchema>;
 export type UpscaleEntryDoc = Infer<typeof upscaleEntrySchema>;
+
+// ============================================================================
+// Discovery Sessions
+// ============================================================================
+
+export const discoverySessionSchema = v.object({
+  userId: v.id("users"),
+  sessionId: v.string(),
+  seedPrompt: v.optional(v.string()),
+  seedImageStorageId: v.optional(v.id("_storage")),
+  modelId: v.string(),
+  personaId: v.optional(v.id("personas")),
+  aspectRatio: v.string(),
+  likedPrompts: v.array(v.string()),
+  dislikedPrompts: v.array(v.string()),
+  reactions: v.array(
+    v.object({
+      generationId: v.id("generations"),
+      reaction: v.union(
+        v.literal("liked"),
+        v.literal("disliked"),
+        v.literal("saved")
+      ),
+    })
+  ),
+  generationCount: v.number(),
+  status: v.union(
+    v.literal("active"),
+    v.literal("paused"),
+    v.literal("completed")
+  ),
+  createdAt: v.number(),
+  updatedAt: v.number(),
+});

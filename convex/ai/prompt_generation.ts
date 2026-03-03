@@ -37,7 +37,7 @@ Only describe what IS in the image — no negative instructions or "without" phr
 
 Keep it 30–80 words. Write ONLY the prompt. If the input is empty or vague, invent a vivid scene. Preserve the user's core idea.`;
 
-async function fetchImageData(
+export async function fetchImageData(
 	ctx: { storage: { get: (id: string) => Promise<Blob | null> } },
 	storageId: string,
 ): Promise<{ base64: string; mediaType: string }> {

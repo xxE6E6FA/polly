@@ -8,6 +8,7 @@ import {
 } from "./_generated/server";
 import {
   getAvailableImageModelsHandler,
+  getAvailableImageModelsInternalHandler,
   getBuiltInImageModelByModelIdHandler,
   getBuiltInImageModelsHandler,
   getModelDefinitionHandler,
@@ -59,6 +60,11 @@ export const getBuiltInImageModelByModelId = internalQuery({
 export const getAvailableImageModels = query({
   args: {},
   handler: getAvailableImageModelsHandler,
+});
+
+export const internalGetAvailableImageModels = internalQuery({
+  args: { userId: v.id("users") },
+  handler: getAvailableImageModelsInternalHandler,
 });
 
 export const getSelectedImageModelWithFallback = query({
