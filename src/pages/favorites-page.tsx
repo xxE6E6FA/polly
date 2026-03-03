@@ -336,7 +336,9 @@ export default function FavoritesPage() {
               <h1 className="text-base font-semibold">Favorites</h1>
               {items.length > 0 && (
                 <span className="text-xs text-muted-foreground tabular-nums">
-                  {items.length}
+                  {hasSearch
+                    ? `${items.length} of ${allItems.length}`
+                    : items.length}
                 </span>
               )}
             </div>
