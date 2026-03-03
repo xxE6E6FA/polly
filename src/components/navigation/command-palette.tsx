@@ -797,6 +797,7 @@ export function CommandPalette({
   // Canvas-specific actions (filters, aspect ratio, generation)
   const canvasFilterMode = useCanvasStore(s => s.filterMode);
   const canvasSetFilterMode = useCanvasStore(s => s.setFilterMode);
+  const canvasAspectRatio = useCanvasStore(s => s.aspectRatio);
   const canvasSetAspectRatio = useCanvasStore(s => s.setAspectRatio);
   const canvasResetForm = useCanvasStore(s => s.resetForm);
   const canvasClearReferenceImages = useCanvasStore(
@@ -842,9 +843,9 @@ export function CommandPalette({
         canvasSetAspectRatio(ratio);
         handleClose();
       },
-      disabled: false,
+      disabled: canvasAspectRatio === ratio,
     }));
-  }, [isCanvasPage, canvasSetAspectRatio, handleClose]);
+  }, [isCanvasPage, canvasAspectRatio, canvasSetAspectRatio, handleClose]);
 
   const canvasGenerationActions = useMemo((): Action[] => {
     if (!isCanvasPage) {
