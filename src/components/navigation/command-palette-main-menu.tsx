@@ -19,10 +19,14 @@ import type {
 
 type CommandPaletteMainMenuProps = {
   isConversationPage: boolean;
+  isCanvasPage: boolean;
   hasCurrentConversation: boolean;
   isPinned?: boolean;
   filteredConversationActions: Action[];
   filteredGlobalActions: Action[];
+  filteredCanvasFilterActions: Action[];
+  filteredCanvasAspectActions: Action[];
+  filteredCanvasGenerationActions: Action[];
   filteredSettingsActions: Action[];
   conversationsToShow: ConversationType[];
   modelsToShow: DisplayModel[];
@@ -38,10 +42,14 @@ type CommandPaletteMainMenuProps = {
 
 export function CommandPaletteMainMenu({
   isConversationPage,
+  isCanvasPage,
   hasCurrentConversation,
   isPinned,
   filteredConversationActions,
   filteredGlobalActions,
+  filteredCanvasFilterActions,
+  filteredCanvasAspectActions,
+  filteredCanvasGenerationActions,
   filteredSettingsActions,
   conversationsToShow,
   modelsToShow,
@@ -54,6 +62,10 @@ export function CommandPaletteMainMenu({
   onConversationActions,
   onSelectModel,
 }: CommandPaletteMainMenuProps) {
+  const hasCanvasActions =
+    filteredCanvasFilterActions.length > 0 ||
+    filteredCanvasAspectActions.length > 0 ||
+    filteredCanvasGenerationActions.length > 0;
   return (
     <>
       {/* Conversation-specific actions - Show first when on conversation page */}
@@ -99,14 +111,98 @@ export function CommandPaletteMainMenu({
           </CommandGroup>
         )}
 
-      {/* Global actions - Show after conversation actions */}
+      {/* Canvas-specific actions - Show first when on canvas page */}
+      {isCanvasPage && hasCanvasActions && (
+        <>
+          {filteredCanvasFilterActions.length > 0 && (
+            <CommandGroup
+              heading="Filter"
+              className="[&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group-heading]]:px-4 [&_[cmdk-group-heading]]:py-3 [&_[cmdk-group-heading]]:mb-1"
+            >
+              {filteredCanvasFilterActions.map(action => {
+                const IconComponent = action.icon;
+                return (
+                  <CommandItem
+                    key={action.id}
+                    value={action.id}
+                    onSelect={action.handler}
+                    className="flex items-center gap-3 px-4 py-3 text-sm transition-colors rounded-md mx-2"
+                    disabled={action.disabled}
+                  >
+                    <IconComponent className="size-4 flex-shrink-0 text-muted-foreground" />
+                    <span className="flex-1">{action.label}</span>
+                  </CommandItem>
+                );
+              })}
+            </CommandGroup>
+          )}
+          {filteredCanvasAspectActions.length > 0 && (
+            <>
+              {filteredCanvasFilterActions.length > 0 && (
+                <CommandSeparator className="my-2" />
+              )}
+              <CommandGroup
+                heading="Aspect Ratio"
+                className="[&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group-heading]]:px-4 [&_[cmdk-group-heading]]:py-3 [&_[cmdk-group-heading]]:mb-1"
+              >
+                {filteredCanvasAspectActions.map(action => {
+                  const IconComponent = action.icon;
+                  return (
+                    <CommandItem
+                      key={action.id}
+                      value={action.id}
+                      onSelect={action.handler}
+                      className="flex items-center gap-3 px-4 py-3 text-sm transition-colors rounded-md mx-2"
+                      disabled={action.disabled}
+                    >
+                      <IconComponent className="size-4 flex-shrink-0 text-muted-foreground" />
+                      <span className="flex-1">{action.label}</span>
+                    </CommandItem>
+                  );
+                })}
+              </CommandGroup>
+            </>
+          )}
+          {filteredCanvasGenerationActions.length > 0 && (
+            <>
+              {(filteredCanvasFilterActions.length > 0 ||
+                filteredCanvasAspectActions.length > 0) && (
+                <CommandSeparator className="my-2" />
+              )}
+              <CommandGroup
+                heading="Generation"
+                className="[&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group-heading]]:px-4 [&_[cmdk-group-heading]]:py-3 [&_[cmdk-group-heading]]:mb-1"
+              >
+                {filteredCanvasGenerationActions.map(action => {
+                  const IconComponent = action.icon;
+                  return (
+                    <CommandItem
+                      key={action.id}
+                      value={action.id}
+                      onSelect={action.handler}
+                      className="flex items-center gap-3 px-4 py-3 text-sm transition-colors rounded-md mx-2"
+                      disabled={action.disabled}
+                    >
+                      <IconComponent className="size-4 flex-shrink-0 text-muted-foreground" />
+                      <span className="flex-1">{action.label}</span>
+                    </CommandItem>
+                  );
+                })}
+              </CommandGroup>
+            </>
+          )}
+        </>
+      )}
+
+      {/* Global actions - Show after conversation/canvas actions */}
       {filteredGlobalActions.length > 0 && (
         <>
-          {isConversationPage &&
+          {((isConversationPage &&
             hasCurrentConversation &&
-            filteredConversationActions.length > 0 && (
-              <CommandSeparator className="my-2" />
-            )}
+            filteredConversationActions.length > 0) ||
+            (isCanvasPage && hasCanvasActions)) && (
+            <CommandSeparator className="my-2" />
+          )}
           <CommandGroup
             heading="Actions"
             className="[&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group-heading]]:px-4 [&_[cmdk-group-heading]]:py-3 [&_[cmdk-group-heading]]:mb-1"
@@ -134,6 +230,7 @@ export function CommandPaletteMainMenu({
       {filteredSettingsActions.length > 0 && (
         <>
           {(filteredGlobalActions.length > 0 ||
+            (isCanvasPage && hasCanvasActions) ||
             (isConversationPage &&
               hasCurrentConversation &&
               filteredConversationActions.length > 0)) && (
@@ -163,117 +260,129 @@ export function CommandPaletteMainMenu({
         </>
       )}
 
-      {conversationsToShow && conversationsToShow.length > 0 && (
-        <>
-          {(filteredGlobalActions.length > 0 ||
-            filteredSettingsActions.length > 0 ||
-            (isConversationPage &&
-              hasCurrentConversation &&
-              filteredConversationActions.length > 0)) && (
-            <CommandSeparator className="my-2" />
-          )}
-          <CommandGroup
-            heading={hasSearchQuery ? "Conversations" : "Recent Conversations"}
-            className="[&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group-heading]]:px-4 [&_[cmdk-group-heading]]:py-3 [&_[cmdk-group-heading]]:mb-1"
-          >
-            {conversationsToShow.map((conversation: ConversationType) => (
-              <CommandItem
-                key={conversation._id}
-                value={`conversation-${conversation._id}`}
-                onSelect={() => onNavigateToConversation(conversation._id)}
-                onPointerDown={event => {
-                  if (event.metaKey || event.ctrlKey) {
-                    event.preventDefault();
-                    onConversationActions(conversation._id, conversation.title);
-                  }
-                }}
-                className="flex items-center gap-3 px-4 py-3 text-sm transition-colors rounded-md mx-2"
-                disabled={!online}
-              >
-                <ChatCircleIcon className="size-4 text-muted-foreground flex-shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <div className="truncate font-medium">
-                    {conversation.title}
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  {conversation.isPinned && (
-                    <PushPinIcon
-                      className="size-3 text-muted-foreground flex-shrink-0"
-                      weight="fill"
-                    />
-                  )}
-                  {conversation.isArchived && (
-                    <ArchiveIcon className="size-3 text-muted-foreground flex-shrink-0" />
-                  )}
-                </div>
-              </CommandItem>
-            ))}
-          </CommandGroup>
-        </>
-      )}
-
-      {modelsLoaded && modelsToShow && modelsToShow.length > 0 && (
-        <>
-          {(filteredGlobalActions.length > 0 ||
-            filteredSettingsActions.length > 0 ||
-            (isConversationPage &&
-              hasCurrentConversation &&
-              filteredConversationActions.length > 0) ||
-            conversationsToShow?.length > 0) && (
-            <CommandSeparator className="my-2" />
-          )}
-          <CommandGroup
-            heading={hasSearchQuery ? "Models" : "Switch Model"}
-            className="[&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group-heading]]:px-4 [&_[cmdk-group-heading]]:py-3 [&_[cmdk-group-heading]]:mb-1"
-          >
-            {modelsToShow.map(model => {
-              const isSelected =
-                currentSelectedModel?.modelId === model.modelId &&
-                currentSelectedModel?.provider === model.provider;
-
-              const capabilities = getModelCapabilities(
-                model as ModelForCapabilities
-              );
-
-              return (
+      {!isCanvasPage &&
+        conversationsToShow &&
+        conversationsToShow.length > 0 && (
+          <>
+            {(filteredGlobalActions.length > 0 ||
+              filteredSettingsActions.length > 0 ||
+              (isConversationPage &&
+                hasCurrentConversation &&
+                filteredConversationActions.length > 0)) && (
+              <CommandSeparator className="my-2" />
+            )}
+            <CommandGroup
+              heading={
+                hasSearchQuery ? "Conversations" : "Recent Conversations"
+              }
+              className="[&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group-heading]]:px-4 [&_[cmdk-group-heading]]:py-3 [&_[cmdk-group-heading]]:mb-1"
+            >
+              {conversationsToShow.map((conversation: ConversationType) => (
                 <CommandItem
-                  key={`${model.provider}-${model.modelId}`}
-                  value={`model-${model.provider}-${model.modelId}`}
-                  onSelect={() => onSelectModel(model.modelId, model.provider)}
+                  key={conversation._id}
+                  value={`conversation-${conversation._id}`}
+                  onSelect={() => onNavigateToConversation(conversation._id)}
+                  onPointerDown={event => {
+                    if (event.metaKey || event.ctrlKey) {
+                      event.preventDefault();
+                      onConversationActions(
+                        conversation._id,
+                        conversation.title
+                      );
+                    }
+                  }}
                   className="flex items-center gap-3 px-4 py-3 text-sm transition-colors rounded-md mx-2"
+                  disabled={!online}
                 >
-                  <ProviderIcon
-                    provider={model.free ? "polly" : model.provider}
-                    className="h-4 w-4 text-muted-foreground flex-shrink-0"
-                  />
+                  <ChatCircleIcon className="size-4 text-muted-foreground flex-shrink-0" />
                   <div className="flex-1 min-w-0">
-                    <div className="truncate font-medium">{model.name}</div>
+                    <div className="truncate font-medium">
+                      {conversation.title}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1">
-                    {capabilities.length > 0 &&
-                      capabilities.map((capability, index) => {
-                        const IconComponent = capability.icon;
-                        return (
-                          <div
-                            key={`${model.modelId}-${capability.label}-${index}`}
-                            className="flex h-4 w-4 items-center justify-center rounded-sm bg-muted/50"
-                            title={capability.label}
-                          >
-                            <IconComponent className="size-2.5 text-muted-foreground" />
-                          </div>
-                        );
-                      })}
-                    {isSelected && (
-                      <div className="h-2 w-2 rounded-full bg-success flex-shrink-0 ml-1" />
+                  <div className="flex items-center gap-2">
+                    {conversation.isPinned && (
+                      <PushPinIcon
+                        className="size-3 text-muted-foreground flex-shrink-0"
+                        weight="fill"
+                      />
+                    )}
+                    {conversation.isArchived && (
+                      <ArchiveIcon className="size-3 text-muted-foreground flex-shrink-0" />
                     )}
                   </div>
                 </CommandItem>
-              );
-            })}
-          </CommandGroup>
-        </>
-      )}
+              ))}
+            </CommandGroup>
+          </>
+        )}
+
+      {!isCanvasPage &&
+        modelsLoaded &&
+        modelsToShow &&
+        modelsToShow.length > 0 && (
+          <>
+            {(filteredGlobalActions.length > 0 ||
+              filteredSettingsActions.length > 0 ||
+              (isConversationPage &&
+                hasCurrentConversation &&
+                filteredConversationActions.length > 0) ||
+              conversationsToShow?.length > 0) && (
+              <CommandSeparator className="my-2" />
+            )}
+            <CommandGroup
+              heading={hasSearchQuery ? "Models" : "Switch Model"}
+              className="[&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group-heading]]:px-4 [&_[cmdk-group-heading]]:py-3 [&_[cmdk-group-heading]]:mb-1"
+            >
+              {modelsToShow.map(model => {
+                const isSelected =
+                  currentSelectedModel?.modelId === model.modelId &&
+                  currentSelectedModel?.provider === model.provider;
+
+                const capabilities = getModelCapabilities(
+                  model as ModelForCapabilities
+                );
+
+                return (
+                  <CommandItem
+                    key={`${model.provider}-${model.modelId}`}
+                    value={`model-${model.provider}-${model.modelId}`}
+                    onSelect={() =>
+                      onSelectModel(model.modelId, model.provider)
+                    }
+                    className="flex items-center gap-3 px-4 py-3 text-sm transition-colors rounded-md mx-2"
+                  >
+                    <ProviderIcon
+                      provider={model.free ? "polly" : model.provider}
+                      className="h-4 w-4 text-muted-foreground flex-shrink-0"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="truncate font-medium">{model.name}</div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {capabilities.length > 0 &&
+                        capabilities.map((capability, index) => {
+                          const IconComponent = capability.icon;
+                          return (
+                            <div
+                              key={`${model.modelId}-${capability.label}-${index}`}
+                              className="flex h-4 w-4 items-center justify-center rounded-sm bg-muted/50"
+                              title={capability.label}
+                            >
+                              <IconComponent className="size-2.5 text-muted-foreground" />
+                            </div>
+                          );
+                        })}
+                      {isSelected && (
+                        <div className="h-2 w-2 rounded-full bg-success flex-shrink-0 ml-1" />
+                      )}
+                    </div>
+                  </CommandItem>
+                );
+              })}
+            </CommandGroup>
+          </>
+        )}
     </>
   );
 }
