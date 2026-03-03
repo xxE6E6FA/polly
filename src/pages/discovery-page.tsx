@@ -16,8 +16,8 @@ import { FileUploadButton } from "@/components/chat/input/file-upload-button";
 import { PersonaPicker } from "@/components/chat/input/pickers/persona-picker";
 import { AttachmentStrip } from "@/components/chat/message/attachment-strip";
 import { Button } from "@/components/ui/button";
+import { useDiscoverySessionSync } from "@/hooks";
 import { useChatScopedState } from "@/hooks/use-chat-scoped-state";
-import { useDiscoverySessionSync } from "@/hooks/use-discovery-session-sync";
 import { ROUTES } from "@/lib/routes";
 import { useDiscoveryStore } from "@/stores/discovery-store";
 
@@ -74,8 +74,6 @@ export default function DiscoveryPage() {
     const state = useDiscoveryStore.getState();
     persistNewSession({
       sessionId: state.sessionId,
-      modelId: "",
-      aspectRatio: "1:1",
       seedPrompt: seedPrompt.trim() || undefined,
       seedImageStorageId: seedImageStorageId ?? undefined,
       personaId: personaId ?? undefined,

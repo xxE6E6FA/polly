@@ -24,7 +24,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { DiscoveryLayout } from "@/components/canvas/discovery-layout";
 import { Spinner } from "@/components/ui/spinner";
-import { useDiscoverySessionSync } from "@/hooks/use-discovery-session-sync";
+import { useDiscoverySessionSync } from "@/hooks";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { ROUTES } from "@/lib/routes";
 import { useToast } from "@/providers/toast-context";
@@ -40,6 +40,18 @@ function getSwipeExitAnimation(dir: "left" | "right" | null) {
     return { x: -400, opacity: 0, rotate: -15 };
   }
   return { opacity: 0, scale: 0.97 };
+}
+
+function mapGenerationStatus(
+  dbStatus: string
+): "succeeded" | "failed" | "generating" {
+  if (dbStatus === "succeeded") {
+    return "succeeded";
+  }
+  if (dbStatus === "failed" || dbStatus === "canceled") {
+    return "failed";
+  }
+  return "generating";
 }
 
 export function DiscoveryMode() {
@@ -93,30 +105,34 @@ export function DiscoveryMode() {
     setShowExplanation(false);
   }, [currentIndex]);
 
+  // The latest entry may be generating while the user browses history.
+  // Subscribe to both the current entry AND the latest entry so status
+  // updates (and isGenerating) resolve even when the user is viewing older images.
+  const latestEntry = history[history.length - 1] ?? null;
+  const latestIsInFlight =
+    latestEntry &&
+    latestEntry !== currentEntry &&
+    (latestEntry.status === "pending" || latestEntry.status === "generating");
+
   // Subscribe to current generation status
   const generationData = useQuery(
     api.generations.getGeneration,
     currentEntry?.generationId ? { id: currentEntry.generationId } : "skip"
   );
 
-  // Update entry when generation data changes
+  // Subscribe to latest in-flight generation (when user browsed away)
+  const latestGenerationData = useQuery(
+    api.generations.getGeneration,
+    latestIsInFlight ? { id: latestEntry.generationId } : "skip"
+  );
+
+  // Update current entry when generation data changes
   useEffect(() => {
     if (!(generationData && currentEntry)) {
       return;
     }
 
-    let newStatus: "succeeded" | "failed" | "generating";
-    if (generationData.status === "succeeded") {
-      newStatus = "succeeded";
-    } else if (
-      generationData.status === "failed" ||
-      generationData.status === "canceled"
-    ) {
-      newStatus = "failed";
-    } else {
-      newStatus = "generating";
-    }
-
+    const newStatus = mapGenerationStatus(generationData.status);
     const newImageUrl = generationData.imageUrls?.[0] ?? null;
 
     if (
@@ -130,11 +146,45 @@ export function DiscoveryMode() {
     }
   }, [generationData, currentEntry, updateEntry]);
 
+  // Update latest in-flight entry when its generation data changes
+  useEffect(() => {
+    if (!(latestGenerationData && latestIsInFlight)) {
+      return;
+    }
+
+    const newStatus = mapGenerationStatus(latestGenerationData.status);
+    const newImageUrl = latestGenerationData.imageUrls?.[0] ?? null;
+
+    if (
+      newStatus !== latestEntry.status ||
+      newImageUrl !== latestEntry.imageUrl
+    ) {
+      updateEntry(latestEntry.generationId, {
+        status: newStatus,
+        imageUrl: newImageUrl,
+      });
+    }
+  }, [latestGenerationData, latestIsInFlight, latestEntry, updateEntry]);
+
   // Flash a reaction icon briefly
+  const flashTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const flashReaction = useCallback((type: ReactionFlash) => {
+    if (flashTimeoutRef.current) {
+      clearTimeout(flashTimeoutRef.current);
+    }
     setReactionFlash(type);
-    setTimeout(() => setReactionFlash(null), 500);
+    flashTimeoutRef.current = setTimeout(() => setReactionFlash(null), 500);
   }, []);
+
+  useEffect(
+    () => () => {
+      if (flashTimeoutRef.current) {
+        clearTimeout(flashTimeoutRef.current);
+      }
+    },
+    []
+  );
 
   // Trigger a new generation
   const triggerGeneration = useCallback(async () => {
@@ -168,6 +218,10 @@ export function DiscoveryMode() {
         reaction: null,
         explanation: result.explanation,
       });
+
+      if (result.addedModelName) {
+        managedToast.success(`Model added: ${result.addedModelName}`);
+      }
     } catch (err) {
       console.error("Discovery generation failed:", err);
       managedToast.error("Generation failed", {
@@ -344,9 +398,11 @@ export function DiscoveryMode() {
       const threshold = 80;
       const velocityThreshold = 300;
       const shouldSwipeRight =
-        info.offset.x > threshold || info.velocity.x > velocityThreshold;
+        info.offset.x > threshold ||
+        (info.offset.x > 0 && info.velocity.x > velocityThreshold);
       const shouldSwipeLeft =
-        info.offset.x < -threshold || info.velocity.x < -velocityThreshold;
+        info.offset.x < -threshold ||
+        (info.offset.x < 0 && info.velocity.x < -velocityThreshold);
 
       if (shouldSwipeRight) {
         setSwipeExit("right");

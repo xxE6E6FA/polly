@@ -217,9 +217,9 @@ function createDiscoveryState(
     },
 
     reactLike: () => {
-      const { history, currentIndex, likedPrompts } = get_();
+      const { history, currentIndex, likedPrompts, dislikedPrompts } = get_();
       const current = history[currentIndex];
-      if (!current) {
+      if (!current || current.reaction === "liked") {
         return;
       }
 
@@ -230,13 +230,18 @@ function createDiscoveryState(
         ...likedPrompts.slice(-(MAX_CONTEXT_PROMPTS - 1)),
         current.prompt,
       ];
-      set_({ history: updatedHistory, likedPrompts: updatedLiked });
+      const updatedDisliked = dislikedPrompts.filter(p => p !== current.prompt);
+      set_({
+        history: updatedHistory,
+        likedPrompts: updatedLiked,
+        dislikedPrompts: updatedDisliked,
+      });
     },
 
     reactDislike: () => {
-      const { history, currentIndex, dislikedPrompts } = get_();
+      const { history, currentIndex, likedPrompts, dislikedPrompts } = get_();
       const current = history[currentIndex];
-      if (!current) {
+      if (!current || current.reaction === "disliked") {
         return;
       }
 
@@ -247,11 +252,16 @@ function createDiscoveryState(
         ...dislikedPrompts.slice(-(MAX_CONTEXT_PROMPTS - 1)),
         current.prompt,
       ];
-      set_({ history: updatedHistory, dislikedPrompts: updatedDisliked });
+      const updatedLiked = likedPrompts.filter(p => p !== current.prompt);
+      set_({
+        history: updatedHistory,
+        dislikedPrompts: updatedDisliked,
+        likedPrompts: updatedLiked,
+      });
     },
 
     reactRemix: () => {
-      const { history, currentIndex, likedPrompts } = get_();
+      const { history, currentIndex, likedPrompts, dislikedPrompts } = get_();
       const current = history[currentIndex];
       if (!current) {
         return;
@@ -267,12 +277,13 @@ function createDiscoveryState(
       set_({
         history: updatedHistory,
         likedPrompts: updatedLiked,
+        dislikedPrompts: dislikedPrompts.filter(p => p !== current.prompt),
         hint: "remix",
       });
     },
 
     reactWilder: () => {
-      const { history, currentIndex, likedPrompts } = get_();
+      const { history, currentIndex, likedPrompts, dislikedPrompts } = get_();
       const current = history[currentIndex];
       if (!current) {
         return;
@@ -288,6 +299,7 @@ function createDiscoveryState(
       set_({
         history: updatedHistory,
         likedPrompts: updatedLiked,
+        dislikedPrompts: dislikedPrompts.filter(p => p !== current.prompt),
         hint: "wilder",
       });
     },

@@ -141,7 +141,7 @@ function pickFallbackModel(
 async function searchAndAddModel(
   ctx: ActionCtx,
   searchQuery: string
-): Promise<string | null> {
+): Promise<{ modelId: string; modelName: string } | null> {
   try {
     const searchResult = await ctx.runAction(
       api.imageModels.searchReplicateModels,
@@ -164,7 +164,10 @@ async function searchAndAddModel(
     });
 
     if (addResult.success) {
-      return topModel.modelId;
+      return {
+        modelId: topModel.modelId,
+        modelName: topModel.name ?? topModel.modelId,
+      };
     }
 
     return null;
@@ -195,6 +198,7 @@ export const startDiscoveryGeneration = action({
     aspectRatio: v.string(),
     modelId: v.string(),
     explanation: v.optional(v.string()),
+    addedModelName: v.optional(v.string()),
   }),
   handler: async (
     ctx,
@@ -205,6 +209,7 @@ export const startDiscoveryGeneration = action({
     aspectRatio: string;
     modelId: string;
     explanation?: string;
+    addedModelName?: string;
   }> => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {
@@ -244,15 +249,17 @@ export const startDiscoveryGeneration = action({
 
     // Resolve the model — AI choice → search → fallback
     let modelId: string | undefined;
+    let addedModelName: string | undefined;
 
     if (result.modelId) {
       // AI picked a specific available model
       modelId = result.modelId;
     } else if (result.searchQuery) {
       // AI wants a model we don't have — search Replicate
-      const foundModelId = await searchAndAddModel(ctx, result.searchQuery);
-      if (foundModelId) {
-        modelId = foundModelId;
+      const found = await searchAndAddModel(ctx, result.searchQuery);
+      if (found) {
+        modelId = found.modelId;
+        addedModelName = found.modelName;
       }
     }
 
@@ -286,12 +293,19 @@ export const startDiscoveryGeneration = action({
       userId,
     });
 
-    // Increment session generation count
+    // Increment session generation count and backfill metadata
     await ctx.runMutation(
       internal.discoverySessions.internalIncrementGenerationCount,
-      { sessionId: args.sessionId }
+      { sessionId: args.sessionId, modelId, aspectRatio }
     );
 
-    return { generationId, prompt, aspectRatio, modelId, explanation };
+    return {
+      generationId,
+      prompt,
+      aspectRatio,
+      modelId,
+      explanation,
+      addedModelName,
+    };
   },
 });

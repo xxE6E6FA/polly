@@ -108,7 +108,7 @@ export async function getAvailableImageModelsInternalHandler(
   // Get built-in image models
   const builtInModels = await ctx.db
     .query("builtInImageModels")
-    .filter(q => q.eq(q.field("isActive"), true))
+    .withIndex("by_active", q => q.eq("isActive", true))
     .collect();
 
   // Get user's image models

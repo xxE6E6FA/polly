@@ -1124,9 +1124,9 @@ export const discoverySessionSchema = v.object({
   sessionId: v.string(),
   seedPrompt: v.optional(v.string()),
   seedImageStorageId: v.optional(v.id("_storage")),
-  modelId: v.string(),
+  modelId: v.optional(v.string()),
   personaId: v.optional(v.id("personas")),
-  aspectRatio: v.string(),
+  aspectRatio: v.optional(v.string()),
   likedPrompts: v.array(v.string()),
   dislikedPrompts: v.array(v.string()),
   reactions: v.array(

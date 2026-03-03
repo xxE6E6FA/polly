@@ -16,8 +16,8 @@ export function useDiscoverySessionSync() {
   const persistNewSession = useCallback(
     async (opts: {
       sessionId: string;
-      modelId: string;
-      aspectRatio: string;
+      modelId?: string;
+      aspectRatio?: string;
       seedPrompt?: string;
       seedImageStorageId?: Id<"_storage">;
       personaId?: Id<"personas">;

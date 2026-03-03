@@ -38,13 +38,10 @@ export function DiscoverySidebar({ onResumeSession }: DiscoverySidebarProps) {
     string | null
   >(null);
 
-  const handleDeleteClick = useCallback(
-    (e: React.MouseEvent, sessionId: string) => {
-      e.stopPropagation();
-      setPendingDeleteSessionId(sessionId);
-    },
-    []
-  );
+  const handleDeleteClick = (e: React.MouseEvent, sessionId: string) => {
+    e.stopPropagation();
+    setPendingDeleteSessionId(sessionId);
+  };
 
   const handleConfirmDelete = useCallback(() => {
     if (pendingDeleteSessionId) {

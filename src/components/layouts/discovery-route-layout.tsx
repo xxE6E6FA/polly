@@ -8,8 +8,7 @@ import {
   DiscoverySidebar,
 } from "@/components/canvas/discovery-sidebar";
 import { Button } from "@/components/ui/button";
-import { useDiscoverySessionSync } from "@/hooks/use-discovery-session-sync";
-import { useMediaQuery } from "@/hooks/use-media-query";
+import { useDiscoverySessionSync, useMediaQuery } from "@/hooks";
 import { ROUTES } from "@/lib/routes";
 import { useDiscoveryStore } from "@/stores/discovery-store";
 

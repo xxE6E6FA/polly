@@ -134,4 +134,5 @@ export { useWordBasedUndo } from "./use-word-based-undo";
 
 export { useBackgroundJobs } from "./use-background-jobs";
 export { useBulkActions } from "./use-bulk-actions";
+export { useDiscoverySessionSync } from "./use-discovery-session-sync";
 export { useMessageSentCount } from "./use-message-sent-count";

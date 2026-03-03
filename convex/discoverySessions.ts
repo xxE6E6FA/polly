@@ -142,9 +142,9 @@ export const create = mutation({
     sessionId: v.string(),
     seedPrompt: v.optional(v.string()),
     seedImageStorageId: v.optional(v.id("_storage")),
-    modelId: v.string(),
+    modelId: v.optional(v.string()),
     personaId: v.optional(v.id("personas")),
-    aspectRatio: v.string(),
+    aspectRatio: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
@@ -222,17 +222,28 @@ export const recordReaction = mutation({
     }
 
     // Update liked/disliked prompt sliding windows
+    const previousReaction =
+      existingIdx >= 0 ? session.reactions[existingIdx]?.reaction : undefined;
     let { likedPrompts, dislikedPrompts } = session;
-    if (args.reaction === "liked") {
+
+    if (args.reaction === "liked" && previousReaction !== "liked") {
       likedPrompts = [
         ...likedPrompts.slice(-(MAX_CONTEXT_PROMPTS - 1)),
         args.prompt,
       ];
-    } else if (args.reaction === "disliked") {
+      dislikedPrompts = dislikedPrompts.filter(p => p !== args.prompt);
+    } else if (
+      args.reaction === "disliked" &&
+      previousReaction !== "disliked"
+    ) {
       dislikedPrompts = [
         ...dislikedPrompts.slice(-(MAX_CONTEXT_PROMPTS - 1)),
         args.prompt,
       ];
+      likedPrompts = likedPrompts.filter(p => p !== args.prompt);
+    } else if (args.reaction === "saved") {
+      // Saved is a positive signal — keep in liked if present, remove from disliked
+      dislikedPrompts = dislikedPrompts.filter(p => p !== args.prompt);
     }
 
     await ctx.db.patch(session._id, {
@@ -351,7 +362,11 @@ export const remove = mutation({
  * Called from the discovery action after creating a generation.
  */
 export const internalIncrementGenerationCount = internalMutation({
-  args: { sessionId: v.string() },
+  args: {
+    sessionId: v.string(),
+    modelId: v.optional(v.string()),
+    aspectRatio: v.optional(v.string()),
+  },
   handler: async (ctx, args) => {
     const session = await ctx.db
       .query("discoverySessions")
@@ -362,9 +377,19 @@ export const internalIncrementGenerationCount = internalMutation({
       return;
     }
 
-    await ctx.db.patch(session._id, {
+    const patch: Record<string, unknown> = {
       generationCount: session.generationCount + 1,
       updatedAt: Date.now(),
-    });
+    };
+
+    // Backfill modelId/aspectRatio from the first generation
+    if (args.modelId && !session.modelId) {
+      patch.modelId = args.modelId;
+    }
+    if (args.aspectRatio && !session.aspectRatio) {
+      patch.aspectRatio = args.aspectRatio;
+    }
+
+    await ctx.db.patch(session._id, patch);
   },
 });

@@ -29,9 +29,9 @@ export default function DiscoverySessionPage() {
     resumeDiscovery({
       sessionId: session.sessionId,
       dbSessionId: session._id,
-      modelId: session.modelId,
+      modelId: session.modelId ?? "",
       personaId: session.personaId ?? undefined,
-      aspectRatio: session.aspectRatio,
+      aspectRatio: session.aspectRatio ?? "1:1",
       seedPrompt: session.seedPrompt ?? undefined,
       seedImageStorageId: session.seedImageStorageId ?? undefined,
       history: entries,
@@ -41,6 +41,11 @@ export default function DiscoverySessionPage() {
   }, [sessionData, needsHydration, resumeDiscovery]);
 
   if (!sessionId) {
+    return <Navigate to={ROUTES.DISCOVER} replace />;
+  }
+
+  // sessionData === undefined → still loading; null → not found / unauthorized
+  if (needsHydration && sessionData === null) {
     return <Navigate to={ROUTES.DISCOVER} replace />;
   }
 
