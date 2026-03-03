@@ -89,6 +89,14 @@ type CommandPaletteProps = {
 
 type AvailableModel = HydratedModel;
 
+const FILTER_LABELS: Record<CanvasFilterMode, string> = {
+  all: "All",
+  edits: "Edits",
+  upscaled: "Upscaled",
+  conversations: "Chat",
+  canvas: "Canvas",
+};
+
 function getCommandInputPlaceholder(
   currentMenu: NavigationState["currentMenu"],
   isCanvasPage?: boolean
@@ -795,14 +803,6 @@ export function CommandPalette({
     s => s.clearReferenceImages
   );
   const canvasReferenceImages = useCanvasStore(s => s.referenceImages);
-
-  const FILTER_LABELS: Record<CanvasFilterMode, string> = {
-    all: "All",
-    edits: "Edits",
-    upscaled: "Upscaled",
-    conversations: "Chat",
-    canvas: "Canvas",
-  };
 
   const canvasFilterActions = useMemo((): Action[] => {
     if (!isCanvasPage) {
