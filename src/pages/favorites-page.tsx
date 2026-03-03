@@ -6,8 +6,8 @@ import {
   HeartIcon,
   UserIcon,
 } from "@phosphor-icons/react";
-import { useMutation, useQuery } from "convex/react";
-import { memo, useCallback, useMemo, useState } from "react";
+import { useMutation, usePaginatedQuery } from "convex/react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { SearchInput } from "@/components/ui/search-input";
@@ -143,21 +143,74 @@ const FavoriteCard = memo(function FavoriteCard({
   );
 });
 
+const ITEMS_PER_PAGE = 50;
+
+function LoadMoreSentinel({
+  onVisible,
+  isLoading,
+}: {
+  onVisible: () => void;
+  isLoading: boolean;
+}) {
+  const callbackRef = useRef(onVisible);
+  callbackRef.current = onVisible;
+
+  const sentinelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      entries => {
+        if (entries[0]?.isIntersecting) {
+          callbackRef.current();
+        }
+      },
+      { rootMargin: "200px" }
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div ref={sentinelRef}>
+      {isLoading && (
+        <div>
+          <FavoriteItemSkeleton />
+          <FavoriteItemSkeleton />
+          <FavoriteItemSkeleton />
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function FavoritesPage() {
   const { user } = useUserDataContext();
   const [search, setSearch] = useState("");
   const managedToast = useToast();
 
-  const data = useQuery(api.messages.listFavorites, user ? {} : "skip");
+  const { results, status, loadMore } = usePaginatedQuery(
+    api.messages.listFavoritesPaginated,
+    user ? {} : "skip",
+    { initialNumItems: ITEMS_PER_PAGE }
+  );
 
   const toggleFavorite = useMutation(api.messages.toggleFavorite);
 
-  const allItems = useMemo(() => {
-    if (!data) {
-      return [];
+  const handleEndReached = useCallback(() => {
+    if (status === "CanLoadMore") {
+      loadMore(ITEMS_PER_PAGE);
     }
-    return data.items as unknown as FavoriteItem[];
-  }, [data]);
+  }, [status, loadMore]);
+
+  const allItems = useMemo(() => {
+    return (results as unknown as FavoriteItem[] | undefined) ?? [];
+  }, [results]);
 
   const items = useMemo(() => {
     if (!search.trim()) {
@@ -173,10 +226,14 @@ export default function FavoritesPage() {
 
   const handleCopy = useCallback(
     async (text: string) => {
-      await navigator.clipboard.writeText(text);
-      managedToast.success("Copied to clipboard");
+      try {
+        await navigator.clipboard.writeText(text);
+        managedToast.success("Copied to clipboard");
+      } catch {
+        managedToast.error("Failed to copy to clipboard");
+      }
     },
-    [managedToast.success]
+    [managedToast.success, managedToast.error]
   );
 
   const handleUnfavorite = useCallback(
@@ -205,8 +262,7 @@ export default function FavoritesPage() {
   }
 
   const hasSearch = search.trim().length > 0;
-  // undefined = still loading, null won't happen since we skip when no user
-  const isLoading = data === undefined;
+  const isLoading = status === "LoadingFirstPage";
 
   const renderContent = () => {
     if (isLoading) {
@@ -233,6 +289,12 @@ export default function FavoritesPage() {
               onUnfavorite={handleUnfavorite}
             />
           ))}
+          {status !== "Exhausted" && (
+            <LoadMoreSentinel
+              onVisible={handleEndReached}
+              isLoading={status === "LoadingMore"}
+            />
+          )}
         </div>
       );
     }
