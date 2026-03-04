@@ -1,8 +1,8 @@
 import {
   createContext,
   type ReactNode,
+  use,
   useCallback,
-  useContext,
   useEffect,
   useMemo,
   useState,
@@ -113,7 +113,7 @@ export function PrivateModeProvider({ children }: { children: ReactNode }) {
 }
 
 export function usePrivateMode() {
-  const context = useContext(PrivateModeContext);
+  const context = use(PrivateModeContext);
   if (context === undefined) {
     throw new Error("usePrivateMode must be used within a PrivateModeProvider");
   }

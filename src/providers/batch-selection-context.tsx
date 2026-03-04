@@ -69,7 +69,7 @@ const BatchSelectionContext = React.createContext<BatchSelectionContextValue>({
 });
 
 export function useBatchSelection() {
-  const context = React.useContext(BatchSelectionContext);
+  const context = React.use(BatchSelectionContext);
   if (!context) {
     throw new Error(
       "useBatchSelection must be used within a BatchSelectionProvider"
@@ -89,7 +89,7 @@ const SidebarHoverSetterContext = React.createContext<
 });
 
 export function useSidebarHoverSetter() {
-  const setter = React.useContext(SidebarHoverSetterContext);
+  const setter = React.use(SidebarHoverSetterContext);
   if (!setter) {
     throw new Error(
       "useSidebarHoverSetter must be used within a BatchSelectionProvider"

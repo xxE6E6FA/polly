@@ -1,5 +1,3 @@
-"use client";
-
 import {
   type HTMLMotionProps,
   type LegacyAnimationControls,
@@ -95,7 +93,7 @@ const AnimateIconContext = React.createContext<AnimateIconContextValue | null>(
 );
 
 function useAnimateIconContext() {
-  const context = React.useContext(AnimateIconContext);
+  const context = React.use(AnimateIconContext);
   if (!context) {
     return {
       controls: undefined,
@@ -503,7 +501,7 @@ function IconWrapper<T extends string>({
   className,
   ...props
 }: IconWrapperProps<T>) {
-  const context = React.useContext(AnimateIconContext);
+  const context = React.use(AnimateIconContext);
 
   if (context) {
     const {

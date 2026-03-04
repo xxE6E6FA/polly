@@ -1,5 +1,3 @@
-"use client";
-
 import { CaretLeft, CaretRight } from "@phosphor-icons/react";
 import useEmblaCarousel from "embla-carousel-react";
 import * as React from "react";
