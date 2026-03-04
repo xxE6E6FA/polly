@@ -3,11 +3,14 @@ import type { Id } from "@convex/_generated/dataModel";
 import {
   ArchiveIcon,
   ArrowLeftIcon,
+  ArrowsOutSimpleIcon,
   ChatCircleIcon,
   CloudArrowDownIcon,
+  EraserIcon,
   EyeSlashIcon,
   FileCodeIcon,
   FileTextIcon,
+  FunnelIcon,
   GearIcon,
   KeyIcon,
   MagnifyingGlassIcon,
@@ -62,6 +65,8 @@ import { CACHE_KEYS, del } from "@/lib/local-storage";
 import { ROUTES } from "@/lib/routes";
 import { useToast } from "@/providers/toast-context";
 import { useUserIdentity } from "@/providers/user-data-context";
+import type { CanvasFilterMode, ReferenceImage } from "@/stores/canvas-store";
+import { useCanvasStore } from "@/stores/canvas-store";
 import type { ConversationId, HydratedModel } from "@/types";
 import { CommandPaletteConversationActions } from "./command-palette-conversation-actions";
 import { CommandPaletteConversationBrowser } from "./command-palette-conversation-browser";
@@ -83,8 +88,19 @@ type CommandPaletteProps = {
 
 type AvailableModel = HydratedModel;
 
+const EMPTY_REFERENCE_IMAGES: ReferenceImage[] = [];
+
+const FILTER_LABELS: Record<CanvasFilterMode, string> = {
+  all: "All",
+  edits: "Edits",
+  upscaled: "Upscaled",
+  conversations: "Chat",
+  canvas: "Canvas",
+};
+
 function getCommandInputPlaceholder(
-  currentMenu: NavigationState["currentMenu"]
+  currentMenu: NavigationState["currentMenu"],
+  isCanvasPage?: boolean
 ): string {
   if (currentMenu === "conversation-actions") {
     return "Search actions...";
@@ -97,6 +113,9 @@ function getCommandInputPlaceholder(
   }
   if (currentMenu === "theme") {
     return "Search themes...";
+  }
+  if (isCanvasPage) {
+    return "Search actions...";
   }
   return "Search conversations, switch models, or take actions...";
 }
@@ -139,6 +158,7 @@ export function CommandPalette({
 
   const currentConversationId = params.conversationId;
   const isConversationPage = location.pathname.startsWith("/chat/");
+  const isCanvasPage = location.pathname.startsWith("/canvas");
 
   // Helper function to close the command palette and call onClose callback
   const handleClose = useCallback(() => {
@@ -685,6 +705,26 @@ export function CommandPalette({
   }, [handleNavigateToSettings, online, isAuthenticated]);
 
   const globalActions = useMemo((): Action[] => {
+    // Canvas mode: only navigation + universal actions (no private mode)
+    if (isCanvasPage) {
+      return [
+        {
+          id: "new-conversation",
+          label: "Go to Chat",
+          icon: ChatCircleIcon,
+          handler: handleNewConversation,
+          disabled: false,
+        },
+        {
+          id: "change-theme",
+          label: "Change Theme",
+          icon: SwatchesIcon,
+          handler: handleOpenThemeMenu,
+          disabled: false,
+        },
+      ];
+    }
+
     const actions: Action[] = [
       {
         id: "new-conversation",
@@ -745,6 +785,7 @@ export function CommandPalette({
 
     return actions;
   }, [
+    isCanvasPage,
     handleNewConversation,
     handlePrivateMode,
     handleImportConversations,
@@ -753,6 +794,128 @@ export function CommandPalette({
     online,
     isAuthenticated,
   ]);
+
+  // Canvas-specific actions (filters, aspect ratio, generation)
+  const canvasFilterMode = useCanvasStore(s => s.filterMode);
+  const canvasSetFilterMode = useCanvasStore(s => s.setFilterMode);
+  const canvasAspectRatio = useCanvasStore(s => s.aspectRatio);
+  const canvasSetAspectRatio = useCanvasStore(s => s.setAspectRatio);
+  const canvasResetForm = useCanvasStore(s => s.resetForm);
+  const canvasClearReferenceImages = useCanvasStore(
+    s => s.clearReferenceImages
+  );
+  const canvasReferenceImages = useCanvasStore(s =>
+    isCanvasPage ? s.referenceImages : EMPTY_REFERENCE_IMAGES
+  );
+
+  const canvasFilterActions = useMemo((): Action[] => {
+    if (!isCanvasPage) {
+      return [];
+    }
+
+    return (
+      [
+        "all",
+        "canvas",
+        "edits",
+        "upscaled",
+        "conversations",
+      ] as CanvasFilterMode[]
+    ).map(mode => ({
+      id: `canvas-filter-${mode}`,
+      label: `${FILTER_LABELS[mode]}`,
+      icon: FunnelIcon,
+      handler: () => {
+        canvasSetFilterMode(mode);
+        handleClose();
+      },
+      disabled: canvasFilterMode === mode,
+    }));
+  }, [isCanvasPage, canvasFilterMode, canvasSetFilterMode, handleClose]);
+
+  const canvasAspectActions = useMemo((): Action[] => {
+    if (!isCanvasPage) {
+      return [];
+    }
+
+    return ["1:1", "16:9", "9:16", "4:3", "3:4"].map(ratio => ({
+      id: `canvas-ratio-${ratio}`,
+      label: `${ratio}`,
+      icon: ArrowsOutSimpleIcon,
+      handler: () => {
+        canvasSetAspectRatio(ratio);
+        handleClose();
+      },
+      disabled: canvasAspectRatio === ratio,
+    }));
+  }, [isCanvasPage, canvasAspectRatio, canvasSetAspectRatio, handleClose]);
+
+  const canvasGenerationActions = useMemo((): Action[] => {
+    if (!isCanvasPage) {
+      return [];
+    }
+
+    const actions: Action[] = [
+      {
+        id: "canvas-reset-form",
+        label: "Reset Form",
+        icon: EraserIcon,
+        handler: () => {
+          canvasResetForm();
+          handleClose();
+        },
+        disabled: false,
+      },
+    ];
+
+    if (canvasReferenceImages.length > 0) {
+      actions.push({
+        id: "canvas-clear-references",
+        label: "Clear Reference Images",
+        icon: TrashIcon,
+        handler: () => {
+          canvasClearReferenceImages();
+          handleClose();
+        },
+        disabled: false,
+      });
+    }
+
+    return actions;
+  }, [
+    isCanvasPage,
+    canvasResetForm,
+    canvasClearReferenceImages,
+    canvasReferenceImages.length,
+    handleClose,
+  ]);
+
+  const filteredCanvasFilterActions = useMemo(() => {
+    if (!hasSearchQuery) {
+      return canvasFilterActions;
+    }
+    return canvasFilterActions.filter(action =>
+      action.label.toLowerCase().includes(normalizedDeferredSearch)
+    );
+  }, [hasSearchQuery, normalizedDeferredSearch, canvasFilterActions]);
+
+  const filteredCanvasAspectActions = useMemo(() => {
+    if (!hasSearchQuery) {
+      return canvasAspectActions;
+    }
+    return canvasAspectActions.filter(action =>
+      action.label.toLowerCase().includes(normalizedDeferredSearch)
+    );
+  }, [hasSearchQuery, normalizedDeferredSearch, canvasAspectActions]);
+
+  const filteredCanvasGenerationActions = useMemo(() => {
+    if (!hasSearchQuery) {
+      return canvasGenerationActions;
+    }
+    return canvasGenerationActions.filter(action =>
+      action.label.toLowerCase().includes(normalizedDeferredSearch)
+    );
+  }, [hasSearchQuery, normalizedDeferredSearch, canvasGenerationActions]);
 
   const conversationActions = useMemo(() => {
     const actions: Action[] = [
@@ -1233,7 +1396,10 @@ export function CommandPalette({
             <CommandInput
               ref={inputRef}
               className="h-14 border-0 bg-transparent text-base focus:ring-0 [&_.cmdk-input]:h-14"
-              placeholder={getCommandInputPlaceholder(navigation.currentMenu)}
+              placeholder={getCommandInputPlaceholder(
+                navigation.currentMenu,
+                isCanvasPage
+              )}
               value={search}
               onValueChange={setSearch}
             />
@@ -1269,10 +1435,16 @@ export function CommandPalette({
             {navigation.currentMenu === "main" && (
               <CommandPaletteMainMenu
                 isConversationPage={isConversationPage}
+                isCanvasPage={isCanvasPage}
                 hasCurrentConversation={!!currentConversation?.conversation}
                 isPinned={currentConversation?.conversation?.isPinned}
                 filteredConversationActions={filteredConversationActions}
                 filteredGlobalActions={filteredGlobalActions}
+                filteredCanvasFilterActions={filteredCanvasFilterActions}
+                filteredCanvasAspectActions={filteredCanvasAspectActions}
+                filteredCanvasGenerationActions={
+                  filteredCanvasGenerationActions
+                }
                 filteredSettingsActions={filteredSettingsActions}
                 conversationsToShow={conversationsToShow}
                 modelsToShow={modelsToShow}
