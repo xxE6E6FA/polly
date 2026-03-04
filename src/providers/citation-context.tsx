@@ -1,4 +1,4 @@
-import { createContext, useContext, useMemo } from "react";
+import { createContext, use, useMemo } from "react";
 import type { WebSearchCitation } from "@/types";
 
 type CitationContextType = {
@@ -30,7 +30,7 @@ export function CitationProvider({
 }
 
 export function useCitations() {
-  const context = useContext(CitationContext);
+  const context = use(CitationContext);
   if (!context) {
     return { citations: [], messageId: undefined };
   }

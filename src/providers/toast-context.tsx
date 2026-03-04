@@ -1,8 +1,8 @@
 import type React from "react";
 import {
   createContext,
+  use,
   useCallback,
-  useContext,
   useEffect,
   useMemo,
   useRef,
@@ -191,7 +191,7 @@ export function ToastProvider({ children }: ToastProviderProps) {
 }
 
 export function useToast(): ToastContextValue {
-  const context = useContext(ToastContext);
+  const context = use(ToastContext);
   if (context === undefined) {
     throw new Error("useToast must be used within a ToastProvider");
   }

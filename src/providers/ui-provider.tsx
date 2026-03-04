@@ -38,7 +38,7 @@ const UIContext = React.createContext<UIContextValue>({
 });
 
 export function useUI() {
-  const context = React.useContext(UIContext);
+  const context = React.use(UIContext);
   if (!context) {
     throw new Error("useUI must be used within a UIProvider");
   }

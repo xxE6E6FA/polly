@@ -1,5 +1,3 @@
-"use client";
-
 import * as SliderPrimitive from "@base-ui/react/slider";
 import type * as React from "react";
 

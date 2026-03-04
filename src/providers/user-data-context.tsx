@@ -8,7 +8,7 @@ import { useAction, useConvexAuth, useMutation, useQuery } from "convex/react";
 import type React from "react";
 import {
   createContext,
-  useContext,
+  use,
   useEffect,
   useMemo,
   useRef,
@@ -413,7 +413,7 @@ export const UserDataProvider: React.FC<{ children: React.ReactNode }> = ({
 };
 
 export function useUserDataContext() {
-  const ctx = useContext(UserDataContext);
+  const ctx = use(UserDataContext);
   if (!ctx) {
     throw new Error(
       "useUserDataContext must be used within a UserDataProvider"
@@ -423,7 +423,7 @@ export function useUserDataContext() {
 }
 
 export function useUserIdentity(): UserIdentity {
-  const ctx = useContext(UserIdentityContext);
+  const ctx = use(UserIdentityContext);
   if (!ctx) {
     throw new Error("useUserIdentity must be used within a UserDataProvider");
   }
@@ -431,7 +431,7 @@ export function useUserIdentity(): UserIdentity {
 }
 
 export function useUserCapabilities(): UserCapabilities {
-  const ctx = useContext(UserCapabilitiesContext);
+  const ctx = use(UserCapabilitiesContext);
   if (!ctx) {
     throw new Error(
       "useUserCapabilities must be used within a UserDataProvider"
@@ -441,7 +441,7 @@ export function useUserCapabilities(): UserCapabilities {
 }
 
 export function useUserUsage(): UserUsage {
-  const ctx = useContext(UserUsageContext);
+  const ctx = use(UserUsageContext);
   if (!ctx) {
     throw new Error("useUserUsage must be used within a UserDataProvider");
   }

@@ -3,8 +3,8 @@ import { throttleBasic, useLLMOutput } from "@llm-ui/react";
 import {
   createContext,
   memo,
+  use,
   useCallback,
-  useContext,
   useEffect,
   useMemo,
   useRef,
@@ -29,7 +29,7 @@ const StreamingContext = createContext<StreamingContextValue>({
   isStreaming: false,
 });
 
-export const useIsStreaming = () => useContext(StreamingContext).isStreaming;
+export const useIsStreaming = () => use(StreamingContext).isStreaming;
 
 // Burst-then-throttle strategy:
 // - No throttling for the very first moments to minimize TTFT.

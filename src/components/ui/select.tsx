@@ -4,8 +4,8 @@ import type * as React from "react";
 import {
   createContext,
   type RefCallback,
+  use,
   useCallback,
-  useContext,
   useMemo,
   useState,
 } from "react";
@@ -61,7 +61,7 @@ function SelectTrigger({
   ref,
   ...rest
 }: SelectTriggerProps) {
-  const { setWidth } = useContext(TriggerWidthCtx);
+  const { setWidth } = use(TriggerWidthCtx);
 
   const measure: RefCallback<HTMLElement> = useCallback(
     node => {
@@ -124,7 +124,7 @@ function SelectContent({
   sideOffset = 4,
   ...rest
 }: SelectContentProps) {
-  const { width } = useContext(TriggerWidthCtx);
+  const { width } = use(TriggerWidthCtx);
 
   return (
     <Select.Portal>

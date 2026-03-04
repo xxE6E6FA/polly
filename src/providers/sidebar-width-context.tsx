@@ -1,8 +1,8 @@
 import {
   createContext,
   type ReactNode,
+  use,
   useCallback,
-  useContext,
   useMemo,
   useState,
 } from "react";
@@ -53,7 +53,7 @@ export function SidebarWidthProvider({ children }: { children: ReactNode }) {
 }
 
 export function useSidebarWidth() {
-  const context = useContext(SidebarWidthContext);
+  const context = use(SidebarWidthContext);
   if (!context) {
     throw new Error(
       "useSidebarWidth must be used within a SidebarWidthProvider"

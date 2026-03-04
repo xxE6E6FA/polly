@@ -1,5 +1,3 @@
-"use client";
-
 import { CaretLeft, CaretRight } from "@phosphor-icons/react";
 import useEmblaCarousel, {
   type UseEmblaCarouselType,
@@ -7,8 +5,8 @@ import useEmblaCarousel, {
 import type * as React from "react";
 import {
   createContext,
+  use,
   useCallback,
-  useContext,
   useEffect,
   useMemo,
   useState,
@@ -40,7 +38,7 @@ type CarouselContextProps = {
 const CarouselContext = createContext<CarouselContextProps | null>(null);
 
 function useCarousel() {
-  const context = useContext(CarouselContext);
+  const context = use(CarouselContext);
 
   if (!context) {
     throw new Error("useCarousel must be used within a <Carousel />");

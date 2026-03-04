@@ -1,5 +1,5 @@
 import type React from "react";
-import { createContext, useCallback, useContext, useMemo, useRef } from "react";
+import { createContext, use, useCallback, useMemo, useRef } from "react";
 
 type ScrollContainerContextValue = {
   scrollContainerRef: React.RefObject<HTMLElement | null>;
@@ -36,7 +36,7 @@ export function useScrollContainer(): {
   ref: React.RefObject<HTMLElement | null>;
   isInScrollContainerContext: boolean;
 } | null {
-  const context = useContext(ScrollContainerContext);
+  const context = use(ScrollContainerContext);
   if (!context) {
     return null;
   }
@@ -49,6 +49,6 @@ export function useScrollContainer(): {
 export function useSetScrollContainer():
   | ((element: HTMLElement | null) => void)
   | undefined {
-  const context = useContext(ScrollContainerContext);
+  const context = use(ScrollContainerContext);
   return context?.setScrollContainer;
 }
