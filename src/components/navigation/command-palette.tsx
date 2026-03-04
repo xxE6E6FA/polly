@@ -12,7 +12,6 @@ import {
   FileTextIcon,
   FunnelIcon,
   GearIcon,
-  ImageIcon,
   KeyIcon,
   MagnifyingGlassIcon,
   PaperclipIcon,
@@ -66,7 +65,7 @@ import { CACHE_KEYS, del } from "@/lib/local-storage";
 import { ROUTES } from "@/lib/routes";
 import { useToast } from "@/providers/toast-context";
 import { useUserIdentity } from "@/providers/user-data-context";
-import type { CanvasFilterMode } from "@/stores/canvas-store";
+import type { CanvasFilterMode, ReferenceImage } from "@/stores/canvas-store";
 import { useCanvasStore } from "@/stores/canvas-store";
 import type { ConversationId, HydratedModel } from "@/types";
 import { CommandPaletteConversationActions } from "./command-palette-conversation-actions";
@@ -88,6 +87,8 @@ type CommandPaletteProps = {
 };
 
 type AvailableModel = HydratedModel;
+
+const EMPTY_REFERENCE_IMAGES: ReferenceImage[] = [];
 
 const FILTER_LABELS: Record<CanvasFilterMode, string> = {
   all: "All",
@@ -803,7 +804,9 @@ export function CommandPalette({
   const canvasClearReferenceImages = useCanvasStore(
     s => s.clearReferenceImages
   );
-  const canvasReferenceImages = useCanvasStore(s => s.referenceImages);
+  const canvasReferenceImages = useCanvasStore(s =>
+    isCanvasPage ? s.referenceImages : EMPTY_REFERENCE_IMAGES
+  );
 
   const canvasFilterActions = useMemo((): Action[] => {
     if (!isCanvasPage) {
@@ -869,7 +872,7 @@ export function CommandPalette({
       actions.push({
         id: "canvas-clear-references",
         label: "Clear Reference Images",
-        icon: ImageIcon,
+        icon: TrashIcon,
         handler: () => {
           canvasClearReferenceImages();
           handleClose();
