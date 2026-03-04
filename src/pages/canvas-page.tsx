@@ -8,6 +8,7 @@ import {
   CanvasGenerationForm,
 } from "@/components/canvas/canvas-generation-form";
 import { CanvasMasonryGrid } from "@/components/canvas/canvas-masonry-grid";
+import { UserMenu } from "@/components/navigation/sidebar/user-menu";
 import { Button } from "@/components/ui/button";
 import {
   Drawer,
@@ -17,7 +18,9 @@ import {
   DrawerTitle,
 } from "@/components/ui/drawer";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { useUserSettings } from "@/hooks/use-user-settings";
 import { ROUTES } from "@/lib/routes";
+import { useUserDataContext } from "@/providers/user-data-context";
 import type { CanvasFilterMode } from "@/stores/canvas-store";
 import { useCanvasStore } from "@/stores/canvas-store";
 
@@ -152,6 +155,9 @@ export default function CanvasPage() {
               <CanvasGenerateButton />
             </div>
 
+            {/* User menu (no profile switcher — profiles don't apply to canvas) */}
+            <CanvasUserFooter />
+
             {/* Resize handle */}
             {isPanelVisible && (
               <div
@@ -259,5 +265,33 @@ export default function CanvasPage() {
       {/* Child route overlay (image detail modal) */}
       <Outlet />
     </CanvasGateCheck>
+  );
+}
+
+function CanvasUserFooter() {
+  const { user, isAuthenticated, isLoading } = useUserDataContext();
+  const userSettings = useUserSettings();
+  const shouldAnonymize = userSettings?.anonymizeForDemo ?? false;
+
+  if (isLoading) {
+    return (
+      <div className="border-t border-border/50 px-3 py-2.5">
+        <div className="flex items-center justify-end">
+          <div className="size-7 animate-pulse rounded-full bg-muted/40" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return null;
+  }
+
+  return (
+    <div className="border-t border-border/50 px-3 py-2.5">
+      <div className="flex items-center justify-end">
+        <UserMenu user={user} shouldAnonymize={shouldAnonymize} />
+      </div>
+    </div>
   );
 }

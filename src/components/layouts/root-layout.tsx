@@ -58,9 +58,13 @@ export default function RootLayout() {
     const isHomePage = location.pathname === "/";
     const isConversationPage = location.pathname.startsWith("/chat/");
     const isPrivateChatPage = location.pathname.startsWith("/private");
+    const isCanvasPage = location.pathname.startsWith("/canvas");
 
-    // Focus chat input if we're on a page that has it
-    if (isHomePage || isConversationPage || isPrivateChatPage) {
+    // Focus chat input if we're on a page that has it (skip canvas — no chat input)
+    if (
+      (isHomePage || isConversationPage || isPrivateChatPage) &&
+      !isCanvasPage
+    ) {
       // Find and focus the chat input textarea
       const chatInput = document.querySelector(
         'textarea[aria-label="Chat message input"]'

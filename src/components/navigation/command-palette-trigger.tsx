@@ -12,12 +12,15 @@ export function CommandPaletteTrigger({
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
-      // Only trigger on home, conversation, and private mode pages
+      // Only trigger on home, conversation, private mode, and canvas pages
       const isHomePage = location.pathname === "/";
       const isConversationPage = location.pathname.startsWith("/chat/");
       const isPrivatePage = location.pathname.startsWith("/private");
+      const isCanvasPage = location.pathname.startsWith("/canvas");
 
-      if (!(isHomePage || isConversationPage || isPrivatePage)) {
+      if (
+        !(isHomePage || isConversationPage || isPrivatePage || isCanvasPage)
+      ) {
         return;
       }
 
