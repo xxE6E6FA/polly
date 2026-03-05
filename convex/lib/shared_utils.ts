@@ -290,7 +290,7 @@ export function validateDeepResearchUsage(user: Doc<"users">): void {
   if (!canUse) {
     throw new ConvexError<string>(
       `You've reached your monthly limit of ${limit} deep research queries. ` +
-        "Add your own API keys for unlimited usage.",
+        "Your limit resets monthly.",
     );
   }
 }

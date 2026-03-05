@@ -138,8 +138,6 @@ export function configureTools(
   }
   if (useDeepResearch) {
     toolInstructions += `\n\n${DEEP_RESEARCH_INSTRUCTIONS}`;
-    // CITATION_INSTRUCTIONS should be included for deep research results,
-    // though webSearch is not available when deepResearch is enabled
     toolInstructions += `\n\n${CITATION_INSTRUCTIONS}`;
   }
 
