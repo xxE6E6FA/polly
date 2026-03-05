@@ -35,7 +35,8 @@ interface UseChatInputSubmissionProps {
     sourceConversationId?: ConversationId,
     personaId?: Id<"personas"> | null,
     reasoningConfig?: ReasoningConfig,
-    temperature?: number
+    temperature?: number,
+    useDeepResearch?: boolean
   ) => Promise<ConversationId | undefined>;
   handleImageGenerationSubmit: () => Promise<void>;
   handleImageGenerationSendAsNew: (
@@ -215,7 +216,8 @@ export function useChatInputSubmission({
           conversationId,
           personaId,
           customReasoningConfig || reasoningConfig,
-          temperature
+          temperature,
+          useDeepResearch
         );
 
         if (newConversationId) {
@@ -232,6 +234,7 @@ export function useChatInputSubmission({
       generateSummaryAction,
       reasoningConfig,
       temperature,
+      useDeepResearch,
       onResetInputState,
       uploadAttachmentsToConvex,
       handleImageGenerationSendAsNew,

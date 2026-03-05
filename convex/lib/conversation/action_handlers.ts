@@ -658,6 +658,7 @@ export async function createBranchingConversationHandler(
     generateTitle?: boolean;
     reasoningConfig?: { enabled: boolean };
     contextSummary?: string;
+    useDeepResearch?: boolean;
   }
 ): Promise<{
   conversationId: Id<"conversations">;

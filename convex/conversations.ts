@@ -557,6 +557,7 @@ export const createBranchingConversation = action({
     generateTitle: v.optional(v.boolean()),
     reasoningConfig: v.optional(reasoningConfigSchema),
     contextSummary: v.optional(v.string()),
+    useDeepResearch: v.optional(v.boolean()),
   },
   handler: createBranchingConversationHandler,
 });

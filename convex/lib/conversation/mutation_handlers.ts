@@ -1177,6 +1177,11 @@ export async function prepareStartConversationHandler(
   const user = await ctx.db.get("users", userId);
   if (!user) throw new Error("User not found");
 
+  // Validate deep research quota if requested
+  if (args.useDeepResearch) {
+    validateDeepResearchUsage(user);
+  }
+
   // 2. Create conversation
   const conversationId = await ctx.db.insert("conversations", {
     title: "New Conversation",
