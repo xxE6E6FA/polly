@@ -62,6 +62,7 @@ export async function streamLLMToMessage({
   const exaApiKey = process.env.EXA_API_KEY;
   const citationsRef: { value: Citation[] } = { value: [] };
   const hasCalledImageGenRef = { value: false };
+  const hasCalledDeepResearchRef = { value: false };
   let isToolRunning = false;
   let lastToolName = "";
 
@@ -137,6 +138,7 @@ export async function streamLLMToMessage({
         replicateApiKey,
         imageModels,
         hasCalledImageGenRef,
+        hasCalledDeepResearchRef,
         abortController?.signal,
       ),
       ...extraOptions,
@@ -194,6 +196,7 @@ export async function streamLLMToMessage({
             toolChunk,
             buffer,
             hasCalledImageGenRef,
+            hasCalledDeepResearchRef,
           );
         }
 

@@ -155,6 +155,7 @@ export function buildToolOptions(
   replicateApiKey: string | undefined,
   imageModels: ImageModelInfo[],
   hasCalledImageGenRef: { value: boolean },
+  hasCalledDeepResearchRef: { value: boolean },
   abortSignal?: AbortSignal,
 ) {
   if (!toolConfig.hasAnyTools) return {};
@@ -187,10 +188,10 @@ export function buildToolOptions(
         : {}),
     },
     toolChoice: "auto",
-    // After an image generation, force the model to produce text (no more tool calls).
+    // After an image/deep-research call, force the model to produce text (no more tool calls).
     // Also caps at MAX_TOOL_STEPS for safety.
     prepareStep: ({ stepNumber }: { stepNumber: number }) => {
-      if (hasCalledImageGenRef.value || stepNumber >= MAX_TOOL_STEPS) {
+      if (hasCalledImageGenRef.value || hasCalledDeepResearchRef.value || stepNumber >= MAX_TOOL_STEPS) {
         return { toolChoice: "none" };
       }
       return {};
@@ -213,7 +214,11 @@ export async function handleToolCall(
   },
   buffer: StreamBuffer,
   hasCalledImageGenRef: { value: boolean },
+  hasCalledDeepResearchRef: { value: boolean },
 ) {
+  if (chunk.toolName === "deepResearch") {
+    hasCalledDeepResearchRef.value = true;
+  }
   if (chunk.toolName === "generateImage") {
     hasCalledImageGenRef.value = true;
     // Insert marker so the frontend knows where to place the image

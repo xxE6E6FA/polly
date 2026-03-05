@@ -49,7 +49,8 @@ interface ChatInputProps {
     sourceConversationId?: ConversationId,
     personaId?: Id<"personas"> | null,
     reasoningConfig?: ReasoningConfig,
-    temperature?: number
+    temperature?: number,
+    useDeepResearch?: boolean
   ) => Promise<ConversationId | undefined>;
   conversationId?: ConversationId;
   hasExistingMessages?: boolean;

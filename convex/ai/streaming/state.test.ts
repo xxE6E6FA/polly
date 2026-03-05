@@ -110,10 +110,11 @@ describe("buildToolOptions", () => {
     const result = buildToolOptions(
       ctx,
       messageId,
-      { useWebSearch: false, useImageGen: false, hasAnyTools: false },
+      { useWebSearch: false, useImageGen: false, useDeepResearch: false, hasAnyTools: false },
       undefined,
       undefined,
       [],
+      { value: false },
       { value: false },
     );
     expect(result).toEqual({});
@@ -124,10 +125,11 @@ describe("buildToolOptions", () => {
     const result = buildToolOptions(
       ctx,
       messageId,
-      { useWebSearch: true, useImageGen: false, hasAnyTools: true },
+      { useWebSearch: true, useImageGen: false, useDeepResearch: false, hasAnyTools: true },
       "exa-key",
       undefined,
       [],
+      { value: false },
       { value: false },
     );
     expect(result).toHaveProperty("tools");
@@ -143,11 +145,12 @@ describe("buildToolOptions", () => {
     const result = buildToolOptions(
       ctx,
       messageId,
-      { useWebSearch: true, useImageGen: false, hasAnyTools: true },
+      { useWebSearch: true, useImageGen: false, useDeepResearch: false, hasAnyTools: true },
       "exa-key",
       undefined,
       [],
       hasCalledImageGenRef,
+      { value: false },
     );
     const step = (result as any).prepareStep({ stepNumber: 1 });
     expect(step).toEqual({ toolChoice: "none" });
@@ -158,10 +161,11 @@ describe("buildToolOptions", () => {
     const result = buildToolOptions(
       ctx,
       messageId,
-      { useWebSearch: true, useImageGen: false, hasAnyTools: true },
+      { useWebSearch: true, useImageGen: false, useDeepResearch: false, hasAnyTools: true },
       "exa-key",
       undefined,
       [],
+      { value: false },
       { value: false },
     );
     const step = (result as any).prepareStep({ stepNumber: 5 });
@@ -173,10 +177,11 @@ describe("buildToolOptions", () => {
     const result = buildToolOptions(
       ctx,
       messageId,
-      { useWebSearch: true, useImageGen: false, hasAnyTools: true },
+      { useWebSearch: true, useImageGen: false, useDeepResearch: false, hasAnyTools: true },
       "exa-key",
       undefined,
       [],
+      { value: false },
       { value: false },
     );
     const step = (result as any).prepareStep({ stepNumber: 1 });
@@ -224,6 +229,7 @@ describe("handleToolCall", () => {
       { toolCallId: "tc-1", toolName: "generateImage", input: { prompt: "a cat" } },
       buffer as any,
       hasCalledImageGenRef,
+      { value: false },
     );
 
     expect(hasCalledImageGenRef.value).toBe(true);
@@ -242,6 +248,7 @@ describe("handleToolCall", () => {
       { toolCallId: "tc-1", toolName: "webSearch", input: { query: "test" } },
       buffer as any,
       hasCalledImageGenRef,
+      { value: false },
     );
 
     expect(hasCalledImageGenRef.value).toBe(false);
@@ -259,6 +266,7 @@ describe("handleToolCall", () => {
       { toolCallId: "tc-1", toolName: "webSearch" },
       buffer as any,
       { value: false },
+      { value: false },
     );
 
     expect(buffer.flush).toHaveBeenCalled();
@@ -275,6 +283,7 @@ describe("handleToolCall", () => {
       messageId,
       { toolCallId: "tc-1", toolName: "webSearch", input: { query: "hello", searchMode: "auto" } },
       buffer as any,
+      { value: false },
       { value: false },
     );
 
@@ -300,6 +309,7 @@ describe("handleToolCall", () => {
       { toolCallId: "tc-1", toolName: "webSearch" },
       buffer as any,
       { value: false },
+      { value: false },
     );
 
     const calls = (runMutation as ReturnType<typeof mock>).mock.calls;
@@ -317,6 +327,7 @@ describe("handleToolCall", () => {
       messageId,
       { toolCallId: "tc-1", toolName: "generateImage", input: { prompt: "a sunset", model: "flux-pro" } },
       buffer as any,
+      { value: false },
       { value: false },
     );
 
@@ -336,6 +347,7 @@ describe("handleToolCall", () => {
       messageId,
       { toolCallId: "tc-1", toolName: "webSearch" },
       buffer as any,
+      { value: false },
       { value: false },
     );
 
@@ -361,6 +373,7 @@ describe("handleToolCall", () => {
       messageId,
       { toolCallId: "tc-1", toolName: "webSearch" },
       buffer as any,
+      { value: false },
       { value: false },
     );
   });
