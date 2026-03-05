@@ -76,7 +76,13 @@ function progressFromEvent(event: Record<string, unknown>): ResearchProgress | n
     }
     if (type === "crawl") {
       const result = data.result as { url?: string } | undefined;
-      const host = result?.url ? new URL(result.url).hostname : undefined;
+      const host = (() => {
+        try {
+          return result?.url ? new URL(result.url).hostname : undefined;
+        } catch {
+          return undefined;
+        }
+      })();
       return {
         stage: "reading",
         detail: host ? `Reading ${host}…` : "Reading page…",
@@ -108,7 +114,13 @@ function progressFromEvent(event: Record<string, unknown>): ResearchProgress | n
     }
     if (type === "crawl") {
       const result = data.result as { url?: string } | undefined;
-      const host = result?.url ? new URL(result.url).hostname : undefined;
+      const host = (() => {
+        try {
+          return result?.url ? new URL(result.url).hostname : undefined;
+        } catch {
+          return undefined;
+        }
+      })();
       return {
         stage: "reading",
         detail: host ? `Reading ${host}…` : "Reading page…",

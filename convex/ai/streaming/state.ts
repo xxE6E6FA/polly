@@ -113,7 +113,7 @@ export function configureTools(
   messageId: Id<"messages">,
   deepResearchRequested?: boolean,
 ): ToolConfig & { toolInstructions: string } {
-  const useWebSearch = supportsTools && !!exaApiKey;
+  const useWebSearch = supportsTools && !!exaApiKey && !deepResearchRequested;
   const useImageGen =
     supportsTools && !!replicateApiKey && imageModels.length > 0;
   const useDeepResearch = supportsTools && !!exaApiKey && !!deepResearchRequested;
@@ -138,10 +138,9 @@ export function configureTools(
   }
   if (useDeepResearch) {
     toolInstructions += `\n\n${DEEP_RESEARCH_INSTRUCTIONS}`;
-    // Also include citation instructions for deep research results
-    if (!useWebSearch) {
-      toolInstructions += `\n\n${CITATION_INSTRUCTIONS}`;
-    }
+    // CITATION_INSTRUCTIONS should be included for deep research results,
+    // though webSearch is not available when deepResearch is enabled
+    toolInstructions += `\n\n${CITATION_INSTRUCTIONS}`;
   }
 
   return { useWebSearch, useImageGen, useDeepResearch, hasAnyTools, toolInstructions };
