@@ -21,6 +21,7 @@ export async function internalCloneMessagesHandler(
       status?:
         | "thinking"
         | "searching"
+        | "researching"
         | "reading_pdf"
         | "streaming"
         | "done"

@@ -9,6 +9,7 @@ import type { LanguageModel, ModelMessage } from "ai";
 import { IMAGE_GEN_MARKER } from "../../../shared/constants";
 import {
   CITATION_INSTRUCTIONS,
+  DEEP_RESEARCH_INSTRUCTIONS,
   IMAGE_GENERATION_INSTRUCTIONS,
 } from "../../../shared/system-prompts";
 import { internal } from "../../_generated/api";
@@ -19,6 +20,7 @@ import { getRawErrorMessage, getUserFriendlyErrorMessage } from "../error_handle
 import {
   createWebSearchTool,
   createImageGenerationTool,
+  createDeepResearchTool,
   type ImageModelInfo,
 } from "../tools";
 import type { StreamBuffer } from "./buffer";
@@ -50,11 +52,14 @@ export type StreamingParams = {
   provider?: string;
   // Skip initialization when sendMessageHandler already set up streaming state
   skipInitialization?: boolean;
+  // Deep research toggle
+  useDeepResearch?: boolean;
 };
 
 export type ToolConfig = {
   useWebSearch: boolean;
   useImageGen: boolean;
+  useDeepResearch: boolean;
   hasAnyTools: boolean;
 };
 
@@ -106,17 +111,20 @@ export function configureTools(
   replicateApiKey: string | undefined,
   imageModels: ImageModelInfo[],
   messageId: Id<"messages">,
+  deepResearchRequested?: boolean,
 ): ToolConfig & { toolInstructions: string } {
   const useWebSearch = supportsTools && !!exaApiKey;
   const useImageGen =
     supportsTools && !!replicateApiKey && imageModels.length > 0;
-  const hasAnyTools = useWebSearch || useImageGen;
+  const useDeepResearch = supportsTools && !!exaApiKey && !!deepResearchRequested;
+  const hasAnyTools = useWebSearch || useImageGen || useDeepResearch;
 
   console.log("[streaming_core] Tool configuration:", {
     supportsTools,
     hasExaApiKey: !!exaApiKey,
     useWebSearch,
     useImageGen,
+    useDeepResearch,
     imageModelCount: imageModels.length,
     messageId,
   });
@@ -128,8 +136,15 @@ export function configureTools(
   if (useImageGen) {
     toolInstructions += `\n\n${IMAGE_GENERATION_INSTRUCTIONS}`;
   }
+  if (useDeepResearch) {
+    toolInstructions += `\n\n${DEEP_RESEARCH_INSTRUCTIONS}`;
+    // Also include citation instructions for deep research results
+    if (!useWebSearch) {
+      toolInstructions += `\n\n${CITATION_INSTRUCTIONS}`;
+    }
+  }
 
-  return { useWebSearch, useImageGen, hasAnyTools, toolInstructions };
+  return { useWebSearch, useImageGen, useDeepResearch, hasAnyTools, toolInstructions };
 }
 
 /**
@@ -143,6 +158,7 @@ export function buildToolOptions(
   replicateApiKey: string | undefined,
   imageModels: ImageModelInfo[],
   hasCalledImageGenRef: { value: boolean },
+  abortSignal?: AbortSignal,
 ) {
   if (!toolConfig.hasAnyTools) return {};
 
@@ -159,6 +175,16 @@ export function buildToolOptions(
               messageId,
               replicateApiKey!,
               imageModels,
+            ),
+          }
+        : {}),
+      ...(toolConfig.useDeepResearch
+        ? {
+            deepResearch: createDeepResearchTool(
+              exaApiKey!,
+              ctx,
+              messageId,
+              abortSignal,
             ),
           }
         : {}),
@@ -215,6 +241,9 @@ export async function handleToolCall(
     if (chunk.toolName === "generateImage") {
       toolArgs.prompt = chunk.input.prompt as string | undefined;
       toolArgs.imageModel = chunk.input.model as string | undefined;
+    } else if (chunk.toolName === "deepResearch") {
+      toolArgs.instructions = chunk.input.instructions as string | undefined;
+      toolArgs.researchModel = chunk.input.model as string | undefined;
     } else {
       toolArgs.query = chunk.input.query as string | undefined;
       toolArgs.mode = chunk.input.searchMode as string | undefined;
@@ -240,7 +269,7 @@ export async function handleToolCall(
 
   await ctx.runMutation(internal.messages.updateMessageStatus, {
     messageId,
-    status: "searching",
+    status: chunk.toolName === "deepResearch" ? "researching" : "searching",
   });
 }
 

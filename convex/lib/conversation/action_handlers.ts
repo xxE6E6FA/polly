@@ -134,6 +134,7 @@ export async function sendMessageHandler(
     presencePenalty?: number;
     topK?: number;
     repetitionPenalty?: number;
+    useDeepResearch?: boolean;
   }
 ): Promise<{
   userMessageId: Id<"messages">;
@@ -158,6 +159,7 @@ export async function sendMessageHandler(
       attachments: args.attachments,
       reasoningConfig: args.reasoningConfig,
       temperature: args.temperature,
+      useDeepResearch: args.useDeepResearch,
     },
   );
 
@@ -371,6 +373,7 @@ export async function startConversationHandler(
     provider?: string;
     reasoningConfig?: { enabled: boolean };
     temperature?: number;
+    useDeepResearch?: boolean;
   }
 ): Promise<{
   conversationId: Id<"conversations">;
@@ -397,6 +400,7 @@ export async function startConversationHandler(
       provider: args.provider,
       reasoningConfig: args.reasoningConfig,
       temperature: args.temperature,
+      useDeepResearch: args.useDeepResearch,
     },
   );
 

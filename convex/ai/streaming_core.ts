@@ -52,6 +52,7 @@ export async function streamLLMToMessage({
   modelId,
   provider,
   skipInitialization,
+  useDeepResearch,
 }: StreamingParams) {
   // ── Initialize ────────────────────────────────────────────────────────
   if (!skipInitialization) {
@@ -84,6 +85,7 @@ export async function streamLLMToMessage({
     replicateApiKey,
     imageModels,
     messageId,
+    useDeepResearch,
   );
 
   // Inject tool-specific instructions into the system message
@@ -134,6 +136,7 @@ export async function streamLLMToMessage({
         replicateApiKey,
         imageModels,
         hasCalledImageGenRef,
+        abortController?.signal,
       ),
       ...extraOptions,
     };

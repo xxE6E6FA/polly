@@ -274,6 +274,7 @@ export const prepareSendMessage = internalMutation({
     attachments: v.optional(v.array(attachmentSchema)),
     reasoningConfig: v.optional(reasoningConfigSchema),
     temperature: v.optional(v.number()),
+    useDeepResearch: v.optional(v.boolean()),
   },
   handler: prepareSendMessageHandler,
 });
@@ -294,6 +295,7 @@ export const prepareStartConversation = internalMutation({
     provider: v.optional(v.string()),
     reasoningConfig: v.optional(reasoningConfigSchema),
     temperature: v.optional(v.number()),
+    useDeepResearch: v.optional(v.boolean()),
   },
   handler: prepareStartConversationHandler,
 });
@@ -445,6 +447,7 @@ export const sendMessage = action({
     presencePenalty: v.optional(v.number()),
     topK: v.optional(v.number()),
     repetitionPenalty: v.optional(v.number()),
+    useDeepResearch: v.optional(v.boolean()),
   },
   returns: v.object({
     userMessageId: v.id("messages"),
@@ -490,6 +493,7 @@ export const startConversation = action({
     provider: v.optional(v.string()),
     reasoningConfig: v.optional(reasoningConfigSchema),
     temperature: v.optional(v.number()),
+    useDeepResearch: v.optional(v.boolean()),
   },
   returns: v.object({
     conversationId: v.id("conversations"),

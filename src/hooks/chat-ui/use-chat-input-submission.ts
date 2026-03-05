@@ -18,12 +18,14 @@ interface UseChatInputSubmissionProps {
   conversationId?: ConversationId;
   selectedPersonaId: Id<"personas"> | null;
   temperature?: number;
+  useDeepResearch?: boolean;
   onSendMessage: (
     content: string,
     attachments?: Attachment[],
     personaId?: Id<"personas"> | null,
     reasoningConfig?: ReasoningConfig,
-    temperature?: number
+    temperature?: number,
+    useDeepResearch?: boolean
   ) => void;
   onSendAsNewConversation?: (
     content: string,
@@ -47,6 +49,7 @@ export function useChatInputSubmission({
   conversationId,
   selectedPersonaId,
   temperature,
+  useDeepResearch,
   onSendMessage,
   onSendAsNewConversation,
   handleImageGenerationSubmit,
@@ -130,7 +133,8 @@ export function useChatInputSubmission({
             uploadedAttachments,
             selectedPersonaId,
             reasoningConfig.enabled ? reasoningConfig : undefined,
-            temperature
+            temperature,
+            useDeepResearch
           );
         }
 
@@ -152,6 +156,7 @@ export function useChatInputSubmission({
       selectedPersonaId,
       reasoningConfig,
       temperature,
+      useDeepResearch,
       handleImageGenerationSubmit,
       onResetInputState,
       notificationDialog,

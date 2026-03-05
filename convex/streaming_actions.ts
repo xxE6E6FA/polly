@@ -196,6 +196,7 @@ export type StreamMessageArgs = {
     modelVersion?: string;
   }>;
   userId?: Id<"users">;
+  useDeepResearch?: boolean;
 };
 
 /** Core streaming logic. Called directly from action handlers or via the streamMessage internalAction. */
@@ -407,6 +408,7 @@ export async function executeStreamMessage(
       userId: args.userId,
       modelId,
       provider,
+      useDeepResearch: args.useDeepResearch,
     });
   } catch (error) {
     // Update message to error state on any failure (including setup errors before streaming)
@@ -467,6 +469,7 @@ export const streamMessage = internalAction({
       )
     ),
     userId: v.optional(v.id("users")),
+    useDeepResearch: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     await executeStreamMessage(ctx, args);

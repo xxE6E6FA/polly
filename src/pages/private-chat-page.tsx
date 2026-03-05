@@ -264,7 +264,8 @@ export default function PrivateChatPage() {
       attachments?: Attachment[],
       personaId?: Id<"personas"> | null,
       reasoningConfig?: ReasoningConfig,
-      temperature?: number
+      temperature?: number,
+      _useDeepResearch?: boolean
     ) => {
       await privateChat.sendMessage(content, attachments, {
         personaId,

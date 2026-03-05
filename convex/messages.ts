@@ -77,6 +77,7 @@ import {
   updateImageGenerationHandler,
   updateMessageErrorHandler,
   updateMessageStatusHandler,
+  updateToolCallProgressHandler,
 } from "./lib/message/internal_handlers";
 // Import handlers for use in function registrations
 import {
@@ -467,6 +468,19 @@ export const finalizeToolResult = internalMutation({
     messageStatus: messageStatusSchema,
   },
   handler: finalizeToolResultHandler,
+});
+
+export const updateToolCallProgress = internalMutation({
+  args: {
+    messageId: v.id("messages"),
+    toolName: v.string(),
+    progress: v.object({
+      stage: v.optional(v.string()),
+      detail: v.optional(v.string()),
+      updatedAt: v.optional(v.number()),
+    }),
+  },
+  handler: updateToolCallProgressHandler,
 });
 
 export const internalGetAllInConversation = internalMutation({

@@ -444,6 +444,50 @@ export async function finalizeToolResultHandler(
   );
 }
 
+export async function updateToolCallProgressHandler(
+  ctx: MutationCtx,
+  args: {
+    messageId: Id<"messages">;
+    toolName: string;
+    progress: {
+      stage?: string;
+      detail?: string;
+      updatedAt?: number;
+    };
+  }
+) {
+  const { messageId, toolName, progress } = args;
+  return await withRetry(
+    async () => {
+      const message = await ctx.db.get("messages", messageId);
+      if (!message) {
+        return;
+      }
+
+      const toolCalls = message.toolCalls ?? [];
+      // Find the running tool call by name
+      const updatedCalls = toolCalls.map(tc => {
+        if (tc.name === toolName && tc.status === "running") {
+          return {
+            ...tc,
+            progress: {
+              ...progress,
+              updatedAt: progress.updatedAt ?? Date.now(),
+            },
+          };
+        }
+        return tc;
+      });
+
+      await ctx.db.patch("messages", messageId, {
+        toolCalls: updatedCalls,
+      });
+    },
+    5,
+    25
+  );
+}
+
 export async function internalGetByIdQueryHandler(
   ctx: QueryCtx,
   args: { id: Id<"messages"> }
@@ -685,6 +729,7 @@ export async function updateMessageStatusHandler(
         | "error"
         | "thinking"
         | "searching"
+        | "researching"
         | "reading_pdf"
         | "streaming"
         | "done";
@@ -820,6 +865,7 @@ export async function updateAssistantStatusHandler(
         | "error"
         | "thinking"
         | "searching"
+        | "researching"
         | "reading_pdf"
         | "streaming"
         | "done";
@@ -830,6 +876,7 @@ export async function updateAssistantStatusHandler(
         | "error"
         | "thinking"
         | "searching"
+        | "researching"
         | "reading_pdf"
         | "streaming"
         | "done",

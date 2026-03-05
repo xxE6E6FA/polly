@@ -537,7 +537,8 @@ export default function ConversationRoute() {
       attachments?: Attachment[],
       personaId?: Id<"personas"> | null,
       reasoningConfig?: ReasoningConfig,
-      temperature?: number
+      temperature?: number,
+      useDeepResearch?: boolean
     ) => {
       await sendMessage({
         content,
@@ -545,6 +546,7 @@ export default function ConversationRoute() {
         personaId,
         reasoningConfig,
         temperature,
+        useDeepResearch,
       });
     },
     [sendMessage]

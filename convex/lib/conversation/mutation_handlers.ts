@@ -1001,6 +1001,7 @@ export async function prepareSendMessageHandler(
     }>;
     reasoningConfig?: { enabled: boolean };
     temperature?: number;
+    useDeepResearch?: boolean;
   }
 ): Promise<{
   userMessageId: Id<"messages">;
@@ -1124,6 +1125,7 @@ export async function prepareSendMessageHandler(
     personaId: effectivePersonaId,
     reasoningConfig: args.reasoningConfig,
     userId,
+    useDeepResearch: args.useDeepResearch,
   });
 
   return { userMessageId, assistantMessageId };
@@ -1153,6 +1155,7 @@ export async function prepareStartConversationHandler(
     provider?: string;
     reasoningConfig?: { enabled: boolean };
     temperature?: number;
+    useDeepResearch?: boolean;
   }
 ): Promise<{
   conversationId: Id<"conversations">;
@@ -1282,6 +1285,7 @@ export async function prepareStartConversationHandler(
     personaId: args.personaId,
     reasoningConfig: args.reasoningConfig,
     userId,
+    useDeepResearch: args.useDeepResearch,
   });
 
   // 10. Schedule title generation
@@ -1570,6 +1574,7 @@ async function scheduleStreamMessage(
     personaId?: Id<"personas">;
     reasoningConfig?: { enabled: boolean };
     userId: Id<"users">;
+    useDeepResearch?: boolean;
   },
 ) {
   const { streamingArgs, ...rest } = opts;
