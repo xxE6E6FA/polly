@@ -2,6 +2,7 @@ import { api } from "@convex/_generated/api";
 import type { Doc } from "@convex/_generated/dataModel";
 import {
   ANONYMOUS_MESSAGE_LIMIT,
+  MONTHLY_DEEP_RESEARCH_LIMIT,
   MONTHLY_MESSAGE_LIMIT,
 } from "@shared/constants";
 import { useAction, useConvexAuth, useMutation, useQuery } from "convex/react";
@@ -31,6 +32,7 @@ interface UserData {
   hasMessageLimit: boolean;
   hasUnlimitedCalls: boolean;
   monthlyUsage?: MonthlyUsage;
+  deepResearchRemaining: number;
   hasUserApiKeys: boolean;
   hasUserModels: boolean;
   isAuthenticated: boolean;
@@ -65,6 +67,7 @@ type UserUsage = {
   hasMessageLimit: boolean;
   hasUnlimitedCalls: boolean;
   monthlyUsage?: MonthlyUsage;
+  deepResearchRemaining: number;
 };
 
 const UserIdentityContext = createContext<UserIdentity | undefined>(undefined);
@@ -78,6 +81,7 @@ const DEFAULT_USER_DATA: UserData = {
   hasMessageLimit: true,
   hasUnlimitedCalls: false,
   monthlyUsage: undefined,
+  deepResearchRemaining: 0,
   hasUserApiKeys: false,
   hasUserModels: false,
   isAuthenticated: false,
@@ -104,6 +108,7 @@ function buildUserData(
         monthlyLimit: ANONYMOUS_MESSAGE_LIMIT,
         remainingMessages,
       },
+      deepResearchRemaining: 0,
       hasUserApiKeys,
       hasUserModels,
       isAuthenticated: false,
@@ -126,11 +131,17 @@ function buildUserData(
         resetDate: user.lastMonthlyReset,
       };
 
+  const deepResearchUsed = user.monthlyDeepResearchUsed ?? 0;
+  const deepResearchRemaining = hasUnlimitedCalls
+    ? Number.MAX_SAFE_INTEGER
+    : Math.max(0, MONTHLY_DEEP_RESEARCH_LIMIT - deepResearchUsed);
+
   return {
     canSendMessage: hasUnlimitedCalls || remainingMessages > 0 || hasUserModels,
     hasMessageLimit: !hasUnlimitedCalls,
     hasUnlimitedCalls,
     monthlyUsage,
+    deepResearchRemaining,
     hasUserApiKeys,
     hasUserModels,
     isAuthenticated: true,
@@ -392,11 +403,13 @@ export const UserDataProvider: React.FC<{ children: React.ReactNode }> = ({
       hasMessageLimit: combinedValue.hasMessageLimit,
       hasUnlimitedCalls: combinedValue.hasUnlimitedCalls,
       monthlyUsage: combinedValue.monthlyUsage,
+      deepResearchRemaining: combinedValue.deepResearchRemaining,
     };
   }, [
     combinedValue.hasMessageLimit,
     combinedValue.hasUnlimitedCalls,
     combinedValue.monthlyUsage,
+    combinedValue.deepResearchRemaining,
   ]);
 
   return (

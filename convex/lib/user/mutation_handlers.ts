@@ -8,6 +8,26 @@ import {
 } from "../shared_utils";
 
 /**
+ * Handler for incrementing deep research usage counter.
+ */
+export async function incrementDeepResearchHandler(
+  ctx: MutationCtx,
+  args: { userId: Id<"users"> },
+) {
+  await withRetry(
+    async () => {
+      const fresh = await ctx.db.get(args.userId);
+      if (!fresh) return;
+      await ctx.db.patch(args.userId, {
+        monthlyDeepResearchUsed: (fresh.monthlyDeepResearchUsed || 0) + 1,
+      });
+    },
+    5,
+    25,
+  );
+}
+
+/**
  * Handler for incrementing user message statistics.
  */
 export async function incrementMessageHandler(

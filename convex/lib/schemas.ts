@@ -566,6 +566,7 @@ export const userSchema = v.object({
   monthlyLimit: v.optional(v.number()), // Monthly limit for built-in models
   lastMonthlyReset: v.optional(v.number()),
   hasUnlimitedCalls: v.optional(v.boolean()),
+  monthlyDeepResearchUsed: v.optional(v.number()), // Monthly deep research usage counter
   conversationCount: v.optional(v.number()),
   totalMessageCount: v.optional(v.number()), // Current count of messages in database (decremented when messages are deleted)
 });

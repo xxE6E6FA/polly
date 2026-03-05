@@ -87,7 +87,8 @@ export function ChatInputBottomBar({
 }: ChatInputBottomBarProps) {
   const { selectedModel } = useSelectedModel();
   const { user } = useUserDataContext();
-  const { monthlyUsage, hasUnlimitedCalls } = useUserUsage();
+  const { monthlyUsage, hasUnlimitedCalls, deepResearchRemaining } =
+    useUserUsage();
   const userSettings = useUserSettings();
   const online = useOnline();
   const speech = useSpeechInputContext();
@@ -252,31 +253,42 @@ export function ChatInputBottomBar({
                   />
                 )}
 
-              {user && !isPrivateMode && onDeepResearchToggle && (
-                <Tooltip>
-                  <TooltipTrigger delayDuration={200}>
-                    <PickerTrigger
-                      variant={deepResearchEnabled ? "active" : "ghost"}
-                      size="icon"
-                      onClick={() => onDeepResearchToggle(!deepResearchEnabled)}
-                      disabled={disabled}
-                      aria-label={
-                        deepResearchEnabled
-                          ? "Disable deep research"
-                          : "Enable deep research"
-                      }
-                      aria-pressed={deepResearchEnabled}
-                    >
-                      <MagnifyingGlassIcon className="size-4" />
-                    </PickerTrigger>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    {deepResearchEnabled
-                      ? "Deep research enabled"
-                      : "Enable deep research"}
-                  </TooltipContent>
-                </Tooltip>
-              )}
+              {user &&
+                !isPrivateMode &&
+                onDeepResearchToggle &&
+                deepResearchRemaining > 0 && (
+                  <Tooltip>
+                    <TooltipTrigger delayDuration={200}>
+                      <PickerTrigger
+                        variant={deepResearchEnabled ? "active" : "ghost"}
+                        size="icon"
+                        onClick={() =>
+                          onDeepResearchToggle(!deepResearchEnabled)
+                        }
+                        disabled={disabled}
+                        aria-label={
+                          deepResearchEnabled
+                            ? "Disable deep research"
+                            : "Enable deep research"
+                        }
+                        aria-pressed={deepResearchEnabled}
+                      >
+                        <MagnifyingGlassIcon className="size-4" />
+                      </PickerTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      {(() => {
+                        if (deepResearchEnabled) {
+                          return "Deep research enabled";
+                        }
+                        if (hasUnlimitedCalls) {
+                          return "Enable deep research";
+                        }
+                        return `Deep research (${deepResearchRemaining} remaining)`;
+                      })()}
+                    </TooltipContent>
+                  </Tooltip>
+                )}
             </div>
           )}
         </div>

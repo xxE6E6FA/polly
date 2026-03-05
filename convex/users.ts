@@ -25,6 +25,7 @@ import { createDefaultConversationFields } from "./lib/shared_utils";
 import {
   clearAllDataHandler,
   deleteAccountHandler,
+  incrementDeepResearchHandler,
   incrementMessageHandler,
   internalDeleteUserDataHandler,
   internalPatchHandler,
@@ -50,6 +51,11 @@ export const incrementMessage = internalMutation({
     countTowardsMonthly: v.optional(v.boolean()),
   },
   handler: incrementMessageHandler,
+});
+
+export const incrementDeepResearch = internalMutation({
+  args: { userId: v.id("users") },
+  handler: incrementDeepResearchHandler,
 });
 
 export const getById = query({

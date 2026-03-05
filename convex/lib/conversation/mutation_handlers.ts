@@ -22,6 +22,7 @@ import {
   setConversationStreaming,
   validateAuthenticatedUser,
   validateConversationAccess,
+  validateDeepResearchUsage,
   validateFreeModelUsage,
   validateTitleLength,
   validateUserMessageLength,
@@ -1027,6 +1028,14 @@ export async function prepareSendMessageHandler(
     throw new Error(
       "This conversation has reached its context limit. Please continue in a new conversation.",
     );
+  }
+
+  // Validate deep research quota if requested
+  if (args.useDeepResearch) {
+    const user = await ctx.db.get(userId);
+    if (user) {
+      validateDeepResearchUsage(user);
+    }
   }
 
   const effectivePersonaId =

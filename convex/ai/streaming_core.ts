@@ -63,6 +63,7 @@ export async function streamLLMToMessage({
   const citationsRef: { value: Citation[] } = { value: [] };
   const hasCalledImageGenRef = { value: false };
   let isToolRunning = false;
+  let lastToolName = "";
 
   // Timing metrics
   const timing: TimingMetrics = {
@@ -186,6 +187,7 @@ export async function streamLLMToMessage({
             toolName: string;
             input?: Record<string, unknown>;
           };
+          lastToolName = toolChunk.toolName;
           await handleToolCall(
             ctx,
             messageId,
@@ -202,6 +204,20 @@ export async function streamLLMToMessage({
             output?: { success?: boolean; citations?: Citation[] };
           };
           await handleToolResult(ctx, messageId, toolResult, citationsRef);
+          // Increment deep research usage counter on success
+          if (
+            lastToolName === "deepResearch" &&
+            toolResult.output?.success &&
+            userId
+          ) {
+            try {
+              await ctx.runMutation(internal.users.incrementDeepResearch, {
+                userId,
+              });
+            } catch {
+              // Best-effort — don't fail the stream
+            }
+          }
           isToolRunning = false;
         }
 
