@@ -40,7 +40,7 @@ interface ChatInputProps {
     reasoningConfig?: ReasoningConfig,
     temperature?: number,
     useDeepResearch?: boolean
-  ) => void;
+  ) => void | Promise<void>;
   onSendAsNewConversation?: (
     content: string,
     shouldNavigate: boolean,

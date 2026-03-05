@@ -26,7 +26,7 @@ interface UseChatInputSubmissionProps {
     reasoningConfig?: ReasoningConfig,
     temperature?: number,
     useDeepResearch?: boolean
-  ) => void;
+  ) => void | Promise<void>;
   onSendAsNewConversation?: (
     content: string,
     shouldNavigate: boolean,
@@ -129,7 +129,7 @@ export function useChatInputSubmission({
           const uploadedAttachments =
             await uploadAttachmentsToConvex(attachments);
 
-          onSendMessage(
+          await onSendMessage(
             input.trim(),
             uploadedAttachments,
             selectedPersonaId,
