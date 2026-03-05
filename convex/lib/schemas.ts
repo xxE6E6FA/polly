@@ -340,6 +340,7 @@ export const conversationCreationSchema = v.object({
 export const messageStatusSchema = v.union(
   v.literal("thinking"),
   v.literal("searching"), // New status for web search in progress
+  v.literal("researching"), // Deep research in progress (30-90s)
   v.literal("reading_pdf"), // New status for PDF processing
   v.literal("streaming"),
   v.literal("done"),
@@ -565,6 +566,7 @@ export const userSchema = v.object({
   monthlyLimit: v.optional(v.number()), // Monthly limit for built-in models
   lastMonthlyReset: v.optional(v.number()),
   hasUnlimitedCalls: v.optional(v.boolean()),
+  monthlyDeepResearchUsed: v.optional(v.number()), // Monthly deep research usage counter
   conversationCount: v.optional(v.number()),
   totalMessageCount: v.optional(v.number()), // Current count of messages in database (decremented when messages are deleted)
 });
@@ -801,9 +803,16 @@ export const toolCallSchema = v.object({
       mode: v.optional(v.string()),
       prompt: v.optional(v.string()),
       imageModel: v.optional(v.string()),
+      instructions: v.optional(v.string()),
+      researchModel: v.optional(v.string()),
     })
   ),
   error: v.optional(v.string()),
+  progress: v.optional(v.object({
+    stage: v.optional(v.string()),
+    detail: v.optional(v.string()),
+    updatedAt: v.optional(v.number()),
+  })),
 });
 
 // Memory category schema

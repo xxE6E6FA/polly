@@ -13,7 +13,13 @@ type Params = {
   hasReasoning: boolean;
 };
 
-const ACTIVE_STATUSES = ["streaming", "thinking", "searching", "reading_pdf"];
+const ACTIVE_STATUSES = [
+  "streaming",
+  "thinking",
+  "searching",
+  "researching",
+  "reading_pdf",
+];
 
 /**
  * Derives the display phase for an assistant message.
@@ -72,6 +78,9 @@ export function useAssistantDisplayPhase({
   const statusLabel = useMemo(() => {
     if (messageStatus === "searching") {
       return "Searching…";
+    }
+    if (messageStatus === "researching") {
+      return "Researching…";
     }
     if (messageStatus === "reading_pdf") {
       return "Reading…";

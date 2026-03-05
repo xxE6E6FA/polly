@@ -1,7 +1,14 @@
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
+import { MagnifyingGlassIcon } from "@phosphor-icons/react";
 import { useMutation } from "convex/react";
 import { useCallback } from "react";
+import { PickerTrigger } from "@/components/ui/picker-trigger";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useSpeechInputContext } from "@/hooks";
 import { useVisibleControls } from "@/hooks/chat-ui/use-visible-controls";
 import { useChatScopedState } from "@/hooks/use-chat-scoped-state";
@@ -56,6 +63,8 @@ interface ChatInputBottomBarProps {
     free?: boolean;
   } | null;
   conversationPersonaId?: Id<"personas"> | null;
+  deepResearchEnabled?: boolean;
+  onDeepResearchToggle?: (enabled: boolean) => void;
 }
 
 export function ChatInputBottomBar({
@@ -73,10 +82,13 @@ export function ChatInputBottomBar({
   isPrivateMode,
   selectedImageModel,
   conversationPersonaId,
+  deepResearchEnabled,
+  onDeepResearchToggle,
 }: ChatInputBottomBarProps) {
   const { selectedModel } = useSelectedModel();
   const { user } = useUserDataContext();
-  const { monthlyUsage, hasUnlimitedCalls } = useUserUsage();
+  const { monthlyUsage, hasUnlimitedCalls, deepResearchRemaining } =
+    useUserUsage();
   const userSettings = useUserSettings();
   const online = useOnline();
   const speech = useSpeechInputContext();
@@ -239,6 +251,43 @@ export function ChatInputBottomBar({
                     onConfigChange={setReasoningConfig}
                     disabled={disabled}
                   />
+                )}
+
+              {user &&
+                !isPrivateMode &&
+                onDeepResearchToggle &&
+                deepResearchRemaining > 0 && (
+                  <Tooltip>
+                    <TooltipTrigger delayDuration={200}>
+                      <PickerTrigger
+                        variant={deepResearchEnabled ? "active" : "ghost"}
+                        size="icon"
+                        onClick={() =>
+                          onDeepResearchToggle(!deepResearchEnabled)
+                        }
+                        disabled={disabled}
+                        aria-label={
+                          deepResearchEnabled
+                            ? "Disable deep research"
+                            : "Enable deep research"
+                        }
+                        aria-pressed={deepResearchEnabled}
+                      >
+                        <MagnifyingGlassIcon className="size-4" />
+                      </PickerTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      {(() => {
+                        if (deepResearchEnabled) {
+                          return "Deep research enabled";
+                        }
+                        if (hasUnlimitedCalls) {
+                          return "Enable deep research";
+                        }
+                        return `Deep research (${deepResearchRemaining} remaining)`;
+                      })()}
+                    </TooltipContent>
+                  </Tooltip>
                 )}
             </div>
           )}

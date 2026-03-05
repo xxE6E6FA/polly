@@ -9,6 +9,7 @@ import type { LanguageModel, ModelMessage } from "ai";
 import { IMAGE_GEN_MARKER } from "../../../shared/constants";
 import {
   CITATION_INSTRUCTIONS,
+  DEEP_RESEARCH_INSTRUCTIONS,
   IMAGE_GENERATION_INSTRUCTIONS,
 } from "../../../shared/system-prompts";
 import { internal } from "../../_generated/api";
@@ -19,6 +20,7 @@ import { getRawErrorMessage, getUserFriendlyErrorMessage } from "../error_handle
 import {
   createWebSearchTool,
   createImageGenerationTool,
+  createDeepResearchTool,
   type ImageModelInfo,
 } from "../tools";
 import type { StreamBuffer } from "./buffer";
@@ -50,11 +52,14 @@ export type StreamingParams = {
   provider?: string;
   // Skip initialization when sendMessageHandler already set up streaming state
   skipInitialization?: boolean;
+  // Deep research toggle
+  useDeepResearch?: boolean;
 };
 
 export type ToolConfig = {
   useWebSearch: boolean;
   useImageGen: boolean;
+  useDeepResearch: boolean;
   hasAnyTools: boolean;
 };
 
@@ -106,17 +111,20 @@ export function configureTools(
   replicateApiKey: string | undefined,
   imageModels: ImageModelInfo[],
   messageId: Id<"messages">,
+  deepResearchRequested?: boolean,
 ): ToolConfig & { toolInstructions: string } {
-  const useWebSearch = supportsTools && !!exaApiKey;
+  const useWebSearch = supportsTools && !!exaApiKey && !deepResearchRequested;
   const useImageGen =
     supportsTools && !!replicateApiKey && imageModels.length > 0;
-  const hasAnyTools = useWebSearch || useImageGen;
+  const useDeepResearch = supportsTools && !!exaApiKey && !!deepResearchRequested;
+  const hasAnyTools = useWebSearch || useImageGen || useDeepResearch;
 
   console.log("[streaming_core] Tool configuration:", {
     supportsTools,
     hasExaApiKey: !!exaApiKey,
     useWebSearch,
     useImageGen,
+    useDeepResearch,
     imageModelCount: imageModels.length,
     messageId,
   });
@@ -128,8 +136,12 @@ export function configureTools(
   if (useImageGen) {
     toolInstructions += `\n\n${IMAGE_GENERATION_INSTRUCTIONS}`;
   }
+  if (useDeepResearch) {
+    toolInstructions += `\n\n${DEEP_RESEARCH_INSTRUCTIONS}`;
+    toolInstructions += `\n\n${CITATION_INSTRUCTIONS}`;
+  }
 
-  return { useWebSearch, useImageGen, hasAnyTools, toolInstructions };
+  return { useWebSearch, useImageGen, useDeepResearch, hasAnyTools, toolInstructions };
 }
 
 /**
@@ -143,6 +155,8 @@ export function buildToolOptions(
   replicateApiKey: string | undefined,
   imageModels: ImageModelInfo[],
   hasCalledImageGenRef: { value: boolean },
+  hasCalledDeepResearchRef: { value: boolean },
+  abortSignal?: AbortSignal,
 ) {
   if (!toolConfig.hasAnyTools) return {};
 
@@ -162,12 +176,22 @@ export function buildToolOptions(
             ),
           }
         : {}),
+      ...(toolConfig.useDeepResearch
+        ? {
+            deepResearch: createDeepResearchTool(
+              exaApiKey!,
+              ctx,
+              messageId,
+              abortSignal,
+            ),
+          }
+        : {}),
     },
     toolChoice: "auto",
-    // After an image generation, force the model to produce text (no more tool calls).
+    // After an image/deep-research call, force the model to produce text (no more tool calls).
     // Also caps at MAX_TOOL_STEPS for safety.
     prepareStep: ({ stepNumber }: { stepNumber: number }) => {
-      if (hasCalledImageGenRef.value || stepNumber >= MAX_TOOL_STEPS) {
+      if (hasCalledImageGenRef.value || hasCalledDeepResearchRef.value || stepNumber >= MAX_TOOL_STEPS) {
         return { toolChoice: "none" };
       }
       return {};
@@ -190,7 +214,11 @@ export async function handleToolCall(
   },
   buffer: StreamBuffer,
   hasCalledImageGenRef: { value: boolean },
+  hasCalledDeepResearchRef: { value: boolean },
 ) {
+  if (chunk.toolName === "deepResearch") {
+    hasCalledDeepResearchRef.value = true;
+  }
   if (chunk.toolName === "generateImage") {
     hasCalledImageGenRef.value = true;
     // Insert marker so the frontend knows where to place the image
@@ -215,6 +243,9 @@ export async function handleToolCall(
     if (chunk.toolName === "generateImage") {
       toolArgs.prompt = chunk.input.prompt as string | undefined;
       toolArgs.imageModel = chunk.input.model as string | undefined;
+    } else if (chunk.toolName === "deepResearch") {
+      toolArgs.instructions = chunk.input.instructions as string | undefined;
+      toolArgs.researchModel = chunk.input.model as string | undefined;
     } else {
       toolArgs.query = chunk.input.query as string | undefined;
       toolArgs.mode = chunk.input.searchMode as string | undefined;
@@ -240,7 +271,7 @@ export async function handleToolCall(
 
   await ctx.runMutation(internal.messages.updateMessageStatus, {
     messageId,
-    status: "searching",
+    status: chunk.toolName === "deepResearch" ? "researching" : "searching",
   });
 }
 

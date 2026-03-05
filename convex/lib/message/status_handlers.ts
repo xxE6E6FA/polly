@@ -37,6 +37,7 @@ export async function updateMessageStatusHandler(
         | "error"
         | "thinking"
         | "searching"
+        | "researching"
         | "reading_pdf"
         | "streaming"
         | "done";
@@ -172,6 +173,7 @@ export async function updateAssistantStatusHandler(
         | "error"
         | "thinking"
         | "searching"
+        | "researching"
         | "reading_pdf"
         | "streaming"
         | "done";
@@ -182,6 +184,7 @@ export async function updateAssistantStatusHandler(
         | "error"
         | "thinking"
         | "searching"
+        | "researching"
         | "reading_pdf"
         | "streaming"
         | "done",

@@ -38,8 +38,9 @@ interface ChatInputProps {
     attachments?: Attachment[],
     personaId?: Id<"personas"> | null,
     reasoningConfig?: ReasoningConfig,
-    temperature?: number
-  ) => void;
+    temperature?: number,
+    useDeepResearch?: boolean
+  ) => void | Promise<void>;
   onSendAsNewConversation?: (
     content: string,
     shouldNavigate: boolean,
@@ -48,7 +49,8 @@ interface ChatInputProps {
     sourceConversationId?: ConversationId,
     personaId?: Id<"personas"> | null,
     reasoningConfig?: ReasoningConfig,
-    temperature?: number
+    temperature?: number,
+    useDeepResearch?: boolean
   ) => Promise<ConversationId | undefined>;
   conversationId?: ConversationId;
   hasExistingMessages?: boolean;
@@ -103,6 +105,7 @@ const ChatInputInner = ({
   // Component-local state (not in store)
   const [input, setInput] = useState<string>("");
   const [activeQuote, setActiveQuote] = useState<string | null>(null);
+  const [deepResearchEnabled, setDeepResearchEnabled] = useState(false);
 
   const inlineTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const { hasReplicateApiKey } = useReplicateApiKey();
@@ -138,6 +141,7 @@ const ChatInputInner = ({
       conversationId,
       selectedPersonaId,
       temperature,
+      useDeepResearch: deepResearchEnabled || undefined,
       onSendMessage,
       onSendAsNewConversation,
       handleImageGenerationSubmit,
@@ -146,6 +150,7 @@ const ChatInputInner = ({
         setInput("");
         setAttachments([]);
         setActiveQuote(null);
+        setDeepResearchEnabled(false);
       },
     });
 
@@ -422,6 +427,8 @@ const ChatInputInner = ({
             isPrivateMode={isPrivateMode}
             selectedImageModel={selectedImageModel}
             conversationPersonaId={conversationPersonaId}
+            deepResearchEnabled={deepResearchEnabled}
+            onDeepResearchToggle={setDeepResearchEnabled}
           />
         </div>
       </div>

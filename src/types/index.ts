@@ -203,6 +203,7 @@ export type ChatMessage = {
   status?:
     | "thinking"
     | "searching"
+    | "researching"
     | "reading_pdf"
     | "streaming"
     | "done"

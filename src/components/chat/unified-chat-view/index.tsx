@@ -52,7 +52,8 @@ type UnifiedChatViewProps = {
     attachments?: Attachment[],
     personaId?: Id<"personas"> | null,
     reasoningConfig?: ReasoningConfig,
-    temperature?: number
+    temperature?: number,
+    useDeepResearch?: boolean
   ) => Promise<void>;
   onSendAsNewConversation?: (
     content: string,

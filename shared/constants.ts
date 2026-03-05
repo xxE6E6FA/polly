@@ -5,6 +5,7 @@
 // User limits
 export const MONTHLY_MESSAGE_LIMIT = 500;
 export const ANONYMOUS_MESSAGE_LIMIT = 10;
+export const MONTHLY_DEEP_RESEARCH_LIMIT = 10;
 
 // Built-in model constants
 export const DEFAULT_BUILTIN_MODEL_ID = "gemini-2.5-flash-lite";

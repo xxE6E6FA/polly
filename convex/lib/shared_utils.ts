@@ -7,6 +7,7 @@ import { getUserEffectiveModelWithCapabilities } from "./model_resolution";
 import { MAX_USER_MESSAGE_CHARS } from "../constants";
 import {
   ANONYMOUS_MESSAGE_LIMIT,
+  MONTHLY_DEEP_RESEARCH_LIMIT,
   MONTHLY_MESSAGE_LIMIT,
 } from "../../shared/constants";
 
@@ -254,7 +255,45 @@ export function validateFreeModelUsage(user: Doc<"users">): void {
   }
 }
 
+/**
+ * Check if user can use deep research.
+ * Users with unlimited calls bypass limits.
+ * Anonymous users cannot use deep research.
+ */
+export function checkDeepResearchUsage(user: Doc<"users">): {
+  canUse: boolean;
+  remaining: number;
+  limit: number;
+} {
+  if (user.isAnonymous) {
+    return { canUse: false, remaining: 0, limit: 0 };
+  }
+  if (user.hasUnlimitedCalls) {
+    return {
+      canUse: true,
+      remaining: Number.MAX_SAFE_INTEGER,
+      limit: 0,
+    };
+  }
+  const limit = MONTHLY_DEEP_RESEARCH_LIMIT;
+  const used = user.monthlyDeepResearchUsed ?? 0;
+  const remaining = Math.max(0, limit - used);
+  return { canUse: remaining > 0, remaining, limit };
+}
 
+/**
+ * Validate that user can use deep research.
+ * Throws ConvexError if limit is reached.
+ */
+export function validateDeepResearchUsage(user: Doc<"users">): void {
+  const { canUse, limit } = checkDeepResearchUsage(user);
+  if (!canUse) {
+    throw new ConvexError<string>(
+      `You've reached your monthly limit of ${limit} deep research queries. ` +
+        "Your limit resets monthly.",
+    );
+  }
+}
 
 // Create default conversation fields
 export function createDefaultConversationFields(
@@ -296,6 +335,7 @@ export function createDefaultMessageFields(
     status?:
       | "thinking"
       | "searching"
+      | "researching"
       | "reading_pdf"
       | "streaming"
       | "done"

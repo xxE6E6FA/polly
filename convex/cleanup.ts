@@ -298,6 +298,7 @@ export const resetMonthlyUserStats = internalMutation({
       if (needsReset) {
         await ctx.db.patch("users", user._id, {
           monthlyMessagesSent: 0,
+          monthlyDeepResearchUsed: 0,
           lastMonthlyReset: now,
         });
         resetCount++;

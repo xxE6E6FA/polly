@@ -47,6 +47,26 @@ const TOOL_CONFIG: Record<string, { icon: React.ReactNode; label: string }> = {
     ),
     label: "Conversation Search",
   },
+  deepResearch: {
+    icon: (
+      <svg
+        className={ICON_SIZE}
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        <circle cx="11" cy="11" r="8" />
+        <path d="m21 21-4.35-4.35" />
+        <path d="M11 8v6" />
+        <path d="M8 11h6" />
+      </svg>
+    ),
+    label: "Deep Research",
+  },
   generateImage: {
     icon: (
       <svg
@@ -161,6 +181,18 @@ export const ToolCallBlock = ({ toolCall }: ToolCallBlockProps) => {
     const imageLabel = getImageGenLabel(args, isRunning);
     runningLabel = imageLabel ?? `${config.label}...`;
     completedLabel = getImageGenLabel(args, false) ?? config.label;
+  } else if (name === "deepResearch") {
+    const progressDetail = toolCall.progress?.detail;
+    if (isRunning) {
+      runningLabel = progressDetail
+        ? `Researching — ${progressDetail}`
+        : "Researching…";
+    } else {
+      runningLabel = "Researching…";
+    }
+    completedLabel = args?.instructions
+      ? `Researched "${truncate(args.instructions, 40)}"`
+      : "Deep research complete";
   } else {
     runningLabel = args?.query
       ? `Searching for "${truncate(args.query, 30)}"`

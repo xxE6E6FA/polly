@@ -22,6 +22,7 @@ import {
   setConversationStreaming,
   validateAuthenticatedUser,
   validateConversationAccess,
+  validateDeepResearchUsage,
   validateFreeModelUsage,
   validateTitleLength,
   validateUserMessageLength,
@@ -1001,6 +1002,7 @@ export async function prepareSendMessageHandler(
     }>;
     reasoningConfig?: { enabled: boolean };
     temperature?: number;
+    useDeepResearch?: boolean;
   }
 ): Promise<{
   userMessageId: Id<"messages">;
@@ -1026,6 +1028,14 @@ export async function prepareSendMessageHandler(
     throw new Error(
       "This conversation has reached its context limit. Please continue in a new conversation.",
     );
+  }
+
+  // Validate deep research quota if requested
+  if (args.useDeepResearch) {
+    const user = await ctx.db.get(userId);
+    if (user) {
+      validateDeepResearchUsage(user);
+    }
   }
 
   const effectivePersonaId =
@@ -1124,6 +1134,7 @@ export async function prepareSendMessageHandler(
     personaId: effectivePersonaId,
     reasoningConfig: args.reasoningConfig,
     userId,
+    useDeepResearch: args.useDeepResearch,
   });
 
   return { userMessageId, assistantMessageId };
@@ -1153,6 +1164,7 @@ export async function prepareStartConversationHandler(
     provider?: string;
     reasoningConfig?: { enabled: boolean };
     temperature?: number;
+    useDeepResearch?: boolean;
   }
 ): Promise<{
   conversationId: Id<"conversations">;
@@ -1164,6 +1176,11 @@ export async function prepareStartConversationHandler(
   // 1. Verify user exists
   const user = await ctx.db.get("users", userId);
   if (!user) throw new Error("User not found");
+
+  // Validate deep research quota if requested
+  if (args.useDeepResearch) {
+    validateDeepResearchUsage(user);
+  }
 
   // 2. Create conversation
   const conversationId = await ctx.db.insert("conversations", {
@@ -1282,6 +1299,7 @@ export async function prepareStartConversationHandler(
     personaId: args.personaId,
     reasoningConfig: args.reasoningConfig,
     userId,
+    useDeepResearch: args.useDeepResearch,
   });
 
   // 10. Schedule title generation
@@ -1570,6 +1588,7 @@ async function scheduleStreamMessage(
     personaId?: Id<"personas">;
     reasoningConfig?: { enabled: boolean };
     userId: Id<"users">;
+    useDeepResearch?: boolean;
   },
 ) {
   const { streamingArgs, ...rest } = opts;

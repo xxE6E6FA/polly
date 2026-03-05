@@ -22,6 +22,7 @@ export interface SendMessageParams {
   personaId?: Id<"personas"> | null;
   reasoningConfig?: ReasoningConfig;
   useWebSearch?: boolean;
+  useDeepResearch?: boolean;
   temperature?: number;
 }
 
@@ -192,6 +193,7 @@ export const createServerChatHandlers = (
         presencePenalty: modelOptions.presencePenalty,
         webSearchMaxResults: modelOptions.webSearchMaxResults,
         useWebSearch: params.useWebSearch,
+        useDeepResearch: params.useDeepResearch,
       };
       if (params.personaId != null) {
         sendPayload.personaId = params.personaId as Id<"personas">;

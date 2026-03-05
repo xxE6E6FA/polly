@@ -220,7 +220,9 @@ export default function ConversationRoute() {
       contextSummary?: string,
       sourceConversationId?: ConversationId,
       personaId?: Id<"personas"> | null,
-      reasoningConfig?: ReasoningConfig
+      reasoningConfig?: ReasoningConfig,
+      _temperature?: number,
+      useDeepResearch?: boolean
     ) => {
       try {
         const result = await createBranchingConversationAction({
@@ -234,6 +236,7 @@ export default function ConversationRoute() {
           contextSummary,
           useWebSearch: true,
           generateTitle: true,
+          useDeepResearch,
         });
 
         if (result?.conversationId) {
@@ -537,7 +540,8 @@ export default function ConversationRoute() {
       attachments?: Attachment[],
       personaId?: Id<"personas"> | null,
       reasoningConfig?: ReasoningConfig,
-      temperature?: number
+      temperature?: number,
+      useDeepResearch?: boolean
     ) => {
       await sendMessage({
         content,
@@ -545,6 +549,7 @@ export default function ConversationRoute() {
         personaId,
         reasoningConfig,
         temperature,
+        useDeepResearch,
       });
     },
     [sendMessage]

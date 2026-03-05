@@ -22,7 +22,8 @@ interface UseChatViewStateOptions {
     attachments?: Attachment[],
     personaId?: Id<"personas"> | null,
     reasoningConfig?: ReasoningConfig,
-    temperature?: number
+    temperature?: number,
+    useDeepResearch?: boolean
   ) => Promise<void>;
   onDeleteMessage: (messageId: string) => Promise<void>;
 }
@@ -79,14 +80,16 @@ export function useChatViewState({
       attachments?: Attachment[],
       personaId?: Id<"personas"> | null,
       reasoningConfig?: ReasoningConfig,
-      temperature?: number
+      temperature?: number,
+      useDeepResearch?: boolean
     ) => {
       await onSendMessage(
         content,
         attachments,
         personaId,
         reasoningConfig,
-        temperature
+        temperature,
+        useDeepResearch
       );
 
       // Refocus the textarea after sending

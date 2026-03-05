@@ -52,6 +52,7 @@ export async function streamLLMToMessage({
   modelId,
   provider,
   skipInitialization,
+  useDeepResearch,
 }: StreamingParams) {
   // ── Initialize ────────────────────────────────────────────────────────
   if (!skipInitialization) {
@@ -61,7 +62,9 @@ export async function streamLLMToMessage({
   const exaApiKey = process.env.EXA_API_KEY;
   const citationsRef: { value: Citation[] } = { value: [] };
   const hasCalledImageGenRef = { value: false };
+  const hasCalledDeepResearchRef = { value: false };
   let isToolRunning = false;
+  let lastToolName = "";
 
   // Timing metrics
   const timing: TimingMetrics = {
@@ -84,6 +87,7 @@ export async function streamLLMToMessage({
     replicateApiKey,
     imageModels,
     messageId,
+    useDeepResearch,
   );
 
   // Inject tool-specific instructions into the system message
@@ -134,6 +138,8 @@ export async function streamLLMToMessage({
         replicateApiKey,
         imageModels,
         hasCalledImageGenRef,
+        hasCalledDeepResearchRef,
+        abortController?.signal,
       ),
       ...extraOptions,
     };
@@ -183,12 +189,14 @@ export async function streamLLMToMessage({
             toolName: string;
             input?: Record<string, unknown>;
           };
+          lastToolName = toolChunk.toolName;
           await handleToolCall(
             ctx,
             messageId,
             toolChunk,
             buffer,
             hasCalledImageGenRef,
+            hasCalledDeepResearchRef,
           );
         }
 
@@ -199,6 +207,20 @@ export async function streamLLMToMessage({
             output?: { success?: boolean; citations?: Citation[] };
           };
           await handleToolResult(ctx, messageId, toolResult, citationsRef);
+          // Increment deep research usage counter on success
+          if (
+            lastToolName === "deepResearch" &&
+            toolResult.output?.success &&
+            userId
+          ) {
+            try {
+              await ctx.runMutation(internal.users.incrementDeepResearch, {
+                userId,
+              });
+            } catch {
+              // Best-effort — don't fail the stream
+            }
+          }
           isToolRunning = false;
         }
 

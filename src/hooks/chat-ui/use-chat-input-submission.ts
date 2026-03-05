@@ -18,13 +18,15 @@ interface UseChatInputSubmissionProps {
   conversationId?: ConversationId;
   selectedPersonaId: Id<"personas"> | null;
   temperature?: number;
+  useDeepResearch?: boolean;
   onSendMessage: (
     content: string,
     attachments?: Attachment[],
     personaId?: Id<"personas"> | null,
     reasoningConfig?: ReasoningConfig,
-    temperature?: number
-  ) => void;
+    temperature?: number,
+    useDeepResearch?: boolean
+  ) => void | Promise<void>;
   onSendAsNewConversation?: (
     content: string,
     shouldNavigate: boolean,
@@ -33,7 +35,8 @@ interface UseChatInputSubmissionProps {
     sourceConversationId?: ConversationId,
     personaId?: Id<"personas"> | null,
     reasoningConfig?: ReasoningConfig,
-    temperature?: number
+    temperature?: number,
+    useDeepResearch?: boolean
   ) => Promise<ConversationId | undefined>;
   handleImageGenerationSubmit: () => Promise<void>;
   handleImageGenerationSendAsNew: (
@@ -47,6 +50,7 @@ export function useChatInputSubmission({
   conversationId,
   selectedPersonaId,
   temperature,
+  useDeepResearch,
   onSendMessage,
   onSendAsNewConversation,
   handleImageGenerationSubmit,
@@ -125,12 +129,13 @@ export function useChatInputSubmission({
           const uploadedAttachments =
             await uploadAttachmentsToConvex(attachments);
 
-          onSendMessage(
+          await onSendMessage(
             input.trim(),
             uploadedAttachments,
             selectedPersonaId,
             reasoningConfig.enabled ? reasoningConfig : undefined,
-            temperature
+            temperature,
+            useDeepResearch
           );
         }
 
@@ -152,6 +157,7 @@ export function useChatInputSubmission({
       selectedPersonaId,
       reasoningConfig,
       temperature,
+      useDeepResearch,
       handleImageGenerationSubmit,
       onResetInputState,
       notificationDialog,
@@ -210,7 +216,8 @@ export function useChatInputSubmission({
           conversationId,
           personaId,
           customReasoningConfig || reasoningConfig,
-          temperature
+          temperature,
+          useDeepResearch
         );
 
         if (newConversationId) {
@@ -227,6 +234,7 @@ export function useChatInputSubmission({
       generateSummaryAction,
       reasoningConfig,
       temperature,
+      useDeepResearch,
       onResetInputState,
       uploadAttachmentsToConvex,
       handleImageGenerationSendAsNew,

@@ -51,6 +51,18 @@ CITATIONS:
 `;
 
 /**
+ * Deep research instructions - appended when deep research is enabled
+ */
+export const DEEP_RESEARCH_INSTRUCTIONS = dedent`
+DEEP RESEARCH:
+- The user has requested deep research. Use the deepResearch tool to investigate their question.
+- You MUST call deepResearch with detailed instructions about what to find.
+- This will take 30-90 seconds. Inform the user it may take a moment.
+- After receiving results, synthesize findings and cite sources using [1], [2], etc.
+- Do not call webSearch when deepResearch is available — use deepResearch instead.
+`;
+
+/**
  * Image generation instructions - appended when image generation tool is available
  */
 export const IMAGE_GENERATION_INSTRUCTIONS = dedent`

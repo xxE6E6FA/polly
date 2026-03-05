@@ -29,3 +29,11 @@ export {
   type ImageGenerationToolParams,
   type ImageGenerationToolResult,
 } from "./image_generation";
+
+export {
+  createDeepResearchTool,
+  deepResearchToolSchema,
+  DEEP_RESEARCH_TOOL_NAME,
+  type DeepResearchToolParams,
+  type DeepResearchToolResult,
+} from "./deep_research";
