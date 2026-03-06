@@ -32,11 +32,16 @@ import { ActiveFilters } from "./active-filters";
 import { ModelFilters } from "./model-filters";
 import { ProviderSummary } from "./provider-summary";
 
+export type SortOption = "name" | "releaseDate";
+export type SortDirection = "asc" | "desc";
+
 export type FilterState = {
   searchQuery: string;
   selectedProviders: string[];
   selectedCapabilities: string[];
   showOnlySelected: boolean;
+  sortBy: SortOption;
+  sortDirection: SortDirection;
 };
 
 type FilterAction =
@@ -46,13 +51,19 @@ type FilterAction =
   | { type: "TOGGLE_SHOW_SELECTED" }
   | { type: "CLEAR_PROVIDERS" }
   | { type: "CLEAR_CAPABILITIES" }
-  | { type: "CLEAR_ALL" };
+  | { type: "CLEAR_ALL" }
+  | {
+      type: "SET_SORT";
+      payload: { sortBy: SortOption; sortDirection: SortDirection };
+    };
 
 const initialFilterState: FilterState = {
   searchQuery: "",
   selectedProviders: [],
   selectedCapabilities: [],
   showOnlySelected: false,
+  sortBy: "releaseDate",
+  sortDirection: "desc",
 };
 
 function filterReducer(state: FilterState, action: FilterAction): FilterState {
@@ -81,6 +92,12 @@ function filterReducer(state: FilterState, action: FilterAction): FilterState {
       return { ...state, selectedProviders: [] };
     case "CLEAR_CAPABILITIES":
       return { ...state, selectedCapabilities: [] };
+    case "SET_SORT":
+      return {
+        ...state,
+        sortBy: action.payload.sortBy,
+        sortDirection: action.payload.sortDirection,
+      };
     case "CLEAR_ALL":
       return initialFilterState;
     default:
@@ -303,8 +320,30 @@ export const TextModelsTab = () => {
           return true;
         });
 
-    // Show unavailable models first, then available models
-    return [...filteredUnavailable, ...available];
+    // Sort available models
+    const sortedAvailable = [...available].sort((a, b) => {
+      const dir = debouncedFilters.sortDirection === "asc" ? 1 : -1;
+      if (debouncedFilters.sortBy === "releaseDate") {
+        const aDate = a.releaseDate ?? "";
+        const bDate = b.releaseDate ?? "";
+        // Models without releaseDate go to the end regardless of direction
+        if (!(aDate || bDate)) {
+          return a.name.localeCompare(b.name);
+        }
+        if (!aDate) {
+          return 1;
+        }
+        if (!bDate) {
+          return -1;
+        }
+        const cmp = aDate.localeCompare(bDate);
+        return cmp !== 0 ? cmp * dir : a.name.localeCompare(b.name);
+      }
+      return a.name.localeCompare(b.name) * dir;
+    });
+
+    // Show unavailable models first, then sorted available models
+    return [...filteredUnavailable, ...sortedAvailable];
   }, [
     fuzzySearchResults,
     debouncedFilters,
@@ -363,6 +402,15 @@ export const TextModelsTab = () => {
     });
   }, []);
 
+  const handleSortChange = useCallback(
+    (sortBy: SortOption, sortDirection: SortDirection) => {
+      startTransition(() => {
+        dispatch({ type: "SET_SORT", payload: { sortBy, sortDirection } });
+      });
+    },
+    []
+  );
+
   const clearAllFilters = useCallback(() => {
     startTransition(() => {
       dispatch({ type: "CLEAR_ALL" });
@@ -420,6 +468,9 @@ export const TextModelsTab = () => {
           stats={stats}
           enabledModelsCount={enabledModels.length}
           isPending={isPending}
+          sortBy={filterState.sortBy}
+          sortDirection={filterState.sortDirection}
+          onSortChange={handleSortChange}
           onModelsFetched={setUnfilteredModels}
           onLoadingChange={setIsLoading}
           onError={setError}
