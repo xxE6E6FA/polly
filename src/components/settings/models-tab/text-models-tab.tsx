@@ -468,8 +468,6 @@ export const TextModelsTab = () => {
           stats={stats}
           enabledModelsCount={enabledModels.length}
           isPending={isPending}
-          sortBy={filterState.sortBy}
-          sortDirection={filterState.sortDirection}
           onSortChange={handleSortChange}
           onModelsFetched={setUnfilteredModels}
           onLoadingChange={setIsLoading}

@@ -40,8 +40,6 @@ interface ModelFiltersProps {
   } | null;
   enabledModelsCount?: number;
   isPending: boolean;
-  sortBy: SortOption;
-  sortDirection: SortDirection;
   onSortChange: (sortBy: SortOption, sortDirection: SortDirection) => void;
   onModelsFetched: (models: FetchedModel[]) => void;
   onLoadingChange: (isLoading: boolean) => void;
@@ -59,8 +57,6 @@ export const ModelFilters = memo(
     stats,
     enabledModelsCount,
     isPending,
-    sortBy,
-    sortDirection,
     onSortChange,
     onModelsFetched,
     onLoadingChange,
@@ -242,12 +238,11 @@ export const ModelFilters = memo(
               </DropdownMenuGroup>
               <DropdownMenuSeparator />
               <DropdownMenuRadioGroup
-                value={`${sortBy}-${sortDirection}`}
+                value={`${filterState.sortBy}-${filterState.sortDirection}`}
                 onValueChange={value => {
-                  const [by, dir] = value.split("-") as [
-                    SortOption,
-                    SortDirection,
-                  ];
+                  const lastDash = value.lastIndexOf("-");
+                  const by = value.slice(0, lastDash) as SortOption;
+                  const dir = value.slice(lastDash + 1) as SortDirection;
                   onSortChange(by, dir);
                 }}
               >
