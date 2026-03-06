@@ -424,6 +424,7 @@ export async function getAllProviderModelsHandler(
     supportsImages: model.inputModalities.includes("image"),
     supportsFiles:
       model.supportsAttachments ?? model.inputModalities.includes("file"),
+    releaseDate: model.releaseDate,
     isAvailable: true, // Models in cache are available
   }));
 }

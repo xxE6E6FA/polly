@@ -1,5 +1,6 @@
 import { api } from "@convex/_generated/api";
 import {
+  ArrowsDownUpIcon,
   CaretDownIcon,
   FunnelIcon,
   MagnifyingGlassIcon,
@@ -16,13 +17,15 @@ import {
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { getAllCapabilities } from "@/lib/model-capabilities";
 import type { FetchedModel } from "@/types";
-import type { FilterState } from "./text-models-tab";
+import type { FilterState, SortDirection, SortOption } from "./text-models-tab";
 
 interface ModelFiltersProps {
   filterState: FilterState;
@@ -37,6 +40,7 @@ interface ModelFiltersProps {
   } | null;
   enabledModelsCount?: number;
   isPending: boolean;
+  onSortChange: (sortBy: SortOption, sortDirection: SortDirection) => void;
   onModelsFetched: (models: FetchedModel[]) => void;
   onLoadingChange: (isLoading: boolean) => void;
   onError: (error: Error | null) => void;
@@ -53,6 +57,7 @@ export const ModelFilters = memo(
     stats,
     enabledModelsCount,
     isPending,
+    onSortChange,
     onModelsFetched,
     onLoadingChange,
     onError,
@@ -212,6 +217,48 @@ export const ModelFilters = memo(
                   </DropdownMenuCheckboxItem>
                 ))}
               </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger>
+              <Button
+                className="gap-1.5 h-9 text-sm"
+                size="sm"
+                variant="secondary"
+              >
+                <ArrowsDownUpIcon className="size-4 shrink-0" />
+                <span className="hidden sm:inline">Sort</span>
+                <CaretDownIcon className="ml-auto size-4 opacity-50 sm:ml-1" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuGroup>
+                <DropdownMenuLabel>Sort models</DropdownMenuLabel>
+              </DropdownMenuGroup>
+              <DropdownMenuSeparator />
+              <DropdownMenuRadioGroup
+                value={`${filterState.sortBy}-${filterState.sortDirection}`}
+                onValueChange={value => {
+                  const lastDash = value.lastIndexOf("-");
+                  const by = value.slice(0, lastDash) as SortOption;
+                  const dir = value.slice(lastDash + 1) as SortDirection;
+                  onSortChange(by, dir);
+                }}
+              >
+                <DropdownMenuRadioItem value="releaseDate-desc">
+                  Newest first
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="releaseDate-asc">
+                  Oldest first
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="name-asc">
+                  Name A–Z
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="name-desc">
+                  Name Z–A
+                </DropdownMenuRadioItem>
+              </DropdownMenuRadioGroup>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

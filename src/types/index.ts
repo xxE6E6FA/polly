@@ -540,6 +540,7 @@ export type FetchedModel = {
   supportsImages: boolean;
   supportsFiles: boolean;
   isAvailable?: boolean;
+  releaseDate?: string;
 };
 
 export type FetchedImageModel = {
